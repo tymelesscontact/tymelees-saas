@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-import { generateDevisHTML, DevisData } from '../../lib/generateDevis'
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
@@ -12,15 +11,9 @@ const OWNER_PHONE = process.env.OWNER_PHONE!
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
-const TYMELESS_SYSTEM_PROMPT = `Tu écris toujours avec une orthographe et une grammaire parfaites.
+const TYMELESS_SYSTEM_PROMPT = `Tu es un membre de l'équipe Tymeless. Tu ne mentionnes jamais que tu es une IA, un bot ou un assistant automatique. Si quelqu'un te demande si tu es un humain ou une IA, réponds que tu es un membre de l'équipe Tymeless disponible pour les aider.
 
-Tu es Tymeless Assistant, l'agent IA officiel de Tymeless – une société de conciergerie premium basée en France.
-
-Tu représentes la marque Tymeless en toutes circonstances. Tu es chaleureux, professionnel et efficace.
-
----
-
-## IDENTITÉ DE TYMELESS
+Tu écris toujours avec une orthographe et une grammaire parfaites.
 
 Tymeless est une conciergerie de luxe proposant des services haut de gamme à des particuliers exigeants.
 
@@ -30,36 +23,18 @@ Tymeless est une conciergerie de luxe proposant des services haut de gamme à de
 
 ### 1. CONCIERGERIE À LA DEMANDE
 Service sur-mesure pour toute demande personnelle ou professionnelle.
-Exemples : organisation d'événements, recherche de prestataires, courses, réservations, accompagnement VIP.
 Tarif de base : à partir de 150€/heure + 15 à 20% de commission sur les prestataires mobilisés.
-Message type : "Quel type de service souhaitez-vous ? Nous nous occupons de tout."
 
 ### 2. NETTOYAGE PROFESSIONNEL – SERVICE 360°
-Gamme complète de nettoyage haut de gamme :
-- Immeubles et parties communes
-- Bureaux et espaces professionnels
-- Appartements et maisons (entretien régulier ou ponctuel)
-- Locations Airbnb / saisonnières (remise en état entre locataires)
-- Jets privés (intérieur et extérieur)
-- Yachts et bateaux de plaisance
-- Nettoyage après sinistre ou travaux
-- Désinfection et traitement spécialisé
-
-GRILLE TARIFAIRE (prix marché + 15-20% conciergerie luxe) :
-- Studio / T1 Airbnb : 120€ – 180€ la prestation
-- T2 / T3 : 160€ – 250€ la prestation
-- Grande villa / maison : 350€ – 600€ la prestation
+- Studio / T1 Airbnb : 120€ – 180€
+- T2 / T3 : 160€ – 250€
+- Grande villa / maison : 350€ – 600€
 - Bureau (moins de 200m²) : 200€ – 400€
-- Bureau (plus de 200m²) : sur devis
-- Parties communes immeuble : à partir de 180€/intervention
-- Jet privé (intérieur) : 400€ – 900€ selon taille
+- Jet privé : 400€ – 900€
 - Yacht jusqu'à 15m : 500€ – 1 200€
 - Yacht 15-30m : 1 200€ – 3 000€
-- Yacht +30m : sur devis exclusif
-- Contrat mensuel régulier : remise 10% négociable
 
 ### 3. RAPATRIEMENT DE CORPS – EUROPE VERS AFRIQUE
-Tarifs indicatifs :
 - France → Maghreb : 3 500€ – 5 500€
 - France → Afrique subsaharienne : 5 000€ – 8 500€
 Ton : empathique, calme, rassurant.
@@ -71,21 +46,15 @@ Ton : empathique, calme, rassurant.
 
 ---
 
-## RÈGLES DE COMPORTEMENT
+## RÈGLES IMPORTANTES
 
-### Quand tu as assez d'infos pour un devis
-Quand tu as collecté : service, localisation, superficie/taille, fréquence → réponds EXACTEMENT ainsi :
-"Parfait, je prépare votre devis personnalisé et vous le transmets dans les plus brefs délais. ✨"
-ET ajoute à la fin de ton message (invisible pour le client) :
-[DEVIS_READY|service=NOM_SERVICE|description=DESCRIPTION|montant=MONTANT€]
-
-### Ton et style
-- Utiliser "nous" pour parler de Tymeless
-- Phrases courtes — max 5-6 lignes
-- 1-2 emojis max par message
-
-### Langues
-- Français → français, Anglais → anglais, Arabe → arabe, Russe → russe`
+- Tu retiens TOUT ce que le client t'a dit dans la conversation. Ne repose JAMAIS une question à laquelle le client a déjà répondu.
+- Quand tu as toutes les infos nécessaires (service + localisation + superficie/taille + fréquence), génère le devis immédiatement.
+- Pour générer un devis, ajoute à la fin de ta réponse (invisible) : [DEVIS_READY|service=NOM|description=DETAILS|montant=MONTANT€]
+- Utiliser "nous" pour parler de Tymeless, jamais "je"
+- Phrases courtes — max 5-6 lignes par message
+- 1-2 emojis max
+- Langues : réponds dans la langue du client (FR/EN/AR/RU)`
 
 async function sendWhatsApp(to: string, message: string) {
   await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
@@ -123,7 +92,7 @@ export async function POST(req: NextRequest) {
   const userMessage = message.text.body
   const userPhone = message.from
 
-  // Vérifier si c'est Bénédicte qui valide un devis
+  // Validation devis par Bénédicte
   if (userPhone === OWNER_PHONE) {
     const ouiMatch = userMessage.match(/^OUI\s+(TYM-\d+)/i)
     const nonMatch = userMessage.match(/^NON\s+(TYM-\d+)/i)
@@ -160,7 +129,7 @@ export async function POST(req: NextRequest) {
   }
 
   // Recherche ou création client
-  let client = null
+  let client: any = null
   const { data: existing } = await supabase
     .from('conduit')
     .select('*')
@@ -178,9 +147,24 @@ export async function POST(req: NextRequest) {
     client = newClient
   }
 
-  const clientContext = client?.name
-    ? `\n\n[CONTEXTE CLIENT] Nom: ${client.name}, Historique: ${client.historique || 'premier contact'}`
-    : ''
+  // Construire l'historique de conversation pour Claude
+  let conversationHistory: { role: string; content: string }[] = []
+  
+  if (client?.historique) {
+    try {
+      conversationHistory = JSON.parse(client.historique)
+    } catch {
+      conversationHistory = []
+    }
+  }
+
+  // Ajouter le nouveau message
+  conversationHistory.push({ role: 'user', content: userMessage })
+
+  // Limiter à 20 derniers messages
+  if (conversationHistory.length > 20) {
+    conversationHistory = conversationHistory.slice(-20)
+  }
 
   try {
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
@@ -193,8 +177,8 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
-        system: TYMELESS_SYSTEM_PROMPT + clientContext,
-        messages: [{ role: 'user', content: userMessage }]
+        system: TYMELESS_SYSTEM_PROMPT,
+        messages: conversationHistory
       })
     })
 
@@ -208,10 +192,8 @@ export async function POST(req: NextRequest) {
       const description = devisMatch[2]
       const montant = devisMatch[3]
 
-      // Nettoyer le message (enlever le tag invisible)
       reply = reply.replace(/\[DEVIS_READY[^\]]+\]/, '').trim()
 
-      // Créer le devis dans Supabase
       const numeroDevis = `TYM-${Date.now().toString().slice(-6)}`
       await supabase.from('devis').insert({
         numero: numeroDevis,
@@ -223,7 +205,6 @@ export async function POST(req: NextRequest) {
         statut: 'en_attente'
       })
 
-      // Notifier Bénédicte
       await sendWhatsApp(
         OWNER_PHONE,
         `🧾 *Nouveau devis à valider*\n\n` +
@@ -237,17 +218,19 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Envoyer la réponse au client
-    await sendWhatsApp(userPhone, reply)
+    // Ajouter la réponse à l'historique
+    conversationHistory.push({ role: 'assistant', content: reply })
 
-    // Mise à jour historique
+    // Sauvegarder l'historique dans Supabase
     await supabase
       .from('conduit')
       .update({
-        historique: `${client?.historique || ''}\n[${new Date().toISOString()}] Client: ${userMessage} | Bot: ${reply}`.slice(-2000),
+        historique: JSON.stringify(conversationHistory),
         langue: userMessage.match(/[а-яА-Я]/) ? 'ru' : userMessage.match(/[\u0600-\u06FF]/) ? 'ar' : 'fr/en'
       })
       .eq('whatsapp', userPhone)
+
+    await sendWhatsApp(userPhone, reply)
 
   } catch (err) {
     console.error('❌ Erreur:', err)
