@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { generateDevisHTML, DevisData } from '../../lib/generateDevis'
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
@@ -7,6 +8,7 @@ const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
 const SUPABASE_URL = process.env.SUPABASE_URL!
 const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!
+const OWNER_PHONE = process.env.OWNER_PHONE!
 
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
@@ -56,85 +58,49 @@ GRILLE TARIFAIRE (prix marché + 15-20% conciergerie luxe) :
 - Yacht +30m : sur devis exclusif
 - Contrat mensuel régulier : remise 10% négociable
 
-Si le client demande un devis précis, collecte : type de bien, superficie approximative, fréquence souhaitée.
-
 ### 3. RAPATRIEMENT DE CORPS – EUROPE VERS AFRIQUE
-Service spécialisé et discret pour le rapatriement international de corps depuis la France et l'Europe.
-Nous gérons l'intégralité des démarches : démarches administratives, certificats, transport, coordination.
-Pays couverts : Maroc, Algérie, Tunisie, Sénégal, Côte d'Ivoire, Mali, Cameroun, Congo, et autres sur demande.
-
-Tarifs indicatifs (prix marché + 15-20%) :
-- France → Maghreb (Maroc, Algérie, Tunisie) : 3 500€ – 5 500€
+Tarifs indicatifs :
+- France → Maghreb : 3 500€ – 5 500€
 - France → Afrique subsaharienne : 5 000€ – 8 500€
-- Délai moyen : 5 à 10 jours ouvrés selon le pays
-- Prise en charge 24h/24 pour les familles en détresse
-
-Ton à adopter : empathique, calme, rassurant. Ce sont des familles en deuil. Commence toujours par exprimer les condoléances.
-Message d'ouverture : "Nous sommes sincèrement désolés pour votre perte. Tymeless vous accompagne dans cette épreuve."
+Ton : empathique, calme, rassurant.
 
 ### 4. YACHT BROKERING
-Achat, vente et location de yachts haut de gamme en Europe et en Méditerranée.
-Services inclus :
-- Recherche de yachts selon critères (taille, budget, zone)
-- Mise en relation vendeurs / acheteurs
-- Négociation et accompagnement juridique
-- Location à la semaine ou au mois (bare boat ou avec équipage)
-- Gestion et entretien de yachts pour propriétaires
-
-Tarifs :
-- Commission achat/vente : 5% à 10% du prix du yacht
+- Commission achat/vente : 5% à 10%
 - Location yacht 10-15m : 3 000€ – 8 000€/semaine
 - Location yacht 15-25m : 8 000€ – 25 000€/semaine
-- Location yacht +25m : sur devis personnalisé
-- Gestion de flotte : à partir de 500€/mois par unité
-
-Message type : "Vous souhaitez louer ou acquérir un yacht ? Dites-moi votre budget, la période souhaitée et la zone de navigation."
 
 ---
 
 ## RÈGLES DE COMPORTEMENT
 
-### Collecter les informations avant de chiffrer
-Ne donne jamais un prix définitif sans avoir collecté : type de service, localisation, superficie ou taille, fréquence.
-
-### Validation du devis avant envoi
-Quand tu as tous les éléments pour faire un devis, dis au client :
-"Parfait, je prépare votre devis personnalisé et vous le transmets dans les plus brefs délais."
-⚠️ Ne génère jamais un devis final par toi-même – signale toujours au système que le devis doit être validé par Bénédicte.
-
-### Gestion des demandes urgentes
-Si le client utilise les mots "urgent", "rapidement", "aujourd'hui", "maintenant" :
-Réponds : "Nous prenons votre demande en priorité. Un membre de l'équipe Tymeless revient vers vous dans les 30 minutes."
-
-### Demandes hors périmètre
-Si la demande ne correspond à aucun de nos services :
-"Ce type de service ne fait pas partie de notre offre actuelle. En revanche, notre service de conciergerie à la demande peut vous orienter."
+### Quand tu as assez d'infos pour un devis
+Quand tu as collecté : service, localisation, superficie/taille, fréquence → réponds EXACTEMENT ainsi :
+"Parfait, je prépare votre devis personnalisé et vous le transmets dans les plus brefs délais. ✨"
+ET ajoute à la fin de ton message (invisible pour le client) :
+[DEVIS_READY|service=NOM_SERVICE|description=DESCRIPTION|montant=MONTANT€]
 
 ### Ton et style
-- Toujours commencer par une salutation chaleureuse si c'est le premier message de la conversation
-- Utiliser "nous" pour parler de Tymeless, jamais "je"
-- Éviter le jargon technique
-- Phrases courtes et aérées – WhatsApp n'est pas un email
-- Ne jamais envoyer de blocs de texte trop longs – max 5-6 lignes par message
-- Utiliser des emojis avec parcimonie (1-2 max par message) pour rester premium
+- Utiliser "nous" pour parler de Tymeless
+- Phrases courtes — max 5-6 lignes
+- 1-2 emojis max par message
 
 ### Langues
-- Si le client écrit en français → répondre en français
-- Si le client écrit en anglais → répondre en anglais
-- Si le client écrit en arabe → répondre en arabe
-- Si le client écrit en russe → répondre en russe
-- Si la langue n'est pas claire → répondre en français et en anglais
+- Français → français, Anglais → anglais, Arabe → arabe, Russe → russe`
 
----
-
-## INFORMATIONS PRATIQUES
-
-- Zone d'intervention principale : France (Paris et région parisienne en priorité), Europe
-- Rapatriement : toute l'Europe vers l'Afrique
-- Yacht brokering : Méditerranée, Europe
-- Délai de réponse standard : moins de 2 heures en journée
-- Disponibilité : 24h/24, 7j/7 pour les urgences
-- Contact humain : si le client demande à parler à quelqu'un, répondre "Un membre de notre équipe va vous contacter très rapidement."`
+async function sendWhatsApp(to: string, message: string) {
+  await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      messaging_product: 'whatsapp',
+      to,
+      text: { body: message }
+    })
+  })
+}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -156,9 +122,44 @@ export async function POST(req: NextRequest) {
 
   const userMessage = message.text.body
   const userPhone = message.from
-  console.log('📩 Message de:', userPhone, '→', userMessage)
 
-  // Recherche ou création du client dans Supabase
+  // Vérifier si c'est Bénédicte qui valide un devis
+  if (userPhone === OWNER_PHONE) {
+    const ouiMatch = userMessage.match(/^OUI\s+(TYM-\d+)/i)
+    const nonMatch = userMessage.match(/^NON\s+(TYM-\d+)/i)
+
+    if (ouiMatch) {
+      const numeroDevis = ouiMatch[1]
+      const { data: devis } = await supabase
+        .from('devis')
+        .select('*')
+        .eq('numero', numeroDevis)
+        .single()
+
+      if (devis) {
+        await sendWhatsApp(
+          devis.telephone_client,
+          `Bonjour ${devis.nom_du_client || ''} ✨\n\nVotre devis Tymeless est prêt !\n\n` +
+          `📋 Service : ${devis.service}\n` +
+          `💰 Montant : ${devis.montant}\n` +
+          `🔖 N° ${devis.numero}\n\n` +
+          `Notre équipe vous contacte très prochainement pour confirmer les détails. 🙏`
+        )
+        await supabase.from('devis').update({ statut: 'envoyé' }).eq('numero', numeroDevis)
+        await sendWhatsApp(OWNER_PHONE, `✅ Devis ${numeroDevis} envoyé au client !`)
+      }
+      return NextResponse.json({ status: 'ok' })
+    }
+
+    if (nonMatch) {
+      const numeroDevis = nonMatch[1]
+      await supabase.from('devis').update({ statut: 'annulé' }).eq('numero', numeroDevis)
+      await sendWhatsApp(OWNER_PHONE, `❌ Devis ${numeroDevis} annulé.`)
+      return NextResponse.json({ status: 'ok' })
+    }
+  }
+
+  // Recherche ou création client
   let client = null
   const { data: existing } = await supabase
     .from('conduit')
@@ -168,7 +169,6 @@ export async function POST(req: NextRequest) {
 
   if (existing) {
     client = existing
-    console.log('👤 Client reconnu:', client.name)
   } else {
     const { data: newClient } = await supabase
       .from('conduit')
@@ -176,12 +176,10 @@ export async function POST(req: NextRequest) {
       .select()
       .single()
     client = newClient
-    console.log('🆕 Nouveau client créé')
   }
 
-  // Construction du contexte client
   const clientContext = client?.name
-    ? `\n\n[CONTEXTE CLIENT] Nom: ${client.name}, Email: ${client.email || 'inconnu'}, Historique: ${client.historique || 'premier contact'}`
+    ? `\n\n[CONTEXTE CLIENT] Nom: ${client.name}, Historique: ${client.historique || 'premier contact'}`
     : ''
 
   try {
@@ -201,9 +199,48 @@ export async function POST(req: NextRequest) {
     })
 
     const claudeData = await claudeRes.json()
-    const reply = claudeData.content?.[0]?.text || "Désolé, je n'ai pas pu traiter votre message."
+    let reply = claudeData.content?.[0]?.text || "Désolé, je n'ai pas pu traiter votre message."
 
-    // Mise à jour historique client
+    // Détecter si un devis est prêt
+    const devisMatch = reply.match(/\[DEVIS_READY\|service=([^|]+)\|description=([^|]+)\|montant=([^\]]+)\]/)
+    if (devisMatch) {
+      const service = devisMatch[1]
+      const description = devisMatch[2]
+      const montant = devisMatch[3]
+
+      // Nettoyer le message (enlever le tag invisible)
+      reply = reply.replace(/\[DEVIS_READY[^\]]+\]/, '').trim()
+
+      // Créer le devis dans Supabase
+      const numeroDevis = `TYM-${Date.now().toString().slice(-6)}`
+      await supabase.from('devis').insert({
+        numero: numeroDevis,
+        telephone_client: userPhone,
+        nom_du_client: client?.name || '',
+        service,
+        description,
+        montant,
+        statut: 'en_attente'
+      })
+
+      // Notifier Bénédicte
+      await sendWhatsApp(
+        OWNER_PHONE,
+        `🧾 *Nouveau devis à valider*\n\n` +
+        `N° ${numeroDevis}\n` +
+        `👤 Client : ${client?.name || userPhone}\n` +
+        `📋 Service : ${service}\n` +
+        `💰 Montant : ${montant}\n` +
+        `📝 ${description}\n\n` +
+        `Répondez *OUI ${numeroDevis}* pour envoyer\n` +
+        `Répondez *NON ${numeroDevis}* pour annuler`
+      )
+    }
+
+    // Envoyer la réponse au client
+    await sendWhatsApp(userPhone, reply)
+
+    // Mise à jour historique
     await supabase
       .from('conduit')
       .update({
@@ -212,21 +249,6 @@ export async function POST(req: NextRequest) {
       })
       .eq('whatsapp', userPhone)
 
-    const waRes = await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        messaging_product: 'whatsapp',
-        to: userPhone,
-        text: { body: reply }
-      })
-    })
-
-    const waData = await waRes.json()
-    console.log('📤 WhatsApp:', JSON.stringify(waData))
   } catch (err) {
     console.error('❌ Erreur:', err)
   }
