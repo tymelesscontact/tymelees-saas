@@ -1,9 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { createClient } from '@supabase/supabase-js'
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
 const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
+const SUPABASE_URL = process.env.SUPABASE_URL!
+const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!
+
+const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
 
 const TYMELESS_SYSTEM_PROMPT = `Tu écris toujours avec une orthographe et une grammaire parfaites.
 
@@ -69,7 +74,6 @@ Message d'ouverture : "Nous sommes sincèrement désolés pour votre perte. Tyme
 
 ### 4. YACHT BROKERING
 Achat, vente et location de yachts haut de gamme en Europe et en Méditerranée.
-Nous accompagnons acheteurs, vendeurs et locataires avec un service clé en main.
 Services inclus :
 - Recherche de yachts selon critères (taille, budget, zone)
 - Mise en relation vendeurs / acheteurs
@@ -123,26 +127,6 @@ Si la demande ne correspond à aucun de nos services :
 
 ---
 
-## EXEMPLES DE CONVERSATIONS
-
-### Exemple 1 – Nettoyage Airbnb
-Client : "Bonjour j'ai besoin de nettoyage pour mon Airbnb"
-Assistant : "Bonjour ! Bienvenue chez Tymeless ✨ Avec plaisir. Pour vous préparer un devis sur-mesure, pouvez-vous me préciser la taille du logement et la fréquence souhaitée ?"
-
-### Exemple 2 – Rapatriement
-Client : "Bonjour nous avons perdu un proche en France et souhaitons le rapatrier au Maroc"
-Assistant : "Nous sommes sincèrement désolés pour votre perte 🙏 Tymeless vous accompagne dans cette épreuve avec tout le soin et la discrétion nécessaires."
-
-### Exemple 3 – Yacht
-Client : "I'm looking to rent a yacht for 2 weeks in the Mediterranean"
-Assistant : "Welcome to Tymeless ⚓ We'd be happy to find the perfect yacht for you. Could you share your budget and preferred dates ?"
-
-### Exemple 4 – Demande vague
-Client : "Bonjour"
-Assistant : "Bonjour et bienvenue chez Tymeless ✨ Comment puis-je vous aider aujourd'hui ? Que ce soit pour du nettoyage, un rapatriement, un yacht ou toute autre demande, nous sommes là."
-
----
-
 ## INFORMATIONS PRATIQUES
 
 - Zone d'intervention principale : France (Paris et région parisienne en priorité), Europe
@@ -174,6 +158,32 @@ export async function POST(req: NextRequest) {
   const userPhone = message.from
   console.log('📩 Message de:', userPhone, '→', userMessage)
 
+  // Recherche ou création du client dans Supabase
+  let client = null
+  const { data: existing } = await supabase
+    .from('conduit')
+    .select('*')
+    .eq('whatsapp', userPhone)
+    .single()
+
+  if (existing) {
+    client = existing
+    console.log('👤 Client reconnu:', client.name)
+  } else {
+    const { data: newClient } = await supabase
+      .from('conduit')
+      .insert({ whatsapp: userPhone })
+      .select()
+      .single()
+    client = newClient
+    console.log('🆕 Nouveau client créé')
+  }
+
+  // Construction du contexte client
+  const clientContext = client?.name
+    ? `\n\n[CONTEXTE CLIENT] Nom: ${client.name}, Email: ${client.email || 'inconnu'}, Historique: ${client.historique || 'premier contact'}`
+    : ''
+
   try {
     const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -185,14 +195,22 @@ export async function POST(req: NextRequest) {
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 1000,
-        system: TYMELESS_SYSTEM_PROMPT,
+        system: TYMELESS_SYSTEM_PROMPT + clientContext,
         messages: [{ role: 'user', content: userMessage }]
       })
     })
 
     const claudeData = await claudeRes.json()
-    console.log('🤖 Claude:', JSON.stringify(claudeData))
     const reply = claudeData.content?.[0]?.text || "Désolé, je n'ai pas pu traiter votre message."
+
+    // Mise à jour historique client
+    await supabase
+      .from('conduit')
+      .update({
+        historique: `${client?.historique || ''}\n[${new Date().toISOString()}] Client: ${userMessage} | Bot: ${reply}`.slice(-2000),
+        langue: userMessage.match(/[а-яА-Я]/) ? 'ru' : userMessage.match(/[\u0600-\u06FF]/) ? 'ar' : 'fr/en'
+      })
+      .eq('whatsapp', userPhone)
 
     const waRes = await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
       method: 'POST',
