@@ -196,7 +196,7 @@ export async function POST(req: NextRequest) {
 
       const numeroDevis = `TYM-${Date.now().toString().slice(-6)}`
       await supabase.from('devis').insert({
-        numero: numeroDevis,
+        numéro: numeroDevis,
         telephone_client: userPhone,
         nom_du_client: client?.name || '',
         service,
