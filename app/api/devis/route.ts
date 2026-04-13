@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
     numeroDevis
   }
 
-  const htmlContent = generatedevisHTML(devisData)
+  const htmlContent = generateDevisHTML(devisData)
 
   // Sauvegarder le devis dans Supabase
   await supabase.from('devis').insert({

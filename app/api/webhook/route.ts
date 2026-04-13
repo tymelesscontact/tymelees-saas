@@ -22,8 +22,7 @@ Tymeless est une conciergerie de luxe proposant des services haut de gamme à de
 ## SERVICES ET TARIFICATION
 
 ### 1. CONCIERGERIE À LA DEMANDE
-Service sur-mesure pour toute demande personnelle ou professionnelle.
-Tarif de base : à partir de 150€/heure + 15 à 20% de commission sur les prestataires mobilisés.
+Tarif : à partir de 150€/heure + 15 à 20% de commission.
 
 ### 2. NETTOYAGE PROFESSIONNEL – SERVICE 360°
 - Studio / T1 Airbnb : 120€ – 180€
@@ -46,15 +45,38 @@ Ton : empathique, calme, rassurant.
 
 ---
 
-## RÈGLES IMPORTANTES
+## PROCESSUS EN 3 ÉTAPES — TRÈS IMPORTANT
 
-- Tu retiens TOUT ce que le client t'a dit dans la conversation. Ne repose JAMAIS une question à laquelle le client a déjà répondu.
-- Quand tu as toutes les infos nécessaires (service + localisation + superficie/taille + fréquence), génère le devis immédiatement.
-- Pour générer un devis, ajoute à la fin de ta réponse (invisible) : [DEVIS_READY|service=NOM|description=DETAILS|montant=MONTANT€]
+### ÉTAPE 1 : Collecte des informations
+Pose les questions nécessaires pour avoir : service, localisation, superficie/taille, fréquence. Ne repose JAMAIS une question déjà posée.
+
+### ÉTAPE 2 : Récapitulatif au client
+Quand tu as TOUTES les informations, envoie un récapitulatif au client :
+"Parfait ! Voici ce que j'ai noté :
+- Service : [service]
+- Localisation : [lieu]
+- [autres détails]
+- Tarif estimé : [montant]€
+
+Confirmez-vous ces informations ?"
+
+NE GÉNÈRE PAS ENCORE LE DEVIS. Attends la confirmation du client.
+
+### ÉTAPE 3 : Confirmation client → Génération du devis
+UNIQUEMENT quand le client confirme (répond "oui", "c'est bon", "parfait", "correct", "ok" ou équivalent) :
+- Réponds : "Parfait ! Votre demande est enregistrée. Notre équipe vous recontacte très prochainement. ✨"
+- ET ajoute à la fin (invisible) : [DEVIS_READY|service=NOM|description=DETAILS_COMPLETS|montant=MONTANT€|recap=RESUME_CONVERSATION]
+
+Le recap doit contenir un résumé complet de la conversation : ce que le client a demandé, ses besoins, ses préférences, et toutes les infos échangées.
+
+---
+
+## RÈGLES GÉNÉRALES
 - Utiliser "nous" pour parler de Tymeless, jamais "je"
 - Phrases courtes — max 5-6 lignes par message
 - 1-2 emojis max
-- Langues : réponds dans la langue du client (FR/EN/AR/RU)`
+- Réponds dans la langue du client (FR/EN/AR/RU)
+- Ne promets JAMAIS un contact "demain" — dis toujours "très prochainement"`
 
 async function sendWhatsApp(to: string, message: string) {
   await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
@@ -102,19 +124,19 @@ export async function POST(req: NextRequest) {
       const { data: devis } = await supabase
         .from('devis')
         .select('*')
-        .eq('numero', numeroDevis)
+        .eq('numéro', numeroDevis)
         .single()
 
       if (devis) {
         await sendWhatsApp(
           devis.telephone_client,
-          `Bonjour ${devis.nom_du_client || ''} ✨\n\nVotre devis Tymeless est prêt !\n\n` +
+          `Bonjour ${devis.nom_du_client || ''} ✨\n\nVotre devis Tymeless est confirmé !\n\n` +
           `📋 Service : ${devis.service}\n` +
           `💰 Montant : ${devis.montant}\n` +
-          `🔖 N° ${devis.numero}\n\n` +
-          `Notre équipe vous contacte très prochainement pour confirmer les détails. 🙏`
+          `🔖 N° ${devis.numéro}\n\n` +
+          `Notre équipe vous contacte très prochainement. 🙏`
         )
-        await supabase.from('devis').update({ statut: 'envoyé' }).eq('numero', numeroDevis)
+        await supabase.from('devis').update({ statut: 'envoyé' }).eq('numéro', numeroDevis)
         await sendWhatsApp(OWNER_PHONE, `✅ Devis ${numeroDevis} envoyé au client !`)
       }
       return NextResponse.json({ status: 'ok' })
@@ -122,7 +144,7 @@ export async function POST(req: NextRequest) {
 
     if (nonMatch) {
       const numeroDevis = nonMatch[1]
-      await supabase.from('devis').update({ statut: 'annulé' }).eq('numero', numeroDevis)
+      await supabase.from('devis').update({ statut: 'annulé' }).eq('numéro', numeroDevis)
       await sendWhatsApp(OWNER_PHONE, `❌ Devis ${numeroDevis} annulé.`)
       return NextResponse.json({ status: 'ok' })
     }
@@ -147,9 +169,8 @@ export async function POST(req: NextRequest) {
     client = newClient
   }
 
-  // Construire l'historique de conversation pour Claude
+  // Construire l'historique de conversation
   let conversationHistory: { role: string; content: string }[] = []
-  
   if (client?.historique) {
     try {
       conversationHistory = JSON.parse(client.historique)
@@ -158,10 +179,7 @@ export async function POST(req: NextRequest) {
     }
   }
 
-  // Ajouter le nouveau message
   conversationHistory.push({ role: 'user', content: userMessage })
-
-  // Limiter à 20 derniers messages
   if (conversationHistory.length > 20) {
     conversationHistory = conversationHistory.slice(-20)
   }
@@ -176,7 +194,7 @@ export async function POST(req: NextRequest) {
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 1000,
+        max_tokens: 1500,
         system: TYMELESS_SYSTEM_PROMPT,
         messages: conversationHistory
       })
@@ -185,16 +203,18 @@ export async function POST(req: NextRequest) {
     const claudeData = await claudeRes.json()
     let reply = claudeData.content?.[0]?.text || "Désolé, je n'ai pas pu traiter votre message."
 
-    // Détecter si un devis est prêt
-    const devisMatch = reply.match(/\[DEVIS_READY\|service=([^|]+)\|description=([^|]+)\|montant=([^\]]+)\]/)
+    // Détecter confirmation devis
+    const devisMatch = reply.match(/\[DEVIS_READY\|service=([^|]+)\|description=([^|]+)\|montant=([^|]+)\|recap=([^\]]+)\]/)
     if (devisMatch) {
       const service = devisMatch[1]
       const description = devisMatch[2]
       const montant = devisMatch[3]
+      const recap = devisMatch[4]
 
       reply = reply.replace(/\[DEVIS_READY[^\]]+\]/, '').trim()
 
       const numeroDevis = `TYM-${Date.now().toString().slice(-6)}`
+      
       await supabase.from('devis').insert({
         numéro: numeroDevis,
         telephone_client: userPhone,
@@ -205,23 +225,23 @@ export async function POST(req: NextRequest) {
         statut: 'en_attente'
       })
 
+      // Notification complète à Bénédicte avec récapitulatif
       await sendWhatsApp(
         OWNER_PHONE,
         `🧾 *Nouveau devis à valider*\n\n` +
         `N° ${numeroDevis}\n` +
         `👤 Client : ${client?.name || userPhone}\n` +
+        `📱 Numéro : ${userPhone}\n` +
         `📋 Service : ${service}\n` +
-        `💰 Montant : ${montant}\n` +
-        `📝 ${description}\n\n` +
-        `Répondez *OUI ${numeroDevis}* pour envoyer\n` +
+        `💰 Montant : ${montant}\n\n` +
+        `📝 *Récapitulatif de la conversation :*\n${recap}\n\n` +
+        `Répondez *OUI ${numeroDevis}* pour envoyer au client\n` +
         `Répondez *NON ${numeroDevis}* pour annuler`
       )
     }
 
-    // Ajouter la réponse à l'historique
     conversationHistory.push({ role: 'assistant', content: reply })
 
-    // Sauvegarder l'historique dans Supabase
     await supabase
       .from('conduit')
       .update({
