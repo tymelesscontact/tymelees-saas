@@ -65,9 +65,11 @@ NE GÉNÈRE PAS ENCORE LE DEVIS. Attends la confirmation du client.
 ### ÉTAPE 3 : Confirmation client → Génération du devis
 UNIQUEMENT quand le client confirme (répond "oui", "c'est bon", "parfait", "correct", "ok" ou équivalent) :
 - Réponds : "Parfait ! Votre demande est enregistrée. Notre équipe vous recontacte très prochainement. ✨"
-- ET ajoute à la fin (invisible) : [DEVIS_READY|service=NOM|description=DETAILS_COMPLETS|montant=MONTANT€|recap=RESUME_CONVERSATION]
+- ET ajoute OBLIGATOIREMENT à la fin de ta réponse, sur une nouvelle ligne : [DEVIS_READY|service=NOM|description=DETAILS_COMPLETS|montant=MONTANT€|recap=RESUME_CONVERSATION]
 
 Le recap doit contenir un résumé complet de la conversation : ce que le client a demandé, ses besoins, ses préférences, et toutes les infos échangées.
+
+IMPORTANT : Le tag [DEVIS_READY|...] doit TOUJOURS être présent dans ta réponse après une confirmation client. Sans ce tag, le devis ne sera pas créé.
 
 ---
 
@@ -124,19 +126,19 @@ export async function POST(req: NextRequest) {
       const { data: devis } = await supabase
         .from('devis')
         .select('*')
-        .eq('numéro', numeroDevis)
+        .eq('numero', numeroDevis)
         .single()
 
       if (devis) {
         await sendWhatsApp(
-          devis.telephone_client,
-          `Bonjour ${devis.nom_du_client || ''} ✨\n\nVotre devis Tymeless est confirmé !\n\n` +
+          devis.client_phone,
+          `Bonjour ${devis.client_name || ''} ✨\n\nVotre devis Tymeless est confirmé !\n\n` +
           `📋 Service : ${devis.service}\n` +
           `💰 Montant : ${devis.montant}\n` +
-          `🔖 N° ${devis.numéro}\n\n` +
+          `🔖 N° ${devis.numero}\n\n` +
           `Notre équipe vous contacte très prochainement. 🙏`
         )
-        await supabase.from('devis').update({ statut: 'envoyé' }).eq('numéro', numeroDevis)
+        await supabase.from('devis').update({ statut: 'envoyé' }).eq('numero', numeroDevis)
         await sendWhatsApp(OWNER_PHONE, `✅ Devis ${numeroDevis} envoyé au client !`)
       }
       return NextResponse.json({ status: 'ok' })
@@ -144,7 +146,7 @@ export async function POST(req: NextRequest) {
 
     if (nonMatch) {
       const numeroDevis = nonMatch[1]
-      await supabase.from('devis').update({ statut: 'annulé' }).eq('numéro', numeroDevis)
+      await supabase.from('devis').update({ statut: 'annulé' }).eq('numero', numeroDevis)
       await sendWhatsApp(OWNER_PHONE, `❌ Devis ${numeroDevis} annulé.`)
       return NextResponse.json({ status: 'ok' })
     }
@@ -193,7 +195,7 @@ export async function POST(req: NextRequest) {
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 1500,
         system: TYMELESS_SYSTEM_PROMPT,
         messages: conversationHistory
@@ -214,18 +216,17 @@ export async function POST(req: NextRequest) {
       reply = reply.replace(/\[DEVIS_READY[^\]]+\]/, '').trim()
 
       const numeroDevis = `TYM-${Date.now().toString().slice(-6)}`
-      
+
       await supabase.from('devis').insert({
-        numéro: numeroDevis,
-        telephone_client: userPhone,
-        nom_du_client: client?.name || '',
+        numero: numeroDevis,
+        client_phone: userPhone,
+        client_name: client?.name || '',
         service,
         description,
         montant,
         statut: 'en_attente'
       })
 
-      // Notification complète à Bénédicte avec récapitulatif
       await sendWhatsApp(
         OWNER_PHONE,
         `🧾 *Nouveau devis à valider*\n\n` +
