@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { generateDevisHTML } from "@/app/lib/generateDevis"
+import import { generateDevisHTML } from "../../lib/generateDevis"
 
 type DevisData = {
   clientName: string
