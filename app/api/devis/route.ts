@@ -2,7 +2,7 @@ export const dynamic = "force-dynamic"
 
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { generateDevisHTML } from "../../lib/generateDevis"
+import { generateDevisHTML } from "@/app/lib/generateDevis"
 
 type DevisData = {
   clientName: string
@@ -18,6 +18,7 @@ type DevisData = {
 function getSupabase() {
   const supabaseUrl =
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
+
   const supabaseKey =
     process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
