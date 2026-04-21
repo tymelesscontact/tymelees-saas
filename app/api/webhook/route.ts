@@ -5,11 +5,12 @@ const VERIFY_TOKEN = process.env.VERIFY_TOKEN
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
 const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
-const SUPABASE_URL = process.env.SUPABASE_URL!
-const SUPABASE_ANON_KEY = process.env.SUPABASE_ANON_KEY!
 const OWNER_PHONE = process.env.OWNER_PHONE!
-
-const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY)
+const getSupabase = () => createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+)
+const supabase = getSupabase()
 
 const TYMELESS_SYSTEM_PROMPT = `Tu es un membre de l'équipe Tymeless. Tu ne mentionnes jamais que tu es une IA, un bot ou un assistant automatique. Si quelqu'un te demande si tu es un humain ou une IA, réponds que tu es un membre de l'équipe Tymeless disponible pour les aider.
 
