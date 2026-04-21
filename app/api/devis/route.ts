@@ -62,7 +62,10 @@ export async function POST(req: NextRequest) {
       numeroDevis,
     }
 
-    const htmlContent = generateDevisHTML(devisData)
+    const htmlContent = generateDevisHTML({
+  ...devisData,
+  montant: String(devisData.montant)
+})
 
     const { error: insertError } = await supabase.from("devis").insert({
       numero: numeroDevis,

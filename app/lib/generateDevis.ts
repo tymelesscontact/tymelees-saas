@@ -4,7 +4,7 @@ export interface DevisData {
   clientEmail?: string
   service: string
   description: string
-  montant: string
+  montant: string | number
   dateDevis: string
   numeroDevis: string
 }
