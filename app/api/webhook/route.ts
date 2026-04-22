@@ -223,7 +223,7 @@ export async function POST(req: NextRequest) {
   client_nom: client?.name || '',
   client_tel: userPhone,
   client_email: null,
-  de_service: service,
+  service: service,
   description: description,
   montant: parseFloat(montant.toString().replace(/[^0-9.]/g, '')) || 0,
 
