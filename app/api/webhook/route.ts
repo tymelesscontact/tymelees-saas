@@ -225,7 +225,8 @@ export async function POST(req: NextRequest) {
   client_email: null,
   de_service: service,
   description: description,
-  montant: parseFloat(montant) || 0,
+  montant: parseFloat(montant.toString().replace(/[^0-9.]/g, '')) || 0,
+
   statut: 'en_attente',
   date_devis: new Date().toISOString()
 })
