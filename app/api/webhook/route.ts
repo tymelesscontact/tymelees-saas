@@ -219,14 +219,14 @@ export async function POST(req: NextRequest) {
       const numeroDevis = `TYM-${Date.now().toString().slice(-6)}`
 
      await supabase.from('devis').insert({
-  numero: numeroDevis,
-  client_phone: userPhone,
-  client_name: client?.name || '',
-  service,
-  description,
-  montant,
+  reference: numeroDevis,
+  client_nom: client?.name || '',
+  client_tel: userPhone,
+  client_email: null,
+  de_service: service,
+  description: description,
+  montant: parseFloat(montant) || 0,
   statut: 'en_attente',
-  html: '',
   date_devis: new Date().toISOString()
 })
   
