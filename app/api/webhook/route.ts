@@ -117,7 +117,7 @@ export async function POST(req: NextRequest) {
   const userMessage = message.text.body
   const userPhone = message.from
 
-  // Validation devis par Bénédicte
+  // Validation devis par Curtiss
   if (userPhone === OWNER_PHONE) {
     const ouiMatch = userMessage.match(/^OUI\s+(TYM-\d+)/i)
     const nonMatch = userMessage.match(/^NON\s+(TYM-\d+)/i)
@@ -218,15 +218,18 @@ export async function POST(req: NextRequest) {
 
       const numeroDevis = `TYM-${Date.now().toString().slice(-6)}`
 
-      await supabase.from('devis').insert({
-        numero: numeroDevis,
-        client_phone: userPhone,
-        client_name: client?.name || '',
-        service,
-        description,
-        montant,
-        statut: 'en_attente'
-      })
+     await supabase.from('devis').insert({
+  numero: numeroDevis,
+  client_phone: userPhone,
+  client_name: client?.name || '',
+  service,
+  description,
+  montant,
+  statut: 'en_attente',
+  html: '',
+  date_devis: new Date().toISOString()
+})
+  
 
       await sendWhatsApp(
         OWNER_PHONE,
