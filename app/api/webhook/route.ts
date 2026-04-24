@@ -127,19 +127,19 @@ export async function POST(req: NextRequest) {
       const { data: devis } = await supabase
         .from('devis')
         .select('*')
-        .eq('numero', numeroDevis)
+        .eq('reference', numeroDevis)
         .single()
 
       if (devis) {
         await sendWhatsApp(
-          devis.client_phone,
+          devis.client_tel,
           `Bonjour ${devis.client_name || ''} ✨\n\nVotre devis Tymeless est confirmé !\n\n` +
           `📋 Service : ${devis.service}\n` +
           `💰 Montant : ${devis.montant}\n` +
-          `🔖 N° ${devis.numero}\n\n` +
+          `🔖 N° ${devis.reference}\n\n` +
           `Notre équipe vous contacte très prochainement. 🙏`
         )
-        await supabase.from('devis').update({ statut: 'envoyé' }).eq('numero', numeroDevis)
+        await supabase.from('devis').update({ statut: 'envoyé' }).eq('reference', numeroDevis)
         await sendWhatsApp(OWNER_PHONE, `✅ Devis ${numeroDevis} envoyé au client !`)
       }
       return NextResponse.json({ status: 'ok' })
@@ -147,7 +147,7 @@ export async function POST(req: NextRequest) {
 
     if (nonMatch) {
       const numeroDevis = nonMatch[1]
-      await supabase.from('devis').update({ statut: 'annulé' }).eq('numero', numeroDevis)
+      await supabase.from('devis').update({ statut: 'annulé' }).eq('reference', numeroDevis)
       await sendWhatsApp(OWNER_PHONE, `❌ Devis ${numeroDevis} annulé.`)
       return NextResponse.json({ status: 'ok' })
     }
