@@ -293,6 +293,7 @@ await sendWhatsApp(OWNER_PHONE, `✅ Devis ${numeroDevis} — PDF envoyé au cli
 
   } catch (err) {
     console.error('❌ Erreur:', err)
+    return NextResponse.json({ status: 'error' }, { status: 500 })
   }
 
   return NextResponse.json({ status: 'ok' })
