@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
-
+import { generatePDFFromHTML } from '../../lib/generatePDF'
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
 const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
@@ -131,17 +131,50 @@ export async function POST(req: NextRequest) {
         .single()
 
       if (devis) {
-        await sendWhatsApp(
-          devis.client_tel,
-          `Bonjour ${devis.client_name || ''} ✨\n\nVotre devis Tymeless est confirmé !\n\n` +
-          `📋 Service : ${devis.service}\n` +
-          `💰 Montant : ${devis.montant}\n` +
-          `🔖 N° ${devis.reference}\n\n` +
-          `Notre équipe vous contacte très prochainement. 🙏`
-        )
-        await supabase.from('devis').update({ statut: 'envoyé' }).eq('reference', numeroDevis)
-        await sendWhatsApp(OWNER_PHONE, `✅ Devis ${numeroDevis} envoyé au client !`)
-      }
+        // Générer le PDF
+const pdfBuffer = await generatePDFFromHTML(devis.html)
+
+// Upload dans Supabase Storage
+const pdfFileName = `${numeroDevis}.pdf`
+await supabase.storage
+  .from('devis-pdf')
+  .upload(pdfFileName, pdfBuffer, {
+    contentType: 'application/pdf',
+    upsert: true,
+  })
+
+// URL publique du PDF
+const { data: urlData } = supabase.storage
+  .from('devis-pdf')
+  .getPublicUrl(pdfFileName)
+const pdfUrl = urlData.publicUrl
+
+// Envoyer le PDF au client WhatsApp
+await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
+  method: 'POST',
+  headers: {
+    Authorization: `Bearer ${WHATSAPP_TOKEN}`,
+    'Content-Type': 'application/json',
+  },
+  body: JSON.stringify({
+    messaging_product: 'whatsapp',
+    to: devis.client_tel,
+    type: 'document',
+    document: {
+      link: pdfUrl,
+      filename: `Devis_Tymeless_${numeroDevis}.pdf`,
+      caption: `Bonjour ${devis.client_name || ''} 👋\n\nVeuillez trouver ci-joint votre devis N° ${numeroDevis}\n💰 Montant : ${devis.montant}\n📋 Service : ${devis.service}\n\nTymeless — L'excellence du service sur mesure ✨`,
+    },
+  }),
+})
+
+// Mettre à jour Supabase
+await supabase.from('devis')
+  .update({ statut: 'envoyé', pdf_url: pdfUrl })
+  .eq('reference', numeroDevis)
+
+// Confirmer à Béné
+await sendWhatsApp(OWNER_PHONE, `✅ Devis ${numeroDevis} — PDF envoyé au client !\n🔗 ${pdfUrl}`)
       return NextResponse.json({ status: 'ok' })
     }
 
@@ -263,4 +296,5 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ status: 'ok' })
+  }
 }
