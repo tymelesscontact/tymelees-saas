@@ -1,11 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generatePDFFromHTML } from '../../lib/generatePDF'
+
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
 const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
 const ANTHROPIC_API_KEY = process.env.ANTHROPIC_API_KEY
 const OWNER_PHONE = process.env.OWNER_PHONE!
+
 const getSupabase = () => createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -117,7 +119,7 @@ export async function POST(req: NextRequest) {
   const userMessage = message.text.body
   const userPhone = message.from
 
-  // Validation devis par Curtiss
+  // ✅ Validation devis par Béné (OWNER)
   if (userPhone === OWNER_PHONE) {
     const ouiMatch = userMessage.match(/^OUI\s+(TYM-\d+)/i)
     const nonMatch = userMessage.match(/^NON\s+(TYM-\d+)/i)
@@ -131,20 +133,21 @@ export async function POST(req: NextRequest) {
         .single()
 
       if (devis) {
-  await sendWhatsApp(
-    devis.client_tel,
-    `Bonjour ${devis.client_nom || ''} 👋\n\nVotre devis Tymeless est confirmé ✅\n\n` +
-    `📋 Service : ${devis.service}\n` +
-    `💰 Montant : ${devis.montant}€\n` +
-    `🔖 N° ${devis.reference}\n\n` +
-    `Notre équipe vous contacte très prochainement. 🙏`
-  )
-  await supabase.from('devis')
-    .update({ statut: 'envoyé' })
-    .eq('reference', numeroDevis)
-  await sendWhatsApp(OWNER_PHONE, `✅ Devis ${numeroDevis} — Message envoyé au client !`)
-  return NextResponse.json({ status: 'ok' })
-}
+        await sendWhatsApp(
+          devis.client_tel,
+          `Bonjour ${devis.client_nom || ''} 👋\n\nVotre devis Tymeless est confirmé ✅\n\n` +
+          `📋 Service : ${devis.service}\n` +
+          `💰 Montant : ${devis.montant}€\n` +
+          `🔖 N° ${devis.reference}\n\n` +
+          `Notre équipe vous contacte très prochainement. 🙏`
+        )
+        await supabase.from('devis')
+          .update({ statut: 'envoyé' })
+          .eq('reference', numeroDevis)
+        await sendWhatsApp(OWNER_PHONE, `✅ Devis ${numeroDevis} — Message envoyé au client !`)
+      }
+      return NextResponse.json({ status: 'ok' })
+    }
 
     if (nonMatch) {
       const numeroDevis = nonMatch[1]
@@ -152,7 +155,12 @@ export async function POST(req: NextRequest) {
       await sendWhatsApp(OWNER_PHONE, `❌ Devis ${numeroDevis} annulé.`)
       return NextResponse.json({ status: 'ok' })
     }
+
+    // Si le message owner ne correspond pas à OUI/NON → on sort sans répondre
+    return NextResponse.json({ status: 'ok' })
   }
+
+  // ✅ Traitement client normal (tout ce qui suit ne s'exécute QUE pour les clients)
 
   // Recherche ou création client
   let client: any = null
@@ -219,19 +227,17 @@ export async function POST(req: NextRequest) {
 
       const numeroDevis = `TYM-${Date.now().toString().slice(-6)}`
 
-     await supabase.from('devis').insert({
-  reference: numeroDevis,
-  client_nom: client?.name || '',
-  client_tel: userPhone,
-  client_email: null,
-  service: service,
-  description: description,
-  montant: parseFloat(montant.toString().replace(/[^0-9.]/g, '')) || 0,
-
-  statut: 'en_attente',
-  date_devis: new Date().toISOString()
-})
-  
+      await supabase.from('devis').insert({
+        reference: numeroDevis,
+        client_nom: client?.name || '',
+        client_tel: userPhone,
+        client_email: null,
+        service: service,
+        description: description,
+        montant: parseFloat(montant.toString().replace(/[^0-9.]/g, '')) || 0,
+        statut: 'en_attente',
+        date_devis: new Date().toISOString()
+      })
 
       await sendWhatsApp(
         OWNER_PHONE,
@@ -265,5 +271,4 @@ export async function POST(req: NextRequest) {
   }
 
   return NextResponse.json({ status: 'ok' })
-  }
 }
