@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useFlutterwave, closePaymentModal } from "flutterwave-react-v3";
-import { supabase } from "@/lib/supabase";
+import { supabase } from "../lib/supabase";
 
 // ─── DONNÉES ─────────────────────────────────────────────────────────────────
 
