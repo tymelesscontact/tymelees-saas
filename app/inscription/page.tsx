@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useFlutterwave, closePaymentModal } from "flutterwave-react-v3";
-import { createClient } from "@/lib/supabase";
+import { supabase } from "@/lib/supabase";
 
 // ─── DONNÉES ─────────────────────────────────────────────────────────────────
 
@@ -167,7 +167,7 @@ export default function Inscription() {
         if (response.status === "successful") {
           setLoading(true);
           try {
-            const supabase = createClient();
+            
             await supabase.from("inscriptions").insert([
               {
                 societe: form.societe,
