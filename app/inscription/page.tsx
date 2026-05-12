@@ -149,7 +149,9 @@ export default function Inscription() {
     customer: {
       email: form.email || "client@tymeless.com",
       name: form.societe || "Client",
+      phonenumber: "0000000000",
     },
+    
     customizations: {
       title: "Tymeless OS",
       description: `Abonnement ${form.plan} — ${form.metier}`,
