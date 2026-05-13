@@ -7,71 +7,12 @@ import { supabase } from "../lib/supabase";
 // ─── DONNÉES ─────────────────────────────────────────────────────────────────
 
 const PAYS_REGIONS = [
-  {
-    region: "🌍 Afrique",
-    pays: [
-      "Algérie","Angola","Bénin","Botswana","Burkina Faso","Burundi",
-      "Cameroun","Cap-Vert","Centrafrique","Comores","Congo","Côte d'Ivoire",
-      "Djibouti","Égypte","Érythrée","Éthiopie","Gabon","Gambie",
-      "Ghana","Guinée","Guinée-Bissau","Guinée équatoriale","Kenya",
-      "Lesotho","Liberia","Libye","Madagascar","Malawi","Mali",
-      "Maroc","Maurice","Mauritanie","Mozambique","Namibie","Niger",
-      "Nigeria","Ouganda","RD Congo","Rwanda","São Tomé-et-Príncipe",
-      "Sénégal","Sierra Leone","Somalie","Soudan","Soudan du Sud",
-      "Tanzanie","Tchad","Togo","Tunisie","Zambie","Zimbabwe",
-    ],
-  },
-  {
-    region: "🇪🇺 Europe",
-    pays: [
-      "Albanie","Allemagne","Andorre","Autriche","Belgique","Biélorussie",
-      "Bosnie-Herzégovine","Bulgarie","Chypre","Croatie","Danemark",
-      "Espagne","Estonie","Finlande","France","Grèce","Hongrie",
-      "Irlande","Islande","Italie","Kosovo","Lettonie","Liechtenstein",
-      "Lituanie","Luxembourg","Macédoine du Nord","Malte","Moldavie",
-      "Monaco","Monténégro","Norvège","Pays-Bas","Pologne","Portugal",
-      "République tchèque","Roumanie","Royaume-Uni","Russie","Saint-Marin",
-      "Serbie","Slovaquie","Slovénie","Suède","Suisse","Ukraine","Vatican",
-    ],
-  },
-  {
-    region: "🌎 Amériques",
-    pays: [
-      "Antigua-et-Barbuda","Argentine","Bahamas","Barbade","Belize",
-      "Bolivie","Brésil","Canada","Chili","Colombie","Costa Rica",
-      "Cuba","Dominique","Équateur","États-Unis","Grenade","Guatemala",
-      "Guyana","Haïti","Honduras","Jamaïque","Mexique","Nicaragua",
-      "Panama","Paraguay","Pérou","République dominicaine","Salvador",
-      "Suriname","Trinité-et-Tobago","Uruguay","Venezuela",
-    ],
-  },
-  {
-    region: "🌏 Asie",
-    pays: [
-      "Afghanistan","Bangladesh","Bhoutan","Birmanie","Brunei",
-      "Cambodge","Chine","Corée du Nord","Corée du Sud","Inde",
-      "Indonésie","Japon","Kazakhstan","Kirghizistan","Laos",
-      "Maldives","Malaisie","Mongolie","Népal","Ouzbékistan",
-      "Pakistan","Philippines","Singapour","Sri Lanka","Tadjikistan",
-      "Taïwan","Thaïlande","Timor oriental","Turkménistan","Vietnam",
-    ],
-  },
-  {
-    region: "🇦🇪 Moyen-Orient",
-    pays: [
-      "Arabie saoudite","Bahreïn","Émirats arabes unis (Dubaï)","Irak",
-      "Iran","Israël","Jordanie","Koweït","Liban","Oman",
-      "Palestine","Qatar","Syrie","Turquie","Yémen",
-    ],
-  },
-  {
-    region: "🌊 Océanie",
-    pays: [
-      "Australie","Fidji","Kiribati","Marshall","Micronésie",
-      "Nauru","Nouvelle-Zélande","Palaos","Papouasie-Nouvelle-Guinée",
-      "Samoa","Salomon","Tonga","Tuvalu","Vanuatu",
-    ],
-  },
+  { region: "🌍 Afrique", pays: ["Algérie","Angola","Bénin","Botswana","Burkina Faso","Burundi","Cameroun","Cap-Vert","Centrafrique","Comores","Congo","Côte d'Ivoire","Djibouti","Égypte","Érythrée","Éthiopie","Gabon","Gambie","Ghana","Guinée","Guinée-Bissau","Guinée équatoriale","Kenya","Lesotho","Liberia","Libye","Madagascar","Malawi","Mali","Maroc","Maurice","Mauritanie","Mozambique","Namibie","Niger","Nigeria","Ouganda","RD Congo","Rwanda","São Tomé-et-Príncipe","Sénégal","Sierra Leone","Somalie","Soudan","Soudan du Sud","Tanzanie","Tchad","Togo","Tunisie","Zambie","Zimbabwe"] },
+  { region: "🇪🇺 Europe", pays: ["Albanie","Allemagne","Andorre","Autriche","Belgique","Biélorussie","Bosnie-Herzégovine","Bulgarie","Chypre","Croatie","Danemark","Espagne","Estonie","Finlande","France","Grèce","Hongrie","Irlande","Islande","Italie","Kosovo","Lettonie","Liechtenstein","Lituanie","Luxembourg","Macédoine du Nord","Malte","Moldavie","Monaco","Monténégro","Norvège","Pays-Bas","Pologne","Portugal","République tchèque","Roumanie","Royaume-Uni","Russie","Saint-Marin","Serbie","Slovaquie","Slovénie","Suède","Suisse","Ukraine","Vatican"] },
+  { region: "🌎 Amériques", pays: ["Antigua-et-Barbuda","Argentine","Bahamas","Barbade","Belize","Bolivie","Brésil","Canada","Chili","Colombie","Costa Rica","Cuba","Dominique","Équateur","États-Unis","Grenade","Guatemala","Guyana","Haïti","Honduras","Jamaïque","Mexique","Nicaragua","Panama","Paraguay","Pérou","République dominicaine","Salvador","Suriname","Trinité-et-Tobago","Uruguay","Venezuela"] },
+  { region: "🌏 Asie", pays: ["Afghanistan","Bangladesh","Bhoutan","Birmanie","Brunei","Cambodge","Chine","Corée du Nord","Corée du Sud","Inde","Indonésie","Japon","Kazakhstan","Kirghizistan","Laos","Maldives","Malaisie","Mongolie","Népal","Ouzbékistan","Pakistan","Philippines","Singapour","Sri Lanka","Tadjikistan","Taïwan","Thaïlande","Timor oriental","Turkménistan","Vietnam"] },
+  { region: "🇦🇪 Moyen-Orient", pays: ["Arabie saoudite","Bahreïn","Émirats arabes unis (Dubaï)","Irak","Iran","Israël","Jordanie","Koweït","Liban","Oman","Palestine","Qatar","Syrie","Turquie","Yémen"] },
+  { region: "🌊 Océanie", pays: ["Australie","Fidji","Kiribati","Marshall","Micronésie","Nauru","Nouvelle-Zélande","Palaos","Papouasie-Nouvelle-Guinée","Samoa","Salomon","Tonga","Tuvalu","Vanuatu"] },
 ];
 
 const METIERS_CATEGORIES = [
@@ -97,24 +38,9 @@ const METIERS_CATEGORIES = [
 ];
 
 const PLANS = [
-  {
-    name: "Starter", emoji: "🌱", price: 49,
-    desc: "3 modules au choix · Idéal pour démarrer",
-    features: ["3 modules au choix", "Wallet & Flutterwave", "1 utilisateur", "Support WhatsApp"],
-    highlight: false,
-  },
-  {
-    name: "Business Pro", emoji: "🚀", price: 99,
-    desc: "8 modules inclus · Pour les équipes",
-    features: ["8 modules au choix", "Wallet + Cartes virtuelles", "5 utilisateurs", "IA & Analytics", "Support prioritaire"],
-    highlight: true,
-  },
-  {
-    name: "Enterprise", emoji: "💎", price: 150,
-    desc: "Tout inclus · Grandes structures",
-    features: ["Tous les modules", "Utilisateurs illimités", "Prospection IA complète", "Support dédié 7j/7"],
-    highlight: false,
-  },
+  { name: "Starter", emoji: "🌱", price: 49, desc: "3 modules · Idéal pour démarrer", features: ["3 modules au choix", "Wallet & Flutterwave", "1 utilisateur", "Support WhatsApp"], highlight: false },
+  { name: "Business Pro", emoji: "🚀", price: 99, desc: "8 modules · Pour les équipes", features: ["8 modules au choix", "Wallet + Cartes virtuelles", "5 utilisateurs", "IA & Analytics", "Support prioritaire"], highlight: true },
+  { name: "Enterprise", emoji: "💎", price: 150, desc: "Tout inclus · Grandes structures", features: ["Tous les modules", "Utilisateurs illimités", "Prospection IA complète", "Support dédié 7j/7"], highlight: false },
 ];
 
 const TAILLES = [
@@ -124,6 +50,15 @@ const TAILLES = [
   { label: "20+", sub: "Grande structure" },
 ];
 
+const PAYMENT_METHODS = [
+  { id: "wave", icon: "🌊", name: "Wave", sub: "Sénégal, Mali, CI, Burkina...", type: "flutterwave", flw_option: "mobilemoney" },
+  { id: "orange", icon: "📱", name: "Orange Money", sub: "Afrique de l'Ouest & Centrale", type: "flutterwave", flw_option: "mobilemoney" },
+  { id: "mtn", icon: "📲", name: "MTN Mobile Money", sub: "Ghana, Cameroun, Côte d'Ivoire...", type: "flutterwave", flw_option: "mobilemoney" },
+  { id: "card", icon: "💳", name: "Visa / Mastercard", sub: "Carte bancaire internationale", type: "stripe" },
+  { id: "sepa", icon: "🏦", name: "Virement SEPA", sub: "Europe — France, Belgique, Suisse...", type: "stripe" },
+  { id: "paypal", icon: "💰", name: "PayPal", sub: "Disponible dans le monde entier", type: "flutterwave", flw_option: "paypal" },
+];
+
 // ─── COMPONENT ───────────────────────────────────────────────────────────────
 
 export default function Inscription() {
@@ -131,27 +66,25 @@ export default function Inscription() {
   const [selectedCat, setSelectedCat] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [selectedPayment, setSelectedPayment] = useState("");
   const [form, setForm] = useState({
     societe: "", email: "", password: "", pays: "",
     categorie: "", metier: "", taille: "", plan: "", planPrice: 0,
   });
 
-  const update = (key: string, val: string | number) =>
-    setForm((f) => ({ ...f, [key]: val }));
+  const update = (key: string, val: string | number) => setForm(f => ({ ...f, [key]: val }));
 
-  // ── FLUTTERWAVE CONFIG ──
   const flwConfig = {
     public_key: process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY!,
     tx_ref: `TYM-${Date.now()}`,
     amount: form.planPrice || 49,
     currency: "EUR",
-    payment_options: "card,mobilemoney,ussd,banktransfer",
+    payment_options: "mobilemoney,card,ussd",
     customer: {
       email: form.email || "client@tymeless.com",
       name: form.societe || "Client",
       phone_number: "0000000000",
     },
-    
     customizations: {
       title: "Tymeless OS",
       description: `Abonnement ${form.plan} — ${form.metier}`,
@@ -161,34 +94,26 @@ export default function Inscription() {
 
   const handleFlutterPayment = useFlutterwave(flwConfig as any);
 
-  // ── PAIEMENT ──
-  const handlePay = () => {
+  const saveToSupabase = async (txRef: string, txId: string, method: string) => {
+    try {
+      await supabase.from("inscriptions").insert([{
+        societe: form.societe, email: form.email, pays: form.pays,
+        categorie: form.categorie, metier: form.metier, taille: form.taille,
+        plan: form.plan, plan_price: form.planPrice,
+        flw_tx_ref: txRef, flw_transaction_id: txId,
+        payment_method: method, statut: "actif",
+        created_at: new Date().toISOString(),
+      }]);
+    } catch (e) { console.error(e); }
+  };
+
+  const handleFlw = (option: string) => {
     handleFlutterPayment({
       callback: async (response) => {
         closePaymentModal();
         if (response.status === "successful") {
           setLoading(true);
-          try {
-            
-            await supabase.from("inscriptions").insert([
-              {
-                societe: form.societe,
-                email: form.email,
-                pays: form.pays,
-                categorie: form.categorie,
-                metier: form.metier,
-                taille: form.taille,
-                plan: form.plan,
-                plan_price: form.planPrice,
-                flw_tx_ref: response.tx_ref,
-                flw_transaction_id: response.transaction_id,
-                statut: "actif",
-                created_at: new Date().toISOString(),
-              },
-            ]);
-          } catch (e) {
-            console.error(e);
-          }
+          await saveToSupabase(response.tx_ref, String(response.transaction_id), option);
           setLoading(false);
           setSuccess(true);
         }
@@ -197,30 +122,61 @@ export default function Inscription() {
     });
   };
 
+  const handleStripe = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch("/api/create-checkout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          amount: form.planPrice, plan: form.plan,
+          societe: form.societe, email: form.email,
+          metier: form.metier, pays: form.pays, taille: form.taille,
+        }),
+      });
+      const data = await res.json();
+      if (data.url) window.location.href = data.url;
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  const handlePay = () => {
+    const method = PAYMENT_METHODS.find(m => m.id === selectedPayment);
+    if (!method) return;
+    if (method.type === "stripe") handleStripe();
+    else handleFlw(method.flw_option || "mobilemoney");
+  };
+
   const canNext = () => {
     if (step === 1) return form.societe && form.email && form.password && form.pays && form.taille;
     if (step === 2) return form.metier;
     if (step === 3) return form.plan;
+    if (step === 4) return selectedPayment !== "";
     return true;
   };
 
   const stepTitles = ["Entreprise", "Métier", "Plan", "Paiement"];
-  const currentMetiers = METIERS_CATEGORIES.find((c) => c.cat === selectedCat)?.metiers || [];
+  const currentMetiers = METIERS_CATEGORIES.find(c => c.cat === selectedCat)?.metiers || [];
 
-  // ── SUCCÈS ──
   if (success) {
     return (
-      <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", background: "#0a0a0a", color: "#f0ead6", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}>
+      <div style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", background: "#0a0a0a", color: "#f0ead6", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}>
         <div>
           <div style={{ fontSize: 64, marginBottom: 24 }}>🎉</div>
           <h1 style={{ fontSize: "clamp(32px,5vw,52px)", fontWeight: 300, marginBottom: 16 }}>
             Bienvenue sur <em style={{ color: "#c9a96e", fontStyle: "italic" }}>Tymeless OS !</em>
           </h1>
-          <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 16, color: "rgba(240,234,214,0.6)", marginBottom: 40, lineHeight: 1.7 }}>
-            Votre compte a été créé avec succès.<br />
-            Votre dashboard est prêt.
+          <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 16, color: "rgba(240,234,214,0.6)", marginBottom: 16, lineHeight: 1.7 }}>
+            Paiement confirmé · Compte créé avec succès
           </p>
-          <a href="/dashboard" style={{ background: "linear-gradient(135deg,#c9a96e,#a07c45)", color: "#0a0a0a", padding: "16px 40px", fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 600, textDecoration: "none", clipPath: "polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%)" }}>
+          <div style={{ background: "rgba(201,169,110,0.08)", border: "1px solid rgba(201,169,110,0.2)", padding: "20px 32px", marginBottom: 36, display: "inline-block", textAlign: "left" }}>
+            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "rgba(240,234,214,0.5)", marginBottom: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>Récapitulatif</div>
+            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, marginBottom: 6 }}>{form.societe}</div>
+            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "rgba(240,234,214,0.5)", marginBottom: 4 }}>{form.metier} · {form.pays}</div>
+            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#c9a96e" }}>Plan {form.plan} · {form.planPrice}€/mois</div>
+          </div>
+          <br />
+          <a href="/dashboard" style={{ background: "linear-gradient(135deg,#c9a96e,#a07c45)", color: "#0a0a0a", padding: "16px 40px", fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 600, textDecoration: "none", clipPath: "polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%)", display: "inline-block" }}>
             Accéder à mon dashboard →
           </a>
         </div>
@@ -229,7 +185,7 @@ export default function Inscription() {
   }
 
   return (
-    <div style={{ fontFamily: "'Cormorant Garamond', Georgia, serif", background: "#0a0a0a", color: "#f0ead6", minHeight: "100vh" }}>
+    <div style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", background: "#0a0a0a", color: "#f0ead6", minHeight: "100vh" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,300;0,400;0,600;1,400&family=DM+Sans:wght@300;400;500;600&display=swap');
         * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -249,6 +205,9 @@ export default function Inscription() {
         .plan-btn { background:rgba(255,255,255,0.02); border:1px solid rgba(201,169,110,0.15); padding:26px 22px; cursor:pointer; transition:all 0.2s; position:relative; text-align:left; width:100%; font-family:'DM Sans',sans-serif; }
         .plan-btn:hover { border-color:rgba(201,169,110,0.4); transform:translateY(-2px); }
         .plan-btn.sel { border-color:#c9a96e; background:rgba(201,169,110,0.08); }
+        .pay-btn { background:rgba(255,255,255,0.02); border:1px solid rgba(201,169,110,0.12); padding:16px 20px; cursor:pointer; transition:all 0.2s; display:flex; align-items:center; gap:14px; width:100%; font-family:'DM Sans',sans-serif; }
+        .pay-btn:hover { border-color:rgba(201,169,110,0.35); background:rgba(201,169,110,0.04); }
+        .pay-btn.sel { border-color:#c9a96e; background:rgba(201,169,110,0.08); }
         .btn-primary { background:linear-gradient(135deg,#c9a96e,#a07c45); color:#0a0a0a; border:none; padding:15px 36px; font-family:'DM Sans',sans-serif; font-size:15px; font-weight:600; cursor:pointer; transition:all 0.3s; clip-path:polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%); width:100%; letter-spacing:0.04em; }
         .btn-primary:hover { box-shadow:0 8px 28px rgba(201,169,110,0.35); transform:translateY(-1px); }
         .btn-primary:disabled { opacity:0.3; cursor:not-allowed; transform:none; box-shadow:none; }
@@ -262,12 +221,9 @@ export default function Inscription() {
 
       {/* HEADER */}
       <div style={{ borderBottom: "1px solid rgba(201,169,110,0.1)", padding: "18px 40px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <a href="/" style={{ fontSize: 20, fontWeight: 300, letterSpacing: "0.08em", color: "#c9a96e", textDecoration: "none" }}>
-          TYMELESS <em>OS</em>
-        </a>
+        <a href="/" style={{ fontSize: 20, fontWeight: 300, letterSpacing: "0.08em", color: "#c9a96e", textDecoration: "none" }}>TYMELESS <em>OS</em></a>
         <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "rgba(240,234,214,0.4)" }}>
-          Déjà inscrit ?{" "}
-          <a href="/dashboard" style={{ color: "#c9a96e", textDecoration: "none" }}>Connexion →</a>
+          Déjà inscrit ? <a href="/dashboard" style={{ color: "#c9a96e", textDecoration: "none" }}>Connexion →</a>
         </span>
       </div>
 
@@ -297,9 +253,7 @@ export default function Inscription() {
         {step === 1 && (
           <div className="fade">
             <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#c9a96e", marginBottom: 10 }}>Étape 1 sur 4</p>
-            <h1 style={{ fontSize: "clamp(30px,5vw,46px)", fontWeight: 300, lineHeight: 1.1, marginBottom: 32 }}>
-              Votre <em style={{ fontStyle: "italic", color: "#c9a96e" }}>entreprise</em>
-            </h1>
+            <h1 style={{ fontSize: "clamp(30px,5vw,46px)", fontWeight: 300, lineHeight: 1.1, marginBottom: 32 }}>Votre <em style={{ fontStyle: "italic", color: "#c9a96e" }}>entreprise</em></h1>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div><label className="lbl">Nom de la société *</label><input className="inp" placeholder="Ex: Ndiaye BTP, Restaurant Soleil..." value={form.societe} onChange={e => update("societe", e.target.value)} /></div>
               <div><label className="lbl">Email professionnel *</label><input className="inp" type="email" placeholder="contact@societe.com" value={form.email} onChange={e => update("email", e.target.value)} /></div>
@@ -334,9 +288,7 @@ export default function Inscription() {
         {step === 2 && (
           <div className="fade">
             <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#c9a96e", marginBottom: 10 }}>Étape 2 sur 4</p>
-            <h1 style={{ fontSize: "clamp(30px,5vw,46px)", fontWeight: 300, lineHeight: 1.1, marginBottom: 28 }}>
-              Votre <em style={{ fontStyle: "italic", color: "#c9a96e" }}>métier</em>
-            </h1>
+            <h1 style={{ fontSize: "clamp(30px,5vw,46px)", fontWeight: 300, lineHeight: 1.1, marginBottom: 28 }}>Votre <em style={{ fontStyle: "italic", color: "#c9a96e" }}>métier</em></h1>
             <div className="step2-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
               <div>
                 <label className="lbl">1. Catégorie</label>
@@ -352,9 +304,7 @@ export default function Inscription() {
               <div>
                 <label className="lbl">2. Métier précis</label>
                 {!selectedCat ? (
-                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "rgba(240,234,214,0.25)", padding: "20px 16px", border: "1px solid rgba(201,169,110,0.08)", textAlign: "center" }}>
-                    ← Sélectionnez une catégorie
-                  </div>
+                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "rgba(240,234,214,0.25)", padding: "20px 16px", border: "1px solid rgba(201,169,110,0.08)", textAlign: "center" }}>← Sélectionnez une catégorie</div>
                 ) : (
                   <div style={{ display: "flex", flexDirection: "column", gap: 4, maxHeight: 380, overflowY: "auto" }}>
                     {currentMetiers.map(m => (
@@ -379,9 +329,7 @@ export default function Inscription() {
         {step === 3 && (
           <div className="fade">
             <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#c9a96e", marginBottom: 10 }}>Étape 3 sur 4</p>
-            <h1 style={{ fontSize: "clamp(30px,5vw,46px)", fontWeight: 300, lineHeight: 1.1, marginBottom: 12 }}>
-              Votre <em style={{ fontStyle: "italic", color: "#c9a96e" }}>plan</em>
-            </h1>
+            <h1 style={{ fontSize: "clamp(30px,5vw,46px)", fontWeight: 300, lineHeight: 1.1, marginBottom: 12 }}>Votre <em style={{ fontStyle: "italic", color: "#c9a96e" }}>plan</em></h1>
             <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, color: "rgba(240,234,214,0.45)", marginBottom: 28 }}>14 jours d'essai gratuit. Annulez à tout moment.</p>
             <div className="plans-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
               {PLANS.map(plan => (
@@ -412,34 +360,44 @@ export default function Inscription() {
             <h1 style={{ fontSize: "clamp(30px,5vw,46px)", fontWeight: 300, lineHeight: 1.1, marginBottom: 12 }}>
               <em style={{ fontStyle: "italic", color: "#c9a96e" }}>Paiement</em>
             </h1>
-            <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, color: "rgba(240,234,214,0.45)", marginBottom: 24 }}>100% sécurisé via Flutterwave.</p>
+            <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, color: "rgba(240,234,214,0.45)", marginBottom: 24 }}>Choisissez votre moyen de paiement.</p>
 
             {/* Récap */}
-            <div style={{ background: "rgba(201,169,110,0.05)", border: "1px solid rgba(201,169,110,0.18)", padding: "20px 24px", marginBottom: 28 }}>
-              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "rgba(240,234,214,0.35)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 14 }}>Récapitulatif</div>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
+            <div style={{ background: "rgba(201,169,110,0.05)", border: "1px solid rgba(201,169,110,0.18)", padding: "18px 22px", marginBottom: 24 }}>
+              <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "rgba(240,234,214,0.35)", letterSpacing: "0.1em", textTransform: "uppercase", marginBottom: 12 }}>Récapitulatif</div>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 8 }}>
                 <div style={{ fontFamily: "'DM Sans',sans-serif" }}>
-                  <div style={{ fontSize: 16, fontWeight: 500, marginBottom: 6 }}>{form.societe}</div>
-                  <div style={{ fontSize: 13, color: "rgba(240,234,214,0.5)" }}>{form.metier} · {form.pays}</div>
-                  <div style={{ fontSize: 13, color: "rgba(240,234,214,0.5)" }}>{form.taille} · Plan {form.plan}</div>
+                  <div style={{ fontSize: 15, fontWeight: 500, marginBottom: 4 }}>{form.societe}</div>
+                  <div style={{ fontSize: 13, color: "rgba(240,234,214,0.5)" }}>{form.metier} · {form.pays} · {form.taille}</div>
                 </div>
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 32, fontWeight: 300, color: "#c9a96e" }}>
-                    {form.planPrice}€<span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "rgba(240,234,214,0.35)", fontWeight: 300 }}>/mois</span>
+                  <div style={{ fontFamily: "'Cormorant Garamond',serif", fontSize: 28, fontWeight: 300, color: "#c9a96e" }}>
+                    {form.planPrice}€<span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "rgba(240,234,214,0.35)", fontWeight: 300 }}>/mois</span>
                   </div>
-                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "rgba(240,234,214,0.3)" }}>14 jours gratuits d'abord</div>
+                  <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "rgba(240,234,214,0.3)" }}>Plan {form.plan} · 14 jours gratuits</div>
                 </div>
               </div>
             </div>
 
-            {/* Méthodes info */}
-            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "rgba(240,234,214,0.5)", marginBottom: 24, display: "flex", gap: 12, flexWrap: "wrap" }}>
-              {["🌊 Wave", "📱 Orange Money", "📲 MTN", "💳 Visa/Mastercard", "🏦 SEPA", "💰 PayPal"].map(m => (
-                <span key={m} style={{ background: "rgba(255,255,255,0.03)", border: "1px solid rgba(201,169,110,0.1)", padding: "6px 12px", fontSize: 12 }}>{m}</span>
+            {/* Méthodes de paiement cliquables */}
+            <label className="lbl">Choisissez votre moyen de paiement *</label>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8, marginBottom: 24 }}>
+              {PAYMENT_METHODS.map(m => (
+                <button key={m.id} className={`pay-btn${selectedPayment === m.id ? " sel" : ""}`} onClick={() => setSelectedPayment(m.id)}>
+                  <span style={{ fontSize: 22, flexShrink: 0 }}>{m.icon}</span>
+                  <div style={{ textAlign: "left", flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 500, color: "#f0ead6" }}>{m.name}</div>
+                    <div style={{ fontSize: 12, color: "rgba(240,234,214,0.4)" }}>{m.sub}</div>
+                  </div>
+                  {selectedPayment === m.id && <span style={{ color: "#c9a96e", fontSize: 16, flexShrink: 0 }}>✓</span>}
+                  <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: selectedPayment === m.id ? "#c9a96e" : "rgba(240,234,214,0.3)", flexShrink: 0 }}>
+                    {m.type === "stripe" ? "via Stripe" : "via Flutterwave"}
+                  </span>
+                </button>
               ))}
             </div>
 
-            <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "rgba(240,234,214,0.25)", textAlign: "center", marginBottom: 20 }}>
+            <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "rgba(240,234,214,0.25)", textAlign: "center", marginBottom: 16 }}>
               🔒 SSL · Aucun débit pendant 14 jours · Annulez à tout moment
             </p>
           </div>
@@ -447,24 +405,20 @@ export default function Inscription() {
 
         {/* NAVIGATION */}
         <div style={{ display: "flex", gap: 12, marginTop: 36 }}>
-          {step > 1 && (
-            <button className="btn-back" onClick={() => setStep(s => s - 1)}>← Retour</button>
-          )}
+          {step > 1 && <button className="btn-back" onClick={() => setStep(s => s - 1)}>← Retour</button>}
           {step < 4 ? (
             <button className="btn-primary" disabled={!canNext()} onClick={() => setStep(s => s + 1)}>
               {step === 3 ? "Continuer vers le paiement →" : "Continuer →"}
             </button>
           ) : (
-            <button className="btn-primary" disabled={loading} onClick={handlePay}>
+            <button className="btn-primary" disabled={!canNext() || loading} onClick={handlePay}>
               {loading ? "Traitement en cours..." : `🚀 Payer ${form.planPrice}€ et accéder au dashboard`}
             </button>
           )}
         </div>
 
         <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "rgba(240,234,214,0.2)", textAlign: "center", marginTop: 20 }}>
-          En vous inscrivant vous acceptez nos{" "}
-          <a href="#" style={{ color: "rgba(201,169,110,0.4)" }}>CGV</a> et notre{" "}
-          <a href="#" style={{ color: "rgba(201,169,110,0.4)" }}>politique de confidentialité</a>.
+          En vous inscrivant vous acceptez nos <a href="#" style={{ color: "rgba(201,169,110,0.4)" }}>CGV</a> et notre <a href="#" style={{ color: "rgba(201,169,110,0.4)" }}>politique de confidentialité</a>.
         </p>
       </div>
     </div>
