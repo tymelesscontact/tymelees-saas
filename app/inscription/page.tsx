@@ -159,7 +159,7 @@ export default function Inscription() {
     },
   };
 
-  const handleFlutterPayment = useFlutterwave(flwConfig);
+  const handleFlutterPayment = useFlutterwave(flwConfig as any);
 
   // ── PAIEMENT ──
   const handlePay = () => {
