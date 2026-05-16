@@ -176,7 +176,7 @@ export default function Inscription() {
             <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#c9a96e" }}>Plan {form.plan} · {form.planPrice}€/mois</div>
           </div>
           <br />
-          <a href="/dashboard" style={{ background: "linear-gradient(135deg,#c9a96e,#a07c45)", color: "#0a0a0a", padding: "16px 40px", fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 600, textDecoration: "none", clipPath: "polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%)", display: "inline-block" }}>
+          <a href={`/dashboard/client?plan=${form.plan.toLowerCase().replace(/ /g,"_")}&societe=${encodeURIComponent(form.societe)}&secteur=${encodeURIComponent(form.metier)}`} style={{ background: "linear-gradient(135deg,#c9a96e,#a07c45)", color: "#0a0a0a", padding: "16px 40px", fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 600, textDecoration: "none", clipPath: "polygon(8px 0%,100% 0%,calc(100% - 8px) 100%,0% 100%)", display: "inline-block" }}>
             Accéder à mon dashboard →
           </a>
         </div>
@@ -223,7 +223,7 @@ export default function Inscription() {
       <div style={{ borderBottom: "1px solid rgba(201,169,110,0.1)", padding: "18px 40px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <a href="/" style={{ fontSize: 20, fontWeight: 300, letterSpacing: "0.08em", color: "#c9a96e", textDecoration: "none" }}>TYMELESS <em>OS</em></a>
         <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "rgba(240,234,214,0.4)" }}>
-          Déjà inscrit ? <a href="/dashboard" style={{ color: "#c9a96e", textDecoration: "none" }}>Connexion →</a>
+          Déjà inscrit ? <a href={`/dashboard/client?plan=${form.plan.toLowerCase().replace(/ /g,"_")}&societe=${encodeURIComponent(form.societe)}&secteur=${encodeURIComponent(form.metier)}`} style={{ color: "#c9a96e", textDecoration: "none" }}>Connexion →</a>
         </span>
       </div>
 
