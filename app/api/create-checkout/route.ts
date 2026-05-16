@@ -28,7 +28,7 @@ export async function POST(req: NextRequest) {
       ],
       customer_email: email,
       metadata: { societe, plan, metier, pays, taille },
-      success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard?success=true&plan=${plan}`,
+    success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/client?plan=${plan.toLowerCase().replace(/ /g,"_")}&societe=${encodeURIComponent(societe)}`,
       cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/inscription?cancelled=true`,
     });
 
