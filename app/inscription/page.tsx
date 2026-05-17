@@ -68,7 +68,7 @@ export default function Inscription() {
   const [success, setSuccess] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState("");
   const [form, setForm] = useState({
-    societe: "", email: "", password: "", pays: "",
+    societe: "", gerant: "", email: "", password: "", pays: "",
     categorie: "", metier: "", taille: "", plan: "", planPrice: 0,
   });
 
@@ -256,7 +256,7 @@ export default function Inscription() {
             <h1 style={{ fontSize: "clamp(30px,5vw,46px)", fontWeight: 300, lineHeight: 1.1, marginBottom: 32 }}>Votre <em style={{ fontStyle: "italic", color: "#c9a96e" }}>entreprise</em></h1>
             <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
               <div><label className="lbl">Nom de la société *</label><input className="inp" placeholder="Ex: Ndiaye BTP, Restaurant Soleil..." value={form.societe} onChange={e => update("societe", e.target.value)} /></div>
-              <div><label className="lbl">Email professionnel *</label><input className="inp" type="email" placeholder="contact@societe.com" value={form.email} onChange={e => update("email", e.target.value)} /></div>
+              <div><label className="lbl">Nom et prénom du gérant *</label><input className="inp" placeholder="Ex: Marie Dupont" value={form.gerant} onChange={e => update("gerant", e.target.value)} /></div><div><label className="lbl">Email professionnel *</label><input className="inp" type="email" placeholder="contact@societe.com" value={form.email} onChange={e => update("email", e.target.value)} /></div>
               <div><label className="lbl">Mot de passe *</label><input className="inp" type="password" placeholder="Minimum 8 caractères" value={form.password} onChange={e => update("password", e.target.value)} /></div>
               <div>
                 <label className="lbl">Pays *</label>
