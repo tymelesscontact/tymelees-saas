@@ -451,15 +451,19 @@ const CentreAide = () => (
 
 // ─── PAGE PRINCIPALE ──────────────────────────────────────────
 export default function ClientDashboard() {
-  const [profile] = useState<ClientProfile>({
-    societe: "Élite Conciergerie",
-    gerant: "Marie Dupont",
-    email: "contact@eliteconciergerie.fr",
-    secteur: "Nettoyage / Conciergerie",
-    plan: "starter",
-  });
-
-  const [plan, setPlan] = useState<Plan>("starter");
+  const searchParams = new URLSearchParams(
+  typeof window !== "undefined" ? window.location.search : ""
+);
+const [plan, setPlan] = useState<Plan>(
+  (searchParams.get("plan") as Plan) || "starter"
+);
+const [profile] = useState<ClientProfile>({
+  societe: searchParams.get("societe") || "Votre Société",
+  gerant: searchParams.get("gerant") || "",
+  email: searchParams.get("email") || "",
+  secteur: searchParams.get("secteur") || "",
+  plan: (searchParams.get("plan") as Plan) || "starter",
+});
   const [secteur] = useState("services");
   const [page, setPage] = useState<PageId>("overview");
   const [modalMod, setModalMod] = useState<Module | null>(null);
