@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     const { amount, plan, societe, email, metier, pays, taille } = await req.json();
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card", "sepa_debit"],
+      payment_method_types: ["card"],
       mode: "subscription",
       line_items: [
         {
