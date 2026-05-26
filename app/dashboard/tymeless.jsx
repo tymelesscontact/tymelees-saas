@@ -1,1558 +1,3712 @@
-"use client";import { useState, useRef, useEffect } from "react";
-import { supabase } from "../lib/supabase";
+"use client";
+import { useState, useRef, useEffect } from "react";
 
-// ─── PALETTE ──────────────────────────────────────────────────
 const C = {
-  // Sidebar dark navy
-  navy:"#0B1220", navy2:"#111827", navyBorder:"rgba(255,255,255,0.06)",
-  // Main white
-  bg:"#F8FAFC", white:"#FFFFFF", border:"#E2E8F0",
-  // Text
-  dark:"#0F172A", mid:"#475569", muted:"#94A3B8", light:"#CBD5E1",
-  // Brand
-  gold:"#C9A84C", goldLight:"#FEF3C7", goldBorder:"#FDE68A",
-  // Status
-  green:"#10B981", greenBg:"#D1FAE5", red:"#EF4444", redBg:"#FEE2E2",
-  blue:"#2563EB", blueBg:"#DBEAFE", blueBorder:"#BFDBFE",
-  orange:"#F59E0B", orangeBg:"#FEF3C7",
-  purple:"#7C3AED", purpleBg:"#EDE9FE",
-  teal:"#0D9488", tealBg:"#CCFBF1",
+  dark:"#06060E", card:"#0C0C1A", card2:"#121222",
+  border:"#1E1E36", gold:"#C9A84C", text:"#EAE6DE",
+  muted:"#5A5A7A", green:"#2EC9B0", red:"#FF5252",
+  blue:"#4B7BFF", purple:"#9B5FFF", orange:"#FF8C3A",
+  teal:"#2ECDC4", pink:"#FF5F9E",
 };
 
-// ─── PLANS ────────────────────────────────────────────────────
 const PLANS = {
-  starter:  { id:"starter",  nom:"Starter",      prix:"29€/mois",  color:C.blue,   icon:"◎" },
-  business: { id:"business", nom:"Business Pro",  prix:"99€/mois",  color:C.gold,   icon:"✦" },
-  enterprise:{ id:"enterprise",nom:"Enterprise",  prix:"150€/mois", color:C.purple, icon:"◈" },
-  owner:    { id:"owner",    nom:"Owner",          prix:"—",         color:C.gold,   icon:"★" },
+  starter: {id:"starter",nom:"Starter",prix:"49€/mois",color:"#4B7BFF",icon:"◎",acces:["wallet","cartes","paiements_entrants","paiements_sortants","historique","devises"],description:"Wallet · Paiements · Carte virtuelle · IBAN mondial"},
+  business: {id:"business",nom:"Business Pro",prix:"99€/mois",color:"#C9A84C",icon:"✦",acces:["tout"],description:"Tout Starter + Réseau B2B · Annuaire · Commissions · Prospection · Investissement IA"},
+  enterprise:{id:"enterprise",nom:"Enterprise",prix:"150€/mois",color:"#9B5FFF",icon:"◈",acces:["tout"],description:"Tout Business Pro + Bot WhatsApp intégré · Support dédié · White-label"},
+  owner:    {id:"owner",nom:"Owner",prix:"—",color:"#C9A84C",icon:"★",acces:["tout"],description:"Accès total — Curtiss"},
 };
 
-const FREE_PAGES = ["wallet","cartes","iban","historique","settings","notifications","chat-equipe","pointage"];
-const LOCKED_PAGES = ["investissement","annuaire","mises-en-relation","deals","opportunites","missions","propositions","chat-business"];
+const PAGE_ACCESS = {
+  wallet:         ["starter","business","enterprise","owner"],
+  cartes:         ["starter","business","enterprise","owner"],
+  overview:       ["business","enterprise","owner"],
+  crm:            ["business","enterprise","owner"],
+  devis:          ["business","enterprise","owner"],
+  investissement: ["business","enterprise","owner"],
+  compta:         ["business","enterprise","owner"],
+  tresorerie:     ["business","enterprise","owner"],
+  analytique:     ["business","enterprise","owner"],
+  clients:        ["business","enterprise","owner"],
+  partenaires:    ["business","enterprise","owner"],
+  annuaire:       ["business","enterprise","owner"],
+  wallet_membres: ["business","enterprise","owner"],
+  evenements:     ["business","enterprise","owner"],
+  scoring:        ["business","enterprise","owner"],
+  equipe:         ["business","enterprise","owner"],
+  planning:       ["business","enterprise","owner"],
+  prospection:    ["business","enterprise","owner"],
+  stock:          ["business","enterprise","owner"],
+  services:       ["business","enterprise","owner"],
+  notifications:  ["business","enterprise","owner"],
+  signature:      ["business","enterprise","owner"],
+  formation:      ["business","enterprise","owner"],
+  deploiement:    ["business","enterprise","owner"],
+  api:            ["business","enterprise","owner"],
+  settings:       ["business","enterprise","owner"],
+  facturation:    ["business","enterprise","owner"],
+};
 
-// ─── NAVIGATION ───────────────────────────────────────────────
 const NAV = [
-  { title:"Accueil", items:[{ key:"accueil", label:"🏠 Accueil" }] },
-  { title:"Mon espace", items:[
-    { key:"wallet",     label:"💳 Wallet & paiements" },
-    { key:"cartes",     label:"💎 Cartes virtuelles" },
-    { key:"iban",       label:"🏦 IBAN mondial" },
-    { key:"historique", label:"📜 Historique" },
+  { group:"ACCUEIL", items:[
+    { id:"accueil",       icon:"🏠", label:"Accueil",             badge:"notifs" },
   ]},
-  { title:"Business", items:[
-    { key:"vue-ensemble",  label:"📊 Vue d'ensemble" },
-    { key:"crm",           label:"📇 CRM" },
-    { key:"devis",         label:"🧾 Devis" },
-    { key:"comptabilite",  label:"💰 Comptabilité" },
-    { key:"tresorerie",    label:"📈 Trésorerie 90 jours" },
-    { key:"analytique",    label:"📉 Analytique & CA" },
-    { key:"investissement",label:"🔒 Investissement IA", locked:true },
+  { group:"MON ESPACE", items:[
+    { id:"wallet",        icon:"💳", label:"Wallet & Paiements"   },
+    { id:"cartes",        icon:"◈",  label:"Cartes Virtuelles"    },
   ]},
-  { title:"Réseau", items:[
-    { key:"annuaire",          label:"🌍 Annuaire mondial",    locked:true },
-    { key:"mises-en-relation", label:"🤝 Mises en relation",   locked:true },
-    { key:"deals",             label:"💼 Deals",               locked:true },
-    { key:"opportunites",      label:"🚀 Opportunités business",locked:true },
-    { key:"missions",          label:"📌 Demandes de missions", locked:true },
-    { key:"propositions",      label:"📬 Propositions",         locked:true },
-    { key:"chat-business",     label:"💬 Chat business",        locked:true },
+  { group:"BUSINESS", items:[
+    { id:"overview",      icon:"◈",  label:"Vue d'ensemble",      badge:"devis"  },
+    { id:"crm",           icon:"◎",  label:"CRM",                 badge:"crm"    },
+    { id:"devis",         icon:"◧",  label:"Devis"                },
+    { id:"investissement",icon:"◐",  label:"Investissement IA"    },
+    { id:"compta",        icon:"◉",  label:"Comptabilité"         },
+    { id:"tresorerie",    icon:"◑",  label:"Trésorerie 90 jours"  },
+    { id:"analytique",    icon:"◒",  label:"Analytique & CA"      },
   ]},
-  { title:"Opérations", items:[
-    { key:"planning",     label:"📅 Planning & agenda" },
-    { key:"rendez-vous",  label:"📆 Rendez-vous" },
-    { key:"reservations", label:"🗓️ Pages de réservation" },
-    { key:"services",     label:"🧰 Services" },
-    { key:"stock",        label:"📦 Stock" },
-    { key:"contrats",     label:"📄 Contrats" },
-    { key:"notifications",label:"🔔 Notifications" },
-    { key:"formation",    label:"🎓 Formation" },
+  { group:"RÉSEAU", items:[
+    { id:"clients",       icon:"◬",  label:"Clients"              },
+    { id:"partenaires",   icon:"⬡",  label:"Partenaires & AA",    badge:"comm"   },
+    { id:"club_affaires", icon:"◈",  label:"Club d'affaires"      },
+    { id:"annuaire",      icon:"◱",  label:"Réseau & Annuaire"    },
+    { id:"wallet_membres",icon:"◈",  label:"Wallets Membres"      },
+    { id:"evenements",    icon:"◆",  label:"Événements"           },
+    { id:"scoring",       icon:"★",  label:"Réputation & NPS"     },
   ]},
-  { title:"Équipe", items:[
-    { key:"equipe",          label:"👥 Vue équipe" },
-    { key:"pointage",        label:"⏱️ Pointage" },
-    { key:"collaborateurs",  label:"➕ Gestion collaborateurs" },
-    { key:"chat-equipe",     label:"💬 Chat équipe" },
+  { group:"OPÉRATIONS", items:[
+    { id:"equipe",        icon:"⊞",  label:"Équipe",              badge:"chat_eq"},
+    { id:"planning",      icon:"⊡",  label:"Planning & Agenda"    },
+    { id:"prospection",   icon:"⊕",  label:"Prospection Auto"     },
+    { id:"deals",         icon:"📋", label:"Deals & Opportunités"  },
+    { id:"stock",         icon:"⊟",  label:"Stock",               badge:"stock"  },
+    { id:"services",      icon:"⊛",  label:"Produits & Services"  },
   ]},
-  { title:"Owner", items:[
-    { key:"owner",             label:"👑 Centre de contrôle" },
-    { key:"kpi",               label:"📊 KPI globaux" },
-    { key:"commissions-owner", label:"💸 Commissions Tymeless" },
-    { key:"deploiements",      label:"🏢 Déploiements SaaS" },
-    { key:"settings",          label:"⚙️ Paramètres" },
+  { group:"DÉVELOPPEMENT", items:[
+    { id:"chat",          icon:"💬", label:"Chat",                badge:"chat_eq"},
+    { id:"notifications", icon:"🔔", label:"Notifications",       badge:"notifs" },
+    { id:"signature",     icon:"✦",  label:"Contrats & Signatures" },
+    { id:"facturation",    icon:"🧾", label:"Facturation Électronique"},
+    { id:"formation",     icon:"⊿",  label:"Formation équipe"     },
+    { id:"deploiement",   icon:"🌍", label:"Déploiement SaaS"     },
+    { id:"api",           icon:"◇",  label:"API Tymeless"         },
+    { id:"settings",      icon:"⚙",  label:"Paramètres"           },
+    { id:"admin",         icon:"👑", label:"Admin Curtiss"         },
   ]},
 ];
 
-// ─── DATA ─────────────────────────────────────────────────────
-const DEVISES=[{code:"EUR",symbol:"€",flag:"🇪🇺",nom:"Euro",taux:1},{code:"XOF",symbol:"₣",flag:"🌍",nom:"Franc CFA",taux:655.96},{code:"USD",symbol:"$",flag:"🇺🇸",nom:"Dollar US",taux:1.08},{code:"GBP",symbol:"£",flag:"🇬🇧",nom:"Livre Sterling",taux:0.86},{code:"MAD",symbol:"د",flag:"🇲🇦",nom:"Dirham",taux:10.82}];
-const METHODES=[{id:"wave",nom:"Wave",icon:"🌊",color:C.blue,zone:"Sénégal / Côte d'Ivoire"},{id:"orange",nom:"Orange Money",icon:"🟠",color:C.orange,zone:"Afrique francophone"},{id:"mtn",nom:"MTN Money",icon:"🟡",color:"#FBBF24",zone:"Afrique sub-saharienne"},{id:"carte",nom:"Carte bancaire",icon:"💳",color:C.blue,zone:"Europe / Monde"},{id:"sepa",nom:"Virement SEPA",icon:"🏦",color:C.green,zone:"Europe"},{id:"whatsapp",nom:"WhatsApp Pay",icon:"💬",color:C.green,zone:"Global"}];
-const INIT_HISTO=[{id:"PAY-001",type:"entree",libelle:"Paiement Sofia Al-Rashid",montant:2400,devise:"EUR",methode:"Carte",date:"13/04 14:32",statut:"confirmé",com:120},{id:"PAY-002",type:"entree",libelle:"Paiement Pierre Lefevre",montant:4800,devise:"EUR",methode:"Virement SEPA",date:"12/04 09:15",statut:"confirmé",com:240},{id:"PAY-003",type:"sortie",libelle:"Commission Thomas Beaumont",montant:2480,devise:"EUR",methode:"Virement SEPA",date:"11/04 16:00",statut:"envoyé",com:0},{id:"PAY-004",type:"entree",libelle:"Paiement Fatoumata Diop",montant:557480,devise:"XOF",methode:"Wave",date:"10/04 11:20",statut:"confirmé",com:27874}];
-const INIT_DEVIS=[{id:"TYM-0044",client:"Isabelle Moreau",service:"Nettoyage Airbnb",montant:320,statut:"en_attente",date:"15/04",tel:"+33 6 12 34 56 78"},{id:"TYM-0043",client:"Marc Dupont",service:"Nettoyage bureaux",montant:580,statut:"en_attente",date:"14/04",tel:"+33 6 98 76 54 32"},{id:"TYM-0042",client:"Sofia Al-Rashid",service:"Jet privé",montant:2400,statut:"validé",date:"13/04",tel:"+33 7 11 22 33 44"},{id:"TYM-0041",client:"Pierre Lefevre",service:"Rapatriement",montant:4800,statut:"validé",date:"12/04",tel:"+33 6 55 44 33 22"}];
-const CRM_LEADS=[{nom:"Hotel Prestige Paris",contact:"Claire Bernard",etape:"Proposition",score:92,ca:8000,source:"Annuaire"},{nom:"AirParis Management",contact:"Kevin Mour",etape:"Négociation",score:78,ca:3600,source:"Partenaire"},{nom:"Jet Services Monaco",contact:"Antoine Rivière",etape:"Gagné",score:98,ca:12000,source:"Réseau"},{nom:"Cabinet Delmas",contact:"Me Delmas",etape:"Nouveau",score:55,ca:960,source:"LinkedIn"}];
-const CLIENTS=[{nom:"Sofia Al-Rashid",pays:"🇦🇪",ca:9200,statut:"VIP",score:98},{nom:"Jean-Marc Olivier",pays:"🇫🇷",ca:14600,statut:"VIP",score:94},{nom:"Pierre Lefevre",pays:"🇫🇷",ca:5400,statut:"actif",score:85},{nom:"Marc Dupont",pays:"🇫🇷",ca:3200,statut:"actif",score:68}];
-const CHARGES=[{cat:"Fournitures nettoyage",mois:420},{cat:"Transport & carburant",mois:380},{cat:"Commissions partenaires",mois:6425},{cat:"Salaires collaborateurs",mois:3200},{cat:"Logiciels & abonnements",mois:180}];
-const STOCK=[{art:"Produit vitres Pro",cat:"Nettoyage",qte:3,min:5,u:"L",four:"CleanPro"},{art:"Microfibre premium",cat:"Nettoyage",qte:24,min:20,u:"pcs",four:"TextilePro"},{art:"Désinfectant surfaces",cat:"Nettoyage",qte:8,min:6,u:"L",four:"CleanPro"},{art:"Housses rapatriement",cat:"Rapatriement",qte:2,min:4,u:"pcs",four:"MedSupply"},{art:"Kit bord jet privé",cat:"Jet/Yacht",qte:5,min:3,u:"kits",four:"LuxEquip"},{art:"Produit nacre bois",cat:"Yacht",qte:1,min:3,u:"L",four:"YachtCare"}];
-const PLANNING=[{date:"15/04",h:"09:00",client:"Isabelle Moreau",service:"Nettoyage Airbnb",collab:"Abou",statut:"confirmé",type:"mission"},{date:"15/04",h:"14:00",client:"Marc Dupont",service:"Nettoyage bureaux",collab:"Thomas",statut:"confirmé",type:"mission"},{date:"17/04",h:"14:00",client:"Isabelle Moreau",service:"RDV client",collab:"Béné",statut:"confirmé",type:"rdv"},{date:"18/04",h:"10:00",client:"Sofia Al-Rashid",service:"RDV VIP",collab:"Béné",statut:"confirmé",type:"rdv"}];
-const NOTIFS=[{id:1,type:"urgent",icon:"⚠️",titre:"2 devis en attente de validation",h:"09:00",lu:false},{id:2,type:"urgent",icon:"📦",titre:"Stock critique — Produit vitres + 2 articles",h:"08:30",lu:false},{id:3,type:"money",icon:"💰",titre:"Commission Leila Mansouri : 1 305€ à payer",h:"Hier",lu:true},{id:4,type:"good",icon:"⭐",titre:"Nouvel avis 5★ — Sofia Al-Rashid",h:"Hier",lu:true}];
-const MSGS_EQUIPE=[{id:1,auteur:"Thomas",msg:"Béné, prospect Dupont confirmé 🙌",h:"09:14",lu:true},{id:2,auteur:"Abou",msg:"Nettoyage Montmartre terminé ✅",h:"10:32",lu:true},{id:3,auteur:"Abou",msg:"Produit vitres épuisé, je rachète ?",h:"13:20",lu:false},{id:4,auteur:"Thomas",msg:"Rappel rapatriement demain 8h ✈️",h:"14:45",lu:false}];
-const INIT_CARTES=[{id:"CRD-001",nom:"Béné — Pro",numero:"4532 •••• •••• 7821",reseau:"Visa",solde:2400,limite:5000,statut:"active",devise:"EUR",expiry:"12/27"},{id:"CRD-002",nom:"Thomas Beaumont",numero:"5261 •••• •••• 3344",reseau:"Mastercard",solde:850,limite:2000,statut:"active",devise:"EUR",expiry:"08/26"},{id:"CRD-003",nom:"Fatoumata Diop",numero:"4111 •••• •••• 9902",reseau:"Visa",solde:320000,limite:500000,statut:"active",devise:"XOF",expiry:"03/27"}];
-const TRESO=[{sem:"S16",e:6480,s:3200,sol:8240},{sem:"S17",e:5200,s:4100,sol:9340},{sem:"S18",e:7800,s:3500,sol:13640},{sem:"S19",e:6100,s:6800,sol:12940},{sem:"S20",e:8400,s:3200,sol:18140},{sem:"S21",e:9200,s:4400,sol:22940,p:true},{sem:"S22",e:7600,s:3100,sol:27440,p:true},{sem:"S23",e:10200,s:5200,sol:32440,p:true}];
+const PROFILS_SECTEURS={
+  conciergerie:{label:"🏠 Conciergerie / Services",termes:{mission:"Mission",missions:"Missions",client:"Client",clients:"Clients",service:"Service",services:"Services",collaborateur:"Collaborateur",stock:"Fournitures",commande:"Commande",rdv:"RDV",produit:"Produit"},services:["Airbnb","Résidentiel","Bureaux","Jet Privé","Yacht","Rapatriement"],stockCategories:["Nettoyage","Protection","Maritime","Aviation","Textile","Consommables"],kpiMission:"Missions",couleur:"#C9A84C"},
+  restaurant:{label:"🍽️ Restaurant / Restauration",termes:{mission:"Service",missions:"Services",client:"Client",clients:"Clients",service:"Prestation",services:"Prestations",collaborateur:"Employé",stock:"Ingrédients",commande:"Commande",rdv:"Réservation",produit:"Plat"},services:["Déjeuner","Dîner","Brunch","Livraison","Traiteur","Banquet","Room Service"],stockCategories:["Viandes","Poissons","Légumes","Laitiers","Épices","Boissons","Emballages","Hygiène"],kpiMission:"Couverts",couleur:"#FF8C3A",normes:["HACCP","Chaîne du froid","Températures","DLC/DLUO","Plan de nettoyage","Traçabilité alimentaire"]},
+  hotel:{label:"🏨 Hôtellerie",termes:{mission:"Séjour",missions:"Séjours",client:"Client",clients:"Clients",service:"Service",services:"Services",collaborateur:"Employé",stock:"Fournitures",commande:"Réservation",rdv:"Check-in",produit:"Prestation"},services:["Chambre Standard","Chambre Deluxe","Suite","Petit-déjeuner","Spa","Conciergerie","Room Service","Événement"],stockCategories:["Linge","Produits accueil","Minibar","Entretien","Restauration","Fleurs","Papeterie"],kpiMission:"Nuitées",couleur:"#9B5FFF",normes:["ISO 9001","Standards luxe","Protocole VIP","Rotation linge","Maintenance préventive","Guest experience"]},
+  btp:{label:"🔨 BTP / Construction",termes:{mission:"Chantier",missions:"Chantiers",client:"Maître d'ouvrage",clients:"Clients",service:"Prestation",services:"Prestations",collaborateur:"Ouvrier",stock:"Matériaux",commande:"Bon de commande",rdv:"Réunion chantier",produit:"Matériau"},services:["Maçonnerie","Plomberie","Électricité","Menuiserie","Peinture","Rénovation","Démolition","Gros oeuvre"],stockCategories:["Gros oeuvre","Plomberie","Électricité","Menuiserie","Peinture","Outillage","EPI","Béton"],kpiMission:"Chantiers",couleur:"#FF5252",normes:["Plan de prévention","EPI obligatoire","PPSPS","RGIE","DTU","Bilan carbone"]},
+  medical:{label:"🏥 Médical / Santé",termes:{mission:"Consultation",missions:"Consultations",client:"Patient",clients:"Patients",service:"Acte médical",services:"Actes",collaborateur:"Soignant",stock:"Matériel médical",commande:"Approvisionnement",rdv:"Rendez-vous",produit:"Médicament"},services:["Consultation","Acte médical","Chirurgie","Radiologie","Biologie","Kinésithérapie","Urgences","Téléconsultation"],stockCategories:["Médicaments","Consommables","Stérilisation","Imagerie","Prothèses","EPI","Formulaires"],kpiMission:"Consultations",couleur:"#2EC9B0",normes:["ISO 13485","HACCP médical","Pharmacovigilance","Traçabilité","RGPD santé","Stérilisation"]},
+  beaute:{label:"💅 Beauté / Esthétique",termes:{mission:"Prestation",missions:"Prestations",client:"Cliente",clients:"Clientes",service:"Soin",services:"Soins",collaborateur:"Praticien",stock:"Produits",commande:"Commande",rdv:"Rendez-vous",produit:"Produit beauté"},services:["Coiffure","Coloration","Soin visage","Épilation","Massage","Manucure","Maquillage","Conseil beauté"],stockCategories:["Capillaires","Colorations","Soins visage","Maquillage","Épilation","Hygiène","Emballages"],kpiMission:"Prestations",couleur:"#FF5F9E"},
+  transport:{label:"🚗 Transport / VTC",termes:{mission:"Course",missions:"Courses",client:"Passager",clients:"Passagers",service:"Trajet",services:"Trajets",collaborateur:"Chauffeur",stock:"Consommables",commande:"Réservation",rdv:"Prise en charge",produit:"Service"},services:["VTC Standard","VTC Premium","Navette aéroport","Transfert gare","Mise à disposition","Longue distance","Navette entreprise"],stockCategories:["Carburant","Entretien","Accessoires","Boissons","Presse","Chargeurs","Désinfectants"],kpiMission:"Courses",couleur:"#4B7BFF"},
+  immobilier:{label:"🏢 Immobilier",termes:{mission:"Visite",missions:"Visites",client:"Acquéreur",clients:"Clients",service:"Mandat",services:"Mandats",collaborateur:"Agent",stock:"Fournitures",commande:"Offre",rdv:"Visite",produit:"Bien immobilier"},services:["Location","Vente","Gestion locative","Syndic","Estimation","Investissement","Neuf","Commerce"],stockCategories:["Panneaux","Imprimés","Fournitures","Clés","Matériel photo","Objets déco"],kpiMission:"Visites",couleur:"#2ECDC4"},
+  formation:{label:"🎓 Formation / Coaching",termes:{mission:"Session",missions:"Sessions",client:"Apprenant",clients:"Apprenants",service:"Formation",services:"Formations",collaborateur:"Formateur",stock:"Matériel pédagogique",commande:"Inscription",rdv:"Session",produit:"Module"},services:["Formation présentielle","Formation en ligne","Coaching individuel","Atelier","Séminaire","Certification","E-learning","MOOC"],stockCategories:["Supports cours","Matériel bureau","Informatique","Livres","Badges","Repas","Vidéo"],kpiMission:"Sessions",couleur:"#C9A84C"},
+  autre:{label:"⚙️ Autre / Personnalisé",termes:{mission:"Mission",missions:"Missions",client:"Client",clients:"Clients",service:"Service",services:"Services",collaborateur:"Collaborateur",stock:"Stock",commande:"Commande",rdv:"Rendez-vous",produit:"Produit"},services:["Service 1","Service 2","Service 3","Service 4"],stockCategories:["Catégorie 1","Catégorie 2","Catégorie 3"],kpiMission:"Missions",couleur:"#5A5A7A"},
+};
 
-// ─── UTILS ────────────────────────────────────────────────────
+const PROFIL_DEFAUT=PROFILS_SECTEURS.conciergerie;
+
+const DEVISES=[
+  {code:"EUR",symbol:"€",flag:"🇪🇺",nom:"Euro",taux:1},
+  {code:"XOF",symbol:"₣",flag:"🌍",nom:"Franc CFA",taux:655.96},
+  {code:"USD",symbol:"$",flag:"🇺🇸",nom:"Dollar US",taux:1.08},
+  {code:"GBP",symbol:"£",flag:"🇬🇧",nom:"Livre Sterling",taux:0.86},
+  {code:"MAD",symbol:"د",flag:"🇲🇦",nom:"Dirham",taux:10.82},
+  {code:"AED",symbol:"د.إ",flag:"🇦🇪",nom:"Dirham UAE",taux:3.97},
+  {code:"CAD",symbol:"$",flag:"🇨🇦",nom:"Dollar CA",taux:1.46},
+  {code:"CHF",symbol:"₣",flag:"🇨🇭",nom:"Franc Suisse",taux:0.96},
+  {code:"JPY",symbol:"¥",flag:"🇯🇵",nom:"Yen",taux:161.5},
+  {code:"CNY",symbol:"¥",flag:"🇨🇳",nom:"Yuan",taux:7.83},
+  {code:"NGN",symbol:"₦",flag:"🇳🇬",nom:"Naira",taux:1580},
+  {code:"KES",symbol:"Ksh",flag:"🇰🇪",nom:"Shilling Kenya",taux:139},
+  {code:"GHS",symbol:"₵",flag:"🇬🇭",nom:"Cedi Ghana",taux:15.6},
+  {code:"BRL",symbol:"R$",flag:"🇧🇷",nom:"Real Brésil",taux:5.42},
+  {code:"SAR",symbol:"﷼",flag:"🇸🇦",nom:"Riyal SA",taux:4.05},
+];
+
+const METHODES_PAY=[{id:"wave",nom:"Wave",icon:"🌊",zone:"Sénégal / Côte d'Ivoire",color:"#4B7BFF",via:"CinetPay"},{id:"orange",nom:"Orange Money",icon:"🟠",zone:"Afrique francophone",color:"#FF8C3A",via:"Flutterwave"},{id:"mtn",nom:"MTN Money",icon:"🟡",zone:"Afrique sub-saharienne",color:"#FFCC00",via:"Flutterwave"},{id:"carte",nom:"Carte bancaire",icon:"💳",zone:"Europe / Monde",color:"#4B7BFF",via:"Flutterwave"},{id:"sepa",nom:"Virement SEPA",icon:"🏦",zone:"Europe",color:"#2EC9B0",via:"Direct"},{id:"whatsapp",nom:"WhatsApp Pay",icon:"💬",zone:"Global",color:"#2EC9B0",via:"Lien paiement"}];
+const INIT_DEVIS=[{id:"TYM-0044",client:"Isabelle Moreau",service:"Nettoyage Airbnb",montant:320,statut:"en_attente",date:"15/04",tel:"+33 6 12 34 56 78"},{id:"TYM-0043",client:"Marc Dupont",service:"Nettoyage bureaux",montant:580,statut:"en_attente",date:"14/04",tel:"+33 6 98 76 54 32"},{id:"TYM-0042",client:"Sofia Al-Rashid",service:"Jet privé",montant:2400,statut:"validé",date:"13/04",tel:"+33 7 11 22 33 44"},{id:"TYM-0041",client:"Pierre Lefevre",service:"Rapatriement",montant:4800,statut:"validé",date:"12/04",tel:"+33 6 55 44 33 22"}];
+const CRM_LEADS=[{id:1,nom:"Hotel Prestige Paris",contact:"Claire Bernard",metier:"Hôtellerie",etape:"Proposition",score:92,ca_potentiel:8000,derniere:"Hier",source:"Annuaire",notes:"Nettoyage 40 chambres/jour"},{id:2,nom:"AirParis Management",contact:"Kevin Mour",metier:"Airbnb",etape:"Négociation",score:78,ca_potentiel:3600,derniere:"13/04",source:"Partenaire",notes:"15 appartements"},{id:3,nom:"Jet Services Monaco",contact:"Antoine Rivière",metier:"Aviation",etape:"Gagné",score:98,ca_potentiel:12000,derniere:"10/04",source:"Réseau",notes:"Contrat annuel ✓"},{id:4,nom:"Cabinet Delmas",contact:"Me Delmas",metier:"Juridique",etape:"Nouveau",score:55,ca_potentiel:960,derniere:"12/04",source:"LinkedIn",notes:"Nettoyage hebdo"}];
+const CLIENTS=[{id:1,nom:"Isabelle Moreau",email:"i.moreau@mail.fr",pays:"🇫🇷",ca:960,statut:"actif",metier:"Gestion Airbnb",score:72,rdv:"17/04 14h"},{id:2,nom:"Marc Dupont",email:"m.dupont@corp.fr",pays:"🇫🇷",ca:3200,statut:"actif",metier:"Immobilier",score:68,rdv:null},{id:3,nom:"Sofia Al-Rashid",email:"sofia@vip.ae",pays:"🇦🇪",ca:9200,statut:"VIP",metier:"Aviation d'affaires",score:98,rdv:"18/04 10h"},{id:4,nom:"Pierre Lefevre",email:"p.lefevre@fr",pays:"🇫🇷",ca:5400,statut:"actif",metier:"Import/Export",score:85,rdv:null},{id:5,nom:"Jean-Marc Olivier",email:"jm@pro.fr",pays:"🇫🇷",ca:14600,statut:"VIP",metier:"Conseil",score:94,rdv:"20/04 9h"}];
+const PARTENAIRES=[{id:1,nom:"Thomas Beaumont",role:"Apporteur d'affaires",comm:20,ca:12400,contrats:8,statut:"actif",dues:2480,abo:"Starter"},{id:2,nom:"Leila Mansouri",role:"Agent immobilier",comm:15,ca:8700,contrats:5,statut:"actif",dues:1305,abo:"Business Pro"},{id:3,nom:"Groupe Prestige SARL",role:"Syndic",comm:12,ca:22000,contrats:14,statut:"actif",dues:2640,abo:"Enterprise"},{id:4,nom:"Fatoumata Diop",role:"Apporteuse Afrique",comm:25,ca:6800,contrats:4,statut:"actif",dues:1700,abo:"Business Pro"}];
+const ANNUAIRE=[{id:1,nom:"Isabelle Moreau",metier:"Gestion Airbnb",ville:"Paris",pays:"🇫🇷",plan:"Starter",score:72},{id:2,nom:"Marc Dupont",metier:"Immobilier",ville:"Lyon",pays:"🇫🇷",plan:"Business Pro",score:88},{id:3,nom:"Sofia Al-Rashid",metier:"Aviation d'affaires",ville:"Dubaï",pays:"🇦🇪",plan:"Enterprise",score:98},{id:4,nom:"Groupe Prestige SARL",metier:"Syndic",ville:"Paris",pays:"🇫🇷",plan:"Enterprise",score:94},{id:5,nom:"Fatoumata Diop",metier:"Finance Afrique",ville:"Dakar",pays:"🇸🇳",plan:"Business Pro",score:89}];
+const STOCK=[{art:"Produit vitres Pro",cat:"Nettoyage",qte:3,min:5,u:"L",four:"CleanPro"},{art:"Microfibre premium",cat:"Nettoyage",qte:24,min:20,u:"pcs",four:"TextilePro"},{art:"Désinfectant surfaces",cat:"Nettoyage",qte:8,min:6,u:"L",four:"CleanPro"},{art:"Housses rapatriement",cat:"Rapatriement",qte:2,min:4,u:"pcs",four:"MedSupply"},{art:"Kit bord jet privé",cat:"Jet/Yacht",qte:5,min:3,u:"kits",four:"LuxEquip"},{art:"Produit nacre bois",cat:"Yacht",qte:1,min:3,u:"L",four:"YachtCare"}];
+const PLANNING=[{date:"15/04",h:"09:00",client:"Isabelle Moreau",service:"Nettoyage Airbnb – Montmartre",collab:"Abou",statut:"confirmé",duree:"3h",type:"mission"},{date:"15/04",h:"14:00",client:"Marc Dupont",service:"Nettoyage bureaux – La Défense",collab:"Thomas",statut:"confirmé",duree:"4h",type:"mission"},{date:"17/04",h:"14:00",client:"Isabelle Moreau",service:"RDV client – Suivi contrat",collab:"Béné",statut:"confirmé",duree:"1h",type:"rdv"},{date:"18/04",h:"10:00",client:"Sofia Al-Rashid",service:"RDV VIP – Renouvellement",collab:"Béné",statut:"confirmé",duree:"2h",type:"rdv"}];
+const CHARGES=[{cat:"Fournitures nettoyage",mois:420},{cat:"Transport & carburant",mois:380},{cat:"Commissions partenaires",mois:6425},{cat:"Salaires collaborateurs",mois:3200},{cat:"Logiciels & abonnements",mois:180},{cat:"Frais divers",mois:150}];
+const TRESORERIE_90J=[{sem:"S16 (15 avr)",e:6480,s:3200,sol:8240},{sem:"S17 (22 avr)",e:5200,s:4100,sol:9340},{sem:"S18 (29 avr)",e:7800,s:3500,sol:13640},{sem:"S19 (6 mai)",e:6100,s:6800,sol:12940},{sem:"S20 (13 mai)",e:8400,s:3200,sol:18140},{sem:"S21 (20 mai)",e:9200,s:4400,sol:22940,pred:true},{sem:"S22 (27 mai)",e:7600,s:3100,sol:27440,pred:true},{sem:"S23 (3 juin)",e:10200,s:5200,sol:32440,pred:true}];
+const INIT_NOTIFS=[{id:1,type:"urgent",icon:"⚠",titre:"2 devis en attente de validation",heure:"09:00",lu:false},{id:2,type:"urgent",icon:"📦",titre:"Stock critique — Produit vitres + 2 articles",heure:"08:30",lu:false},{id:3,type:"info",icon:"💬",titre:"Abou : produit vitres épuisé",heure:"13:20",lu:false},{id:4,type:"money",icon:"💰",titre:"Commission Leila Mansouri : 1 305€ à payer",heure:"Hier",lu:true},{id:5,type:"good",icon:"⭐",titre:"Nouvel avis 5★ — Sofia Al-Rashid",heure:"Hier",lu:true}];
+const CONTRATS=[{id:"CTR-001",type:"Partenaire",nom:"Thomas Beaumont",comm:"20%",statut:"signé",date:"01/03",expire:"28/02/2027"},{id:"CTR-002",type:"Partenaire",nom:"Leila Mansouri",comm:"15%",statut:"signé",date:"15/02",expire:"14/02/2027"},{id:"CTR-003",type:"Prestation",nom:"Groupe Prestige SARL",comm:"12%",statut:"signé",date:"01/04",expire:"31/03/2027"}];
+const AVIS=[{client:"Sofia Al-Rashid",note:5,service:"Jet privé",comm:"Service impeccable, équipe très pro !",google:true},{client:"Jean-Marc Olivier",note:5,service:"Résidentiel",comm:"Tymeless c'est le top, je recommande.",google:true},{client:"Pierre Lefevre",note:4,service:"Rapatriement",comm:"Très bien géré dans un moment difficile.",google:false}];
+const FORMATION=[{titre:"Protocole nettoyage jet privé",collab:"Thomas, Abou",statut:"complété",score:98},{titre:"Process rapatriement corps",collab:"Thomas",statut:"complété",score:95},{titre:"Accueil client VIP",collab:"Fatou",statut:"en cours",score:null},{titre:"Nettoyage yacht – produits nacrés",collab:"Abou",statut:"à faire",score:null}];
+const EVENEMENTS=[{titre:"Networking Tymeless — Paris",date:"25/04/2026",lieu:"Hôtel George V",inscrits:24,max:40,prix:"80€",statut:"ouvert"},{titre:"Forum Entrepreneurs Afrique",date:"10/05/2026",lieu:"Paris – Salle Opéra",inscrits:52,max:100,prix:"45€",statut:"ouvert"},{titre:"Soirée Partenaires VIP",date:"15/05/2026",lieu:"Monaco – Invitation",inscrits:18,max:20,prix:"0€",statut:"complet"}];
+const MSGS_EQUIPE=[{id:1,auteur:"Thomas",av:"T",msg:"Béné, prospect Dupont confirmé pour jeudi 🙌",h:"09:14",lu:true},{id:2,auteur:"Abou",av:"A",msg:"Nettoyage Airbnb Montmartre terminé ✅",h:"10:32",lu:true},{id:3,auteur:"Abou",av:"A",msg:"Produit vitres épuisé, je rachète ?",h:"13:20",lu:false},{id:4,auteur:"Thomas",av:"T",msg:"Rappel rapatriement Lefevre demain 8h ✈️",h:"14:45",lu:false}];
+const MSGS_PART=[{id:1,auteur:"Leila",av:"L",msg:"Bonjour Béné, j'ai un client pour le résidentiel 👋",h:"08:30",lu:true},{id:2,auteur:"Fatou",av:"F",msg:"2 nouvelles sociétés depuis Dakar 🌍",h:"11:00",lu:false}];
+const INIT_HISTO=[{id:"PAY-001",type:"entree",libelle:"Paiement Sofia Al-Rashid",montant:2400,devise:"EUR",methode:"Carte",date:"13/04 14:32",statut:"confirmé",ref:"TYM-0042",com:120},{id:"PAY-002",type:"entree",libelle:"Paiement Pierre Lefevre",montant:4800,devise:"EUR",methode:"Virement SEPA",date:"12/04 09:15",statut:"confirmé",ref:"TYM-0041",com:240},{id:"PAY-003",type:"sortie",libelle:"Commission Thomas Beaumont",montant:2480,devise:"EUR",methode:"Virement SEPA",date:"11/04 16:00",statut:"envoyé",ref:"COM-001",com:0},{id:"PAY-004",type:"entree",libelle:"Paiement Fatoumata Diop",montant:557480,devise:"XOF",methode:"Wave",date:"10/04 11:20",statut:"confirmé",ref:"TYM-0038",com:27874},{id:"PAY-005",type:"sortie",libelle:"Fournitures CleanPro",montant:420,devise:"EUR",methode:"Virement SEPA",date:"09/04 10:00",statut:"envoyé",ref:"FOUR-001",com:0}];
+const INIT_COMM=[{id:"COM-002",nom:"Leila Mansouri",role:"Partenaire",montant:1305,devise:"EUR",methode:"Virement SEPA",tel:"+33 6 44 55 66 77",email:"leila.m@mail.fr"},{id:"COM-004",nom:"Groupe Prestige SARL",role:"Partenaire",montant:2640,devise:"EUR",methode:"Virement SEPA",tel:"+33 1 44 55 66 77",email:"contact@prestige.fr"},{id:"COM-005",nom:"Fatoumata Diop",role:"Apporteuse AA",montant:1700,devise:"EUR",methode:"Wave",tel:"+221 77 123 45 67",email:"fatou.d@dakar.sn"}];
+const INIT_REMB=[{id:"RMB-001",nom:"Amina Diallo",motif:"Service annulé",montant:190,devise:"EUR",methode:"Orange Money",tel:"+33 6 77 88 99 00"}];
+const INIT_FOUR=[{id:"FOUR-002",nom:"TextilePro",service:"Microfibre premium x50",montant:380,devise:"EUR",methode:"Virement SEPA",iban:"FR76 1234..."},{id:"FOUR-003",nom:"MedSupply",service:"Housses rapatriement x10",montant:520,devise:"EUR",methode:"Virement SEPA",iban:"FR76 5678..."},{id:"FOUR-004",nom:"YachtCare",service:"Produit nacre bois x5L",montant:290,devise:"EUR",methode:"Virement SEPA",iban:"FR76 9012..."}];
+const INIT_CARTES=[{id:"CRD-001",nom:"Béné — Pro",numero:"4532 •••• •••• 7821",reseau:"Visa",solde:2400,limite:5000,statut:"active",devise:"EUR",type:"owner",expiry:"12/27",cvv:"•••"},{id:"CRD-002",nom:"Thomas Beaumont",numero:"5261 •••• •••• 3344",reseau:"Mastercard",solde:850,limite:2000,statut:"active",devise:"EUR",type:"Business Pro",expiry:"08/26",cvv:"•••"},{id:"CRD-003",nom:"Fatoumata Diop",numero:"4111 •••• •••• 9902",reseau:"Visa",solde:320000,limite:500000,statut:"active",devise:"XOF",type:"Business Pro",expiry:"03/27",cvv:"•••"}];
+const MEMBRES_WALLET=[{id:"WM-001",nom:"Thomas Beaumont",type:"Business Pro",solde:2480,devise:"EUR",iban:"FR76 3000 4000 0100 0012 3456 789",banque:"BNP Paribas",pays:"🇫🇷",statut:"actif",transactions:12,carte:true},{id:"WM-002",nom:"Leila Mansouri",type:"Starter",solde:1305,devise:"EUR",iban:"FR76 1027 8060 0001 0234 5678 901",banque:"Société Générale",pays:"🇫🇷",statut:"actif",transactions:8,carte:false},{id:"WM-003",nom:"Fatoumata Diop",type:"Business Pro",solde:855750,devise:"XOF",iban:"SN28 SN08 0100 1535 1000 1234 56",banque:"Ecobank Sénégal",pays:"🇸🇳",statut:"actif",transactions:24,carte:true},{id:"WM-004",nom:"Sofia Al-Rashid",type:"Enterprise",solde:9200,devise:"EUR",iban:"AE07 0331 2345 6789 0123 456",banque:"Emirates NBD",pays:"🇦🇪",statut:"actif",transactions:5,carte:true}];
+const METIERS=["Immobilier","Aviation d'affaires","Yachting","Finance","Import/Export","Conseil","Marketing","Tech","Santé","Hôtellerie","Restauration","Mode & Luxe","Gestion Airbnb","Syndic","Courtage","Transport","BTP","Juridique","Éducation","Événementiel","Autre"];
+
 const fmt=(m,d="EUR")=>{const dv=DEVISES.find(x=>x.code===d);if(d==="XOF")return Math.round(m).toLocaleString("fr")+" "+(dv?.symbol||"₣");return Number(m).toLocaleString("fr",{minimumFractionDigits:0,maximumFractionDigits:2})+" "+(dv?.symbol||"€");};
 const conv=(m,de,ve)=>{const f=DEVISES.find(x=>x.code===de),t=DEVISES.find(x=>x.code===ve);return(!f||!t)?m:(m/f.taux)*t.taux;};
-const inits=(n)=>n.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+const inits=(nom)=>nom.split(" ").map(w=>w[0]).join("").slice(0,2).toUpperCase();
+const hasAccess=(plan,page)=>{const allowed=PAGE_ACCESS[page];if(!allowed)return true;return allowed.includes(plan);};
 
 // ─── ATOMS ────────────────────────────────────────────────────
-const Card=({children,style={}})=><div style={{background:C.white,borderRadius:20,padding:22,boxShadow:"0 4px 20px rgba(15,23,42,0.07)",border:`1px solid ${C.border}`,...style}}>{children}</div>;
-const CardTitle=({children,action})=><div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:16}}><div style={{fontSize:15,fontWeight:700,color:C.dark}}>{children}</div>{action}</div>;
+const Card=({children,style={}})=><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:18,...style}}>{children}</div>;
+const CT=({children,style={}})=><div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:10,padding:14,...style}}>{children}</div>;
+const Pill=({children,color=C.gold,bg})=><span style={{background:bg||color+"22",color,border:`1px solid ${color}44`,borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:600}}>{children}</span>;
+const Btn=({children,onClick,color=C.gold,style={}})=><button onClick={onClick} style={{background:color,color:color===C.gold?"#000":"#fff",border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13,fontFamily:"inherit",...style}}>{children}</button>;
+const BtnGhost=({children,onClick,style={}})=><button onClick={onClick} style={{background:"transparent",color:C.muted,border:`1px solid ${C.border}`,borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit",...style}}>{children}</button>;
+const Inp=({value,onChange,placeholder,style={}})=><input value={value} onChange={onChange} placeholder={placeholder} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:7,padding:"8px 12px",color:C.text,fontSize:13,fontFamily:"inherit",outline:"none",width:"100%",...style}}/>;
+const Sel=({value,onChange,children,style={}})=><select value={value} onChange={onChange} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:7,padding:"7px 12px",color:C.text,fontSize:12,fontFamily:"inherit",...style}}>{children}</select>;
+const TH=({children,style={}})=><th style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:C.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:`1px solid ${C.border}`,...style}}>{children}</th>;
+const Td=({children,style={}})=><td style={{padding:"9px 10px",fontSize:12,borderBottom:`1px solid ${C.border}22`,color:C.text,...style}}>{children}</td>;
+const STitle=({children})=><div style={{fontSize:9,color:C.muted,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:10,fontWeight:600}}>{children}</div>;
+const KPI=({label,val,sub,color=C.gold,icon=""})=><CT><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8}}>{icon} {label}</div><div style={{fontSize:22,fontWeight:700,color,fontFamily:"Georgia,serif",lineHeight:1.1}}>{val}</div>{sub&&<div style={{fontSize:10,color:C.muted,marginTop:3}}>{sub}</div>}</CT>;
+const Tabs=({tabs,active,onChange})=><div style={{display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>{tabs.map(t=><button key={t.id} onClick={()=>onChange(t.id)} style={{background:active===t.id?C.card:"transparent",color:active===t.id?C.gold:C.muted,border:active===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:active===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}</div>;
+const SM=({val,max,color=C.green})=><div style={{height:4,borderRadius:2,background:C.border,overflow:"hidden"}}><div style={{height:"100%",width:`${Math.min(100,(val/max)*100)}%`,background:color,borderRadius:2}}/></div>;
+const St=({s})=>{const map={validé:[C.green,"✓ Validé"],signé:[C.green,"✓ Signé"],confirmé:[C.green,"✓ Confirmé"],envoyé:[C.blue,"→ Envoyé"],en_attente:[C.orange,"⏳ En attente"],actif:[C.green,"● Actif"],critique:[C.red,"⚠ Critique"],ouvert:[C.green,"Ouvert"],complet:[C.red,"Complet"],"en cours":[C.blue,"En cours"],"à faire":[C.muted,"À faire"],complété:[C.green,"✓ Complété"]};const[c,l]=map[s]||[C.muted,s];return <Pill color={c}>{l}</Pill>;};
 
-const Badge=({label,color,bg})=><span style={{background:bg||color+"20",color,border:`1px solid ${color}40`,borderRadius:999,padding:"3px 10px",fontSize:11,fontWeight:600,whiteSpace:"nowrap"}}>{label}</span>;
-
-const Btn=({children,v="primary",onClick,sm,full,disabled})=>{
-  const S={primary:{bg:C.dark,fg:"#fff"},gold:{bg:C.gold,fg:C.dark},ghost:{bg:C.bg,fg:C.mid,border:`1px solid ${C.border}`},green:{bg:C.greenBg,fg:C.green},red:{bg:C.redBg,fg:C.red},blue:{bg:C.blueBg,fg:C.blue}};
-  const x=S[v]||S.primary;
-  return <button onClick={onClick} disabled={disabled} style={{background:disabled?"#E2E8F0":x.bg,color:disabled?C.muted:x.fg,border:x.border||"none",borderRadius:12,padding:sm?"5px 12px":"9px 18px",cursor:disabled?"not-allowed":"pointer",fontSize:sm?11:13,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap",width:full?"100%":"auto",opacity:disabled?0.6:1,transition:"all 0.15s"}}>{children}</button>;
+// Aperçus des modules par page
+const MODULE_PREVIEWS={
+  overview:{icon:"◈",desc:"Vue d'ensemble business",features:["8 KPIs en temps réel","Score santé business","Alertes critiques","Actions rapides IA"]},
+  crm:{icon:"◎",desc:"CRM & Pipeline",features:["Pipeline Kanban visuel","Score IA par lead","Relances automatiques","Analytics conversion"]},
+  devis:{icon:"◧",desc:"Devis & Facturation",features:["Devis PDF en 1 clic","Signature électronique","Envoi WhatsApp auto","Score solvabilité client"]},
+  investissement:{icon:"◐",desc:"Investissement IA",features:["Recommandations Claude","ROI par investissement","Plan d'action personnalisé","Scénarios prévisionnels"]},
+  compta:{icon:"◉",desc:"Comptabilité complète",features:["Journal + Bilan","Déclaration TVA","Export expert-comptable","Conseils IA fiscaux"]},
+  tresorerie:{icon:"◑",desc:"Trésorerie 90 jours",features:["Cash-flow prévisionnel","Alertes seuil critique","Multi-devises","Prévisions IA 3 mois"]},
+  analytique:{icon:"◒",desc:"Analytique & CA",features:["CA par service & pays","Prédictions IA mensuelles","Objectifs & suivi","Rapports automatiques"]},
+  clients:{icon:"◬",desc:"Gestion clients",features:["Fiches clients complètes","Score solvabilité","Upsell automatique","Historique missions"]},
+  partenaires:{icon:"⬡",desc:"Partenaires & AA",features:["Suivi commissions","Chat partenaires","Contrats automatiques","Score performance"]},
+  annuaire:{icon:"◱",desc:"Réseau mondial",features:["18+ contacts mondiaux","Carte réseau interactive","Deals entre membres","Messagerie intégrée"]},
+  wallet_membres:{icon:"◈",desc:"Wallets membres",features:["Soldes en temps réel","Cartes virtuelles","Multi-devises","Renouvellements auto"]},
+  evenements:{icon:"◆",desc:"Événements",features:["Créer des événements","QR Code inscription","Visio Jitsi intégrée","Gestion invités"]},
+  scoring:{icon:"★",desc:"Réputation & NPS",features:["Avis Google centralisés","Réponses IA automatiques","Rapport NPS mensuel","Widget site web"]},
+  equipe:{icon:"⊞",desc:"RH & Équipe",features:["16 modules RH complets","Pointage GPS","Paie automatique","IA RH + Juridique"]},
+  planning:{icon:"⊡",desc:"Planning & Agenda",features:["5 vues calendrier","IA auto-planification","Booking client","Règles horaires"]},
+  prospection:{icon:"⊕",desc:"Prospection Auto",features:["Base SIRENE 12M+","Bot WhatsApp IA","Bot d'appel vocal","Séquences automatiques"]},
+  stock:{icon:"⊟",desc:"Stock & Fournitures",features:["Alertes stock critique","IA prédictive","Commandes auto","QR terrain"]},
+  services:{icon:"⊛",desc:"Produits & Services",features:["Catalogue services","Tarification IA","Tunnel upsell","CGV/CGU auto"]},
+  deploiement:{icon:"🌍",desc:"Déploiement SaaS",features:["Clients white-label","Revenus MRR/ARR","Onboarding auto","Dashboard revendeurs"]},
+  api:{icon:"◇",desc:"API Tymeless",features:["Clés API sécurisées","Webhooks temps réel","Documentation complète","Logs & monitoring"]},
 };
 
-const Inp=({placeholder,value,onChange,type="text",style={}})=><input type={type} placeholder={placeholder} value={value} onChange={onChange} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 13px",color:C.dark,fontSize:13,fontFamily:"inherit",outline:"none",width:"100%",...style}}/>;
-
-const Sel=({value,onChange,options,style={}})=><select value={value} onChange={onChange} style={{background:C.bg,border:`1px solid ${C.border}`,borderRadius:10,padding:"9px 13px",color:C.dark,fontSize:13,fontFamily:"inherit",outline:"none",...style}}>{options.map((o,i)=><option key={i} value={o.v||o}>{o.l||o}</option>)}</select>;
-
-const TH=({heads,rows})=><div style={{overflowX:"auto"}}><table style={{width:"100%",borderCollapse:"collapse",fontSize:13}}><thead><tr>{heads.map((h,i)=><th key={i} style={{color:C.muted,fontSize:11,letterSpacing:"0.06em",textTransform:"uppercase",padding:"10px 14px",borderBottom:`2px solid ${C.border}`,textAlign:"left",fontWeight:600,whiteSpace:"nowrap"}}>{h}</th>)}</tr></thead><tbody>{rows}</tbody></table></div>;
-const Td=({children,s={}})=><td style={{padding:"12px 14px",borderBottom:`1px solid ${C.border}`,verticalAlign:"middle",...s}}>{children}</td>;
-
-const KPI=({label,val,sub,trend,up,color,onClick,badge})=>(
-  <Card style={{cursor:onClick?"pointer":"default"}} onClick={onClick}>
-    <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",marginBottom:10}}>
-      <div style={{fontSize:12,color:C.muted,fontWeight:500}}>{label}</div>
-      {badge>0&&<span style={{background:C.redBg,color:C.red,borderRadius:999,padding:"2px 8px",fontSize:10,fontWeight:700}}>{badge}</span>}
-    </div>
-    <div style={{fontSize:26,fontWeight:800,color:color||C.dark,fontFamily:"'Playfair Display',Georgia,serif",lineHeight:1.1}}>{val}</div>
-    {sub&&<div style={{fontSize:11,color:C.muted,marginTop:4}}>{sub}</div>}
-    {trend&&<div style={{fontSize:11,color:up?C.green:C.orange,marginTop:4,fontWeight:500}}>{up?"↗":"⚠"} {trend}</div>}
-  </Card>
-);
-
-const Tabs=({tabs,active,onChange})=>(
-  <div style={{display:"flex",gap:6,marginBottom:18,flexWrap:"wrap",borderBottom:`1px solid ${C.border}`,paddingBottom:0}}>
-    {tabs.map(t=>(
-      <button key={t.id} onClick={()=>onChange(t.id)} style={{background:"transparent",border:"none",borderBottom:`2px solid ${active===t.id?C.gold:"transparent"}`,color:active===t.id?C.dark:C.muted,padding:"8px 16px",cursor:"pointer",fontSize:13,fontFamily:"inherit",fontWeight:active===t.id?700:500,transition:"all 0.2s"}}>{t.label}</button>
-    ))}
-  </div>
-);
-
-const Avatar=({nom,color=C.gold,size=36})=>(
-  <div style={{width:size,height:size,borderRadius:"50%",background:color+"20",border:`2px solid ${color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:size*0.33,color,fontWeight:700,flexShrink:0}}>{inits(nom)}</div>
-);
-
-const SectionTitle=({children,sub,action})=>(
-  <div style={{marginBottom:22,display:"flex",alignItems:"flex-start",justifyContent:"space-between"}}>
-    <div>
-      <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:24,fontWeight:700,color:C.dark}}>{children}</div>
-      {sub&&<div style={{fontSize:13,color:C.muted,marginTop:3}}>{sub}</div>}
-    </div>
-    {action}
-  </div>
-);
-
-// ─── STATUT BADGES ────────────────────────────────────────────
-const STATUS={
-  "en_attente":{c:C.orange,bg:C.orangeBg,l:"⏳ En attente"},
-  "validé":{c:C.green,bg:C.greenBg,l:"✓ Validé"},
-  "refusé":{c:C.red,bg:C.redBg,l:"✕ Refusé"},
-  "confirmé":{c:C.green,bg:C.greenBg,l:"✓ Confirmé"},
-  "envoyé":{c:C.blue,bg:C.blueBg,l:"✓ Envoyé"},
-  "actif":{c:C.green,bg:C.greenBg,l:"● Actif"},
-  "VIP":{c:C.gold,bg:C.goldLight,l:"✦ VIP"},
-  "mission":{c:C.blue,bg:C.blueBg,l:"◈ Mission"},
-  "rdv":{c:C.purple,bg:C.purpleBg,l:"◎ RDV"},
-  "active":{c:C.green,bg:C.greenBg,l:"● Active"},
-  "bloquée":{c:C.red,bg:C.redBg,l:"🔒 Bloquée"},
-};
-const St=({s})=>{const m=STATUS[s]||{c:C.muted,bg:C.bg,l:s};return <Badge label={m.l} color={m.c} bg={m.bg}/>;};
-
-// ─── UPGRADE WALL ─────────────────────────────────────────────
-const UpgradeWall=({page,onUpgrade})=>(
-  <div style={{minHeight:"60vh",display:"flex",alignItems:"center",justifyContent:"center"}}>
-    <div style={{maxWidth:560,width:"100%"}}>
-      <div style={{background:C.bg,borderRadius:20,overflow:"hidden",border:`1px solid ${C.border}`,marginBottom:24,filter:"blur(3px)",opacity:0.5,height:120,padding:20}}>
-        <div style={{height:16,background:C.border,borderRadius:8,width:"60%",marginBottom:12}}/>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>{[1,2,3].map(i=><div key={i} style={{height:50,background:C.border,borderRadius:12}}/>)}</div>
+const UpgradeWall=({page,plan,onUpgrade})=>{
+  const preview=MODULE_PREVIEWS[page]||{icon:"📦",desc:page,features:["Fonctionnalités avancées","Analyses IA","Automatisations","Rapports détaillés"]};
+  const plans=[{id:"business",nom:"Business Pro",prix:"99€/mois",color:C.gold,icon:"✦",desc:"Tout Starter + accès complet"},{id:"enterprise",nom:"Enterprise",prix:"150€/mois",color:C.purple,icon:"◈",desc:"Business Pro + WhatsApp Bot + Support dédié"}];
+  return <div style={{padding:24}}>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,maxWidth:800,margin:"0 auto"}}>
+      {/* Gauche — aperçu du module */}
+      <div>
+        <div style={{background:`${C.gold}08`,border:`1px solid ${C.gold}22`,borderRadius:16,padding:24,marginBottom:12,position:"relative",overflow:"hidden"}}>
+          <div style={{position:"absolute",top:0,right:0,bottom:0,left:0,backdropFilter:"blur(2px)",background:"#06060E88",zIndex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column"}}>
+            <div style={{fontSize:40,marginBottom:8}}>🔒</div>
+            <div style={{fontSize:14,fontWeight:700,color:C.text,textAlign:"center"}}>Module verrouillé</div>
+            <div style={{fontSize:11,color:C.muted,marginTop:4}}>Passez à Business Pro pour accéder</div>
+          </div>
+          {/* Aperçu flou derrière */}
+          <div style={{fontSize:30,marginBottom:8}}>{preview.icon}</div>
+          <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:4}}>{preview.desc}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+            {preview.features.map((f,i)=><div key={i} style={{background:C.card2,borderRadius:6,padding:"6px 10px",fontSize:11,color:C.muted}}>✓ {f}</div>)}
+          </div>
+        </div>
+        <div style={{background:C.card2,borderRadius:10,padding:12,border:`1px solid ${C.border}`,fontSize:11}}>
+          <div style={{color:C.muted,marginBottom:4}}>Votre plan actuel</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <Pill color={PLANS[plan]?.color||C.muted}>{PLANS[plan]?.icon} {PLANS[plan]?.nom||plan} — {PLANS[plan]?.prix}</Pill>
+            <span style={{color:C.muted,fontSize:10}}>{plan==="starter"?"Accès wallet & paiements":"Accès limité"}</span>
+          </div>
+        </div>
       </div>
-      <Card style={{borderColor:`${C.gold}50`}}>
-        <div style={{textAlign:"center",marginBottom:22}}>
-          <div style={{fontSize:40,marginBottom:10}}>🔒</div>
-          <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:22,fontWeight:700,color:C.dark,marginBottom:6}}>Fonctionnalité Business Pro</div>
-          <div style={{fontSize:13,color:C.muted}}>Tu vois le module mais tu ne peux pas encore l'utiliser</div>
+      {/* Droite — plans disponibles */}
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <div style={{fontSize:14,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>Débloquez ce module</div>
+        {plans.map((p,i)=><div key={i} style={{background:C.card,border:`1px solid ${p.color}44`,borderRadius:12,padding:16}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div><div style={{fontSize:13,fontWeight:700,color:p.color}}>{p.icon} {p.nom}</div><div style={{fontSize:10,color:C.muted}}>{p.desc}</div></div>
+            <div style={{fontSize:18,fontWeight:700,color:p.color}}>{p.prix}</div>
+          </div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:10}}>{p.id==="business"?"✓ CRM · Devis · Wallet membres · Annuaire mondial · RH · Prospection · Analytics":"✓ Tout Business Pro + Bot WhatsApp · White-label SaaS · Support dédié 24h"}</div>
+          <Btn onClick={()=>onUpgrade&&onUpgrade(p.id)} color={p.color} style={{fontSize:12,padding:"8px 0"}}>⚡ Passer à {p.nom}</Btn>
+        </div>)}
+        <div style={{background:`${C.green}08`,border:`1px solid ${C.green}22`,borderRadius:8,padding:12,fontSize:11,color:C.muted,textAlign:"center"}}>
+          💬 Questions ? <span style={{color:C.gold,cursor:"pointer"}}>Contactez Tymeless →</span>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
-          <div style={{background:C.bg,borderRadius:14,padding:16,border:`1px solid ${C.border}`}}>
-            <div style={{fontSize:11,color:C.muted,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.1em"}}>Ton plan</div>
-            <div style={{fontWeight:700,color:C.blue,fontSize:15,marginBottom:4}}>◎ Starter</div>
-            <div style={{fontSize:12,color:C.gold,marginBottom:12}}>29€/mois</div>
-            {["Wallet & paiements","Carte virtuelle Visa","IBAN mondial","Historique"].map((f,i)=><div key={i} style={{fontSize:12,color:C.green,marginBottom:3}}>✓ {f}</div>)}
-          </div>
-          <div style={{background:C.goldLight,borderRadius:14,padding:16,border:`1px solid ${C.goldBorder}`}}>
-            <div style={{fontSize:11,color:C.gold,marginBottom:8,textTransform:"uppercase",letterSpacing:"0.1em"}}>Passer à</div>
-            <div style={{fontWeight:700,color:C.gold,fontSize:15,marginBottom:4}}>✦ Business Pro</div>
-            <div style={{fontSize:12,color:C.gold,marginBottom:12}}>99€/mois</div>
-            {["Réseau & Annuaire B2B mondial","Mises en relation + commissions","Prospection automatique","CRM + Devis + Comptabilité","Investissement IA"].map((f,i)=><div key={i} style={{fontSize:12,color:C.dark,marginBottom:3}}>✦ {f}</div>)}
-          </div>
-        </div>
-        <Btn v="gold" full onClick={()=>onUpgrade("business")}>✦ Passer Business Pro — 99€/mois</Btn>
-        <div style={{marginTop:10}}><Btn v="ghost" full onClick={()=>onUpgrade("enterprise")}>◈ Ou passer Enterprise — 150€/mois (Bot WhatsApp inclus)</Btn></div>
-        <div style={{textAlign:"center",marginTop:12,fontSize:11,color:C.muted}}>Sans engagement · Résiliation à tout moment · Accès immédiat</div>
-      </Card>
-    </div>
-  </div>
-);
-
-// ─── MODAL PAIEMENT ───────────────────────────────────────────
-const ModalPaiement=({onClose,onSend})=>{
-  const [step,setStep]=useState(1);
-  const [form,setForm]=useState({nom:"",tel:"",montant:"",devise:"EUR",methode:"whatsapp",desc:""});
-  const set=k=>e=>setForm(p=>({...p,[k]:e.target.value}));
-  return(
-    <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,backdropFilter:"blur(4px)"}}>
-      <Card style={{width:500,maxWidth:"95vw",borderColor:`${C.teal}50`}}>
-        <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:20,fontWeight:700,marginBottom:4}}>Demander un paiement</div>
-        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Lien WhatsApp · Facture auto après paiement</div>
-        {step===1&&(
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            {[["Nom du client","nom","text","Isabelle Moreau"],["Numéro WhatsApp","tel","text","+33 6 12 34 56 78"],["Description","desc","text","Nettoyage Airbnb — Montmartre"]].map(([l,k,t,ph])=>(
-              <div key={k}><div style={{fontSize:11,color:C.muted,marginBottom:5,fontWeight:500}}>{l}</div><Inp type={t} placeholder={ph} value={form[k]} onChange={set(k)}/></div>
-            ))}
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-              <div><div style={{fontSize:11,color:C.muted,marginBottom:5,fontWeight:500}}>Montant</div><Inp type="number" placeholder="500" value={form.montant} onChange={set("montant")}/></div>
-              <div><div style={{fontSize:11,color:C.muted,marginBottom:5,fontWeight:500}}>Devise</div><Sel value={form.devise} onChange={set("devise")} options={DEVISES.map(d=>({v:d.code,l:`${d.flag} ${d.code}`}))}/></div>
-            </div>
-            <div style={{display:"flex",gap:10,marginTop:4}}><Btn v="ghost" full onClick={onClose}>Annuler</Btn><Btn v="gold" full onClick={()=>setStep(2)} disabled={!form.nom||!form.tel||!form.montant}>Suivant →</Btn></div>
-          </div>
-        )}
-        {step===2&&(
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            <div style={{fontSize:11,color:C.muted,fontWeight:500,marginBottom:4}}>Moyen de paiement</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              {METHODES.map(mp=>(
-                <button key={mp.id} onClick={()=>setForm(p=>({...p,methode:mp.id}))} style={{background:form.methode===mp.id?mp.color+"15":C.bg,border:`1.5px solid ${form.methode===mp.id?mp.color:C.border}`,borderRadius:12,padding:"12px 14px",cursor:"pointer",textAlign:"left",fontFamily:"inherit",transition:"all 0.15s"}}>
-                  <div style={{fontSize:20,marginBottom:4}}>{mp.icon}</div>
-                  <div style={{fontSize:12,fontWeight:600,color:form.methode===mp.id?mp.color:C.dark}}>{mp.nom}</div>
-                  <div style={{fontSize:10,color:C.muted}}>{mp.zone}</div>
-                </button>
-              ))}
-            </div>
-            <div style={{background:"#075E54",borderRadius:14,padding:14}}>
-              <div style={{fontSize:10,color:"#25D366",marginBottom:6,fontWeight:600}}>💬 Aperçu WhatsApp</div>
-              <div style={{background:"#128C7E",borderRadius:"12px 12px 12px 2px",padding:"10px 14px",fontSize:12,color:"#fff",lineHeight:1.7}}>
-                Bonjour {form.nom||"[Nom]"} 👋<br/>Lien de paiement Tymeless :<br/><span style={{color:"#25D366"}}>https://pay.tymeless.fr/link</span><br/>💰 {form.montant?fmt(Number(form.montant),form.devise):"[montant]"} · {form.desc||"[description]"}<br/><span style={{fontSize:10,color:"#aaa"}}>Facture envoyée automatiquement ✅</span>
-              </div>
-            </div>
-            <div style={{display:"flex",gap:10}}><Btn v="ghost" full onClick={()=>setStep(1)}>← Retour</Btn><Btn v="gold" full onClick={()=>{onSend(form);onClose();}}>📲 Envoyer sur WhatsApp</Btn></div>
-          </div>
-        )}
-      </Card>
-    </div>
-  );
-};
-
-// ─── PAGES ────────────────────────────────────────────────────
-
-// ACCUEIL
-const PageAccueil=({setPage,plan})=>{
-  const pending=INIT_DEVIS.filter(d=>d.statut==="en_attente").length;
-  const stockAlerts=STOCK.filter(s=>s.qte<s.min).length;
-  return(
-    <div>
-      <div style={{marginBottom:24}}>
-        <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:28,fontWeight:700,color:C.dark}}>Bonjour Béné ✦</div>
-        <div style={{fontSize:13,color:C.muted,marginTop:3}}>{new Date().toLocaleDateString("fr-FR",{weekday:"long",day:"numeric",month:"long",year:"numeric"})} · Tymeless OS · Espace Owner · Tymeless OS · Espace Owner</div>
-      </div>
-      <Card style={{marginBottom:20,borderColor:`${C.gold}50`,background:`linear-gradient(135deg,#FFFBEB,${C.white})`}}>
-        <div style={{display:"flex",gap:14,alignItems:"center"}}>
-          <div style={{fontSize:32}}>📊</div>
-          <div>
-            <div style={{fontWeight:700,color:C.gold,marginBottom:4,fontSize:15}}>Briefing du jour — 16 avril 2026</div>
-            <div style={{fontSize:13,color:C.mid,lineHeight:1.8}}>CA hebdo : <b style={{color:C.dark}}>6 480 €</b> · {pending} devis en attente · {stockAlerts} alertes stock · NPS : <b style={{color:C.green}}>4.9/5 ✦</b></div>
-          </div>
-        </div>
-      </Card>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
-        <KPI label="CA ce mois" val="24 380 €" sub="Avril 2026" trend="+12% vs mars" up={true}/>
-        <KPI label="Devis en attente" val={pending} sub="Validation requise" trend="Action requise" up={false} onClick={()=>setPage("devis")} badge={pending}/>
-        <KPI label="Marge nette" val="61%" sub="Tous services" trend="+4pts vs T1" up={true} color={C.green}/>
-        <KPI label="Alertes stock" val={stockAlerts} sub="Réappro. urgent" trend="Urgent" up={false} onClick={()=>setPage("stock")} badge={stockAlerts}/>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1.4fr 1fr 1fr",gap:14,marginBottom:20}}>
-        <Card>
-          <CardTitle>🚀 Actions rapides</CardTitle>
-          <div style={{display:"grid",gap:8}}>
-            {[["Envoyer un paiement","wallet"],["Créer un devis","devis"],["Voir le planning","planning"],["Accueil équipe","equipe"]].map(([l,p])=>(
-              <button key={l} onClick={()=>setPage(p)} style={{background:C.dark,color:"#fff",border:"none",borderRadius:12,padding:"11px 14px",cursor:"pointer",textAlign:"left",fontWeight:600,fontSize:13,fontFamily:"inherit",transition:"opacity 0.15s"}}>{l}</button>
-            ))}
-          </div>
-        </Card>
-        <Card>
-          <CardTitle>👥 Mon équipe</CardTitle>
-          {[{n:"Thomas 🤖",r:"Bot Prospection",s:"actif"},{n:"Abou 🤖",r:"Bot Nettoyage",s:"actif"},{n:"Fatou 👤",r:"Hôtesse",s:"actif"}].map((e,i)=>(
-            <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"8px 0",borderBottom:i<2?`1px solid ${C.border}`:undefined}}>
-              <Avatar nom={e.n} size={32}/>
-              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:600,color:C.dark}}>{e.n}</div><div style={{fontSize:11,color:C.muted}}>{e.r}</div></div>
-              <Badge label="● Actif" color={C.green} bg={C.greenBg}/>
-            </div>
-          ))}
-        </Card>
-        <Card>
-          <CardTitle>🔔 Notifications</CardTitle>
-          {NOTIFS.filter(n=>!n.lu).slice(0,3).map((n,i)=>(
-            <div key={i} style={{display:"flex",gap:8,alignItems:"flex-start",padding:"7px 0",borderBottom:i<1?`1px solid ${C.border}`:undefined}}>
-              <span style={{fontSize:16}}>{n.icon}</span>
-              <div><div style={{fontSize:12,fontWeight:600,color:C.dark}}>{n.titre}</div><div style={{fontSize:10,color:C.muted}}>{n.h}</div></div>
-            </div>
-          ))}
-          <div style={{marginTop:10}}><Btn v="ghost" onClick={()=>setPage("notifications")} sm>Voir tout →</Btn></div>
-        </Card>
-      </div>
-      {plan==="starter"&&(
-        <Card style={{borderColor:`${C.gold}50`,background:`linear-gradient(135deg,${C.goldLight},${C.white})`}}>
-          <div style={{display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-            <div>
-              <div style={{fontWeight:700,color:C.gold,fontSize:15,marginBottom:4}}>✦ Passe Business Pro pour tout débloquer</div>
-              <div style={{fontSize:13,color:C.mid}}>Réseau B2B mondial · Annuaire · Mises en relation · Investissement IA · Commissions automatiques</div>
-            </div>
-            <Btn v="gold" onClick={()=>setPage("settings")}>Passer Business Pro →</Btn>
-          </div>
-        </Card>
-      )}
-    </div>
-  );
-};
-
-// WALLET
-const PageWallet=()=>{
-  const [tab,setTab]=useState("wallet");
-  const [histo,setHisto]=useState(INIT_HISTO);
-  const [demande,setDemande]=useState(false);
-  const [toast,setToast]=useState(null);
-  const [devise,setDevise]=useState("EUR");
-  const showToast=(msg)=>{setToast(msg);setTimeout(()=>setToast(null),4000);};
-  const entrees=histo.filter(h=>h.type==="entree").reduce((s,h)=>s+conv(h.montant,h.devise,"EUR"),0);
-  const sorties=histo.filter(h=>h.type==="sortie").reduce((s,h)=>s+conv(h.montant,h.devise,"EUR"),0);
-  const soldeEUR=entrees-sorties;
-  const solde=devise==="EUR"?soldeEUR:conv(soldeEUR,"EUR",devise);
-  return(
-    <div>
-      {toast&&<div style={{position:"fixed",top:20,right:20,background:C.green,color:"#fff",borderRadius:12,padding:"12px 20px",fontSize:13,fontWeight:600,zIndex:9999,boxShadow:"0 8px 24px rgba(0,0,0,0.15)"}}>{toast}</div>}
-      {demande&&<ModalPaiement onClose={()=>setDemande(false)} onSend={f=>showToast(`📲 Lien envoyé à ${f.nom} sur WhatsApp`)}/>}
-      <SectionTitle action={<div style={{display:"flex",gap:10,alignItems:"center"}}><Sel value={devise} onChange={e=>setDevise(e.target.value)} options={DEVISES.map(d=>({v:d.code,l:`${d.flag} ${d.code}`}))} style={{width:120}}/><Btn v="gold" onClick={()=>setDemande(true)}>📲 Demander un paiement</Btn></div>}>💳 Wallet & Paiements</SectionTitle>
-      
-      {/* HERO SOLDE */}
-      <Card style={{marginBottom:20,background:`linear-gradient(135deg,${C.navy},${C.navy2})`,border:"none"}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:16}}>
-          <div>
-            <div style={{fontSize:11,color:"rgba(255,255,255,0.5)",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:8}}>Solde Wallet Tymeless</div>
-            <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:42,fontWeight:700,color:"#fff",lineHeight:1}}>{fmt(solde,devise)}</div>
-            {devise!=="EUR"&&<div style={{fontSize:12,color:"rgba(255,255,255,0.5)",marginTop:4}}>≈ {fmt(soldeEUR,"EUR")}</div>}
-          </div>
-          <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
-            {[{l:"Encaissé",v:fmt(entrees,"EUR"),c:"#34D399"},{l:"Décaissé",v:fmt(sorties,"EUR"),c:"#F87171"},{l:"Commissions 5%",v:fmt(histo.reduce((s,h)=>s+(h.com||0),0),"EUR"),c:"#A78BFA"}].map((k,i)=>(
-              <div key={i} style={{borderLeft:`2px solid ${k.c}`,paddingLeft:12}}>
-                <div style={{fontSize:10,color:"rgba(255,255,255,0.5)",marginBottom:3}}>{k.l}</div>
-                <div style={{fontSize:16,fontWeight:700,color:k.c}}>{k.v}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </Card>
-
-      <Tabs tabs={[{id:"wallet",label:"Vue générale"},{id:"encaisser",label:"Encaisser"},{id:"historique",label:"Historique"},{id:"devises",label:"Devises"}]} active={tab} onChange={setTab}/>
-
-      {tab==="wallet"&&(
-        <div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:16}}>
-            {METHODES.map((m,i)=>(
-              <Card key={i}>
-                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}><span style={{fontSize:22}}>{m.icon}</span><div><div style={{fontWeight:600,fontSize:13,color:C.dark}}>{m.nom}</div><div style={{fontSize:11,color:C.muted}}>{m.zone}</div></div></div>
-                <Btn v="ghost" full onClick={()=>setDemande(true)} sm>Encaisser →</Btn>
-              </Card>
-            ))}
-          </div>
-          <Card>
-            <CardTitle>Dernières transactions</CardTitle>
-            <TH heads={["Date","Libellé","Montant","Méthode","Statut"]} rows={histo.slice(0,5).map((h,i)=>(
-              <tr key={i}>
-                <Td><span style={{fontSize:11,color:C.muted}}>{h.date}</span></Td>
-                <Td><span style={{fontWeight:600,color:C.dark}}>{h.libelle}</span></Td>
-                <Td><span style={{fontWeight:700,color:h.type==="entree"?C.green:C.red,fontSize:14}}>{h.type==="entree"?"+":"–"}{fmt(h.montant,h.devise)}</span></Td>
-                <Td><span style={{fontSize:12,color:C.mid}}>{h.methode}</span></Td>
-                <Td><St s={h.statut}/></Td>
-              </tr>
-            ))}/>
-          </Card>
-        </div>
-      )}
-      {tab==="encaisser"&&(
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
-          <Card style={{borderColor:`${C.teal}40`}}>
-            <CardTitle>Demander un paiement WhatsApp</CardTitle>
-            <div style={{fontSize:13,color:C.mid,lineHeight:1.8,marginBottom:20}}>Envoyez un <b style={{color:C.teal}}>lien de paiement</b> directement sur WhatsApp. Le client paie avec son moyen préféré. La <b style={{color:C.dark}}>facture est générée automatiquement</b>.</div>
-            <Btn v="gold" full onClick={()=>setDemande(true)}>📲 Créer un lien de paiement</Btn>
-          </Card>
-          <Card>
-            <CardTitle>Comment ça marche</CardTitle>
-            {[{n:1,t:"Nom, numéro WhatsApp, montant et devise"},{n:2,t:"Lien envoyé — le client clique et paie"},{n:3,t:"Wave, Orange Money, MTN, Carte bancaire…"},{n:4,t:"Wallet crédité · 5% prélevés automatiquement"},{n:5,t:"Facture générée et envoyée par WhatsApp"}].map((s,i)=>(
-              <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:10}}>
-                <div style={{width:24,height:24,borderRadius:"50%",background:C.goldLight,border:`1px solid ${C.goldBorder}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:C.gold,fontWeight:700,flexShrink:0}}>{s.n}</div>
-                <div style={{fontSize:13,color:C.mid,lineHeight:1.5,paddingTop:3}}>{s.t}</div>
-              </div>
-            ))}
-          </Card>
-        </div>
-      )}
-      {tab==="historique"&&(
-        <Card>
-          <div style={{display:"flex",gap:7,marginBottom:14,flexWrap:"wrap"}}>{["Tout","Entrées","Sorties"].map(f=><Btn key={f} v="ghost" sm>{f}</Btn>)}<div style={{marginLeft:"auto",display:"flex",gap:7}}><Btn sm v="ghost">📥 Excel</Btn><Btn sm v="ghost">📄 PDF</Btn></div></div>
-          <TH heads={["Date","Libellé","Montant","≈ EUR","Méthode","Com. 5%","Statut"]} rows={histo.map((h,i)=>(
-            <tr key={i}>
-              <Td><span style={{fontSize:11,color:C.muted}}>{h.date}</span></Td>
-              <Td><span style={{fontWeight:600,color:C.dark}}>{h.libelle}</span></Td>
-              <Td><span style={{fontWeight:700,color:h.type==="entree"?C.green:C.red,fontSize:14}}>{h.type==="entree"?"+":"–"}{fmt(h.montant,h.devise)}</span></Td>
-              <Td>{h.devise!=="EUR"&&<span style={{fontSize:11,color:C.muted}}>{fmt(conv(h.montant,h.devise,"EUR"),"EUR")}</span>}</Td>
-              <Td><span style={{fontSize:12,color:C.mid}}>{h.methode}</span></Td>
-              <Td>{h.com>0?<span style={{color:C.purple,fontWeight:600,fontSize:12}}>{fmt(h.com,"EUR")}</span>:<span style={{color:C.muted}}>—</span>}</Td>
-              <Td><St s={h.statut}/></Td>
-            </tr>
-          ))}/>
-        </Card>
-      )}
-      {tab==="devises"&&(
-        <div>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:20}}>
-            {DEVISES.map((d,i)=>(
-              <Card key={i} style={{borderColor:d.code===devise?`${C.gold}50`:C.border}}>
-                <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}><span style={{fontSize:24}}>{d.flag}</span><div><div style={{fontWeight:700,fontSize:13,color:d.code===devise?C.gold:C.dark}}>{d.nom}</div><div style={{fontSize:11,color:C.muted}}>{d.code} · {d.symbol}</div></div></div>
-                <div style={{background:C.bg,borderRadius:8,padding:"7px 10px",fontSize:12,marginBottom:10}}><span style={{color:C.muted}}>1 EUR = </span><span style={{color:C.dark,fontWeight:700}}>{d.taux} {d.symbol}</span></div>
-                <Btn sm v={d.code===devise?"ghost":"gold"} full onClick={()=>setDevise(d.code)}>{d.code===devise?"✓ Active":"Sélectionner"}</Btn>
-              </Card>
-            ))}
-          </div>
-          <Card style={{borderColor:`${C.teal}40`}}>
-            <CardTitle>Convertisseur temps réel</CardTitle>
-            <div style={{display:"flex",gap:14,alignItems:"flex-end",flexWrap:"wrap"}}>
-              <div style={{flex:1,minWidth:100}}><div style={{fontSize:11,color:C.muted,marginBottom:5}}>Montant</div><Inp type="number" placeholder="1000"/></div>
-              <div style={{flex:1,minWidth:140}}><div style={{fontSize:11,color:C.muted,marginBottom:5}}>De</div><Sel value={devise} onChange={e=>setDevise(e.target.value)} options={DEVISES.map(d=>({v:d.code,l:`${d.flag} ${d.code}`}))}/></div>
-              <div style={{fontSize:20,color:C.muted,paddingBottom:8}}>→</div>
-              <div style={{flex:1,minWidth:140}}><div style={{fontSize:11,color:C.muted,marginBottom:5}}>Vers</div><Sel value="XOF" onChange={()=>{}} options={DEVISES.map(d=>({v:d.code,l:`${d.flag} ${d.code}`}))}/></div>
-              <div style={{background:C.goldLight,border:`1px solid ${C.goldBorder}`,borderRadius:12,padding:"10px 18px",textAlign:"center",minWidth:140}}>
-                <div style={{fontSize:10,color:C.muted,marginBottom:3}}>1000 EUR =</div>
-                <div style={{fontSize:20,fontWeight:800,color:C.gold,fontFamily:"'Playfair Display',Georgia,serif"}}>655 960 ₣</div>
-              </div>
-            </div>
-          </Card>
-        </div>
-      )}
-    </div>
-  );
-};
-
-// CARTES VIRTUELLES
-const PageCartes=()=>{
-  const [cartes,setCartes]=useState(INIT_CARTES);
-  const [reveal,setReveal]=useState({});
-  const [modal,setModal]=useState(false);
-  const bloquer=id=>setCartes(p=>p.map(c=>c.id===id?{...c,statut:c.statut==="active"?"bloquée":"active"}:c));
-  return(
-    <div>
-      <SectionTitle action={<Btn v="gold" onClick={()=>setModal(true)}>+ Créer une carte virtuelle</Btn>}>💎 Cartes Virtuelles</SectionTitle>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
-        <KPI label="Cartes actives" val={cartes.filter(c=>c.statut==="active").length} color={C.green}/>
-        <KPI label="Solde total (€)" val={`${cartes.filter(c=>c.statut==="active"&&c.devise==="EUR").reduce((s,c)=>s+c.solde,0).toLocaleString("fr")} €`} color={C.gold}/>
-        <KPI label="Cartes bloquées" val={cartes.filter(c=>c.statut==="bloquée").length} color={C.red}/>
-        <KPI label="Membres équipés" val={cartes.length} color={C.blue}/>
-      </div>
-      {modal&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,backdropFilter:"blur(4px)"}}>
-          <Card style={{width:420}}>
-            <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:20,fontWeight:700,marginBottom:20}}>Créer une carte virtuelle</div>
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              {[["Nom du titulaire","text","Prénom Nom"],["Limite maximale","number","5000"]].map(([l,t,ph],i)=>(
-                <div key={i}><div style={{fontSize:11,color:C.muted,marginBottom:5}}>{l}</div><Inp type={t} placeholder={ph}/></div>
-              ))}
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                <div><div style={{fontSize:11,color:C.muted,marginBottom:5}}>Devise</div><Sel value="EUR" onChange={()=>{}} options={DEVISES.map(d=>({v:d.code,l:`${d.flag} ${d.code}`}))}/></div>
-                <div><div style={{fontSize:11,color:C.muted,marginBottom:5}}>Plan membre</div><Sel value="Starter" onChange={()=>{}} options={["Starter","Business Pro","Enterprise","Owner"].map(o=>({v:o,l:o}))}/></div>
-              </div>
-              <div style={{background:C.blueBg,borderRadius:10,padding:10,fontSize:12,color:C.blue}}>🌍 Carte Visa virtuelle · Utilisable partout · via Flutterwave</div>
-              <div style={{display:"flex",gap:10}}><Btn v="ghost" full onClick={()=>setModal(false)}>Annuler</Btn><Btn v="gold" full onClick={()=>setModal(false)}>✓ Créer la carte</Btn></div>
-            </div>
-          </Card>
-        </div>
-      )}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:16}}>
-        {cartes.map((c,i)=>{
-          const col=c.reseau==="Visa"?C.blue:C.purple;
-          const pct=Math.min((c.solde/c.limite)*100,100);
-          return(
-            <div key={i} style={{borderRadius:20,overflow:"hidden",border:`1px solid ${c.statut==="active"?col+"40":C.redBg}`,boxShadow:"0 4px 20px rgba(15,23,42,0.07)",opacity:c.statut==="bloquée"?0.7:1}}>
-              <div style={{background:`linear-gradient(135deg,${C.navy},${col}40)`,padding:"24px 24px 20px",position:"relative",minHeight:140}}>
-                <div style={{position:"absolute",top:-20,right:-20,width:120,height:120,borderRadius:"50%",background:col+"15"}}/>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:20}}>
-                  <div><div style={{fontSize:10,color:"rgba(255,255,255,0.5)",textTransform:"uppercase",letterSpacing:"0.15em"}}>{c.type}</div><div style={{fontWeight:700,fontSize:15,color:"#fff",marginTop:3}}>{c.nom}</div></div>
-                  <div style={{display:"flex",flexDirection:"column",alignItems:"flex-end",gap:5}}><span style={{fontSize:12,fontWeight:700,color:col}}>{c.reseau}</span>{c.statut==="bloquée"&&<Badge label="🔒 Bloquée" color={C.red} bg={C.redBg}/>}</div>
-                </div>
-                <div style={{fontFamily:"monospace",fontSize:16,color:"rgba(255,255,255,0.9)",letterSpacing:"0.1em",marginBottom:14}}>{reveal[c.id]?c.numero.replace(/•/g,"X"):c.numero}</div>
-                <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
-                  <div><div style={{fontSize:9,color:"rgba(255,255,255,0.5)"}}>Expiry</div><div style={{fontSize:12,color:"#fff"}}>{c.expiry}</div></div>
-                  <div><div style={{fontSize:9,color:"rgba(255,255,255,0.5)"}}>CVV</div><div style={{fontSize:12,color:"#fff"}}>{reveal[c.id]?"123":"•••"}</div></div>
-                  <div style={{textAlign:"right"}}><div style={{fontSize:9,color:"rgba(255,255,255,0.5)"}}>Solde</div><div style={{fontSize:15,fontWeight:700,color:C.gold}}>{fmt(c.solde,c.devise)}</div></div>
-                </div>
-              </div>
-              <div style={{background:C.white,padding:"14px 20px"}}>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:11,color:C.muted,marginBottom:6}}><span>Solde utilisé</span><span>{fmt(c.solde,c.devise)} / {fmt(c.limite,c.devise)}</span></div>
-                <div style={{height:5,borderRadius:3,background:C.bg}}><div style={{height:"100%",width:`${pct}%`,background:pct>80?C.red:pct>50?C.orange:C.green,borderRadius:3,transition:"width 0.5s"}}/></div>
-                <div style={{display:"flex",gap:7,marginTop:12}}>
-                  <Btn sm v="ghost" onClick={()=>setReveal(p=>({...p,[c.id]:!p[c.id]}))}>👁 {reveal[c.id]?"Masquer":"Voir détails"}</Btn>
-                  <Btn sm v="blue">💳 Recharger</Btn>
-                  <Btn sm v={c.statut==="active"?"red":"green"} onClick={()=>bloquer(c.id)}>{c.statut==="active"?"🔒 Bloquer":"🔓 Débloquer"}</Btn>
-                </div>
-              </div>
-            </div>
-          );
-        })}
       </div>
     </div>
-  );
+  </div>;
 };
 
-// IBAN
-const PageIBAN=()=>{
-  const [modal,setModal]=useState(false);
-  const MEMBRES_WALLET=[{nom:"Thomas Beaumont",banque:"BNP Paribas",iban:"FR76 3000 4000 0100 0012 3456 789",devise:"EUR",pays:"🇫🇷"},{nom:"Fatoumata Diop",banque:"Ecobank Sénégal",iban:"SN28 SN08 0100 1535 1000 1234 56",devise:"XOF",pays:"🇸🇳"},{nom:"Sofia Al-Rashid",banque:"Emirates NBD",iban:"AE07 0331 2345 6789 0123 456",devise:"EUR",pays:"🇦🇪"}];
-  return(
-    <div>
-      <SectionTitle sub="IBAN de n'importe quel pays · France, Sénégal, Maroc, Émirats, USA..." action={<Btn v="gold" onClick={()=>setModal(true)}>+ Ajouter un IBAN</Btn>}>🏦 IBAN Mondial</SectionTitle>
-      {modal&&(
-        <div style={{position:"fixed",inset:0,background:"rgba(15,23,42,0.6)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:2000,backdropFilter:"blur(4px)"}}>
-          <Card style={{width:460,borderColor:`${C.teal}50`}}>
-            <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:20,fontWeight:700,marginBottom:6}}>Ajouter / Modifier IBAN</div>
-            <div style={{fontSize:12,color:C.muted,marginBottom:20}}>N'importe quel IBAN mondial — compatible avec tous les pays</div>
-            <div style={{display:"flex",flexDirection:"column",gap:12}}>
-              {[["IBAN","FR76 3000... ou SN28 SN08... ou AE07..."],["Nom de la banque","BNP Paribas / Ecobank / Emirates NBD..."]].map(([l,ph],i)=>(
-                <div key={i}><div style={{fontSize:11,color:C.muted,marginBottom:5}}>{l}</div><Inp placeholder={ph}/></div>
-              ))}
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
-                <div><div style={{fontSize:11,color:C.muted,marginBottom:5}}>Pays</div><Sel value="FR" onChange={()=>{}} options={["FR","SN","CI","MA","AE","GB","US","CM","GH","NG"].map(c=>({v:c,l:c}))}/></div>
-                <div><div style={{fontSize:11,color:C.muted,marginBottom:5}}>Devise</div><Sel value="EUR" onChange={()=>{}} options={DEVISES.map(d=>({v:d.code,l:`${d.flag} ${d.code}`}))}/></div>
-              </div>
-              <div style={{background:C.greenBg,borderRadius:10,padding:10,fontSize:12,color:C.green}}>✓ Compatible avec tous les pays · Virements via Flutterwave & SWIFT</div>
-              <div style={{display:"flex",gap:10}}><Btn v="ghost" full onClick={()=>setModal(false)}>Annuler</Btn><Btn v="gold" full onClick={()=>setModal(false)}>✓ Enregistrer IBAN</Btn></div>
-            </div>
-          </Card>
-        </div>
-      )}
-      <Card style={{marginBottom:20,borderColor:`${C.teal}40`,background:`linear-gradient(135deg,#F0FDFA,${C.white})`}}>
-        <div style={{display:"flex",gap:14,alignItems:"center"}}>
-          <span style={{fontSize:28}}>🌍</span>
-          <div style={{fontSize:13,color:C.mid,lineHeight:1.8}}>Chaque <b style={{color:C.dark}}>membre Tymeless</b> dispose de son propre IBAN — <b style={{color:C.teal}}>n'importe quel pays</b>. Les fonds transitent via <b style={{color:C.dark}}>Flutterwave & SWIFT</b>.</div>
-        </div>
-      </Card>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-        {MEMBRES_WALLET.map((m,i)=>(
-          <Card key={i}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}><Avatar nom={m.nom}/><div><div style={{fontWeight:700,color:C.dark,fontSize:13}}>{m.nom}</div><div style={{fontSize:11,color:C.muted}}>{m.pays} · {m.banque}</div></div></div>
-            <div style={{background:C.bg,borderRadius:10,padding:"10px 12px",marginBottom:12}}>
-              <div style={{fontSize:10,color:C.muted,marginBottom:3}}>IBAN</div>
-              <div style={{fontFamily:"monospace",fontSize:12,color:C.dark}}>{m.iban}</div>
-            </div>
-            <div style={{display:"flex",gap:6}}><Btn sm v="ghost">📋 Copier</Btn><Btn sm v="blue">✏️ Modifier</Btn></div>
-          </Card>
-        ))}
-      </div>
+// ─── CHAT COMPONENT ───────────────────────────────────────────
+const Chat=({msgs,onSend,title="Chat",subtitle=""})=>{
+  const[msg,setMsg]=useState("");
+  const endRef=useRef();
+  useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"});},[msgs]);
+  return <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
+    <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.border}`,background:C.card2}}>
+      <div style={{fontSize:14,fontWeight:700,color:C.text}}>{title}</div>
+      <div style={{fontSize:11,color:C.muted}}>{subtitle}</div>
     </div>
-  );
-};
-
-// VUE D'ENSEMBLE
-const PageOverview=({setPage})=>{
-  const pending=INIT_DEVIS.filter(d=>d.statut==="en_attente").length;
-  const ca=24380,ch=CHARGES.reduce((s,c)=>s+c.mois,0);
-  return(
-    <div>
-      <SectionTitle sub="KPIs · Health Score · Missions du jour">📊 Vue d'ensemble</SectionTitle>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
-        <KPI label="CA Avril 2026" val="24 380 €" trend="+12% vs mars" up={true}/>
-        <KPI label="Devis en attente" val={pending} trend="Action requise" up={false} onClick={()=>setPage("devis")} badge={pending}/>
-        <KPI label="Marge nette" val={`${Math.round(((ca-ch)/ca)*100)}%`} trend="+4pts vs T1" up={true} color={C.green}/>
-        <KPI label="Commissions 5%" val="3 412 €" sub="Auto prélevées" color={C.purple}/>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:16,marginBottom:16}}>
-        <Card>
-          <CardTitle>Business Health Score</CardTitle>
-          <div style={{display:"flex",alignItems:"center",gap:20,marginBottom:16}}>
-            <div style={{position:"relative",flexShrink:0}}>
-              <svg width="80" height="80" style={{transform:"rotate(-90deg)"}}><circle cx="40" cy="40" r="32" stroke={C.border} strokeWidth="6" fill="none"/><circle cx="40" cy="40" r="32" stroke={C.gold} strokeWidth="6" fill="none" strokeDasharray={2*Math.PI*32} strokeDashoffset={2*Math.PI*32*0.26} style={{strokeLinecap:"round"}}/></svg>
-              <div style={{position:"absolute",inset:0,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:800,color:C.dark}}>74</div>
-            </div>
-            <div><div style={{fontSize:24,fontWeight:800,color:C.dark}}>74/100</div><div style={{fontSize:12,color:C.muted}}>🟡 Bon · À optimiser</div></div>
+    <div style={{flex:1,overflowY:"auto",padding:16,display:"flex",flexDirection:"column",gap:12}}>
+      {msgs.map((m,i)=><div key={i} style={{display:"flex",gap:8,flexDirection:m.moi?"row-reverse":"row"}}>
+        <div style={{width:30,height:30,borderRadius:"50%",background:m.moi?`${C.gold}22`:`${C.blue}22`,border:`1px solid ${m.moi?C.gold:C.blue}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:m.moi?C.gold:C.blue,flexShrink:0}}>{m.av}</div>
+        <div style={{maxWidth:"70%"}}>
+          <div style={{background:m.moi?`${C.gold}18`:C.card2,border:`1px solid ${m.moi?C.gold+"33":C.border}`,borderRadius:10,padding:"8px 12px",marginBottom:2}}>
+            <div style={{fontSize:12,color:C.text,lineHeight:1.5}}>{m.msg}</div>
           </div>
-          {[{l:"Conversion devis",v:78,c:C.green},{l:"Satisfaction client",v:91,c:C.gold},{l:"Rentabilité",v:61,c:C.blue},{l:"Réseau actif",v:55,c:C.purple}].map((m,i)=>(
-            <div key={i} style={{marginBottom:8}}>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}><span style={{color:C.mid}}>{m.l}</span><span style={{color:m.c,fontWeight:600}}>{m.v}%</span></div>
-              <div style={{height:5,borderRadius:3,background:C.bg}}><div style={{height:"100%",width:`${m.v}%`,background:m.c,borderRadius:3}}/></div>
-            </div>
-          ))}
-        </Card>
-        <Card>
-          <CardTitle>CA par service</CardTitle>
-          <div style={{display:"flex",gap:6,alignItems:"flex-end",height:120,marginBottom:8}}>
-            {[{l:"Airbnb",v:42,c:C.gold},{l:"Résid.",v:18,c:C.green},{l:"Bureaux",v:12,c:C.blue},{l:"Jet",v:15,c:C.orange},{l:"Yacht",v:8,c:C.purple},{l:"Rapatr.",v:5,c:C.red}].map((s,i)=>(
-              <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-                <div style={{fontSize:9,color:s.c,fontWeight:600}}>{s.v}%</div>
-                <div style={{width:"100%",height:s.v*2.2,background:`${s.c}20`,border:`1px solid ${s.c}40`,borderRadius:"4px 4px 0 0"}}/>
-                <div style={{fontSize:8,color:C.muted,textAlign:"center"}}>{s.l}</div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-      <Card>
-        <CardTitle action={<Btn sm v="ghost" onClick={()=>setPage("planning")}>Planning →</Btn>}>Missions & RDV du jour</CardTitle>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
-          {PLANNING.slice(0,4).map((p,i)=>(
-            <div key={i} style={{background:C.bg,border:`1px solid ${p.type==="rdv"?C.purpleBg:C.border}`,borderRadius:12,padding:12}}>
-              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:11,fontWeight:600,color:p.type==="rdv"?C.purple:C.gold}}>{p.h}</span><St s={p.type}/></div>
-              <div style={{fontWeight:600,fontSize:12,color:C.dark,marginBottom:3}}>{p.service}</div>
-              <div style={{fontSize:11,color:C.muted}}>{p.client}</div>
-              <div style={{fontSize:11,color:C.blue,marginTop:5}}>👤 {p.collab}</div>
-            </div>
-          ))}
+          <div style={{fontSize:9,color:C.muted,textAlign:m.moi?"right":"left"}}>{m.h}</div>
         </div>
-      </Card>
+      </div>)}
+      <div ref={endRef}/>
     </div>
-  );
+    <div style={{padding:"10px 16px",borderTop:`1px solid ${C.border}`,display:"flex",gap:8}}>
+      <Inp value={msg} onChange={e=>setMsg(e.target.value)} placeholder="Écrire un message..." style={{flex:1}} onKeyDown={e=>{if(e.key==="Enter"&&msg.trim()){onSend(msg);setMsg("");}}}/>
+      <Btn onClick={()=>{if(msg.trim()){onSend(msg);setMsg("");}}} style={{padding:"8px 14px",flexShrink:0}}>↗</Btn>
+    </div>
+  </div>;
 };
 
-// CRM
-const PageCRM=()=>{
-  const [tab,setTab]=useState("pipeline");
-  const etapes=["Nouveau","Qualifié","Proposition","Négociation","Gagné","Perdu"];
-  const COLORS={"Nouveau":C.muted,"Qualifié":C.blue,"Proposition":C.gold,"Négociation":C.orange,"Gagné":C.green,"Perdu":C.red};
-  return(
-    <div>
-      <SectionTitle sub="Pipeline commercial · Suivi prospects">📇 CRM</SectionTitle>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
-        <KPI label="Total prospects" val={CRM_LEADS.length}/>
-        <KPI label="CA potentiel" val={`${CRM_LEADS.reduce((s,l)=>s+l.ca,0).toLocaleString("fr")} €`} color={C.gold}/>
-        <KPI label="En négociation" val={CRM_LEADS.filter(l=>l.etape==="Négociation").length} color={C.orange}/>
-        <KPI label="Taux conversion" val="22%" color={C.green}/>
-      </div>
-      <Tabs tabs={[{id:"pipeline",label:"Pipeline"},{id:"liste",label:"Liste"}]} active={tab} onChange={setTab}/>
-      {tab==="pipeline"&&(
-        <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10}}>
-          {etapes.map(e=>{
-            const leads=CRM_LEADS.filter(l=>l.etape===e);
-            const col=COLORS[e]||C.muted;
-            return(
-              <div key={e}>
-                <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,alignItems:"center"}}>
-                  <span style={{fontSize:11,color:col,fontWeight:600}}>{e}</span>
-                  <span style={{background:`${col}20`,color:col,borderRadius:999,padding:"1px 7px",fontSize:10,fontWeight:700}}>{leads.length}</span>
-                </div>
-                {leads.map((l,i)=>(
-                  <div key={i} style={{background:C.white,border:`1px solid ${C.border}`,borderRadius:12,padding:10,marginBottom:8,borderLeft:`3px solid ${col}`,boxShadow:"0 2px 8px rgba(15,23,42,0.05)"}}>
-                    <div style={{fontWeight:600,fontSize:12,color:C.dark,marginBottom:3}}>{l.nom}</div>
-                    <div style={{fontSize:11,color:C.muted,marginBottom:5}}>{l.contact}</div>
-                    <div style={{fontSize:12,color:C.gold,fontWeight:700}}>{l.ca.toLocaleString("fr")} €</div>
-                  </div>
-                ))}
-                {leads.length===0&&<div style={{fontSize:11,color:C.muted,textAlign:"center",padding:"14px 0",border:`1px dashed ${C.border}`,borderRadius:10}}>Vide</div>}
-              </div>
-            );
-          })}
-        </div>
-      )}
-      {tab==="liste"&&(
-        <Card>
-          <TH heads={["Société","Contact","CA Potentiel","Score","Étape","Source"]} rows={CRM_LEADS.map((l,i)=>(
-            <tr key={i}>
-              <Td><div style={{fontWeight:600,color:C.dark}}>{l.nom}</div></Td>
-              <Td>{l.contact}</Td>
-              <Td><span style={{fontWeight:700,color:C.gold}}>{l.ca.toLocaleString("fr")} €</span></Td>
-              <Td>
-                <div style={{display:"flex",alignItems:"center",gap:6}}>
-                  <div style={{width:40,height:5,borderRadius:3,background:C.bg}}><div style={{height:"100%",width:`${l.score}%`,background:l.score>=80?C.green:C.gold,borderRadius:3}}/></div>
-                  <span style={{fontSize:11,color:C.muted}}>{l.score}</span>
-                </div>
-              </Td>
-              <Td><Badge label={l.etape} color={COLORS[l.etape]||C.muted}/></Td>
-              <Td><span style={{fontSize:12,color:C.mid}}>{l.source}</span></Td>
-            </tr>
-          ))}/>
-        </Card>
-      )}
+// ─── WALLET COMPONENTS ────────────────────────────────────────
+const PayCard=({carte,onToggle})=>{
+  const dv=DEVISES.find(d=>d.code===carte.devise);
+  return <Card style={{borderColor:`${C.gold}33`,position:"relative",overflow:"hidden"}}>
+    <div style={{position:"absolute",top:0,right:0,width:120,height:120,borderRadius:"0 0 0 120px",background:`${C.gold}06`}}/>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:20}}>
+      <div><div style={{fontSize:10,color:C.muted,letterSpacing:"0.2em"}}>CARTE VIRTUELLE {carte.reseau}</div><div style={{fontSize:13,fontWeight:600,color:C.text,marginTop:2}}>{carte.nom}</div></div>
+      <Pill color={carte.statut==="active"?C.green:C.red}>{carte.statut==="active"?"● Active":"● Bloquée"}</Pill>
     </div>
-  );
+    <div style={{fontSize:16,fontWeight:700,color:C.gold,fontFamily:"'Courier New',monospace",letterSpacing:"0.1em",marginBottom:16}}>{carte.numero}</div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-end"}}>
+      <div><div style={{fontSize:9,color:C.muted}}>SOLDE DISPONIBLE</div><div style={{fontSize:20,fontWeight:700,color:C.text}}>{fmt(carte.solde,carte.devise)}</div><div style={{fontSize:9,color:C.muted}}>Limite: {fmt(carte.limite,carte.devise)}</div></div>
+      <div style={{textAlign:"right"}}><div style={{fontSize:9,color:C.muted}}>EXPIRE</div><div style={{fontSize:14,fontWeight:600,color:C.text}}>{carte.expiry}</div></div>
+    </div>
+    <SM val={carte.solde} max={carte.limite} color={carte.solde/carte.limite>0.5?C.green:C.orange}/>
+    <div style={{marginTop:12,display:"flex",gap:8}}>
+      <BtnGhost onClick={()=>onToggle(carte.id)} style={{flex:1,fontSize:11}}>{carte.statut==="active"?"🔒 Bloquer":"🔓 Activer"}</BtnGhost>
+    </div>
+  </Card>;
 };
 
-// DEVIS
-const PageDevis=()=>{
-  const [devis,setDevis]=useState([]);
-useEffect(()=>{
-  supabase.from("devis").select("*").order("created_at",{ascending:false}).then(({data})=>{if(data)setDevis(data);});
-},[]);
-  const [f,setF]=useState("tous");
-  const filtered=f==="tous"?devis:devis.filter(d=>d.statut===f);
-  return(
-    <div>
-      <SectionTitle action={<Btn v="gold">+ Nouveau devis</Btn>}>🧾 Devis</SectionTitle>
-      <Tabs tabs={["tous","en_attente","validé","refusé"].map(x=>({id:x,label:x==="tous"?"Tous":x.replace("_"," ")}))} active={f} onChange={setF}/>
-      <Card>
-        <TH heads={["Référence","Client","Service","Montant","Date","Statut","Actions"]} rows={filtered.map((d,i)=>(
-          <tr key={i} style={{opacity:d.statut==="refusé"?0.5:1}}>
-            <Td><span style={{color:C.gold,fontFamily:"monospace",fontSize:12,fontWeight:600}}>{d.id}</span></Td>
-            <Td><div style={{fontWeight:600,color:C.dark}}>{d.client}</div><div style={{fontSize:11,color:C.muted}}>{d.tel}</div></Td>
-            <Td><span style={{fontSize:13}}>{d.service}</span></Td>
-            <Td><span style={{fontWeight:700,fontSize:14,color:C.dark}}>{d.montant.toLocaleString("fr")} €</span></Td>
-            <Td><span style={{fontSize:11,color:C.muted}}>{d.date}</span></Td>
-            <Td><St s={d.statut}/></Td>
-            <Td>
-              {d.statut==="en_attente"&&<div style={{display:"flex",gap:6}}>
-                <Btn sm v="green" onClick={()=>setDevis(p=>p.map(x=>x.id===d.id?{...x,statut:"validé"}:x))}>✓ Valider</Btn>
-                <Btn sm v="red" onClick={()=>setDevis(p=>p.map(x=>x.id===d.id?{...x,statut:"refusé"}:x))}>✕ Refuser</Btn>
-              </div>}
-              {d.statut==="validé"&&<span style={{fontSize:11,color:C.green,fontWeight:600}}>✓ Envoyé client</span>}
-              {d.statut==="refusé"&&<span style={{fontSize:11,color:C.muted}}>Archivé</span>}
-            </Td>
-          </tr>
-        ))}/>
-      </Card>
+const Convertisseur=()=>{
+  const[m,setM]=useState(1000);
+  const[de,setDe]=useState("EUR");
+  const[ve,setVe]=useState("XOF");
+  const r=conv(m,de,ve);
+  return <CT>
+    <STitle>Convertisseur multi-devises</STitle>
+    <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr",gap:8,alignItems:"center"}}>
+      <div><Inp value={m} onChange={e=>setM(Number(e.target.value))} style={{marginBottom:4}}/><Sel value={de} onChange={e=>setDe(e.target.value)} style={{width:"100%"}}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel></div>
+      <div style={{fontSize:20,color:C.muted}}>⇄</div>
+      <div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:7,padding:"8px 12px",fontSize:14,fontWeight:700,color:C.gold,marginBottom:4}}>{isNaN(r)?"-":r.toLocaleString("fr",{maximumFractionDigits:2})}</div><Sel value={ve} onChange={e=>setVe(e.target.value)} style={{width:"100%"}}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel></div>
     </div>
-  );
+    <div style={{marginTop:8,fontSize:10,color:C.muted,textAlign:"center"}}>1 {de} = {conv(1,de,ve).toFixed(4)} {ve} · Taux de référence Tymeless</div>
+  </CT>;
 };
 
-// COMPTABILITE
-const PageCompta=()=>{
-  const ca=24380,ch=CHARGES.reduce((s,c)=>s+c.mois,0),marge=ca-ch,tva=Math.round(ca*0.20);
-  return(
-    <div>
-      <SectionTitle sub="Entrées · Sorties · TVA · Bilan mensuel">💰 Comptabilité</SectionTitle>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:12,marginBottom:20}}>
-        {[{l:"CA Brut",v:`${ca.toLocaleString("fr")} €`,c:C.dark},{l:"Charges",v:`${ch.toLocaleString("fr")} €`,c:C.red},{l:"Marge brute",v:`${marge.toLocaleString("fr")} €`,c:C.green},{l:"TVA 20%",v:`${tva.toLocaleString("fr")} €`,c:C.orange},{l:"Résultat net",v:`${(marge-tva*0.1).toLocaleString("fr")} €`,c:C.blue}].map((k,i)=>(
-          <Card key={i}><div style={{fontSize:11,color:C.muted,marginBottom:8,fontWeight:500}}>{k.l}</div><div style={{fontSize:20,fontWeight:800,color:k.c,fontFamily:"'Playfair Display',Georgia,serif"}}>{k.v}</div></Card>
-        ))}
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-        <Card>
-          <CardTitle>Charges — Avril 2026</CardTitle>
-          <TH heads={["Catégorie","Montant"]} rows={CHARGES.map((c,i)=>(<tr key={i}><Td><span style={{color:C.dark}}>{c.cat}</span></Td><Td><span style={{color:C.red,fontWeight:600}}>{c.mois.toLocaleString("fr")} €</span></Td></tr>))}/>
-          <div style={{marginTop:12,padding:"10px 14px",background:C.bg,borderRadius:10,display:"flex",justifyContent:"space-between"}}><span style={{color:C.muted,fontSize:12}}>TOTAL</span><span style={{color:C.red,fontWeight:700}}>{ch.toLocaleString("fr")} €</span></div>
-        </Card>
-        <Card>
-          <CardTitle>Marge par service</CardTitle>
-          {[{s:"Jet privé",v:80,c:C.green},{s:"Rapatriement",v:75,c:C.green},{s:"Yacht",v:72,c:C.green},{s:"Airbnb",v:68,c:C.gold},{s:"Bureaux",v:60,c:C.gold},{s:"Résidentiel",v:50,c:C.orange}].map((m,i)=>(
-            <div key={i} style={{marginBottom:10}}>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}><span style={{color:C.dark}}>{m.s}</span><span style={{color:m.c,fontWeight:600}}>{m.v}%</span></div>
-              <div style={{height:5,borderRadius:3,background:C.bg}}><div style={{height:"100%",width:`${m.v}%`,background:m.c,borderRadius:3}}/></div>
-            </div>
-          ))}
-        </Card>
-      </div>
-    </div>
-  );
-};
+const IbanMondial=({showToast})=>{
+  const[ibans,setIbans]=useState([
+    {pays:"🇫🇷 France (SEPA)",iban:"FR76 3000 4000 0100 0012 3456 789",banque:"BNP Paribas",bic:"BNPAFRPP",pour:"Virements SEPA Europe"},
+    {pays:"🇸🇳 Sénégal",iban:"SN28 SN08 0100 1535 1000 1234 56",banque:"Ecobank Sénégal",bic:"ECOC SN DA",pour:"Transferts CFA / Wave"},
+    {pays:"🇦🇪 Dubaï",iban:"AE07 0331 2345 6789 0123 456",banque:"Emirates NBD",bic:"EBILAEAD",pour:"Clients Moyen-Orient"},
+  ]);
+  const[cid,setCid]=useState(null);
+  const[showForm,setShowForm]=useState(false);
+  const[form,setForm]=useState({pays:"",iban:"",banque:"",bic:"",pour:""});
 
-// TRESORERIE
-const PageTresorerie=()=>{
-  const max=Math.max(...TRESO.map(s=>s.sol));
-  return(
-    <div>
-      <SectionTitle sub="Projection cash-flow sur 90 jours">📈 Trésorerie 90 jours</SectionTitle>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14,marginBottom:20}}>
-        <KPI label="Solde actuel" val="8 240 €" color={C.green}/><KPI label="Solde prévu (90j)" val="32 440 €" color={C.gold}/><KPI label="Alerte seuil" val="3 000 €" sub="Notification WhatsApp si en dessous" color={C.orange}/>
-      </div>
-      <Card style={{marginBottom:16}}>
-        <CardTitle>Évolution solde — 8 semaines</CardTitle>
-        <div style={{display:"flex",gap:8,alignItems:"flex-end",height:130,marginBottom:8}}>
-          {TRESO.map((s,i)=>(
-            <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-              <div style={{fontSize:9,color:s.p?C.green:C.gold,fontWeight:600}}>{Math.round(s.sol/1000)}k</div>
-              <div style={{width:"100%",height:s.sol/max*110,background:s.p?`${C.green}20`:`${C.gold}20`,border:`1px solid ${s.p?C.green:C.gold}40`,borderRadius:"4px 4px 0 0"}}/>
-              <div style={{fontSize:9,color:s.p?C.green:C.muted,textAlign:"center"}}>{s.sem}{s.p?" *":""}</div>
-            </div>
-          ))}
-        </div>
-      </Card>
-      <Card>
-        <TH heads={["Semaine","Entrées","Sorties","Solde","Statut"]} rows={TRESO.map((s,i)=>(
-          <tr key={i}>
-            <Td><span style={{fontSize:12,color:s.p?C.green:C.dark}}>{s.sem}{s.p?" *":""}</span></Td>
-            <Td><span style={{color:C.green,fontWeight:600}}>+{s.e.toLocaleString("fr")} €</span></Td>
-            <Td><span style={{color:C.red,fontWeight:600}}>-{s.s.toLocaleString("fr")} €</span></Td>
-            <Td><span style={{fontWeight:700,color:s.sol>=3000?C.dark:C.red,fontSize:14}}>{s.sol.toLocaleString("fr")} €</span></Td>
-            <Td>{s.sol>=3000?<Badge label="✓ OK" color={C.green} bg={C.greenBg}/>:<Badge label="⚠ Alerte" color={C.red} bg={C.redBg}/>}</Td>
-          </tr>
-        ))}/>
-      </Card>
-    </div>
-  );
-};
-
-// INVESTISSEMENT
-const PageInvestissement=()=>{
-  const [tab,setTab]=useState("recommandations");
-  const [sc,setSc]=useState({collaborateurs:0,services:0,marketing:0,formation:0});
-  const ca=24380;
-  const impact=sc.collaborateurs*3200+sc.services*2800+sc.marketing*1400+sc.formation*600;
-  const invest=sc.collaborateurs*1800+sc.services*500+sc.marketing*800+sc.formation*300;
-  const RECO=[
-    {icon:"✈️",titre:"Priorité 1 — Développer le Rapatriement",retour:"ROI +340%",urgence:"haute",couleur:C.green,detail:"75% de marge, seulement 5% du CA. Cibler les ambassades africaines à Paris = +14 400€/an.",actions:["Contacter les ambassades Sénégal, Mali, CI à Paris","Partenariat pompes funèbres spécialisées","Budget marketing : 400€/mois"]},
-    {icon:"🛥️",titre:"Priorité 2 — Activer Monaco Yacht Club",retour:"ROI +280%",urgence:"haute",couleur:C.gold,detail:"Devis envoyé. 8 missions/mois × 1 800€ = 172 800€/an. Plus gros levier immédiat.",actions:["Relancer cette semaine","Visite démonstration gratuite","Contrat cadre annuel -10%"]},
-    {icon:"🤝",titre:"Priorité 3 — Activer le réseau B2B",retour:"ROI +180%",urgence:"moyenne",couleur:C.blue,detail:"5 membres annuaire. 10 mises en relation/mois = +3 000 à 8 000€/mois commissions passives.",actions:["Événement networking 25 avril","Activer prospection Thomas & Abou","Objectif 20 membres avant fin mai"]},
-  ];
-  return(
-    <div>
-      <SectionTitle sub="Recommandations IA · Simulateur · Plan d'action chiffré">🔒 Investissement & Croissance IA</SectionTitle>
-      <Tabs tabs={[{id:"recommandations",label:"💡 Recommandations IA"},{id:"simulateur",label:"🔢 Simulateur"},{id:"plan",label:"📊 Plan chiffré"}]} active={tab} onChange={setTab}/>
-      {tab==="recommandations"&&(
-        <div>
-          <Card style={{marginBottom:20,borderColor:`${C.gold}50`,background:`linear-gradient(135deg,${C.goldLight},${C.white})`}}>
-            <div style={{display:"flex",gap:14,alignItems:"center"}}>
-              <span style={{fontSize:28}}>🤖</span>
-              <div><div style={{fontWeight:700,color:C.gold,marginBottom:4,fontSize:15}}>Analyse IA — Tymeless Business Intelligence</div><div style={{fontSize:13,color:C.mid,lineHeight:1.7}}>CA actuel : <b style={{color:C.dark}}>24 380 €/mois</b> · Marge : <b style={{color:C.green}}>61%</b> · Potentiel identifié : <b style={{color:C.teal}}>+48 000 €/mois</b></div></div>
-            </div>
-          </Card>
-          <div style={{display:"flex",flexDirection:"column",gap:14}}>
-            {RECO.map((r,i)=>(
-              <Card key={i} style={{borderLeft:`4px solid ${r.couleur}`}}>
-                <div style={{display:"flex",gap:14,alignItems:"flex-start"}}>
-                  <span style={{fontSize:26,flexShrink:0}}>{r.icon}</span>
-                  <div style={{flex:1}}>
-                    <div style={{fontWeight:700,fontSize:15,color:C.dark,marginBottom:8}}>{r.titre}</div>
-                    <div style={{display:"flex",gap:7,marginBottom:10,flexWrap:"wrap"}}>
-                      <Badge label={r.retour} color={r.couleur}/>
-                      <Badge label={r.urgence==="haute"?"🔴 Urgent":r.urgence==="moyenne"?"🟡 Moyen":"🟢 Long terme"} color={r.urgence==="haute"?C.red:r.urgence==="moyenne"?C.orange:C.green}/>
-                    </div>
-                    <div style={{fontSize:13,color:C.mid,lineHeight:1.7,marginBottom:12}}>{r.detail}</div>
-                    <div style={{background:C.bg,borderRadius:10,padding:12}}>
-                      <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:7,textTransform:"uppercase",letterSpacing:"0.06em"}}>Actions concrètes</div>
-                      {r.actions.map((a,j)=><div key={j} style={{display:"flex",gap:8,fontSize:12,color:C.dark,marginBottom:4}}><span style={{color:r.couleur}}>→</span>{a}</div>)}
-                    </div>
-                  </div>
-                </div>
-              </Card>
-            ))}
-          </div>
-        </div>
-      )}
-      {tab==="simulateur"&&(
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:20}}>
-          <Card>
-            <CardTitle>Paramètres du scénario</CardTitle>
-            <div style={{display:"flex",flexDirection:"column",gap:16}}>
-              {[{l:"Nouveaux collaborateurs",k:"collaborateurs",max:5,desc:"~3 200€/mois CA",cout:"1 800€/mois"},{l:"Nouveaux services",k:"services",max:3,desc:"~2 800€/mois",cout:"500€ lancement"},{l:"Budget marketing (×100€)",k:"marketing",max:10,desc:"ROI x14",cout:"100€/unité"},{l:"Formations équipe",k:"formation",max:5,desc:"+600€/mois",cout:"300€/formation"}].map(({l,k,max,desc,cout})=>(
-                <div key={k}>
-                  <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
-                    <span style={{fontSize:13,fontWeight:600,color:C.dark}}>{l}</span>
-                    <div style={{display:"flex",alignItems:"center",gap:10}}>
-                      <button onClick={()=>setSc(p=>({...p,[k]:Math.max(0,p[k]-1)}))} style={{background:C.bg,border:`1px solid ${C.border}`,color:C.dark,width:28,height:28,borderRadius:8,cursor:"pointer",fontFamily:"inherit",fontSize:16}}>−</button>
-                      <span style={{fontSize:16,fontWeight:800,color:C.gold,minWidth:20,textAlign:"center"}}>{sc[k]}</span>
-                      <button onClick={()=>setSc(p=>({...p,[k]:Math.min(max,p[k]+1)}))} style={{background:C.bg,border:`1px solid ${C.border}`,color:C.dark,width:28,height:28,borderRadius:8,cursor:"pointer",fontFamily:"inherit",fontSize:16}}>+</button>
-                    </div>
-                  </div>
-                  <div style={{fontSize:11,color:C.muted}}>{desc} · <span style={{color:C.orange}}>Coût : {cout}</span></div>
-                </div>
-              ))}
-            </div>
-          </Card>
-          <div style={{display:"flex",flexDirection:"column",gap:14}}>
-            <Card style={{borderColor:`${C.teal}40`}}>
-              <CardTitle>Résultat</CardTitle>
-              {[{l:"CA actuel",v:`${ca.toLocaleString("fr")} €`,c:C.muted},{l:"Impact CA estimé",v:`+${impact.toLocaleString("fr")} €`,c:impact>0?C.green:C.muted},{l:"CA prévisionnel",v:`${(ca+impact).toLocaleString("fr")} €`,c:C.gold},{l:"Investissement",v:`-${invest.toLocaleString("fr")} €`,c:C.red},{l:"ROI mensuel",v:invest>0?`x${Math.round(impact/invest*10)/10}`:"—",c:C.purple}].map((k,i)=>(
-                <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:i<4?`1px solid ${C.border}`:undefined}}><span style={{fontSize:13,color:C.muted}}>{k.l}</span><span style={{fontSize:15,fontWeight:700,color:k.c}}>{k.v}</span></div>
-              ))}
-            </Card>
-            <Card style={{borderColor:`${C.gold}40`}}>
-              <CardTitle>Recommandation IA</CardTitle>
-              <div style={{fontSize:13,color:C.mid,lineHeight:1.7}}>
-                {invest===0&&<span style={{color:C.muted}}>Ajuste les paramètres pour voir les projections...</span>}
-                {invest>0&&impact/invest>3&&<span>🟢 <b style={{color:C.green}}>Excellent</b> — ROI {">"} 3x. Lancer immédiatement.</span>}
-                {invest>0&&impact/invest>=1&&impact/invest<=3&&<span>🟡 <b style={{color:C.orange}}>Viable</b> — ROI entre 1x et 3x.</span>}
-                {invest>0&&impact/invest<1&&<span>🔴 <b style={{color:C.red}}>Risqué</b> — Investissement dépasse le CA généré.</span>}
-              </div>
-            </Card>
-          </div>
-        </div>
-      )}
-      {tab==="plan"&&(
-        <Card>
-          <CardTitle>Plan d'action 2026 — Chiffré et priorisé</CardTitle>
-          <TH heads={["#","Action","Investissement","CA généré","ROI","Délai"]} rows={[
-            {p:1,a:"Développer Rapatriement",inv:"400€/mois",ca:"+14 400€/an",roi:"x3",d:"1 mois"},
-            {p:2,a:"Contrat Monaco Yacht Club",inv:"0€",ca:"+172 800€/an",roi:"∞",d:"Cette semaine"},
-            {p:3,a:"Activer réseau B2B",inv:"0€",ca:"+36 000€/an",roi:"∞",d:"2 mois"},
-            {p:4,a:"30 cartes virtuelles membres",inv:"0€",ca:"+720€/an",roi:"∞",d:"1 mois"},
-            {p:5,a:"Embaucher 1 collaborateur",inv:"1 800€/mois",ca:"+3 200€/mois",roi:"x1.8",d:"3 mois"},
-          ].map((r,i)=>(
-            <tr key={i}>
-              <Td><span style={{fontWeight:800,color:C.gold,fontSize:16}}>#{r.p}</span></Td>
-              <Td><span style={{fontWeight:600,color:C.dark}}>{r.a}</span></Td>
-              <Td><span style={{color:r.inv==="0€"?C.green:C.red,fontWeight:600}}>{r.inv}</span></Td>
-              <Td><span style={{color:C.green,fontWeight:700}}>{r.ca}</span></Td>
-              <Td><span style={{color:C.purple,fontWeight:700}}>{r.roi}</span></Td>
-              <Td><span style={{fontSize:12,color:C.mid}}>{r.d}</span></Td>
-            </tr>
-          ))}/>
-        </Card>
-      )}
-    </div>
-  );
-};
-
-// PLANNING
-const PagePlanning=()=>(
-  <div>
-    <SectionTitle sub="Missions · RDV · Lien de réservation automatique" action={<div style={{display:"flex",gap:8}}><Btn v="ghost">+ Mission</Btn><Btn v="gold">🔗 Lien RDV</Btn></div>}>📅 Planning & Agenda</SectionTitle>
-    <Card style={{marginBottom:16,borderColor:`${C.blue}40`,background:C.blueBg}}>
-      <div style={{fontSize:12,color:C.blue}}>🔗 Lien de réservation automatique envoyé par WhatsApp après chaque devis validé</div>
-      <div style={{fontFamily:"monospace",fontSize:12,color:C.mid,background:C.white,padding:"7px 12px",borderRadius:8,marginTop:7,border:`1px solid ${C.border}`}}>https://tymeless.fr/rdv/bene</div>
-    </Card>
-    <Card>
-      <CardTitle>Semaine du 15 au 20 avril 2026</CardTitle>
-      <TH heads={["Date","Heure","Client","Service","Collaborateur","Type","Statut"]} rows={PLANNING.map((p,i)=>(
-        <tr key={i}>
-          <Td><span style={{color:C.gold,fontFamily:"monospace",fontSize:12,fontWeight:600}}>{p.date}</span></Td>
-          <Td><span style={{fontWeight:600,color:C.dark}}>{p.h}</span></Td>
-          <Td>{p.client}</Td>
-          <Td><span style={{fontSize:12}}>{p.service}</span></Td>
-          <Td><Badge label={p.collab} color={p.collab==="Béné"?C.gold:C.blue}/></Td>
-          <Td><St s={p.type}/></Td>
-          <Td><St s={p.statut}/></Td>
-        </tr>
-      ))}/>
-    </Card>
-  </div>
-);
-
-// RENDEZ-VOUS
-const PageRendezVous=()=>(
-  <div>
-    <SectionTitle action={<Btn v="gold">+ Créer un RDV</Btn>}>📆 Rendez-vous</SectionTitle>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-      {[{date:"17/04 14h00",client:"Isabelle Moreau",type:"Suivi contrat",statut:"confirmé"},{date:"18/04 10h00",client:"Sofia Al-Rashid",type:"Renouvellement VIP",statut:"confirmé"},{date:"20/04 09h00",client:"Jean-Marc Olivier",type:"Nouveau client",statut:"en_attente"}].map((r,i)=>(
-        <Card key={i}>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:10}}><span style={{fontSize:13,fontWeight:700,color:C.gold}}>{r.date}</span><St s={r.statut}/></div>
-          <div style={{fontWeight:600,color:C.dark,marginBottom:4}}>{r.client}</div>
-          <div style={{fontSize:12,color:C.muted,marginBottom:12}}>{r.type}</div>
-          <div style={{display:"flex",gap:6}}><Btn sm v="ghost">Modifier</Btn><Btn sm v="green">✓ Confirmer</Btn></div>
-        </Card>
-      ))}
-    </div>
-  </div>
-);
-
-// STOCK
-const PageStock=()=>{const [stock, setStock] = useState(STOCK);
-useEffect(()=>{
-  supabase.from("stock").select("*").order("article").then(({data})=>{if(data)setStock(data);});
-},[]);
-  const al=stock.filter(s=>s.qte<s.min);
-  return(
-    <div>
-      <SectionTitle sub="Fournitures · Alertes réapprovisionnement" action={<Btn v="gold">+ Ajouter article</Btn>}>📦 Stock & Fournitures</SectionTitle>
-      {al.length>0&&<Card style={{marginBottom:16,borderColor:`${C.red}40`,background:C.redBg}}><div style={{fontSize:13,color:C.red,fontWeight:600}}>⚠️ Articles en rupture : {al.map(a=>a.art).join(", ")}</div></Card>}
-      <Card>
-        <TH heads={["Article","Catégorie","Quantité","Seuil min","Unité","Fournisseur","État"]} rows={STOCK.map((s,i)=>(
-          <tr key={i} style={{background:s.qte<s.min?"#FFF5F5":undefined}}>
-            <Td><span style={{fontWeight:600,color:C.dark}}>{s.art}</span></Td>
-            <Td><Badge label={s.cat} color={C.blue}/></Td>
-            <Td><span style={{fontWeight:700,color:s.qte<s.min?C.red:C.dark,fontSize:15}}>{s.qte}</span></Td>
-            <Td><span style={{fontSize:12,color:C.muted}}>{s.min}</span></Td>
-            <Td><span style={{fontSize:12,color:C.muted}}>{s.u}</span></Td>
-            <Td><span style={{fontSize:12,color:C.mid}}>{s.four}</span></Td>
-            <Td>{s.qte<s.min?<Badge label="⚠ Réappro." color={C.red} bg={C.redBg}/>:<Badge label="✓ OK" color={C.green} bg={C.greenBg}/>}</Td>
-          </tr>
-        ))}/>
-      </Card>
-    </div>
-  );
-};
-
-// EQUIPE
-const PageEquipe=()=>{
-  const [tab,setTab]=useState("membres");
-  const [pointages,setPointages]=useState([]);
-  const [missions,setMissions]=useState([]);
-
-  useEffect(()=>{
-    supabase.from("pointage").select("*").order("created_at",{ascending:false}).limit(50).then(({data})=>{if(data)setPointages(data);});
-    supabase.from("planning").select("*").order("date_mission").then(({data})=>{if(data)setMissions(data);});
-  },[]);
-
-  const EQUIPE=[
-    {nom:"Thomas",role:"Commercial + Prospection",statut:"actif",missions:12,note:4.9,type:"bot",color:C.gold},
-    {nom:"Abou",role:"Commercial + Prospection + Planning",statut:"actif",missions:18,note:4.8,type:"bot",color:C.blue},
-    {nom:"Fatou",role:"Hôtesse conciergerie",statut:"actif",missions:6,note:5.0,type:"humain",color:C.purple},
-  ];
-
-  const genererQR=(mission)=>{
-    const data=`TYMELESS-MISSION-${mission.id||"001"}-${mission.client_nom||"CLIENT"}-${mission.date_mission||"2026"}`;
-    return `https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=${encodeURIComponent(data)}`;
+  const handleAdd=()=>{
+    if(!form.pays||!form.iban)return;
+    setIbans(ib=>[...ib,{...form}]);
+    setForm({pays:"",iban:"",banque:"",bic:"",pour:""});
+    setShowForm(false);
+    showToast&&showToast("✅ IBAN ajouté !");
   };
 
-  return(
-    <div>
-      <SectionTitle action={<Btn v="gold">+ Ajouter un collaborateur</Btn>}>👥 Équipe & Pointage</SectionTitle>
-      <Tabs tabs={[{id:"membres",label:"👥 Membres"},{id:"pointage",label:"⏱️ Pointage"},{id:"qr",label:"🔳 QR Codes"},{id:"nfc",label:"📱 NFC"},{id:"planning",label:"📅 Planning équipe"}
-]} active={tab} onChange={setTab}/>
-
-      {/* MEMBRES */}
-      {tab==="membres"&&(
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-          {EQUIPE.map((e,i)=>(
-            <Card key={i}>
-              <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:14}}>
-                <div style={{width:48,height:48,borderRadius:16,background:`${e.color}20`,border:`2px solid ${e.color}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,color:e.color}}>{e.nom[0]}</div>
-                <div style={{flex:1}}><div style={{fontWeight:700,color:C.dark}}>{e.nom} {e.type==="bot"?"🤖":"👤"}</div><div style={{fontSize:12,color:C.muted}}>{e.role}</div></div>
-                <Badge label="● Actif" color={C.green} bg={C.greenBg}/>
-              </div>
-              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
-                <div style={{background:C.bg,borderRadius:10,padding:"8px 12px"}}><div style={{color:C.muted,fontSize:10}}>Missions</div><div style={{color:C.dark,fontWeight:800,fontSize:18}}>{e.missions}</div></div>
-                <div style={{background:C.bg,borderRadius:10,padding:"8px 12px"}}><div style={{color:C.muted,fontSize:10}}>Note</div><div style={{color:C.gold,fontWeight:800,fontSize:18}}>★ {e.note}</div></div>
-              </div>
-              {e.type==="bot"?<Btn sm v="ghost">🤖 Config. Relevance AI</Btn>:<Btn sm v="ghost">📋 Voir fiche</Btn>}
-            </Card>
-          ))}
-        </div>
-      )}
-
-      {/* POINTAGE */}
-      {tab==="pointage"&&(
-        <div>
-          <Card style={{marginBottom:16,borderColor:`${C.green}40`,background:`linear-gradient(135deg,${C.greenBg},${C.white})`}}>
-            <div style={{display:"flex",gap:14,alignItems:"center"}}>
-              <span style={{fontSize:28}}>🛡️</span>
-              <div>
-                <div style={{fontWeight:700,color:C.dark,fontSize:15,marginBottom:4}}>Système de pointage anti-fraude</div>
-                <div style={{fontSize:13,color:C.mid,lineHeight:1.7}}>
-                  <b>📍 Géolocalisation</b> automatique · <b>📸 Photo</b> géolocalisée + horodatage · <b>🔳 QR Code</b> unique par mission · <b>📱 NFC</b> chez le client
-                </div>
-              </div>
-            </div>
-          </Card>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:12,marginBottom:16}}>
-            {[{l:"Pointages aujourd'hui",v:pointages.filter(p=>p.type==="arrivee").length,c:C.green},{l:"En mission",v:pointages.filter(p=>p.type==="arrivee").length,c:C.blue},{l:"En pause",v:pointages.filter(p=>p.type==="pause").length,c:C.orange},{l:"Terminés",v:pointages.filter(p=>p.type==="fin").length,c:C.muted}].map((k,i)=>(
-              <Card key={i}><div style={{fontSize:11,color:C.muted,marginBottom:6}}>{k.l}</div><div style={{fontSize:26,fontWeight:800,color:k.c}}>{k.v}</div></Card>
-            ))}
-          </div>
-          <Card>
-            <CardTitle>Historique des pointages</CardTitle>
-            {pointages.length===0?(
-              <div style={{textAlign:"center",padding:40,color:C.muted}}>
-                <div style={{fontSize:32,marginBottom:10}}>⏱️</div>
-                <div>Aucun pointage enregistré</div>
-                <div style={{fontSize:12,marginTop:4}}>Les pointages apparaîtront ici en temps réel</div>
-              </div>
-            ):(
-              <TH heads={["Collaborateur","Type","Heure","Localisation","Photo","Preuve"]} rows={pointages.slice(0,20).map((p,i)=>(
-                <tr key={i}>
-                  <Td><span style={{fontWeight:600}}>{p.collaborateur}</span></Td>
-                  <Td><Badge label={p.type==="arrivee"?"✓ Arrivée":p.type==="pause"?"⏸ Pause":p.type==="reprise"?"▶ Reprise":"✓ Fin"} color={p.type==="arrivee"?C.green:p.type==="pause"?C.orange:p.type==="fin"?C.muted:C.blue}/></Td>
-                  <Td><span style={{fontFamily:"monospace",fontSize:12}}>{new Date(p.created_at).toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"})}</span></Td>
-                  <Td>{p.latitude?<span style={{fontSize:11,color:C.green}}>📍 {Number(p.latitude).toFixed(4)}, {Number(p.longitude).toFixed(4)}</span>:<span style={{color:C.muted}}>—</span>}</Td>
-                  <Td>{p.photo_url?<a href={p.photo_url} target="_blank" rel="noreferrer" style={{color:C.blue,fontSize:12}}>📸 Voir</a>:<span style={{color:C.muted}}>—</span>}</Td>
-                  <Td>{p.nfc_tag?<Badge label="NFC ✓" color={C.green} bg={C.greenBg}/>:p.qr_code?<Badge label="QR ✓" color={C.blue} bg={C.blueBg}/>:<Badge label="GPS" color={C.orange} bg={C.orangeBg}/>}</Td>
-                </tr>
-              ))}/>
-            )}
-          </Card>
-        </div>
-      )}
-
-      {/* QR CODES */}
-      {tab==="qr"&&(
-        <div>
-          <Card style={{marginBottom:16,borderColor:`${C.blue}40`}}>
-            <div style={{fontSize:13,color:C.mid,lineHeight:1.8}}>
-              🔳 Un <b style={{color:C.dark}}>QR code unique</b> est généré automatiquement pour chaque mission. Le collaborateur le scanne sur place — ça prouve sa présence physique avec horodatage.
-            </div>
-          </Card>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-            {missions.slice(0,6).map((m,i)=>(
-              <Card key={i}>
-                <div style={{fontWeight:700,color:C.dark,marginBottom:4,fontSize:13}}>{m.service||"Mission"}</div>
-                <div style={{fontSize:12,color:C.muted,marginBottom:10}}>{m.client_nom||"Client"} · {m.date_mission||"—"}</div>
-                <div style={{display:"flex",justifyContent:"center",marginBottom:12}}>
-                  <img src={genererQR(m)} alt="QR Code" style={{width:140,height:140,borderRadius:8,border:`1px solid ${C.border}`}}/>
-                </div>
-                <Btn sm v="ghost" full>📥 Télécharger</Btn>
-              </Card>
-            ))}
-            {missions.length===0&&(
-              <Card style={{gridColumn:"1/-1"}}>
-                <div style={{textAlign:"center",padding:40,color:C.muted}}>
-                  <div style={{fontSize:32,marginBottom:10}}>🔳</div>
-                  <div>Les QR codes apparaîtront ici quand des missions seront créées</div>
-                </div>
-              </Card>
-            )}
-          </div>
-        </div>
-      )}
-
-      {/* NFC */}
-      {tab==="nfc"&&(
-        <div>
-          <Card style={{marginBottom:16,borderColor:`${C.purple}40`,background:`linear-gradient(135deg,${C.purpleBg},${C.white})`}}>
-            <div style={{display:"flex",gap:14,alignItems:"center"}}>
-              <span style={{fontSize:32}}>📱</span>
-              <div>
-                <div style={{fontWeight:700,color:C.purple,fontSize:15,marginBottom:4}}>Étiquettes NFC — Pointage instantané</div>
-                <div style={{fontSize:13,color:C.mid,lineHeight:1.7}}>Colle une étiquette NFC chez chaque client. Quand Abou approche son téléphone → pointage automatique enregistré dans Supabase.</div>
-              </div>
-            </div>
-          </Card>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,marginBottom:16}}>
-            <Card>
-              <CardTitle>Comment ça marche</CardTitle>
-              {[{n:1,t:"Achète des étiquettes NFC (Amazon ~10€ pour 50)"},{n:2,t:"Colle une étiquette à l'entrée chez chaque client"},{n:3,t:"On programme l'ID client sur chaque étiquette"},{n:4,t:"Le collaborateur approche son téléphone → pointage auto"},{n:5,t:"Visible en temps réel dans ton dashboard"}].map((s,i)=>(
-                <div key={i} style={{display:"flex",gap:12,alignItems:"flex-start",marginBottom:10}}>
-                  <div style={{width:26,height:26,borderRadius:"50%",background:C.purpleBg,border:`1px solid ${C.purple}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,color:C.purple,fontWeight:700,flexShrink:0}}>{s.n}</div>
-                  <div style={{fontSize:13,color:C.mid,lineHeight:1.5,paddingTop:3}}>{s.t}</div>
-                </div>
-              ))}
-            </Card>
-            <Card>
-              <CardTitle>Étiquettes NFC configurées</CardTitle>
-              {[{client:"Isabelle Moreau",adresse:"Montmartre, Paris",tag:"TYM-NFC-001",statut:"actif"},{client:"Sofia Al-Rashid",adresse:"16ème, Paris",tag:"TYM-NFC-002",statut:"actif"},{client:"Marc Dupont",adresse:"La Défense",tag:"TYM-NFC-003",statut:"actif"}].map((n,i)=>(
-                <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:i<2?`1px solid ${C.border}`:undefined}}>
-                  <div style={{width:36,height:36,borderRadius:8,background:C.purpleBg,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16}}>📱</div>
-                  <div style={{flex:1}}><div style={{fontWeight:600,fontSize:13,color:C.dark}}>{n.client}</div><div style={{fontSize:11,color:C.muted}}>{n.adresse} · <span style={{fontFamily:"monospace"}}>{n.tag}</span></div></div>
-                  <Badge label="● Actif" color={C.green} bg={C.greenBg}/>
-                </div>
-              ))}
-              <div style={{marginTop:12}}><Btn v="gold" full>+ Ajouter une étiquette NFC</Btn></div>
-            </Card>
-          </div>
-          <Card style={{borderColor:`${C.orange}40`,background:`linear-gradient(135deg,${C.orangeBg},${C.white})`}}>
-            <div style={{display:"flex",gap:12,alignItems:"center"}}>
-              <span style={{fontSize:22}}>🛒</span>
-              <div style={{fontSize:13,color:C.mid}}>Étiquettes NFC recommandées : <b style={{color:C.dark}}>NTAG213 ou NTAG215</b> — compatibles iOS et Android. Disponibles sur Amazon, ~10€ pour 50 étiquettes.</div>
-            </div>
-          </Card>
-        </div>
-      )}
-      {tab==="planning"&&(
-  <div>
-    <Card style={{marginBottom:16,borderColor:`${C.blue}40`}}>
-      <div style={{fontSize:13,color:C.mid,lineHeight:1.8}}>
-        📅 Le planning de l'équipe est géré par <b style={{color:C.dark}}>Abou</b> via Relevance AI. Les missions créées dans le dashboard sont automatiquement assignées et notifiées sur WhatsApp.
-      </div>
-    </Card>
-    <Card>
-      <CardTitle action={<Btn v="gold" sm>+ Nouvelle mission</Btn>}>Missions de la semaine</CardTitle>
-      {missions.length===0?(
-        <div style={{textAlign:"center",padding:40,color:C.muted}}>
-          <div style={{fontSize:32,marginBottom:10}}>📅</div>
-          <div>Aucune mission planifiée</div>
-        </div>
-      ):(
-        <TH heads={["Date","Heure","Client","Service","Collaborateur","Statut"]} rows={missions.map((m,i)=>(
-          <tr key={i}>
-            <Td><span style={{color:C.gold,fontFamily:"monospace",fontWeight:600}}>{m.date_mission}</span></Td>
-            <Td><span style={{fontWeight:600}}>{m.heure_debut}</span></Td>
-            <Td>{m.client_nom}</Td>
-            <Td><span style={{fontSize:12}}>{m.service}</span></Td>
-            <Td><Badge label={m.collaborateur} color={C.blue}/></Td>
-            <Td><Badge label={m.statut} color={m.statut==="confirmé"?C.green:C.orange}/></Td>
-          </tr>
-        ))}/>
-      )}
-    </Card>
-  </div>
-)}
+  return <CT>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+      <STitle>🌍 IBAN Mondial — Recevoir des paiements</STitle>
+      <Btn onClick={()=>setShowForm(s=>!s)} style={{fontSize:11,padding:"5px 12px"}}>+ Ajouter IBAN</Btn>
     </div>
-  );
+
+    {showForm&&<div style={{background:C.card,borderRadius:10,padding:14,marginBottom:12,border:`1px solid ${C.gold}44`}}>
+      <STitle>Nouvel IBAN</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+        <Inp value={form.pays} onChange={e=>setForm(f=>({...f,pays:e.target.value}))} placeholder="🌍 Pays (ex: 🇨🇮 Côte d'Ivoire)"/>
+        <Inp value={form.banque} onChange={e=>setForm(f=>({...f,banque:e.target.value}))} placeholder="Nom de la banque"/>
+        <Inp value={form.iban} onChange={e=>setForm(f=>({...f,iban:e.target.value}))} placeholder="IBAN complet"/>
+        <Inp value={form.bic} onChange={e=>setForm(f=>({...f,bic:e.target.value}))} placeholder="BIC / SWIFT"/>
+        <Inp value={form.pour} onChange={e=>setForm(f=>({...f,pour:e.target.value}))} placeholder="Usage (ex: Wave, CinetPay...)" style={{gridColumn:"span 2"}}/>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <Btn onClick={handleAdd}>✅ Ajouter</Btn>
+        <BtnGhost onClick={()=>setShowForm(false)}>Annuler</BtnGhost>
+      </div>
+    </div>}
+
+    {ibans.map((ib,i)=><div key={i} style={{background:C.card,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${C.border}`}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+        <div style={{fontSize:12,fontWeight:700,color:C.text}}>{ib.pays}</div>
+        <div style={{display:"flex",gap:6,alignItems:"center"}}>
+          <div style={{fontSize:10,color:C.muted}}>{ib.banque}</div>
+          <BtnGhost onClick={()=>setIbans(is=>is.filter((_,j)=>j!==i))} style={{fontSize:9,padding:"2px 6px",color:C.red}}>✕</BtnGhost>
+        </div>
+      </div>
+      <div style={{fontFamily:"'Courier New',monospace",fontSize:13,color:C.gold,marginBottom:4}}>{ib.iban}</div>
+      <div style={{fontSize:10,color:C.muted,marginBottom:8}}>BIC: {ib.bic} · {ib.pour}</div>
+      <div style={{display:"flex",gap:6}}>
+        <BtnGhost onClick={()=>{navigator.clipboard?.writeText(ib.iban);setCid(i);setTimeout(()=>setCid(null),2000);}} style={{fontSize:10,padding:"4px 10px"}}>{cid===i?"✓ Copié !":"📋 Copier IBAN"}</BtnGhost>
+        <BtnGhost onClick={()=>{navigator.clipboard?.writeText(`${ib.iban}\nBIC: ${ib.bic}`);showToast&&showToast("📋 IBAN + BIC copiés !");}} style={{fontSize:10,padding:"4px 10px"}}>📋 IBAN + BIC</BtnGhost>
+      </div>
+    </div>)}
+  </CT>;
 };
 
+// ─── PAGE WALLET ──────────────────────────────────────────────
+const PageWallet=({plan,showToast,profil})=>{
+  const[onglet,setOnglet]=useState("solde");
+  const[devise,setDevise]=useState("EUR");
+  const[histo,setHisto]=useState(INIT_HISTO);
+  const[comm,setComm]=useState(INIT_COMM);
+  const[remb,setRemb]=useState(INIT_REMB);
+  const[four,setFour]=useState(INIT_FOUR);
+  const[showPay,setShowPay]=useState(false);
+  const[showEnc,setShowEnc]=useState(false);
+  const[payForm,setPayForm]=useState({nom:"",montant:"",devise:"EUR",methode:"carte",ref:""});
+  const[alerteSeuil,setAlerteSeuil]=useState(500);
+  const[walletProjet,setWalletProjet]=useState([{nom:"Projet Expansion",solde:4200,cible:10000,couleur:C.green},{nom:"Fonds de réserve",solde:8000,cible:8000,couleur:C.blue},{nom:"Investissement Q2",solde:1200,cible:5000,couleur:C.purple}]);
+  const solde=18420;
+  const soldeConv=conv(solde,"EUR",devise);
+  const dvSel=DEVISES.find(d=>d.code===devise);
+  const tabs=[{id:"solde",label:"💳 Solde"},{id:"historique",label:"📋 Historique"},{id:"payer",label:"⚡ Payer"},{id:"encaisser",label:"💰 Encaisser"},{id:"commissions",label:"👥 Commissions"},{id:"remboursements",label:"↩ Remboursements"},{id:"fournisseurs",label:"🏭 Fournisseurs"},{id:"convertisseur",label:"⇄ Convertir"},{id:"iban",label:"🌍 IBAN Mondial"},{id:"wallets_projets",label:"📂 Wallets Projets"},{id:"sante",label:"❤ Santé"},{id:"alertes",label:"🔔 Alertes"},{id:"stats",label:"📊 Stats"},{id:"virements",label:"🏦 Virements"}];
 
-// POINTAGE
-const PagePointage=()=>{
-  const [status,setStatus]=useState("Non pointé");
-  return(
-    <div>
-      <SectionTitle sub="Suivi des heures · Historique journalier">⏱️ Pointage</SectionTitle>
-      <Card style={{marginBottom:20,borderColor:status!=="Non pointé"?`${C.green}50`:C.border}}>
-        <div style={{display:"flex",alignItems:"center",justifyContent:"space-between",flexWrap:"wrap",gap:14}}>
-          <div>
-            <div style={{fontSize:13,color:C.muted,marginBottom:4}}>Statut actuel</div>
-            <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:28,fontWeight:700,color:status!=="Non pointé"?C.green:C.muted}}>{status}</div>
+  const handlePayer=(form)=>{
+    const nouvel={id:`PAY-${Date.now()}`,type:"sortie",libelle:form.nom,montant:Number(form.montant),devise:form.devise,methode:form.methode,date:new Date().toLocaleDateString("fr"),statut:"envoyé",ref:form.ref||`PAY-${Date.now()}`,com:0};
+    setHisto(h=>[nouvel,...h]);
+    setShowPay(false);
+    setPayForm({nom:"",montant:"",devise:"EUR",methode:"carte",ref:""});
+    showToast("✅ Paiement effectué !");
+  };
+
+  const handleEncaisser=(form)=>{
+    const nouvel={id:`PAY-${Date.now()}`,type:"entree",libelle:form.nom,montant:Number(form.montant),devise:form.devise,methode:form.methode,date:new Date().toLocaleDateString("fr"),statut:"confirmé",ref:form.ref||`TYM-${Date.now()}`,com:Number(form.montant)*0.05};
+    setHisto(h=>[nouvel,...h]);
+    setShowEnc(false);
+    showToast("✅ Paiement encaissé !");
+  };
+
+  return <div style={{padding:20}}>
+    <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
+    {onglet==="solde"&&<>
+      <div style={{background:`linear-gradient(135deg,${C.card},#0A1A14)`,border:`1px solid ${C.teal}44`,borderRadius:16,padding:24,marginBottom:16}}>
+        <div style={{fontSize:10,color:C.teal,letterSpacing:"0.2em",marginBottom:8}}>SOLDE WALLET TYMELESS · FLUTTERWAVE + STRIPE</div>
+        <div style={{display:"flex",alignItems:"flex-end",gap:12,marginBottom:8}}>
+          <div style={{fontSize:44,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>{fmt(soldeConv,devise)}</div>
+          <Sel value={devise} onChange={e=>setDevise(e.target.value)} style={{marginBottom:6}}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel>
+        </div>
+        {devise!=="EUR"&&<div style={{fontSize:11,color:C.muted,marginBottom:12}}>{fmt(solde,"EUR")} · Taux de référence</div>}
+        <div style={{display:"flex",gap:20,flexWrap:"wrap",marginBottom:16}}>
+          <div style={{borderLeft:`2px solid ${C.green}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Encaissé ce mois</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>{fmt(conv(48200,"EUR",devise),devise)}</div></div>
+          <div style={{borderLeft:`2px solid ${C.red}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Décaissé ce mois</div><div style={{fontSize:18,fontWeight:700,color:C.red}}>{fmt(conv(29780,"EUR",devise),devise)}</div></div>
+          <div style={{borderLeft:`2px solid ${C.orange}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>En attente</div><div style={{fontSize:18,fontWeight:700,color:C.orange}}>{fmt(conv(5645,"EUR",devise),devise)}</div></div>
+          <div style={{borderLeft:`2px solid ${C.gold}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Score santé</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>76/100</div></div>
+        </div>
+        <div style={{display:"flex",gap:8}}><Btn onClick={()=>setShowPay(true)}>⚡ Payer</Btn><Btn onClick={()=>setShowEnc(true)} style={{background:C.green,color:"#000"}}>📲 Encaisser</Btn></div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+        <KPI label="Transactions" val={histo.length} color={C.blue}/>
+        <KPI label="Commissions dues" val={fmt(comm.reduce((a,c)=>a+c.montant,0))} color={C.orange}/>
+        <KPI label="Remboursements" val={fmt(remb.reduce((a,r)=>a+r.montant,0))} color={C.red}/>
+        <KPI label="Fournisseurs" val={fmt(four.reduce((a,f)=>a+f.montant,0))} color={C.purple}/>
+      </div>
+      <div style={{background:solde<alerteSeuil?`${C.red}11`:`${C.green}08`,border:`1px solid ${solde<alerteSeuil?C.red:C.green}33`,borderRadius:10,padding:12,fontSize:12,color:solde<alerteSeuil?C.red:C.green}}>{solde<alerteSeuil?`⚠️ Alerte : solde < seuil (${fmt(alerteSeuil)})`:`✅ Solde en bonne santé (seuil: ${fmt(alerteSeuil)})`}</div>
+    </>}
+    {onglet==="historique"&&<Card><STitle>📋 Historique des transactions</STitle>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Date</TH><TH>Libellé</TH><TH>Montant</TH><TH>Méthode</TH><TH>Statut</TH><TH>Commission 5%</TH></tr></thead>
+        <tbody>{histo.map((h,i)=><tr key={i}>
+          <Td style={{color:C.muted,fontSize:10}}>{h.date}</Td>
+          <Td style={{fontWeight:600}}>{h.libelle}</Td>
+          <Td style={{color:h.type==="entree"?C.green:C.red,fontWeight:700}}>{h.type==="entree"?"+":"-"}{fmt(h.montant,h.devise)}</Td>
+          <Td><Pill color={C.blue}>{h.methode}</Pill></Td>
+          <Td><St s={h.statut}/></Td>
+          <Td style={{color:C.gold}}>{h.com>0?`+${fmt(h.com,h.devise)}`:"—"}</Td>
+        </tr>)}</tbody>
+      </table>
+    </Card>}
+    {onglet==="payer"&&<div style={{maxWidth:500}}><Card><STitle>⚡ Effectuer un paiement</STitle>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Bénéficiaire *</label><Inp value={payForm.nom} onChange={e=>setPayForm(f=>({...f,nom:e.target.value}))} placeholder="Nom ou raison sociale"/></div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Montant *</label><Inp value={payForm.montant} onChange={e=>setPayForm(f=>({...f,montant:e.target.value}))} placeholder="0.00"/></div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Devise</label><Sel value={payForm.devise} onChange={e=>setPayForm(f=>({...f,devise:e.target.value}))} style={{width:"100%"}}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel></div>
+        </div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Méthode</label><Sel value={payForm.methode} onChange={e=>setPayForm(f=>({...f,methode:e.target.value}))} style={{width:"100%"}}>{METHODES_PAY.map(m=><option key={m.id} value={m.id}>{m.icon} {m.nom} — {m.zone}</option>)}</Sel></div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Référence</label><Inp value={payForm.ref} onChange={e=>setPayForm(f=>({...f,ref:e.target.value}))} placeholder="Ex: COM-001"/></div>
+        <Btn onClick={()=>handlePayer(payForm)} style={{marginTop:4}}>⚡ Envoyer le paiement</Btn>
+      </div>
+    </Card></div>}
+    {onglet==="encaisser"&&<div style={{maxWidth:500}}><Card><STitle>💰 Encaisser un paiement</STitle>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Payeur *</label><Inp value={payForm.nom} onChange={e=>setPayForm(f=>({...f,nom:e.target.value}))} placeholder="Nom du client"/></div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Montant *</label><Inp value={payForm.montant} onChange={e=>setPayForm(f=>({...f,montant:e.target.value}))} placeholder="0.00"/></div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Devise</label><Sel value={payForm.devise} onChange={e=>setPayForm(f=>({...f,devise:e.target.value}))} style={{width:"100%"}}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel></div>
+        </div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Méthode d'encaissement</label><Sel value={payForm.methode} onChange={e=>setPayForm(f=>({...f,methode:e.target.value}))} style={{width:"100%"}}>{METHODES_PAY.map(m=><option key={m.id} value={m.id}>{m.icon} {m.nom} — {m.zone}</option>)}</Sel></div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Référence devis</label><Inp value={payForm.ref} onChange={e=>setPayForm(f=>({...f,ref:e.target.value}))} placeholder="Ex: TYM-0044"/></div>
+        {payForm.montant&&<div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:8,padding:10,fontSize:11,color:C.green}}>Commission Tymeless 5% : {fmt(Number(payForm.montant)*0.05,payForm.devise)}</div>}
+        <Btn onClick={()=>handleEncaisser(payForm)} style={{background:C.green,color:"#000",marginTop:4}}>💰 Encaisser</Btn>
+      </div>
+    </Card></div>}
+    {onglet==="commissions"&&<Card><STitle>👥 Commissions à payer</STitle>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>ID</TH><TH>Bénéficiaire</TH><TH>Rôle</TH><TH>Montant</TH><TH>Méthode</TH><TH>Action</TH></tr></thead>
+        <tbody>{comm.map((c,i)=><tr key={i}>
+          <Td style={{color:C.muted,fontSize:10}}>{c.id}</Td>
+          <Td style={{fontWeight:600}}>{c.nom}</Td>
+          <Td><Pill color={C.blue}>{c.role}</Pill></Td>
+          <Td style={{color:C.orange,fontWeight:700}}>{fmt(c.montant,c.devise)}</Td>
+          <Td>{c.methode}</Td>
+          <Td><Btn onClick={()=>{setComm(cs=>cs.filter((_,j)=>j!==i));showToast(`✅ Commission ${c.nom} envoyée !`);}} style={{padding:"4px 10px",fontSize:11}}>Payer</Btn></Td>
+        </tr>)}</tbody>
+      </table>
+      <div style={{marginTop:12,padding:"10px 14px",background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,fontSize:12,color:C.orange}}>Total à payer : {fmt(comm.reduce((a,c)=>a+c.montant,0))}</div>
+    </Card>}
+    {onglet==="remboursements"&&<Card><STitle>↩ Remboursements en attente</STitle>
+      {remb.map((r,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div><div style={{fontSize:12,fontWeight:600}}>{r.nom}</div><div style={{fontSize:11,color:C.muted}}>{r.motif}</div><div style={{fontSize:10,color:C.muted}}>{r.methode}</div></div>
+        <div style={{textAlign:"right"}}><div style={{fontSize:16,fontWeight:700,color:C.red}}>{fmt(r.montant,r.devise)}</div><Btn onClick={()=>{setRemb(rs=>rs.filter((_,j)=>j!==i));showToast(`✅ Remboursement ${r.nom} effectué !`);}} style={{padding:"4px 10px",fontSize:11,marginTop:6}}>Rembourser</Btn></div>
+      </div>)}
+    </Card>}
+    {onglet==="fournisseurs"&&<Card><STitle>🏭 Paiements fournisseurs</STitle>
+      {four.map((f,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div><div style={{fontSize:12,fontWeight:600}}>{f.nom}</div><div style={{fontSize:11,color:C.muted}}>{f.service}</div><div style={{fontSize:10,color:C.muted}}>IBAN: {f.iban} · {f.methode}</div></div>
+        <div style={{textAlign:"right"}}><div style={{fontSize:16,fontWeight:700,color:C.purple}}>{fmt(f.montant,f.devise)}</div><Btn onClick={()=>{setFour(fs=>fs.filter((_,j)=>j!==i));showToast(`✅ Paiement ${f.nom} effectué !`);}} style={{padding:"4px 10px",fontSize:11,marginTop:6,background:C.purple}}>Payer</Btn></div>
+      </div>)}
+    </Card>}
+    {onglet==="convertisseur"&&<div style={{maxWidth:500}}><Convertisseur/></div>}
+    {onglet==="iban"&&<div style={{maxWidth:600}}><IbanMondial showToast={showToast}/></div>}
+    {onglet==="wallets_projets"&&<Card><STitle>📂 Wallets Projets</STitle>
+      {walletProjet.map((w,i)=><div key={i} style={{background:C.card2,borderRadius:10,padding:14,marginBottom:10,border:`1px solid ${C.border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><div style={{fontSize:13,fontWeight:700,color:C.text}}>{w.nom}</div><Pill color={w.couleur}>{Math.round(w.solde/w.cible*100)}%</Pill></div>
+        <div style={{fontSize:20,fontWeight:700,color:w.couleur,marginBottom:6}}>{fmt(w.solde)}<span style={{fontSize:11,color:C.muted}}> / {fmt(w.cible)}</span></div>
+        <SM val={w.solde} max={w.cible} color={w.couleur}/>
+      </div>)}
+    </Card>}
+    {onglet==="sante"&&<Card><STitle>❤ Score Santé Financière</STitle>
+      <div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontSize:64,fontWeight:700,color:C.gold,fontFamily:"Georgia,serif"}}>76</div><div style={{fontSize:14,color:C.muted}}>/ 100 — Bonne santé</div></div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        <CT style={{textAlign:"center"}}><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Liquidité</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>85</div><SM val={85} max={100} color={C.green}/></CT>
+        <CT style={{textAlign:"center"}}><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Rentabilité</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>72</div><SM val={72} max={100} color={C.gold}/></CT>
+        <CT style={{textAlign:"center"}}><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Endettement</div><div style={{fontSize:18,fontWeight:700,color:C.blue}}>68</div><SM val={68} max={100} color={C.blue}/></CT>
+      </div>
+    </Card>}
+    {onglet==="alertes"&&<Card><STitle>🔔 Configuration Alertes</STitle>
+      <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
+        <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>Seuil d'alerte solde bas</div><div style={{fontSize:10,color:C.muted}}>Notification quand solde {'<'} seuil</div></div>
+        <Inp value={alerteSeuil} onChange={e=>setAlerteSeuil(Number(e.target.value))} style={{width:120}}/>
+      </div>
+      <div style={{marginTop:12,fontSize:11,color:C.muted}}>Seuil actuel : {fmt(alerteSeuil)} · Solde actuel : {fmt(solde)} · Statut : {solde>=alerteSeuil?"✅ OK":"⚠️ Alerte active"}</div>
+    </Card>}
+    {onglet==="stats"&&<Card><STitle>📊 Statistiques Wallet</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
+        <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Total encaissé</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>{fmt(histo.filter(h=>h.type==="entree").reduce((a,h)=>a+h.montant,0))}</div></CT>
+        <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Total décaissé</div><div style={{fontSize:18,fontWeight:700,color:C.red}}>{fmt(histo.filter(h=>h.type==="sortie").reduce((a,h)=>a+h.montant,0))}</div></CT>
+        <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Commissions perçues (5%)</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(histo.reduce((a,h)=>a+h.com,0))}</div></CT>
+        <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Transactions</div><div style={{fontSize:18,fontWeight:700,color:C.blue}}>{histo.length}</div></CT>
+      </div>
+    </Card>}
+    {onglet==="virements"&&<Card><STitle>🏦 Virements bancaires SEPA</STitle>
+      <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Envoyez des virements SEPA directement depuis votre wallet Tymeless.</div>
+      <div style={{display:"flex",flexDirection:"column",gap:10,maxWidth:480}}>
+        <Inp placeholder="IBAN bénéficiaire (FR76...)"/>
+        <Inp placeholder="BIC/SWIFT"/>
+        <Inp placeholder="Nom du bénéficiaire"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><Inp placeholder="Montant (€)"/><Sel style={{width:"100%"}}>{DEVISES.filter(d=>["EUR","GBP","CHF"].includes(d.code)).map(d=><option key={d.code}>{d.flag} {d.code}</option>)}</Sel></div>
+        <Inp placeholder="Motif du virement"/>
+        <Btn>🏦 Initier le virement SEPA</Btn>
+      </div>
+    </Card>}
+  </div>;
+};
+
+// ─── PAGE CARTES ──────────────────────────────────────────────
+const PageCartes=({showToast})=>{
+  const[cartes,setCartes]=useState(INIT_CARTES);
+  const[view,setView]=useState("liste");
+  const toggleCarte=(id)=>{setCartes(cs=>cs.map(c=>c.id===id?{...c,statut:c.statut==="active"?"bloquée":"active"}:c));showToast("✅ Statut carte mis à jour");};
+  return <div style={{padding:20}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◈ Cartes Virtuelles</div><div style={{fontSize:11,color:C.muted}}>Visa virtuelles sécurisées · Contrôle total</div></div>
+      <div style={{display:"flex",gap:8}}>
+        <BtnGhost onClick={()=>setView(view==="liste"?"grille":"liste")} style={{fontSize:11}}>{view==="liste"?"⊞ Grille":"☰ Liste"}</BtnGhost>
+        <Btn onClick={()=>showToast("💳 Nouvelle carte créée !")}>+ Nouvelle carte</Btn>
+      </div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:view==="grille"?"repeat(auto-fill,minmax(280px,1fr))":"1fr",gap:12}}>
+      {cartes.map(c=><PayCard key={c.id} carte={c} onToggle={toggleCarte}/>)}
+    </div>
+    <Card style={{marginTop:16}}>
+      <STitle>🛡 Sécurité & Contrôles</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        <CT><div style={{fontSize:11,fontWeight:600,marginBottom:4}}>Dépenses max/jour</div><Inp placeholder="500 €"/></CT>
+        <CT><div style={{fontSize:11,fontWeight:600,marginBottom:4}}>Pays autorisés</div><Inp placeholder="FR, AE, SN..."/></CT>
+        <CT><div style={{fontSize:11,fontWeight:600,marginBottom:4}}>Catégories bloquées</div><Inp placeholder="Jeux, alcool..."/></CT>
+      </div>
+    </Card>
+  </div>;
+};
+
+// ─── PAGE ACCUEIL ─────────────────────────────────────────────
+const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
+  const nonLus=notifs.filter(n=>!n.lu).length;
+  const[aiMsg]=useState("2 devis en attente — priorité du jour. CA hebdo +12%. Thomas en mission, Abou disponible. Penser à relancer Isabelle Moreau pour le renouvellement contrat mensuel.");
+  return <div style={{padding:20}}>
+    <div style={{background:`linear-gradient(135deg,${C.card},#0A1A14)`,border:`1px solid ${C.gold}33`,borderRadius:16,padding:24,marginBottom:16}}>
+      <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:6}}>TYMELESS OS · OWNER DASHBOARD</div>
+      <div style={{fontSize:26,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>Bonjour Curtiss ✦</div>
+      <div style={{fontSize:11,color:C.muted,marginBottom:16}}>{new Date().toLocaleDateString("fr-FR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})} · Paris</div>
+      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:12,marginBottom:16}}>
+        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:4}}>🤖 Analyse IA du matin — Claude</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>{aiMsg}</div>
+      </div>
+      <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+        <div style={{borderLeft:`2px solid ${C.gold}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Score business</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>74/100</div></div>
+        <div style={{borderLeft:`2px solid ${C.green}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>CA ce mois</div><div style={{fontSize:16,fontWeight:700,color:C.green}}>24 380 €</div></div>
+        <div style={{borderLeft:`2px solid ${C.teal}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Marge nette</div><div style={{fontSize:16,fontWeight:700,color:C.teal}}>61%</div></div>
+        <div style={{borderLeft:`2px solid ${C.orange}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Messages</div><div style={{fontSize:16,fontWeight:700,color:C.orange}}>{nonLus} non lus</div></div>
+      </div>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+      <Card><STitle>🔥 Priorités du jour (IA)</STitle>
+        {[{icon:"🔴",txt:"2 devis en attente de validation",act:"devis"},{icon:"🟠",txt:"Sofia Riad attend depuis 2h",act:"chat"},{icon:"🟡",txt:"Stock produits vitres critique",act:"stock"},{icon:"🟢",txt:"Nouvelle revue Google à répondre",act:"scoring"}].map((p,i)=><div key={i} onClick={()=>setPage(p.act)} style={{display:"flex",gap:8,padding:"7px 8px",borderRadius:6,marginBottom:5,cursor:"pointer",background:C.card2,border:`1px solid ${C.border}`}}>
+          <span>{p.icon}</span><span style={{fontSize:11,flex:1}}>{p.txt}</span><span style={{fontSize:10,color:C.gold,fontWeight:600}}>→</span>
+        </div>)}
+      </Card>
+      <Card><STitle>📊 Métriques clés</STitle>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>CA Mois</div><div style={{fontSize:16,fontWeight:700,color:C.green}}>24 380 €</div><div style={{fontSize:9,color:C.green}}>↗ +12%</div></CT>
+          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>Devis</div><div style={{fontSize:16,fontWeight:700,color:C.orange}}>2</div><div style={{fontSize:9,color:C.orange}}>En attente</div></CT>
+          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>Marge</div><div style={{fontSize:16,fontWeight:700,color:C.teal}}>61%</div><div style={{fontSize:9,color:C.teal}}>↗ +4pts</div></CT>
+          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>Score</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>74/100</div><div style={{fontSize:9,color:C.gold}}>🟡 Bon</div></CT>
+        </div>
+      </Card>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
+      {[{icon:"💳",label:"Wallet",page:"wallet",val:"18 420 €",color:C.teal},{icon:"👥",label:"CRM",page:"crm",val:"5 clients",color:C.blue},{icon:"◧",label:"Devis",page:"devis",val:"2 en attente",color:C.orange},{icon:"📊",label:"Analytique",page:"analytique",val:"CA +12%",color:C.green}].map((c,i)=><Card key={i} style={{cursor:"pointer",borderColor:c.color+"33",textAlign:"center"}} onClick={()=>setPage(c.page)}>
+        <div style={{fontSize:24,marginBottom:6}}>{c.icon}</div>
+        <div style={{fontSize:11,fontWeight:600,color:C.text,marginBottom:2}}>{c.label}</div>
+        <div style={{fontSize:12,fontWeight:700,color:c.color}}>{c.val}</div>
+      </Card>)}
+    </div>
+  </div>;
+};
+
+// ─── PAGE OVERVIEW ────────────────────────────────────────────
+const PageOverview=({plan,profil})=>{
+  const kpis=[{l:"CA ce mois",v:"24 380 €",c:C.green,t:"↗ +12%"},{l:"Marge nette",v:"61%",c:C.teal,t:"↗ +4pts"},{l:"Missions",v:"14",c:C.blue,t:"Ce mois"},{l:"Devis signés",v:"8",c:C.gold,t:"/ 12 envoyés"},{l:"NPS moyen",v:"★ 4.6",c:C.gold,t:"23 avis"},{l:"Clients actifs",v:"5",c:C.purple,t:"dont 2 VIP"},{l:"Commissions",v:"8 525 €",c:C.orange,t:"À payer"},{l:"Score Tymeless",v:"74/100",c:C.gold,t:"🟡 Bon"}];
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◈ Vue d'ensemble</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>KPIs · Santé business · Alertes critiques · Actions rapides</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+      {kpis.map((k,i)=><CT key={i}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{k.l}</div><div style={{fontSize:20,fontWeight:700,color:k.c,fontFamily:"Georgia,serif"}}>{k.v}</div><div style={{fontSize:10,color:k.c,marginTop:2}}>{k.t}</div></CT>)}
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Card><STitle>🚦 État des modules</STitle>
+        {[["Wallet & Paiements","✅ Opérationnel",C.green],["CRM","✅ 4 leads actifs",C.green],["Stock","⚠️ 2 articles critiques",C.orange],["Équipe","✅ 3/3 actifs",C.green],["Contrats","✅ 3 signés",C.green],["Formation","📋 1 en cours",C.blue]].map(([n,s,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.text}}>{n}</span><span style={{color:c,fontWeight:600,fontSize:11}}>{s}</span></div>)}
+      </Card>
+      <Card><STitle>📈 CA par service</STitle>
+        {[["Airbnb / Résidentiel",12400,C.gold],["Jet & Yacht",8200,C.blue],["Rapatriement",4800,C.purple],["Bureaux",3200,C.teal]].map(([n,v,c],i)=><div key={i} style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div><SM val={v} max={12400} color={c}/></div>)}
+      </Card>
+    </div>
+  </div>;
+};
+
+// ─── SCORE SOLVABILITE ────────────────────────────────────────
+const SolvabiliteWidget=({score,nom})=>{
+  const color=score>=80?C.green:score>=60?C.gold:score>=40?C.orange:C.red;
+  const label=score>=80?"Excellent":score>=60?"Bon":score>=40?"Moyen":"Risqué";
+  return <div style={{background:`${color}11`,border:`1px solid ${color}33`,borderRadius:10,padding:"8px 12px",display:"flex",alignItems:"center",gap:12}}>
+    <div style={{fontSize:22,fontWeight:700,color,fontFamily:"Georgia,serif",minWidth:44}}>{score}</div>
+    <div><div style={{fontSize:10,color,fontWeight:600}}>Score Solvabilité Tymeless</div><div style={{fontSize:11,color:C.muted}}>{label} · {nom}</div></div>
+    <SM val={score} max={100} color={color}/>
+  </div>;
+};
+
+// ─── PAGE CRM ─────────────────────────────────────────────────
+const PageCRM=({plan,showToast,profil})=>{
+  const[leads,setLeads]=useState(CRM_LEADS);
+  const[onglet,setOnglet]=useState("pipeline");
+  const etapes=["Nouveau","Qualification","Proposition","Négociation","Gagné","Perdu"];
+  const tabs=[{id:"pipeline",label:"📊 Pipeline"},{id:"leads",label:"🎯 Leads"},{id:"relances",label:"📧 Relances IA"},{id:"analytics",label:"📈 Analytics"}];
+  if(!hasAccess(plan,"crm"))return <div style={{padding:20}}><UpgradeWall page="CRM" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◎ CRM</div><div style={{fontSize:11,color:C.muted}}>Pipeline · Leads · Relances IA · Analytics</div></div>
+      <Btn onClick={()=>showToast("✅ Lead ajouté !")}>+ Nouveau lead</Btn>
+    </div>
+    <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
+    {onglet==="pipeline"&&<>
+      <div style={{display:"grid",gridTemplateColumns:`repeat(${etapes.length},1fr)`,gap:8,marginBottom:16}}>
+        {etapes.map(e=>{const ls=leads.filter(l=>l.etape===e);return <div key={e} style={{background:C.card2,borderRadius:10,padding:10,border:`1px solid ${C.border}`}}>
+          <div style={{fontSize:9,color:C.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{e} <span style={{color:ls.length>0?C.gold:C.muted}}>({ls.length})</span></div>
+          {ls.map(l=><div key={l.id} style={{background:C.card,borderRadius:7,padding:8,marginBottom:6,border:`1px solid ${C.border}`,cursor:"pointer"}} onClick={()=>{}}>
+            <div style={{fontSize:11,fontWeight:700,color:C.text,marginBottom:2}}>{l.nom}</div>
+            <div style={{fontSize:10,color:C.muted,marginBottom:4}}>{l.contact} · {l.metier}</div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:10}}>
+              <Pill color={l.score>=80?C.green:l.score>=60?C.gold:C.orange}>★ {l.score}</Pill>
+              <span style={{color:C.teal,fontWeight:600}}>{fmt(l.ca_potentiel)}</span>
+            </div>
+          </div>)}
+        </div>;})}
+      </div>
+    </>}
+    {onglet==="leads"&&<Card><STitle>🎯 Tous les leads</STitle>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Entreprise</TH><TH>Contact</TH><TH>Métier</TH><TH>Étape</TH><TH>Score IA</TH><TH>CA potentiel</TH><TH>Dernière action</TH></tr></thead>
+        <tbody>{leads.map((l,i)=><tr key={i}>
+          <Td style={{fontWeight:600}}>{l.nom}</Td>
+          <Td style={{color:C.muted}}>{l.contact}</Td>
+          <Td><Pill color={C.blue}>{l.metier}</Pill></Td>
+          <Td><Pill color={l.etape==="Gagné"?C.green:l.etape==="Perdu"?C.red:C.gold}>{l.etape}</Pill></Td>
+          <Td><div style={{display:"flex",alignItems:"center",gap:6}}><SM val={l.score} max={100} color={l.score>=80?C.green:l.score>=60?C.gold:C.orange}/><span style={{color:l.score>=80?C.green:l.score>=60?C.gold:C.orange,fontWeight:700,fontSize:11}}>{l.score}</span></div></Td>
+          <Td style={{color:C.teal,fontWeight:700}}>{fmt(l.ca_potentiel)}</Td>
+          <Td style={{color:C.muted,fontSize:10}}>{l.derniere}</Td>
+        </tr>)}</tbody>
+      </table>
+    </Card>}
+    {onglet==="relances"&&<Card><STitle>📧 Relances automatiques IA</STitle>
+      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:16,marginBottom:12}}>
+        <div style={{fontSize:11,color:C.purple,fontWeight:600,marginBottom:8}}>🤖 Email IA généré — Hotel Prestige Paris</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>"Bonjour Claire, suite à notre dernier échange concernant le nettoyage quotidien de vos 40 chambres, je souhaitais revenir vers vous avec une proposition optimisée. Notre équipe est disponible dès lundi..."</div>
+        <div style={{display:"flex",gap:8,marginTop:12}}><Btn style={{fontSize:11,padding:"6px 12px"}}>✉️ Envoyer</Btn><BtnGhost style={{fontSize:11}}>✏️ Modifier</BtnGhost></div>
+      </div>
+    </Card>}
+    {onglet==="analytics"&&<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+      <KPI label="Taux conversion" val="67%" color={C.green} sub="Qualification → Gagné"/>
+      <KPI label="CA pipeline" val={fmt(leads.reduce((a,l)=>a+l.ca_potentiel,0))} color={C.gold}/>
+      <KPI label="Deals gagnés" val={leads.filter(l=>l.etape==="Gagné").length} color={C.teal} sub="Ce mois"/>
+    </div>}
+  </div>;
+};
+
+// ─── PAGE DEVIS ───────────────────────────────────────────────
+const PageDevis=({plan,showToast,profil})=>{
+  const[devis,setDevis]=useState(INIT_DEVIS);
+  const[form,setForm]=useState({client:"",service:"",montant:"",tel:""});
+  const[showForm,setShowForm]=useState(false);
+  if(!hasAccess(plan,"devis"))return <div style={{padding:20}}><UpgradeWall page="Devis" plan={plan}/></div>;
+  const handleCreate=()=>{
+    const nd={id:`TYM-00${50+devis.length}`,client:form.client,service:form.service,montant:Number(form.montant),statut:"en_attente",date:new Date().toLocaleDateString("fr"),tel:form.tel};
+    setDevis(d=>[nd,...d]);
+    setForm({client:"",service:"",montant:"",tel:""});
+    setShowForm(false);
+    showToast("✅ Devis créé et envoyé par WhatsApp !");
+  };
+  return <div style={{padding:20}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◧ Devis</div><div style={{fontSize:11,color:C.muted}}>PDF · WhatsApp · E-signature · Suivi · Score solvabilité</div></div>
+      <Btn onClick={()=>setShowForm(!showForm)}>+ Nouveau devis</Btn>
+    </div>
+    {showForm&&<Card style={{marginBottom:16,borderColor:`${C.gold}44`}}>
+      <STitle>Créer un devis</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+        <Inp value={form.client} onChange={e=>setForm(f=>({...f,client:e.target.value}))} placeholder="Nom du client"/>
+        <Inp value={form.tel} onChange={e=>setForm(f=>({...f,tel:e.target.value}))} placeholder="Téléphone (WhatsApp)"/>
+        <Inp value={form.service} onChange={e=>setForm(f=>({...f,service:e.target.value}))} placeholder="Service / prestation"/>
+        <Inp value={form.montant} onChange={e=>setForm(f=>({...f,montant:e.target.value}))} placeholder="Montant (€)"/>
+      </div>
+      <div style={{display:"flex",gap:8}}><Btn onClick={handleCreate}>✅ Créer & Envoyer WhatsApp</Btn><BtnGhost onClick={()=>setShowForm(false)}>Annuler</BtnGhost></div>
+    </Card>}
+    <Card>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>N° Devis</TH><TH>Client</TH><TH>Service</TH><TH>Montant</TH><TH>Date</TH><TH>Statut</TH><TH>Solvabilité</TH><TH>Actions</TH></tr></thead>
+        <tbody>{devis.map((d,i)=>{const c=CLIENTS.find(cl=>cl.nom===d.client);return <tr key={i}>
+          <Td style={{color:C.gold,fontWeight:700,fontSize:11}}>{d.id}</Td>
+          <Td style={{fontWeight:600}}>{d.client}</Td>
+          <Td style={{color:C.muted}}>{d.service}</Td>
+          <Td style={{color:C.green,fontWeight:700}}>{fmt(d.montant)}</Td>
+          <Td style={{color:C.muted,fontSize:10}}>{d.date}</Td>
+          <Td><St s={d.statut}/></Td>
+          <Td>{c?<SolvabiliteWidget score={c.score} nom={c.nom}/>:<span style={{color:C.muted,fontSize:10}}>—</span>}</Td>
+          <Td><div style={{display:"flex",gap:4}}>
+            {d.statut==="en_attente"&&<Btn onClick={()=>{setDevis(ds=>ds.map((x,j)=>j===i?{...x,statut:"validé"}:x));showToast("✅ Devis validé !");}} style={{padding:"4px 8px",fontSize:10}}>✅</Btn>}
+            <BtnGhost onClick={()=>showToast("📄 PDF généré !")} style={{padding:"4px 8px",fontSize:10}}>PDF</BtnGhost>
+            <BtnGhost onClick={()=>showToast(`📱 Renvoyé à ${d.tel}`)} style={{padding:"4px 8px",fontSize:10}}>WA</BtnGhost>
+          </div></Td>
+        </tr>;})}
+        </tbody>
+      </table>
+    </Card>
+  </div>;
+};
+
+// ─── PAGE INVESTISSEMENT ──────────────────────────────────────
+const PageInvestissement=({plan,showToast})=>{
+  const[onglet,setOnglet]=useState("reco");
+  // FIX: apostrophe correcte ci-dessous
+  const tabs=[{id:"reco",label:"🤖 Recommandations IA"},{id:"portefeuille",label:"💼 Portefeuille"},{id:"plan",label:"Plan d'action"},{id:"scenarios",label:"📊 Scénarios"}];
+  if(!hasAccess(plan,"investissement"))return <div style={{padding:20}}><UpgradeWall page="Investissement IA" plan={plan}/></div>;
+  const recos=[{titre:"Automatisation prospection",roi:340,risque:"Faible",invest:2400,delai:"3 mois",score:94},{titre:"Expansion yacht Monaco",roi:280,risque:"Moyen",invest:8000,delai:"6 mois",score:87},{titre:"Formation équipe aviation",roi:190,risque:"Faible",invest:1200,delai:"1 mois",score:82},{titre:"Certification ISO services",roi:150,risque:"Faible",invest:3500,delai:"4 mois",score:78}];
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◐ Investissement IA</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Recommandations Claude · ROI · Plan d'action · Portefeuille</div>
+    <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
+    {onglet==="reco"&&<div>
+      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:14,marginBottom:16}}>
+        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Analyse IA — Claude Sonnet</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Basé sur votre CA de 24 380 € et votre marge de 61%, je recommande de prioriser l'automatisation de la prospection. Le ROI estimé à 340% sur 3 mois en fait l'investissement le plus rentable de votre pipeline actuel.</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12}}>
+        {recos.map((r,i)=><Card key={i} style={{borderColor:r.score>=90?`${C.gold}44`:C.border}}>
+          {r.score>=90&&<div style={{marginBottom:8}}><Pill color={C.gold}>★ Recommandé par IA</Pill></div>}
+          <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>{r.titre}</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
+            <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>ROI estimé</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>+{r.roi}%</div></CT>
+            <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Investissement</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(r.invest)}</div></CT>
           </div>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {[["Arrivée","Arrivé"],["Pause","En pause"],["Reprise","Reprise"],["Fin de journée","Fin de journée"]].map(([l,v])=>(
-              <Btn key={l} v={status===v?"green":"ghost"} onClick={()=>setStatus(v)}>{l}</Btn>
-            ))}
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:10}}>
+            <span style={{color:C.muted}}>Risque : <b style={{color:r.risque==="Faible"?C.green:C.orange}}>{r.risque}</b></span>
+            <span style={{color:C.muted}}>Délai : <b style={{color:C.blue}}>{r.delai}</b></span>
+          </div>
+          <SM val={r.score} max={100} color={r.score>=90?C.gold:C.blue}/>
+          <Btn onClick={()=>showToast("✅ Investissement validé !")} style={{marginTop:10,width:"100%"}}>Valider cet investissement</Btn>
+        </Card>)}
+      </div>
+    </div>}
+    {onglet==="portefeuille"&&<Card><STitle>💼 Portefeuille d'investissements</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        <KPI label="Investi total" val="15 100 €" color={C.gold}/>
+        <KPI label="ROI moyen" val="+242%" color={C.green}/>
+        <KPI label="Actif" val="3 projets" color={C.blue}/>
+      </div>
+    </Card>}
+    {onglet==="plan"&&<Card><STitle>Plan d'action — Automatisation</STitle>
+      {[["Sem. 1","Configurer le bot WhatsApp prospection",C.blue],["Sem. 2","Importer la liste SIRENE Val-de-Marne",C.gold],["Sem. 3","Lancer les séquences de relance automatique",C.green],["Sem. 4","Analyser les résultats & optimiser",C.teal]].map(([s,a,c],i)=><div key={i} style={{display:"flex",gap:12,padding:"10px 0",borderBottom:`1px solid ${C.border}22`}}>
+        <div style={{width:48,height:24,borderRadius:4,background:`${c}22`,border:`1px solid ${c}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:c,fontWeight:700,flexShrink:0}}>{s}</div>
+        <div style={{fontSize:12,color:C.text,alignSelf:"center"}}>{a}</div>
+      </div>)}
+    </Card>}
+    {onglet==="scenarios"&&<Card><STitle>📊 Scénarios d'investissement</STitle>
+      {[["Conservateur","Marge +5%, CA +15%",C.blue,85000],["Modéré","Marge +12%, CA +35%",C.gold,140000],["Agressif","Marge +20%, CA +60%",C.green,200000]].map(([n,d,c,v],i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${c}33`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><div style={{fontSize:12,fontWeight:700,color:c}}>{n}</div><div style={{fontSize:14,fontWeight:700,color:c}}>{fmt(v)}</div></div>
+        <div style={{fontSize:11,color:C.muted}}>{d}</div>
+      </div>)}
+    </Card>}
+  </div>;
+};
+
+// ─── TAB CHARGES ──────────────────────────────────────────────
+const TabCharges=({showToast})=>{
+  const[charges,setCharges]=useState(CHARGES);
+  const total=charges.reduce((a,c)=>a+c.mois,0);
+  return <div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+      <STitle>📊 Charges mensuelles</STitle>
+      <Pill color={C.red}>{fmt(total)} / mois</Pill>
+    </div>
+    <table style={{width:"100%",borderCollapse:"collapse"}}>
+      <thead><tr><TH>Catégorie</TH><TH>Montant/mois</TH><TH>% du CA</TH><TH>Action</TH></tr></thead>
+      <tbody>{charges.map((c,i)=><tr key={i}>
+        <Td style={{fontWeight:600}}>{c.cat}</Td>
+        <Td style={{color:C.red,fontWeight:700}}>{fmt(c.mois)}</Td>
+        <Td><div style={{display:"flex",alignItems:"center",gap:6}}><SM val={c.mois} max={total} color={C.red}/><span style={{fontSize:10,color:C.muted}}>{Math.round(c.mois/total*100)}%</span></div></Td>
+        <Td><BtnGhost onClick={()=>showToast("✅ Charge mise à jour")} style={{fontSize:10,padding:"3px 8px"}}>✏️</BtnGhost></Td>
+      </tr>)}</tbody>
+    </table>
+  </div>;
+};
+
+// ─── TAB FOURNISSEURS ─────────────────────────────────────────
+const TabFournisseurs=({showToast})=>{
+  const fours=[{nom:"CleanPro",cat:"Fournitures nettoyage",contact:"0800 123 456",iban:"FR76 1234...",last:"420€ · 09/04",delai:"J+3"},{nom:"TextilePro",cat:"Textile premium",contact:"01 44 55 66 77",iban:"FR76 5678...",last:"380€ · 07/04",delai:"J+5"},{nom:"MedSupply",cat:"Matériel médical",contact:"01 77 88 99 00",iban:"FR76 9012...",last:"520€ · 05/04",delai:"J+7"},{nom:"YachtCare",cat:"Entretien yacht",contact:"+377 99 88 77",iban:"MC58 0000...",last:"290€ · 03/04",delai:"J+10"},{nom:"LuxEquip",cat:"Équipements jet",contact:"+33 1 55 66 77 88",iban:"FR76 3456...",last:"840€ · 01/04",delai:"J+14"}];
+  return <div>
+    <STitle>🏭 Fournisseurs Tymeless</STitle>
+    <table style={{width:"100%",borderCollapse:"collapse"}}>
+      <thead><tr><TH>Fournisseur</TH><TH>Catégorie</TH><TH>Contact</TH><TH>Dernier paiement</TH><TH>Délai livraison</TH><TH>Action</TH></tr></thead>
+      <tbody>{fours.map((f,i)=><tr key={i}>
+        <Td style={{fontWeight:700}}>{f.nom}</Td>
+        <Td><Pill color={C.blue}>{f.cat}</Pill></Td>
+        <Td style={{color:C.muted,fontSize:11}}>{f.contact}</Td>
+        <Td style={{color:C.green,fontSize:11}}>{f.last}</Td>
+        <Td><Pill color={C.teal}>{f.delai}</Pill></Td>
+        <Td><div style={{display:"flex",gap:4}}>
+          <BtnGhost onClick={()=>showToast(`✅ Commande envoyée à ${f.nom}`)} style={{fontSize:10,padding:"3px 8px"}}>Commander</BtnGhost>
+          <BtnGhost onClick={()=>showToast(`📱 Appel ${f.nom}`)} style={{fontSize:10,padding:"3px 8px"}}>📞</BtnGhost>
+        </div></Td>
+      </tr>)}</tbody>
+    </table>
+  </div>;
+};
+
+// ─── PAGE COMPTA ──────────────────────────────────────────────
+const PageCompta=({plan,showToast})=>{
+  const[onglet,setOnglet]=useState("journal");
+  const tabs=[{id:"journal",label:"📋 Journal"},{id:"bilan",label:"📊 Bilan"},{id:"tva",label:"💶 TVA"},{id:"charges",label:"💸 Charges"},{id:"fournisseurs",label:"🏭 Fournisseurs"},{id:"ia",label:"🤖 IA Fiscale"},{id:"export",label:"📤 Export"}];
+  if(!hasAccess(plan,"compta"))return <div style={{padding:20}}><UpgradeWall page="Comptabilité" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◉ Comptabilité</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Journal · Bilan · TVA · Charges · Fournisseurs · IA Fiscale</div>
+    <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
+    {onglet==="journal"&&<Card>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+        <KPI label="Recettes" val="48 200 €" color={C.green}/>
+        <KPI label="Dépenses" val="29 780 €" color={C.red}/>
+        <KPI label="Résultat net" val="18 420 €" color={C.gold}/>
+        <KPI label="Marge" val="38%" color={C.teal}/>
+      </div>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Date</TH><TH>Libellé</TH><TH>Débit</TH><TH>Crédit</TH><TH>Type</TH></tr></thead>
+        <tbody>{INIT_HISTO.slice(0,5).map((h,i)=><tr key={i}>
+          <Td style={{color:C.muted,fontSize:10}}>{h.date}</Td>
+          <Td style={{fontWeight:600}}>{h.libelle}</Td>
+          <Td style={{color:C.red}}>{h.type==="sortie"?fmt(h.montant,h.devise):"—"}</Td>
+          <Td style={{color:C.green}}>{h.type==="entree"?fmt(h.montant,h.devise):"—"}</Td>
+          <Td><Pill color={h.type==="entree"?C.green:C.red}>{h.type==="entree"?"Recette":"Dépense"}</Pill></Td>
+        </tr>)}</tbody>
+      </table>
+    </Card>}
+    {onglet==="bilan"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Card><STitle>📈 ACTIF</STitle>
+        {[["Trésorerie",18420,C.green],["Créances clients",5645,C.blue],["Stock fournitures",2800,C.teal],["Immobilisations",0,C.muted]].map(([n,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div>)}
+        <div style={{marginTop:8,display:"flex",justifyContent:"space-between",fontWeight:700}}><span style={{color:C.gold}}>TOTAL ACTIF</span><span style={{color:C.gold}}>{fmt(26865)}</span></div>
+      </Card>
+      <Card><STitle>📉 PASSIF</STitle>
+        {[["Capital",10000,C.blue],["Résultat net",18420,C.green],["Dettes fournisseurs",1190,C.red],["Commissions dues",8525,C.orange]].map(([n,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div>)}
+        <div style={{marginTop:8,display:"flex",justifyContent:"space-between",fontWeight:700}}><span style={{color:C.gold}}>TOTAL PASSIF</span><span style={{color:C.gold}}>{fmt(38135)}</span></div>
+      </Card>
+    </div>}
+    {onglet==="tva"&&<Card><STitle>💶 TVA collectée / déductible</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        <KPI label="TVA collectée" val="9 640 €" color={C.red}/>
+        <KPI label="TVA déductible" val="4 820 €" color={C.green}/>
+        <KPI label="TVA à reverser" val="4 820 €" color={C.orange}/>
+      </div>
+      <div style={{marginTop:12,background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:12,fontSize:11,color:C.orange}}>⚠️ Déclaration TVA trimestrielle à effectuer avant le 30/04/2026</div>
+    </Card>}
+    {onglet==="charges"&&<TabCharges showToast={showToast}/>}
+    {onglet==="fournisseurs"&&<TabFournisseurs showToast={showToast}/>}
+    {onglet==="ia"&&<Card><STitle>🤖 Conseils IA Fiscale — Claude</STitle>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {[{t:"Optimisation charges",c:"Vos charges de transport représentent 14% des charges totales. Envisagez un forfait kilométrique pour optimiser la déduction fiscale.",col:C.green},{t:"Amortissement équipements",c:"Vos équipements jet/yacht peuvent être amortis sur 5 ans. Cela réduirait votre résultat imposable de ~2 800€ cette année.",col:C.blue},{t:"TVA à l'encaissement",c:"Avec votre volume, la TVA à l'encaissement vous permettrait de ne déclarer que les paiements reçus, améliorant votre trésorerie.",col:C.gold}].map((a,i)=><div key={i} style={{background:`${a.col}11`,border:`1px solid ${a.col}33`,borderRadius:8,padding:12}}>
+          <div style={{fontSize:11,fontWeight:700,color:a.col,marginBottom:4}}>💡 {a.t}</div>
+          <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>{a.c}</div>
+        </div>)}
+      </div>
+    </Card>}
+    {onglet==="export"&&<Card><STitle>📤 Exports comptables</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        {[["FEC","Fichier des Écritures Comptables",".txt"],["Bilan","Bilan comptable complet",".pdf"],["TVA","Déclaration CA3",".xml"],["Sage","Export Sage 50",".csv"],["QuickBooks","Export QuickBooks",".qbo"],["Expert-comptable","Pack complet",".zip"]].map(([n,d,ext],i)=><CT key={i} style={{cursor:"pointer"}} onClick={()=>showToast(`✅ Export ${n}${ext} téléchargé !`)}>
+          <div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:2}}>{n} <Pill color={C.blue}>{ext}</Pill></div>
+          <div style={{fontSize:10,color:C.muted}}>{d}</div>
+        </CT>)}
+      </div>
+    </Card>}
+  </div>;
+};
+
+// ─── PAGE TRESORERIE ──────────────────────────────────────────
+const PageTresorerie=({plan})=>{
+  const[devise,setDevise]=useState("EUR");
+  if(!hasAccess(plan,"tresorerie"))return <div style={{padding:20}}><UpgradeWall page="Trésorerie" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◑ Trésorerie 90 jours</div><div style={{fontSize:11,color:C.muted}}>Cash-flow · Prévisions IA · Alertes · Multi-devises</div></div>
+      <Sel value={devise} onChange={e=>setDevise(e.target.value)}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+      <KPI label="Solde actuel" val={fmt(conv(18420,"EUR",devise),devise)} color={C.gold}/>
+      <KPI label="Entrées prévues" val={fmt(conv(33000,"EUR",devise),devise)} color={C.green}/>
+      <KPI label="Sorties prévues" val={fmt(conv(12800,"EUR",devise),devise)} color={C.red}/>
+      <KPI label="Solde J+90 estimé" val={fmt(conv(38620,"EUR",devise),devise)} color={C.teal}/>
+    </div>
+    <Card>
+      <STitle>📈 Évolution trésorerie (90 jours)</STitle>
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
+          <thead><tr><TH>Semaine</TH><TH>Entrées</TH><TH>Sorties</TH><TH>Solde cumulé</TH><TH>Statut</TH></tr></thead>
+          <tbody>{TRESORERIE_90J.map((t,i)=><tr key={i} style={{background:t.pred?`${C.blue}05`:"transparent"}}>
+            <Td style={{fontSize:10,color:t.pred?C.blue:C.muted}}>{t.sem}{t.pred?" 🤖":""}</Td>
+            <Td style={{color:C.green,fontWeight:600}}>+{fmt(conv(t.e,"EUR",devise),devise)}</Td>
+            <Td style={{color:C.red}}>-{fmt(conv(t.s,"EUR",devise),devise)}</Td>
+            <Td style={{fontWeight:700,color:t.sol>15000?C.green:t.sol>8000?C.gold:C.red}}>{fmt(conv(t.sol,"EUR",devise),devise)}</Td>
+            <Td><Pill color={t.pred?C.blue:C.green}>{t.pred?"Prévision":"Réel"}</Pill></Td>
+          </tr>)}</tbody>
+        </table>
+      </div>
+      <div style={{marginTop:12,fontSize:10,color:C.blue}}>🤖 Les lignes bleues sont des prévisions générées par l'IA basées sur vos tendances historiques.</div>
+    </Card>
+  </div>;
+};
+
+// ─── PAGE ANALYTIQUE ──────────────────────────────────────────
+const PageAnalytique=({plan})=>{
+  if(!hasAccess(plan,"analytique"))return <div style={{padding:20}}><UpgradeWall page="Analytique & CA" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◒ Analytique & CA</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Prédictions IA · Objectifs · Par service · Par pays</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+      <KPI label="CA ce mois" val="24 380 €" color={C.gold} sub="↗ +12%"/>
+      <KPI label="CA annuel projeté" val="292 560 €" color={C.green} sub="IA prédiction"/>
+      <KPI label="Marge nette" val="61%" color={C.teal} sub="↗ +4pts"/>
+      <KPI label="Objectif mensuel" val="72%" color={C.orange} sub="24 380 / 34 000 €"/>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Card><STitle>📊 CA par service</STitle>
+        {[["Airbnb & Résidentiel",12400,C.gold],[`Jet & Yacht`,8200,C.blue],["Rapatriement",4800,C.purple],["Bureaux",3200,C.teal],["Divers",1980,C.muted]].map(([n,v,c],i)=><div key={i} style={{marginBottom:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div>
+          <SM val={v} max={12400} color={c}/>
+        </div>)}
+      </Card>
+      <Card><STitle>🌍 CA par pays</STitle>
+        {[["🇫🇷 France",14800,C.blue],["🇦🇪 Dubaï / EAU",6200,C.gold],["🇸🇳 Sénégal",2400,C.green],["🇲🇨 Monaco",980,C.purple]].map(([n,v,c],i)=><div key={i} style={{marginBottom:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div>
+          <SM val={v} max={14800} color={c}/>
+        </div>)}
+      </Card>
+    </div>
+    <Card style={{marginTop:12}}><STitle>🤖 Prédictions IA — Claude</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        {[{mois:"Mai 2026",val:"28 400 €",c:C.green,trend:"↗ +16%"},{mois:"Juin 2026",val:"31 200 €",c:C.green,trend:"↗ +10%"},{mois:"Q2 2026",val:"84 000 €",c:C.gold,trend:"↗ +22% vs Q1"}].map((p,i)=><CT key={i} style={{textAlign:"center"}}>
+          <div style={{fontSize:10,color:C.muted,marginBottom:4}}>{p.mois}</div>
+          <div style={{fontSize:18,fontWeight:700,color:p.c}}>{p.val}</div>
+          <div style={{fontSize:10,color:p.c}}>{p.trend}</div>
+        </CT>)}
+      </div>
+    </Card>
+  </div>;
+};
+
+// ─── PAGE CLIENTS ─────────────────────────────────────────────
+const PageClients=({plan,showToast})=>{
+  const[clients,setClients]=useState(CLIENTS);
+  const[sel,setSel]=useState(null);
+  if(!hasAccess(plan,"clients"))return <div style={{padding:20}}><UpgradeWall page="Clients" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◬ Clients</div><div style={{fontSize:11,color:C.muted}}>Profils · Upsell auto · Solvabilité · Tunnel de vente</div></div>
+      <Btn onClick={()=>showToast("✅ Client ajouté !")}>+ Nouveau client</Btn>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+      <KPI label="Total clients" val={clients.length} color={C.blue}/>
+      <KPI label="VIP" val={clients.filter(c=>c.statut==="VIP").length} color={C.gold}/>
+      <KPI label="CA total" val={fmt(clients.reduce((a,c)=>a+c.ca,0))} color={C.green}/>
+      <KPI label="NPS moyen" val="★ 4.6" color={C.gold}/>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Card><STitle>👥 Liste clients</STitle>
+        {clients.map((c,i)=><div key={i} onClick={()=>setSel(sel?.id===c.id?null:c)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:`1px solid ${C.border}22`,cursor:"pointer",background:sel?.id===c.id?`${C.gold}08`:"transparent",borderRadius:4}}>
+          <div style={{width:34,height:34,borderRadius:"50%",background:`${C.gold}22`,border:`1px solid ${C.gold}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:C.gold,flexShrink:0}}>{inits(c.nom)}</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:12,fontWeight:700,color:C.text}}>{c.nom}</div>
+            <div style={{fontSize:10,color:C.muted}}>{c.pays} · {c.metier}</div>
+          </div>
+          <div style={{textAlign:"right"}}>
+            <St s={c.statut}/>
+            <div style={{fontSize:11,color:C.green,fontWeight:700,marginTop:2}}>{fmt(c.ca)}</div>
+          </div>
+        </div>)}
+      </Card>
+      <div>
+        {sel?<Card style={{borderColor:`${C.gold}44`}}>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+            <div style={{width:48,height:48,borderRadius:"50%",background:`${C.gold}22`,border:`1px solid ${C.gold}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:16,fontWeight:700,color:C.gold}}>{inits(sel.nom)}</div>
+            <div><div style={{fontSize:16,fontWeight:700,color:C.text}}>{sel.nom}</div><div style={{fontSize:11,color:C.muted}}>{sel.pays} · {sel.metier}</div></div>
+            <St s={sel.statut}/>
+          </div>
+          <SolvabiliteWidget score={sel.score} nom={sel.nom}/>
+          <div style={{marginTop:12}}>
+            {[["Email",sel.email],["CA total",fmt(sel.ca)],["Prochain RDV",sel.rdv||"Aucun planifié"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{k}</span><span style={{color:C.text,fontWeight:600}}>{v}</span></div>)}
+          </div>
+          <div style={{display:"flex",gap:8,marginTop:12}}>
+            <Btn style={{flex:1,fontSize:11}} onClick={()=>showToast("📱 Ouverture WhatsApp...")}>💬 WhatsApp</Btn>
+            <BtnGhost style={{flex:1,fontSize:11}} onClick={()=>showToast("📄 Devis créé")}>◧ Devis</BtnGhost>
+          </div>
+        </Card>:<Card style={{textAlign:"center",padding:40}}><div style={{fontSize:32,marginBottom:8}}>👆</div><div style={{color:C.muted,fontSize:12}}>Sélectionne un client</div></Card>}
+      </div>
+    </div>
+  </div>;
+};
+
+// ─── PAGE PARTENAIRES ─────────────────────────────────────────
+const PagePartenaires=({plan,showToast})=>{
+  const[parts,setParts]=useState([
+    {id:"p1",nom:"Thomas Beaumont",role:"Apporteur d'affaires",comm:20,ca:12400,contrats:8,statut:"actif",dues:2480,paye:4800,rib:"FR76 3000 4000 0100 0012 3456 789",email:"thomas@tymeless.io",tel:"+33 6 12 34 56 78",adresse:"12 rue de la Paix, Paris",embauche:"01/03/2024",couleur:C.blue,
+     leads:[{nom:"Hôtel Prestige Paris",statut:"gagné",ca:8000,date:"10/04"},{nom:"SCI Châtillon",statut:"en cours",ca:2400,date:"08/04"},{nom:"Cabinet Lebrun",statut:"perdu",ca:0,date:"05/04"}],
+     docs:[{nom:"Contrat AA signé",type:"Contrat",date:"01/03/2024",statut:"signé"},{nom:"RIB bancaire",type:"RIB",date:"01/03/2024",statut:"valide"},{nom:"DPAE",type:"RH",date:"01/03/2024",statut:"archivé"}],
+     msgs:[{msg:"Bonjour, j'ai un nouveau prospect intéressant pour vous 🚀",h:"09:14",moi:false},{msg:"Top ! Envoyez-moi les coordonnées",h:"09:20",moi:true}]},
+    {id:"p2",nom:"Leila Mansouri",role:"Agent immobilier",comm:15,ca:8700,contrats:5,statut:"actif",dues:1305,paye:2100,rib:"FR76 1027 8060 0001 0234 5678 901",email:"leila.m@mail.fr",tel:"+33 6 44 55 66 77",adresse:"45 av. Victor Hugo, Lyon",embauche:"15/02/2024",couleur:C.gold,
+     leads:[{nom:"Résidences du Val",statut:"gagné",ca:3600,date:"12/04"},{nom:"SCI Lumière",statut:"proposition",ca:1800,date:"09/04"}],
+     docs:[{nom:"Contrat AA signé",type:"Contrat",date:"15/02/2024",statut:"signé"},{nom:"RIB bancaire",type:"RIB",date:"15/02/2024",statut:"valide"},{nom:"Kbis agence",type:"Juridique",date:"15/02/2024",statut:"valide"}],
+     msgs:[{msg:"Bonjour Curtiss, 2 clients potentiels cette semaine !",h:"11:00",moi:false}]},
+    {id:"p3",nom:"Groupe Prestige SARL",role:"Syndic professionnel",comm:12,ca:22000,contrats:14,statut:"actif",dues:2640,paye:6200,rib:"FR76 3000 1234 0000 5678 9012 345",email:"contact@prestige.fr",tel:"+33 1 44 55 66 77",adresse:"75 rue de Rivoli, Paris 75001",embauche:"01/01/2024",couleur:C.purple,
+     leads:[{nom:"Résidence Les Pins",statut:"gagné",ca:12000,date:"01/04"},{nom:"Immeuble Haussmann",statut:"gagné",ca:8000,date:"15/03"},{nom:"Copropriété Sud",statut:"en cours",ca:4000,date:"14/04"}],
+     docs:[{nom:"Contrat partenariat signé",type:"Contrat",date:"01/01/2024",statut:"signé"},{nom:"RIB SARL",type:"RIB",date:"01/01/2024",statut:"valide"},{nom:"Kbis SARL",type:"Juridique",date:"01/01/2024",statut:"valide"},{nom:"Assurance RC Pro",type:"Assurance",date:"01/01/2024",statut:"valide"}],
+     msgs:[{msg:"Bonjour, facture commission janvier à valider svp",h:"08:45",moi:false}]},
+    {id:"p4",nom:"Fatoumata Diop",role:"Apporteuse Afrique",comm:25,ca:6800,contrats:4,statut:"actif",dues:1700,paye:800,rib:"SN28 SN08 0100 1535 1000 1234 56",email:"fatou.d@dakar.sn",tel:"+221 77 123 45 67",adresse:"Dakar, Sénégal",embauche:"01/06/2024",couleur:C.green,
+     leads:[{nom:"TechHub Dakar",statut:"en cours",ca:4800,date:"13/04"},{nom:"Atlas Finance",statut:"proposition",ca:2400,date:"10/04"}],
+     docs:[{nom:"Contrat AA international",type:"Contrat",date:"01/06/2024",statut:"signé"},{nom:"RIB Ecobank",type:"RIB",date:"01/06/2024",statut:"valide"}],
+     msgs:[{msg:"2 nouvelles sociétés intéressées depuis Dakar 🌍",h:"14:32",moi:false}]},
+  ]);
+
+  const[onglet,setOnglet]=useState("dashboard");
+  const[sel,setSel]=useState(null);
+  const[showOnboard,setShowOnboard]=useState(false);
+  const[onboardForm,setOnboardForm]=useState({nom:"",role:"",comm:"15",email:"",tel:"",adresse:"",rib:""});
+  const[msgInputs,setMsgInputs]=useState({});
+
+  const tabs=[
+    {id:"dashboard",label:"📊 Tableau de bord"},
+    {id:"liste",label:"⬡ Partenaires"},
+    {id:"leads",label:"🎯 Leads apportés"},
+    {id:"commissions",label:"💰 Commissions"},
+    {id:"contrats",label:"📋 Contrats"},
+    {id:"performance",label:"📈 Performance"},
+    {id:"onboarding",label:"🤝 Onboarding"},
+    {id:"messagerie",label:"💬 Messagerie"},
+    {id:"documents",label:"🗂 Documents"},
+    {id:"alertes",label:"🔔 Alertes"},
+    {id:"ia",label:"🤖 IA"},
+  ];
+
+  if(!hasAccess(plan,"partenaires"))return <div style={{padding:20}}><UpgradeWall page="partenaires" plan={plan}/></div>;
+
+  const totalCA=parts.reduce((a,p)=>a+p.ca,0);
+  const totalDues=parts.reduce((a,p)=>a+p.dues,0);
+  const totalPaye=parts.reduce((a,p)=>a+p.paye,0);
+  const totalLeads=parts.reduce((a,p)=>a+p.leads.length,0);
+  const totalGagnes=parts.reduce((a,p)=>a+p.leads.filter(l=>l.statut==="gagné").length,0);
+
+  return <div style={{padding:20}}>
+    {/* HEADER */}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+      <div>
+        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>⬡ Partenaires & Apporteurs d'affaires</div>
+        <div style={{fontSize:11,color:C.muted}}>Commissions · Leads · Contrats · Performance · IA · {parts.length} partenaires actifs</div>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <BtnGhost onClick={()=>{setOnglet("onboarding");setShowOnboard(true);}}>+ Nouveau partenaire</BtnGhost>
+        <Btn onClick={()=>showToast("📊 Rapport partenaires envoyé !")}>📊 Rapport</Btn>
+      </div>
+    </div>
+
+    {/* KPIs */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
+      {[["CA total apporté",fmt(totalCA),C.green],["Commissions dues",fmt(totalDues),C.orange],["Commissions payées",fmt(totalPaye),C.gold],["Leads soumis",totalLeads,C.blue],["Leads gagnés",totalGagnes,C.teal]].map(([l,v,c],i)=><CT key={i}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:18,fontWeight:700,color:c,fontFamily:"Georgia,serif"}}>{v}</div></CT>)}
+    </div>
+
+    {/* TABS */}
+    <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
+      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
+    </div>
+
+    {/* ── DASHBOARD ─────────────────────────────────────── */}
+    {onglet==="dashboard"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+        <Card>
+          <STitle>⬡ Vue d'ensemble partenaires</STitle>
+          {parts.map((p,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:`1px solid ${C.border}22`,cursor:"pointer"}} onClick={()=>{setSel(p);setOnglet("liste");}}>
+            <div style={{width:36,height:36,borderRadius:"50%",background:p.couleur+"22",border:`2px solid ${p.couleur}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:p.couleur,flexShrink:0}}>{p.nom[0]}</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,fontWeight:700}}>{p.nom}</div>
+              <div style={{fontSize:9,color:C.muted}}>{p.role} · {p.comm}%</div>
+              <div style={{marginTop:3,height:3,borderRadius:2,background:C.border}}><div style={{height:"100%",width:(p.ca/totalCA*100)+"%",background:p.couleur,borderRadius:2}}/></div>
+            </div>
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.green}}>{fmt(p.ca)}</div>
+              {p.dues>0&&<div style={{fontSize:9,color:C.orange}}>⚠ {fmt(p.dues)} dues</div>}
+            </div>
+          </div>)}
+        </Card>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <Card>
+            <STitle>💰 Commissions à payer</STitle>
+            {parts.filter(p=>p.dues>0).map((p,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`}}>
+              <div><div style={{fontSize:12,fontWeight:600}}>{p.nom}</div><div style={{fontSize:10,color:C.muted}}>{p.comm}% · Virement {p.rib.slice(0,12)}...</div></div>
+              <div style={{textAlign:"right"}}>
+                <div style={{fontSize:14,fontWeight:700,color:C.orange}}>{fmt(p.dues)}</div>
+                <Btn onClick={()=>{setParts(ps=>ps.map((x,j)=>j===i?{...x,dues:0,paye:x.paye+x.dues}:x));showToast(`✅ Commission ${p.nom} payée !`);}} style={{fontSize:9,padding:"3px 8px",marginTop:4}}>Payer</Btn>
+              </div>
+            </div>)}
+          </Card>
+          <div style={{background:`${C.red}11`,border:`1px solid ${C.red}33`,borderRadius:10,padding:14}}>
+            <div style={{fontSize:10,color:C.red,fontWeight:600,marginBottom:8}}>🔔 Alertes du jour</div>
+            {[{t:"Commission Thomas en retard de 15 jours",c:C.red},{t:"Contrat Fatoumata Diop — renouvellement dans 30j",c:C.orange},{t:"Leila Mansouri — 2 leads sans suivi depuis 7j",c:C.orange}].map((a,i)=><div key={i} style={{fontSize:11,color:C.text,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}>⚠ {a.t}</div>)}
           </div>
         </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        <KPI label="Meilleur CA" val={parts.sort((a,b)=>b.ca-a.ca)[0].nom.split(" ")[0]} color={C.gold} sub={fmt(Math.max(...parts.map(p=>p.ca)))}/>
+        <KPI label="Taux conversion moyen" val={Math.round(totalGagnes/totalLeads*100)+"%"} color={C.green}/>
+        <KPI label="Commission moy." val={Math.round(parts.reduce((a,p)=>a+p.comm,0)/parts.length)+"%"} color={C.blue}/>
+      </div>
+    </div>}
+
+    {/* ── LISTE PARTENAIRES ─────────────────────────────── */}
+    {onglet==="liste"&&<div>
+      {sel?<div>
+        <BtnGhost onClick={()=>setSel(null)} style={{marginBottom:14}}>← Retour à la liste</BtnGhost>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <Card style={{borderColor:`${sel.couleur}44`}}>
+            <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
+              <div style={{width:52,height:52,borderRadius:"50%",background:sel.couleur+"22",border:`2px solid ${sel.couleur}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,color:sel.couleur}}>{sel.nom[0]}</div>
+              <div><div style={{fontSize:16,fontWeight:700}}>{sel.nom}</div><div style={{fontSize:11,color:C.muted}}>{sel.role}</div><Pill color={sel.couleur}>{sel.comm}% commission</Pill></div>
+            </div>
+            {[["📧 Email",sel.email],["📱 Téléphone",sel.tel],["🏠 Adresse",sel.adresse],["📅 Partenaire depuis",sel.embauche],["🏦 RIB",sel.rib],["💰 CA total apporté",fmt(sel.ca)],["💸 Commissions dues",fmt(sel.dues)],["✅ Commissions payées",fmt(sel.paye)],["📋 Contrats",sel.contrats+" contrats"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600,color:k.includes("dues")?C.orange:k.includes("payées")?C.green:C.text}}>{v}</span></div>)}
+          </Card>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <Card>
+              <STitle>⚡ Actions rapides</STitle>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                <Btn onClick={()=>{setParts(ps=>ps.map(p=>p.id===sel.id?{...p,dues:0,paye:p.paye+p.dues}:p));setSel(s=>({...s,paye:s.paye+s.dues,dues:0}));showToast(`✅ Commission ${fmt(sel.dues)} payée à ${sel.nom} !`);}} style={{background:C.orange}}>💰 Payer {fmt(sel.dues)} commission</Btn>
+                <Btn onClick={()=>showToast(`📄 Contrat ${sel.nom} PDF généré`)} style={{background:C.blue}}>📄 Générer contrat PDF</Btn>
+                <BtnGhost onClick={()=>showToast(`📱 WhatsApp ${sel.nom}`)}>📱 WhatsApp</BtnGhost>
+                <BtnGhost onClick={()=>showToast(`📧 Email envoyé à ${sel.email}`)}>📧 Email</BtnGhost>
+                <BtnGhost onClick={()=>{setOnglet("messagerie");}} style={{color:C.gold,borderColor:`${C.gold}44`}}>💬 Messagerie interne</BtnGhost>
+              </div>
+            </Card>
+            <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
+              <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Analyse IA — Claude</div>
+              <div style={{fontSize:11,color:C.text,lineHeight:1.7}}>{sel.ca>10000?`${sel.nom.split(" ")[0]} est votre meilleur partenaire. CA apporté : ${fmt(sel.ca)}. Recommandation : augmentez sa commission à ${sel.comm+2}% pour le fidéliser et booster son engagement.`:`Potentiel de croissance identifié. ${sel.nom.split(" ")[0]} a apporté ${sel.leads.filter(l=>l.statut==="gagné").length} leads gagnés. Recommandation : proposez un objectif trimestriel de ${fmt(Math.round(sel.ca*1.3))} avec bonus de commission.`}</div>
+            </Card>
+          </div>
+        </div>
+      </div>:<Card>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Partenaire</TH><TH>Rôle</TH><TH>Commission</TH><TH>CA apporté</TH><TH>Leads</TH><TH>Comm. dues</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+          <tbody>{parts.map((p,i)=><tr key={i} style={{cursor:"pointer"}} onClick={()=>setSel(p)}>
+            <Td><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:28,height:28,borderRadius:"50%",background:p.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:p.couleur}}>{p.nom[0]}</div><span style={{fontWeight:700}}>{p.nom}</span></div></Td>
+            <Td style={{color:C.muted,fontSize:11}}>{p.role}</Td>
+            <Td><Pill color={C.gold}>{p.comm}%</Pill></Td>
+            <Td style={{color:C.green,fontWeight:700}}>{fmt(p.ca)}</Td>
+            <Td style={{color:C.blue}}>{p.leads.length} <span style={{color:C.muted,fontSize:10}}>({p.leads.filter(l=>l.statut==="gagné").length} ✓)</span></Td>
+            <Td style={{color:p.dues>0?C.orange:C.muted,fontWeight:700}}>{p.dues>0?fmt(p.dues):"—"}</Td>
+            <Td><St s={p.statut}/></Td>
+            <Td onClick={e=>e.stopPropagation()}><div style={{display:"flex",gap:4}}>
+              <Btn onClick={()=>{setParts(ps=>ps.map((x,j)=>j===i?{...x,dues:0,paye:x.paye+x.dues}:x));showToast(`✅ ${fmt(p.dues)} payée à ${p.nom}`);}} style={{fontSize:9,padding:"4px 8px",background:C.orange}}>💰 Payer</Btn>
+              <BtnGhost onClick={()=>showToast(`📱 WhatsApp ${p.nom}`)} style={{fontSize:9,padding:"4px 8px"}}>WA</BtnGhost>
+            </div></Td>
+          </tr>)}</tbody>
+        </table>
+      </Card>}
+    </div>}
+
+    {/* ── LEADS ─────────────────────────────────────────── */}
+    {onglet==="leads"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+        <KPI label="Total leads" val={totalLeads} color={C.blue}/>
+        <KPI label="Gagnés" val={totalGagnes} color={C.green}/>
+        <KPI label="En cours" val={parts.reduce((a,p)=>a+p.leads.filter(l=>l.statut==="en cours"||l.statut==="proposition").length,0)} color={C.gold}/>
+        <KPI label="Taux conversion" val={Math.round(totalGagnes/totalLeads*100)+"%"} color={C.teal}/>
+      </div>
+      {parts.map((p,i)=><Card key={i} style={{marginBottom:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <div style={{width:32,height:32,borderRadius:"50%",background:p.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:p.couleur}}>{p.nom[0]}</div>
+          <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{p.nom}</div><div style={{fontSize:10,color:C.muted}}>{p.leads.length} leads · {p.leads.filter(l=>l.statut==="gagné").length} gagnés</div></div>
+          <Pill color={p.couleur}>{p.comm}%</Pill>
+        </div>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Prospect</TH><TH>Date</TH><TH>Statut</TH><TH>CA potentiel</TH><TH>Commission</TH></tr></thead>
+          <tbody>{p.leads.map((l,j)=>{const sc=l.statut==="gagné"?C.green:l.statut==="perdu"?C.muted:l.statut==="proposition"?C.blue:C.gold;return <tr key={j}>
+            <Td style={{fontWeight:600}}>{l.nom}</Td>
+            <Td style={{color:C.muted,fontSize:10}}>{l.date}</Td>
+            <Td><Pill color={sc}>{l.statut}</Pill></Td>
+            <Td style={{color:C.green,fontWeight:700}}>{l.ca>0?fmt(l.ca):"À définir"}</Td>
+            <Td style={{color:C.gold,fontWeight:700}}>{l.ca>0?fmt(Math.round(l.ca*p.comm/100)):"—"}</Td>
+          </tr>;})}
+          </tbody>
+        </table>
+        <button onClick={()=>showToast(`✅ Lead ajouté pour ${p.nom}`)} style={{marginTop:8,background:"transparent",color:p.couleur,border:`1px solid ${p.couleur}44`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Ajouter un lead</button>
+      </Card>)}
+    </div>}
+
+    {/* ── COMMISSIONS ───────────────────────────────────── */}
+    {onglet==="commissions"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+        <KPI label="Total à payer" val={fmt(totalDues)} color={C.orange}/>
+        <KPI label="Total payé (historique)" val={fmt(totalPaye)} color={C.green}/>
+        <KPI label="Total cumulé" val={fmt(totalDues+totalPaye)} color={C.gold}/>
+      </div>
+      <Card style={{marginBottom:12}}>
+        <STitle>💰 Commissions dues — À payer maintenant</STitle>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Partenaire</TH><TH>Taux</TH><TH>CA apporté</TH><TH>Commission due</TH><TH>RIB</TH><TH>Actions</TH></tr></thead>
+          <tbody>{parts.filter(p=>p.dues>0).map((p,i)=><tr key={i}>
+            <Td style={{fontWeight:700}}>{p.nom}</Td>
+            <Td><Pill color={C.gold}>{p.comm}%</Pill></Td>
+            <Td style={{color:C.green,fontWeight:600}}>{fmt(p.ca)}</Td>
+            <Td style={{color:C.orange,fontWeight:700,fontSize:14}}>{fmt(p.dues)}</Td>
+            <Td style={{fontSize:10,color:C.muted,fontFamily:"monospace"}}>{p.rib.slice(0,16)}...</Td>
+            <Td><div style={{display:"flex",gap:4}}>
+              <Btn onClick={()=>{setParts(ps=>ps.map(x=>x.id===p.id?{...x,dues:0,paye:x.paye+x.dues}:x));showToast(`✅ Virement ${fmt(p.dues)} envoyé à ${p.nom} !`);}} style={{fontSize:10,padding:"5px 10px",background:C.orange}}>💸 Payer {fmt(p.dues)}</Btn>
+              <BtnGhost onClick={()=>showToast("📱 Rappel WA envoyé")} style={{fontSize:10,padding:"5px 8px"}}>📱</BtnGhost>
+            </div></Td>
+          </tr>)}</tbody>
+        </table>
+        {totalDues>0&&<Btn onClick={()=>{setParts(ps=>ps.map(p=>({...p,paye:p.paye+p.dues,dues:0})));showToast(`✅ Toutes les commissions payées — ${fmt(totalDues)} virés !`);}} style={{marginTop:12,width:"100%",background:C.orange}}>💸 Tout payer — {fmt(totalDues)}</Btn>}
       </Card>
       <Card>
-        <CardTitle>Historique du jour</CardTitle>
-        <TH heads={["Heure","Événement","Collaborateur"]} rows={[{h:"08:30",e:"Arrivée",c:"Thomas"},{h:"09:00",e:"Arrivée",c:"Abou"},{h:"12:00",e:"Pause",c:"Thomas"},{h:"13:00",e:"Reprise",c:"Thomas"},{h:"17:30",e:"Fin de journée",c:"Thomas"}].map((r,i)=>(
-          <tr key={i}><Td><span style={{fontFamily:"monospace",fontWeight:600,color:C.gold}}>{r.h}</span></Td><Td>{r.e}</Td><Td><Badge label={r.c} color={C.blue}/></Td></tr>
-        ))}/>
+        <STitle>✅ Historique des commissions payées</STitle>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Partenaire</TH><TH>Montant payé</TH><TH>Statut</TH></tr></thead>
+          <tbody>{parts.map((p,i)=><tr key={i}>
+            <Td style={{fontWeight:600}}>{p.nom}</Td>
+            <Td style={{color:C.green,fontWeight:700}}>{fmt(p.paye)}</Td>
+            <Td><Pill color={C.green}>✓ Payé</Pill></Td>
+          </tr>)}</tbody>
+        </table>
       </Card>
+    </div>}
+
+    {/* ── CONTRATS ──────────────────────────────────────── */}
+    {onglet==="contrats"&&<div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <STitle>📋 Contrats partenaires</STitle>
+        <Btn onClick={()=>showToast("🤖 Contrat IA généré !")} style={{fontSize:11,padding:"7px 14px",background:C.purple}}>🤖 Générer contrat (IA)</Btn>
+      </div>
+      <Card style={{marginBottom:12}}>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Partenaire</TH><TH>Type</TH><TH>Commission</TH><TH>Début</TH><TH>Durée</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+          <tbody>{parts.map((p,i)=><tr key={i}>
+            <Td style={{fontWeight:700}}>{p.nom}</Td>
+            <Td><Pill color={C.blue}>{p.role}</Pill></Td>
+            <Td style={{color:C.gold,fontWeight:700}}>{p.comm}%</Td>
+            <Td style={{color:C.muted,fontSize:10}}>{p.embauche}</Td>
+            <Td style={{color:C.muted,fontSize:10}}>Indéterminée</Td>
+            <Td><Pill color={C.green}>✓ Signé</Pill></Td>
+            <Td><div style={{display:"flex",gap:4}}>
+              <Btn onClick={()=>showToast(`📄 Contrat ${p.nom} PDF`)} style={{fontSize:9,padding:"4px 8px"}}>📄 PDF</Btn>
+              <BtnGhost onClick={()=>showToast(`📱 Envoyé à ${p.nom}`)} style={{fontSize:9,padding:"4px 8px"}}>WA</BtnGhost>
+              <BtnGhost onClick={()=>showToast("✏️ Avenant créé")} style={{fontSize:9,padding:"4px 8px"}}>Avenant</BtnGhost>
+            </div></Td>
+          </tr>)}</tbody>
+        </table>
+      </Card>
+      <Card style={{background:`${C.blue}08`,borderColor:`${C.blue}33`}}>
+        <STitle>📝 Modèle de contrat — Clauses standards</STitle>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {["Commission versée sous 30 jours après encaissement client","Taux de commission fixé contractuellement — révisable annuellement","Lead valide = prospect non connu de Tymeless depuis + de 6 mois","Commission due uniquement si le deal est signé et encaissé","Résiliation par l'une ou l'autre partie avec préavis de 30 jours"].map((c,i)=><div key={i} style={{fontSize:11,color:C.text,padding:"6px 10px",background:C.card2,borderRadius:6}}>• {c}</div>)}
+        </div>
+      </Card>
+    </div>}
+
+    {/* ── PERFORMANCE ───────────────────────────────────── */}
+    {onglet==="performance"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12,marginBottom:12}}>
+        <Card>
+          <STitle>📈 Classement par CA apporté</STitle>
+          {[...parts].sort((a,b)=>b.ca-a.ca).map((p,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <div style={{width:22,height:22,borderRadius:"50%",background:["#C9A84C","#C0C0C0","#CD7F32","#5A5A7A"][i]+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:["#C9A84C","#C0C0C0","#CD7F32","#5A5A7A"][i]}}>{i+1}</div>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{fontWeight:600}}>{p.nom}</span><span style={{color:C.green,fontWeight:700}}>{fmt(p.ca)}</span></div>
+              <SM val={p.ca} max={Math.max(...parts.map(x=>x.ca))} color={p.couleur}/>
+            </div>
+          </div>)}
+        </Card>
+        <Card>
+          <STitle>🎯 Taux de conversion par partenaire</STitle>
+          {parts.map((p,i)=>{const tx=p.leads.length>0?Math.round(p.leads.filter(l=>l.statut==="gagné").length/p.leads.length*100):0;return <div key={i} style={{marginBottom:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{fontWeight:600}}>{p.nom.split(" ")[0]}</span><span style={{color:tx>=50?C.green:tx>=25?C.gold:C.orange,fontWeight:700}}>{tx}%</span></div>
+            <SM val={tx} max={100} color={tx>=50?C.green:tx>=25?C.gold:C.orange}/>
+          </div>;})}
+        </Card>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12}}>
+        <Card>
+          <STitle>💰 Commissions versées par partenaire</STitle>
+          {parts.map((p,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{fontWeight:600}}>{p.nom}</span><div style={{textAlign:"right"}}><div style={{color:C.green,fontWeight:700}}>{fmt(p.paye)} payé</div><div style={{color:C.orange,fontSize:10}}>{p.dues>0?`${fmt(p.dues)} dû`:"À jour"}</div></div></div>)}
+        </Card>
+        <Card>
+          <STitle>📊 Leads par statut (global)</STitle>
+          {[["Gagné",C.green],["En cours",C.gold],["Proposition",C.blue],["Perdu",C.muted]].map(([s,c])=>{const n=parts.reduce((a,p)=>a+p.leads.filter(l=>l.statut===s.toLowerCase()).length,0);return <div key={s} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{s}</span><span style={{color:c,fontWeight:700}}>{n}</span></div><SM val={n} max={totalLeads} color={c}/></div>;})}
+        </Card>
+      </div>
+    </div>}
+
+    {/* ── ONBOARDING ────────────────────────────────────── */}
+    {onglet==="onboarding"&&<div style={{maxWidth:600}}>
+      <Card>
+        <STitle>🤝 Onboarding nouveau partenaire</STitle>
+        <div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:8,padding:12,marginBottom:16,fontSize:11,color:C.text}}>
+          💡 Le partenaire recevra automatiquement son contrat par email + WhatsApp, et un accès au portail partenaire pour suivre ses leads et commissions.
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {[["Nom complet *","nom","text"],["Rôle / spécialité *","role","text"],["Email *","email","email"],["Téléphone (WhatsApp) *","tel","tel"],["Adresse","adresse","text"],["IBAN / RIB bancaire","rib","text"]].map(([ph,k,t])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{ph}</label><Inp value={onboardForm[k]||""} onChange={e=>setOnboardForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={{width:"100%"}}/></div>)}
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Taux de commission (%) *</label>
+            <div style={{display:"flex",gap:8}}>
+              {[10,12,15,20,25].map(t=><button key={t} onClick={()=>setOnboardForm(f=>({...f,comm:String(t)}))} style={{background:onboardForm.comm===String(t)?C.gold:"transparent",color:onboardForm.comm===String(t)?"#000":C.muted,border:`1px solid ${onboardForm.comm===String(t)?C.gold:C.border}`,borderRadius:6,padding:"6px 12px",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:onboardForm.comm===String(t)?700:400}}>{t}%</button>)}
+              <Inp value={onboardForm.comm} onChange={e=>setOnboardForm(f=>({...f,comm:e.target.value}))} placeholder="Autre %" style={{width:80}}/>
+            </div>
+          </div>
+          <div style={{background:`${C.blue}08`,border:`1px solid ${C.blue}22`,borderRadius:8,padding:12,fontSize:11,color:C.muted}}>
+            Commission choisie : <b style={{color:C.gold}}>{onboardForm.comm}%</b> · Basé sur le CA HT signé et encaissé · Paiement sous 30 jours
+          </div>
+          <Btn onClick={()=>{
+            if(!onboardForm.nom||!onboardForm.email)return showToast("⚠️ Remplissez au moins le nom et l'email");
+            const colors=[C.teal,C.pink,C.orange];
+            const np={id:"p"+(parts.length+1),nom:onboardForm.nom,role:onboardForm.role||"Apporteur d'affaires",comm:Number(onboardForm.comm)||15,ca:0,contrats:0,statut:"actif",dues:0,paye:0,rib:onboardForm.rib||"À renseigner",email:onboardForm.email,tel:onboardForm.tel||"",adresse:onboardForm.adresse||"",embauche:new Date().toLocaleDateString("fr"),couleur:colors[parts.length%3],leads:[],docs:[{nom:"Contrat AA",type:"Contrat",date:new Date().toLocaleDateString("fr"),statut:"envoyé"}],msgs:[]};
+            setParts(ps=>[...ps,np]);
+            setOnboardForm({nom:"",role:"",comm:"15",email:"",tel:"",adresse:"",rib:""});
+            showToast(`✅ ${np.nom} ajouté ! Contrat + accès portail envoyés par email et WhatsApp.`);
+            setOnglet("liste");
+          }}>✅ Créer le partenaire & Envoyer les accès</Btn>
+        </div>
+      </Card>
+    </div>}
+
+    {/* ── MESSAGERIE ────────────────────────────────────── */}
+    {onglet==="messagerie"&&<div style={{display:"grid",gridTemplateColumns:"240px 1fr",gap:12,height:480}}>
+      <Card style={{padding:0,overflow:"hidden"}}>
+        <div style={{padding:"10px 14px",borderBottom:`1px solid ${C.border}`,fontSize:11,fontWeight:700,color:C.muted}}>PARTENAIRES</div>
+        <div style={{overflowY:"auto",height:"calc(100% - 40px)"}}>
+          {parts.map((p,i)=>{
+            const nonLu=p.msgs.filter(m=>!m.moi).length;
+            return <div key={i} onClick={()=>setSel(p)} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",cursor:"pointer",background:sel?.id===p.id?`${C.gold}0D`:"transparent",borderBottom:`1px solid ${C.border}22`}}>
+              <div style={{width:30,height:30,borderRadius:"50%",background:p.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:p.couleur,flexShrink:0}}>{p.nom[0]}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:11,fontWeight:700,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.nom}</div>
+                <div style={{fontSize:9,color:C.muted}}>{p.msgs.length>0?p.msgs[p.msgs.length-1].msg.slice(0,25)+"...":"Aucun message"}</div>
+              </div>
+              {nonLu>0&&<div style={{width:16,height:16,borderRadius:"50%",background:C.red,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:"#fff"}}>{nonLu}</div>}
+            </div>;
+          })}
+        </div>
+      </Card>
+      <Card style={{padding:0,overflow:"hidden"}}>
+        {sel?<Chat
+          msgs={sel.msgs}
+          onSend={(msg)=>{
+            const newMsg={msg,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),moi:true};
+            setParts(ps=>ps.map(p=>p.id===sel.id?{...p,msgs:[...p.msgs,newMsg]}:p));
+            setSel(s=>({...s,msgs:[...s.msgs,newMsg]}));
+          }}
+          title={sel.nom}
+          subtitle={sel.role+" · "+sel.tel}
+        />:<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",color:C.muted}}>
+          <div style={{fontSize:32,marginBottom:8}}>💬</div>
+          <div style={{fontSize:12}}>Sélectionnez un partenaire</div>
+        </div>}
+      </Card>
+    </div>}
+
+    {/* ── DOCUMENTS ─────────────────────────────────────── */}
+    {onglet==="documents"&&<div>
+      {parts.map((p,i)=><Card key={i} style={{marginBottom:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <div style={{width:32,height:32,borderRadius:"50%",background:p.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:p.couleur}}>{p.nom[0]}</div>
+          <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{p.nom}</div><div style={{fontSize:10,color:C.muted}}>{p.docs.length} document(s)</div></div>
+          <BtnGhost onClick={()=>showToast(`📤 Document ajouté pour ${p.nom}`)} style={{fontSize:10,padding:"4px 10px"}}>+ Ajouter</BtnGhost>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:8}}>
+          {p.docs.map((d,j)=><div key={j} style={{background:C.card2,borderRadius:8,padding:10,border:`1px solid ${C.border}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+              <span style={{fontSize:11,fontWeight:600}}>{d.nom}</span>
+              <Pill color={d.statut==="signé"||d.statut==="valide"?C.green:d.statut==="envoyé"?C.blue:C.muted}>{d.statut}</Pill>
+            </div>
+            <div style={{fontSize:9,color:C.muted,marginBottom:8}}>{d.type} · {d.date}</div>
+            <div style={{display:"flex",gap:4}}>
+              <Btn onClick={()=>showToast(`📄 ${d.nom} téléchargé`)} style={{fontSize:9,padding:"3px 8px"}}>📥</Btn>
+              <BtnGhost onClick={()=>showToast(`📧 Envoyé à ${p.nom}`)} style={{fontSize:9,padding:"3px 8px"}}>📧</BtnGhost>
+            </div>
+          </div>)}
+        </div>
+      </Card>)}
+    </div>}
+
+    {/* ── ALERTES ───────────────────────────────────────── */}
+    {onglet==="alertes"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
+      {[
+        {niv:"critique",icon:"🚨",titre:"Commission Thomas Beaumont — 15 jours de retard",detail:`${fmt(2480)} de commission due depuis le 01/04. À payer immédiatement pour maintenir la confiance du partenaire.`,action:"Payer maintenant",col:C.red,fn:()=>{setParts(ps=>ps.map(p=>p.id==="p1"?{...p,dues:0,paye:p.paye+p.dues}:p));showToast("✅ Commission Thomas payée !");}},
+        {niv:"urgent",icon:"⚠️",titre:"Contrat Fatoumata Diop — Renouvellement dans 30 jours",detail:"Le contrat expire le 01/06/2026. Planifiez une discussion sur les nouvelles conditions (taux actuel : 25%).",action:"Planifier RDV",col:C.orange,fn:()=>showToast("📅 RDV planifié avec Fatoumata")},
+        {niv:"urgent",icon:"📋",titre:"Leila Mansouri — 2 leads sans suivi depuis 7 jours",detail:"SCI Lumière et Résidences du Val sont en attente de retour. Un contact rapide évite de perdre ces opportunités.",action:"Relancer les leads",col:C.orange,fn:()=>showToast("📧 Relances envoyées automatiquement")},
+        {niv:"info",icon:"💰",titre:"Groupe Prestige SARL — Commission à anticiper",detail:`${fmt(2640)} de commission à prévoir en fin de mois. Vérifiez la disponibilité trésorerie avant le 30/04.`,action:"Voir trésorerie",col:C.blue,fn:()=>showToast("💰 Trésorerie vérifiée")},
+        {niv:"good",icon:"✅",titre:"Groupe Prestige SARL — Record de CA ce mois",detail:`${fmt(22000)} de CA apporté — nouveau record mensuel. Pensez à féliciter et proposer une augmentation de commission.`,action:"Envoyer félicitations",col:C.green,fn:()=>showToast("🎉 Message de félicitations envoyé !")},
+      ].map((a,i)=><div key={i} style={{background:`${a.col}11`,border:`1px solid ${a.col}33`,borderRadius:10,padding:14,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+        <div style={{flex:1}}>
+          <div style={{fontSize:12,fontWeight:700,color:a.col,marginBottom:4}}>{a.icon} {a.titre}</div>
+          <div style={{fontSize:11,color:C.text,lineHeight:1.6}}>{a.detail}</div>
+        </div>
+        <Btn onClick={a.fn} color={a.col} style={{fontSize:11,padding:"7px 14px",flexShrink:0,color:a.col===C.green?"#000":"#fff"}}>{a.action}</Btn>
+      </div>)}
+    </div>}
+
+    {/* ── IA ────────────────────────────────────────────── */}
+    {onglet==="ia"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:12,padding:16}}>
+        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:8}}>🤖 Analyse globale réseau partenaires — Claude Sonnet</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Votre réseau de {parts.length} partenaires génère {fmt(totalCA)} de CA avec un taux de conversion moyen de {Math.round(totalGagnes/totalLeads*100)}%. Groupe Prestige SARL est votre partenaire le plus performant ({fmt(Math.max(...parts.map(p=>p.ca)))}). Priorité : régler les commissions en retard ({fmt(totalDues)}) pour maintenir la confiance du réseau et stimuler l'apport de nouveaux leads.</div>
+      </div>
+      {parts.map((p,i)=><Card key={i} style={{borderColor:`${p.couleur}33`}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <div style={{width:36,height:36,borderRadius:"50%",background:p.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:p.couleur}}>{p.nom[0]}</div>
+          <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{p.nom}</div><div style={{fontSize:10,color:C.muted}}>{p.role}</div></div>
+          <div style={{fontSize:16,fontWeight:700,color:p.couleur}}>{fmt(p.ca)}</div>
+        </div>
+        <div style={{background:`${p.couleur}0D`,border:`1px solid ${p.couleur}22`,borderRadius:8,padding:12,fontSize:11,color:C.text,lineHeight:1.7}}>
+          {p.id==="p1"&&`Thomas est votre apporteur le plus actif (${p.contrats} contrats). Taux de conversion : ${Math.round(p.leads.filter(l=>l.statut==="gagné").length/p.leads.length*100)}%. Recommandation : augmentez sa commission à ${p.comm+2}% pour accélérer l'apport et viser ${fmt(p.ca*1.4)} de CA.`}
+          {p.id==="p2"&&`Leila Mansouri performe bien sur l'immobilier résidentiel. ${p.leads.length} leads soumis, taux de conversion ${Math.round(p.leads.filter(l=>l.statut==="gagné").length/p.leads.length*100)}%. Recommandation : ciblez ensemble les syndics du Rhône pour maximiser le potentiel.`}
+          {p.id==="p3"&&`Groupe Prestige SARL est votre meilleur partenaire (${fmt(p.ca)}). ${p.contrats} contrats signés. Recommandation : proposez un partenariat exclusif sur les syndics Île-de-France et augmentez la commission à ${p.comm+3}%.`}
+          {p.id==="p4"&&`Fatoumata Diop est votre pont vers l'Afrique de l'Ouest. Énorme potentiel non exploité. Recommandation : organisez une visio mensuelle pour briefer sur les nouvelles offres Tymeless et cibler ensemble les ETI sénégalaises.`}
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:10}}>
+          <Btn onClick={()=>showToast(`✅ Proposition envoyée à ${p.nom}`)} style={{fontSize:11,flex:1}}>Envoyer proposition IA</Btn>
+          <BtnGhost onClick={()=>showToast(`📱 Message WA envoyé à ${p.nom}`)} style={{fontSize:11,flex:1}}>📱 WhatsApp</BtnGhost>
+        </div>
+      </Card>)}
+    </div>}
+  </div>;
+};
+// ─── PAGE ANNUAIRE ────────────────────────────────────────────
+const PageClubAffaires=({plan,showToast})=>{
+  const[onglet,setOnglet]=useState("accueil");
+  const[deals,setDeals]=useState([
+    {id:"DA-001",offrant:"Marc Dupont",recevant:"Sofia Al-Rashid",service:"Mise en relation Airbnb Dubai",valeur:2400,statut:"en cours",date:"12/04"},
+    {id:"DA-002",offrant:"Groupe Prestige SARL",recevant:"Fatoumata Diop",service:"Distribution services Dakar",valeur:8000,statut:"validé",date:"10/04"},
+    {id:"DA-003",offrant:"Leila Mansouri",recevant:"Jean-Marc Olivier",service:"Référencement syndic Paris",valeur:1200,statut:"proposé",date:"15/04"},
+  ]);
+  const MEMBRES=[
+    {id:1,nom:"Isabelle Moreau",metier:"Gestion Airbnb",ville:"Paris",pays:"🇫🇷",plan:"Starter",score:72},
+    {id:2,nom:"Marc Dupont",metier:"Immobilier",ville:"Lyon",pays:"🇫🇷",plan:"Business Pro",score:88},
+    {id:3,nom:"Sofia Al-Rashid",metier:"Aviation d'affaires",ville:"Dubaï",pays:"🇦🇪",plan:"Enterprise",score:98},
+    {id:4,nom:"Groupe Prestige SARL",metier:"Syndic",ville:"Paris",pays:"🇫🇷",plan:"Enterprise",score:94},
+    {id:5,nom:"Fatoumata Diop",metier:"Finance Afrique",ville:"Dakar",pays:"🇸🇳",plan:"Business Pro",score:89},
+  ];
+  const tabs=[{id:"accueil",label:"🏠 Club"},{id:"deals",label:"🤝 Deals membres"},{id:"networking",label:"🌐 Networking"},{id:"avantages",label:"💎 Avantages"},{id:"stats",label:"📊 Stats club"}];
+  if(!hasAccess(plan,"annuaire"))return <div style={{padding:20}}><UpgradeWall page="annuaire" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{background:`linear-gradient(135deg,${C.card},#0A0A1A)`,border:`1px solid ${C.gold}44`,borderRadius:16,padding:20,marginBottom:14}}>
+      <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:4}}>CLUB TYMELESS · RÉSEAU AFFAIRES PRIVÉ</div>
+      <div style={{fontSize:22,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◈ Club d'affaires Tymeless</div>
+      <div style={{fontSize:12,color:C.muted,marginBottom:12}}>Réseau privé · Deals exclusifs -10% · IA Match · Événements VIP · {MEMBRES.length} membres actifs</div>
+      <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
+        <div style={{borderLeft:`2px solid ${C.gold}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>Membres</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>{MEMBRES.length}</div></div>
+        <div style={{borderLeft:`2px solid ${C.green}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>Deals actifs</div><div style={{fontSize:16,fontWeight:700,color:C.green}}>{deals.length}</div></div>
+        <div style={{borderLeft:`2px solid ${C.blue}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>CA généré club</div><div style={{fontSize:16,fontWeight:700,color:C.blue}}>142 000 €</div></div>
+        <div style={{borderLeft:`2px solid ${C.purple}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>Pays représentés</div><div style={{fontSize:16,fontWeight:700,color:C.purple}}>8</div></div>
+      </div>
     </div>
-  );
+    <div style={{marginBottom:14}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
+    {onglet==="accueil"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Card><STitle>🏆 Top membres actifs</STitle>
+        {[...MEMBRES].sort((a,b)=>b.score-a.score).map((m,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:`1px solid ${C.border}22`}}>
+          <div style={{width:22,height:22,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:C.gold}}>{i+1}</div>
+          <div style={{flex:1}}><div style={{fontSize:11,fontWeight:600}}>{m.nom}</div><div style={{fontSize:9,color:C.muted}}>{m.metier} · {m.pays}</div></div>
+          <div style={{textAlign:"right"}}><Pill color={m.plan==="Enterprise"?C.purple:C.gold}>{m.plan}</Pill><div style={{fontSize:10,color:C.gold,marginTop:2}}>★ {m.score}</div></div>
+        </div>)}
+      </Card>
+      <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
+        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:8}}>🤖 IA Match du jour — Claude</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Correspondance identifiée : <b style={{color:C.gold}}>Marc Dupont (Immobilier)</b> ↔ <b style={{color:C.teal}}>Fatoumata Diop (Finance Afrique)</b> — Potentiel de collaboration sur expansion immobilière Dakar. CA estimé : 15 000€. Score : 94%.</div>
+        <div style={{display:"flex",gap:8,marginTop:10}}>
+          <Btn onClick={()=>showToast("✅ Mise en relation effectuée !")}>🤝 Mettre en relation</Btn>
+          <BtnGhost onClick={()=>showToast("🤖 Nouvelle analyse IA lancée")}>🔄 Relancer</BtnGhost>
+        </div>
+      </Card>
+    </div>}
+    {onglet==="deals"&&<Card>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <STitle>🤝 Deals entre membres (-10%)</STitle>
+        <Btn onClick={()=>showToast("✅ Deal proposé au réseau !")} style={{fontSize:11}}>+ Proposer un deal</Btn>
+      </div>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Proposant</TH><TH>Bénéficiaire</TH><TH>Service</TH><TH>Valeur</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+        <tbody>{deals.map((d,i)=><tr key={i}>
+          <Td style={{fontWeight:600}}>{d.offrant}</Td>
+          <Td style={{fontWeight:600}}>{d.recevant}</Td>
+          <Td style={{fontSize:11,color:C.muted}}>{d.service}</Td>
+          <Td style={{color:C.green,fontWeight:700}}>{fmt(d.valeur)}</Td>
+          <Td><St s={d.statut}/></Td>
+          <Td><div style={{display:"flex",gap:4}}>
+            {d.statut==="proposé"&&<Btn onClick={()=>{setDeals(ds=>ds.map((x,j)=>j===i?{...x,statut:"en cours"}:x));showToast("✅ Deal accepté !");}} style={{fontSize:10,padding:"4px 8px",background:C.green}}>✅</Btn>}
+            <BtnGhost onClick={()=>showToast("💬 Chat deal ouvert")} style={{fontSize:10,padding:"4px 8px"}}>💬</BtnGhost>
+          </div></Td>
+        </tr>)}</tbody>
+      </table>
+    </Card>}
+    {onglet==="networking"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Card><STitle>📅 Prochains événements</STitle>
+        {EVENEMENTS.map((e,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${C.border}`}}>
+          <div style={{fontSize:12,fontWeight:700,marginBottom:2}}>{e.titre}</div>
+          <div style={{fontSize:10,color:C.muted,marginBottom:6}}>📅 {e.date} · 📍 {e.lieu}</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><Pill color={C.green}>{e.inscrits}/{e.max}</Pill><Btn onClick={()=>showToast(`✅ Inscrit à ${e.titre}`)} style={{fontSize:10,padding:"4px 10px"}}>S'inscrire</Btn></div>
+        </div>)}
+      </Card>
+      <Card><STitle>🎥 Visio Club privée</STitle>
+        <div style={{textAlign:"center",padding:"24px 0"}}>
+          <div style={{fontSize:36,marginBottom:10}}>🎥</div>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Salon Visio Club VIP</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Salle privée membres Club Tymeless</div>
+          <div style={{display:"flex",gap:8,justifyContent:"center"}}>
+            <Btn onClick={()=>showToast("🎥 Salle club : meet.tymeless.io/club")}>🎥 Rejoindre</Btn>
+            <BtnGhost onClick={()=>showToast("📅 Visio planifiée !")}>📅 Planifier</BtnGhost>
+          </div>
+        </div>
+      </Card>
+    </div>}
+    {onglet==="avantages"&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
+      {[{icon:"💎",titre:"Remise -10% entre membres",desc:"Tous les services entre membres Club au tarif préférentiel",color:C.gold},{icon:"🤖",titre:"IA Match Business",desc:"Claude identifie les meilleures synergies du réseau chaque semaine",color:C.purple},{icon:"🌍",titre:"Annuaire privé mondial",desc:"Accès à l'annuaire complet avec coordonnées directes",color:C.blue},{icon:"📅",titre:"Événements VIP exclusifs",desc:"Invitations prioritaires soirées networking et forums",color:C.teal},{icon:"💳",titre:"Carte Membre Tymeless",desc:"Carte virtuelle Club avec cashback 2% sur les achats réseau",color:C.green},{icon:"📊",titre:"Rapport business mensuel",desc:"Analyse IA personnalisée par Claude chaque 1er du mois",color:C.orange}].map((a,i)=><Card key={i} style={{borderColor:`${a.color}33`,textAlign:"center"}}>
+        <div style={{fontSize:28,marginBottom:8}}>{a.icon}</div>
+        <div style={{fontSize:13,fontWeight:700,color:a.color,marginBottom:6}}>{a.titre}</div>
+        <div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>{a.desc}</div>
+      </Card>)}
+    </div>}
+    {onglet==="stats"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Card><STitle>📊 Activité du club</STitle>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          <KPI label="Membres actifs" val={MEMBRES.length} color={C.blue}/>
+          <KPI label="Deals conclus" val={deals.filter(d=>d.statut==="validé").length} color={C.green}/>
+          <KPI label="CA généré réseau" val="142K€" color={C.gold}/>
+          <KPI label="Taux engagement" val="84%" color={C.teal}/>
+        </div>
+      </Card>
+      <Card><STitle>💰 Revenus Club Tymeless</STitle>
+        {[["Abonnements (29€/mois)",fmt(MEMBRES.length*29),C.gold],["Commissions deals (5%)",fmt(7100),C.green],["Événements",fmt(2400),C.blue],["Total mensuel",fmt(MEMBRES.length*29+7100+2400),C.teal]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
+      </Card>
+    </div>}
+  </div>;
 };
 
-// CHAT EQUIPE
-const PageChatEquipe=()=>{
-  const [msgs,setMsgs]=useState(MSGS_EQUIPE);
-  const [inp,setInp]=useState("");
-  const [dest,setDest]=useState("Tous");
-  const ref=useRef(null);
-  const AV={"Thomas":C.gold,"Abou":C.blue,"Fatou":C.purple,"Béné":C.green};
-  useEffect(()=>{if(ref.current)ref.current.scrollTop=ref.current.scrollHeight;},[msgs]);
-  const send=()=>{if(!inp.trim())return;setMsgs(p=>[...p,{id:Date.now(),auteur:"Béné",msg:inp,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),lu:true,isMe:true}]);setInp("");};
-  return(
-    <div>
-      <SectionTitle>💬 Chat Équipe</SectionTitle>
-      <div style={{display:"grid",gridTemplateColumns:"220px 1fr",gap:14,height:500}}>
-        <Card style={{display:"flex",flexDirection:"column",gap:4,padding:12}}>
-          <div style={{fontSize:10,color:C.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",padding:"4px 8px 8px"}}>Contacts</div>
-          {["Tous","Thomas","Abou","Fatou"].map(n=>(
-            <button key={n} onClick={()=>setDest(n)} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 10px",cursor:"pointer",background:dest===n?C.goldLight:"transparent",border:dest===n?`1px solid ${C.goldBorder}`:"1px solid transparent",borderRadius:10,color:dest===n?C.gold:C.mid,fontSize:13,fontFamily:"inherit",textAlign:"left",fontWeight:dest===n?600:400}}>
-              <div style={{width:26,height:26,borderRadius:"50%",background:(AV[n]||C.muted)+"20",border:`1px solid ${AV[n]||C.muted}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:AV[n]||C.muted,flexShrink:0}}>{n[0]}</div>
-              {n}
-            </button>
-          ))}
-        </Card>
-        <Card style={{display:"flex",flexDirection:"column",padding:0,overflow:"hidden"}}>
-          <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.border}`,background:C.bg,display:"flex",alignItems:"center",gap:10}}>
-            <span style={{fontSize:13,fontWeight:600,color:C.dark}}>💬 {dest==="Tous"?"Groupe équipe":dest}</span>
-            <Badge label="● En ligne" color={C.green} bg={C.greenBg}/>
-          </div>
-          <div ref={ref} style={{flex:1,overflowY:"auto",padding:14,display:"flex",flexDirection:"column",gap:10}}>
-            {msgs.filter(m=>dest==="Tous"||m.auteur===dest||m.isMe).map((m,i)=>(
-              <div key={i} style={{display:"flex",flexDirection:m.isMe?"row-reverse":"row",gap:8,alignItems:"flex-end"}}>
-                <div style={{width:28,height:28,borderRadius:"50%",background:(AV[m.auteur]||C.gold)+"20",border:`1px solid ${AV[m.auteur]||C.gold}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:AV[m.auteur]||C.gold,flexShrink:0}}>{m.auteur[0]}</div>
+const PageAnnuaire=({plan,showToast})=>{
+  // ── Données réseau mondial ─────────────────────────────────
+  const RESEAU_MONDIAL=[
+    // Partenaires existants
+    {id:"r1",nom:"Thomas Beaumont",type:"Apporteur d'affaires",secteur:"Conciergerie",pays:"🇫🇷",ville:"Paris",continent:"Europe",tel:"+33 6 12 34 56 78",email:"thomas@tymeless.io",ca:12400,deals:8,bio:"Spécialiste missions premium Airbnb & résidentiel Paris"},
+    {id:"r2",nom:"Leila Mansouri",type:"Partenaire",secteur:"Immobilier",pays:"🇫🇷",ville:"Lyon",continent:"Europe",tel:"+33 6 44 55 66 77",email:"leila.m@mail.fr",ca:8700,deals:5,bio:"Agent immobilier spécialisée résidentiel haut de gamme"},
+    {id:"r3",nom:"Groupe Prestige SARL",type:"Partenaire",secteur:"Syndic & Gestion",pays:"🇫🇷",ville:"Paris",continent:"Europe",tel:"+33 1 44 55 66 77",email:"contact@prestige.fr",ca:22000,deals:14,bio:"Syndic professionnel, gestionnaire de 200+ résidences Paris"},
+    {id:"r4",nom:"Fatoumata Diop",type:"Apporteur d'affaires",secteur:"Finance Afrique",pays:"🇸🇳",ville:"Dakar",continent:"Afrique",tel:"+221 77 123 45 67",email:"fatou.d@dakar.sn",ca:6800,deals:4,bio:"Consultante finance d'entreprise, réseau Afrique de l'Ouest"},
+    // Membres Club
+    {id:"r5",nom:"Sofia Al-Rashid",type:"Membre Club",secteur:"Aviation d'affaires",pays:"🇦🇪",ville:"Dubaï",continent:"Moyen-Orient",tel:"+971 50 123 45 67",email:"sofia@vip.ae",ca:9200,deals:3,bio:"Gestionnaire de flotte jets privés, zone Golfe & Europe"},
+    {id:"r6",nom:"Marc Dupont",type:"Membre Club",secteur:"Immobilier",pays:"🇫🇷",ville:"Lyon",continent:"Europe",tel:"+33 6 98 76 54 32",email:"m.dupont@corp.fr",ca:3200,deals:2,bio:"Investisseur immobilier, portefeuille 15 biens résidentiels"},
+    {id:"r7",nom:"Jean-Marc Olivier",type:"Membre Club",secteur:"Conseil & Finance",pays:"🇫🇷",ville:"Paris",continent:"Europe",tel:"+33 6 77 88 99 00",email:"jm@pro.fr",ca:14600,deals:7,bio:"Directeur associé cabinet conseil, spécialiste M&A PME"},
+    // Partenaires luxe & internationaux
+    {id:"r8",nom:"Jet Services Monaco",type:"Partenaire",secteur:"Aviation de luxe",pays:"🇲🇨",ville:"Monaco",continent:"Europe",tel:"+377 99 88 77 66",email:"contact@jetservices.mc",ca:0,deals:1,bio:"Opérateur jets privés & hélicoptères, réseau mondial 180+ appareils"},
+    {id:"r9",nom:"YachtCo Méditerranée",type:"Partenaire",secteur:"Yachting",pays:"🇫🇷",ville:"Cannes",continent:"Europe",tel:"+33 4 93 11 22 33",email:"info@yachtco.fr",ca:0,deals:0,bio:"Courtier yacht, vente & location superyachts 20-80m"},
+    {id:"r10",nom:"Prestige Realty Dubai",type:"Partenaire",secteur:"Immobilier de prestige",pays:"🇦🇪",ville:"Dubaï",continent:"Moyen-Orient",tel:"+971 4 555 66 77",email:"contact@prestigerealty.ae",ca:0,deals:0,bio:"Agence immobilier luxe Dubai & Abu Dhabi, résidences >2M$"},
+    {id:"r11",nom:"Cabinet Moreau & Associés",type:"Apporteur d'affaires",secteur:"Juridique & Conseil",pays:"🇨🇭",ville:"Genève",continent:"Europe",tel:"+41 22 345 67 89",email:"contact@moreau-law.ch",ca:0,deals:0,bio:"Cabinet d'avocats d'affaires franco-suisse, droit des sociétés"},
+    {id:"r12",nom:"Ndoye Business Group",type:"Partenaire",secteur:"Commerce & Distribution",pays:"🇸🇳",ville:"Dakar",continent:"Afrique",tel:"+221 33 456 78 90",email:"info@ndoye-group.sn",ca:0,deals:0,bio:"Groupe commercial Afrique de l'Ouest, import/export & distribution"},
+    {id:"r13",nom:"Atlas Finance Maroc",type:"Partenaire",secteur:"Finance & Investissement",pays:"🇲🇦",ville:"Casablanca",continent:"Afrique",tel:"+212 5 22 334 455",email:"contact@atlasfinance.ma",ca:0,deals:0,bio:"Fonds d'investissement PME, Maroc & Afrique du Nord"},
+    {id:"r14",nom:"TechHub Montréal",type:"Membre Club",secteur:"Tech & Innovation",pays:"🇨🇦",ville:"Montréal",continent:"Amériques",tel:"+1 514 234 56 78",email:"hello@techhub.ca",ca:0,deals:0,bio:"Incubateur startups tech, réseau entrepreneurs Canada francophone"},
+    {id:"r15",nom:"Shenzhen Trade Partners",type:"Partenaire",secteur:"Commerce international",pays:"🇨🇳",ville:"Shenzhen",continent:"Asie",tel:"+86 755 8765 4321",email:"trade@shenzhentrade.cn",ca:0,deals:0,bio:"Intermédiaire commercial Chine-Europe, sourcing & logistique"},
+    {id:"r16",nom:"Lagos Premium Services",type:"Partenaire",secteur:"Services aux entreprises",pays:"🇳🇬",ville:"Lagos",continent:"Afrique",tel:"+234 1 234 56 78",email:"info@lagospremium.ng",ca:0,deals:0,bio:"Services haut de gamme entreprises Nigeria, conciergerie B2B"},
+    {id:"r17",nom:"Riviera Hospitality Group",type:"Partenaire",secteur:"Hôtellerie & Événements",pays:"🇫🇷",ville:"Nice",continent:"Europe",tel:"+33 4 93 77 88 99",email:"contact@rivierahospitality.fr",ca:0,deals:0,bio:"Groupe hôtelier Côte d'Azur, organisation événements corporate"},
+    {id:"r18",nom:"Brussels Corporate Network",type:"Membre Club",secteur:"Conseil & Lobbying",pays:"🇧🇪",ville:"Bruxelles",continent:"Europe",tel:"+32 2 234 56 78",email:"network@bcn.be",ca:0,deals:0,bio:"Réseau dirigeants entreprises, institutions européennes Bruxelles"},
+  ];
+
+  const continents=["Tous","Europe","Afrique","Moyen-Orient","Amériques","Asie"];
+  const secteurs=["Tous","Aviation de luxe","Yachting","Immobilier","Finance & Investissement","Commerce international","Tech & Innovation","Juridique & Conseil","Hôtellerie & Événements","Services aux entreprises","Conciergerie","Syndic & Gestion"];
+  const types=["Tous","Partenaire","Membre Club","Apporteur d'affaires"];
+
+  const[onglet,setOnglet]=useState("annuaire");
+  const[search,setSearch]=useState("");
+  const[filtreCont,setFiltreCont]=useState("Tous");
+  const[filtreType,setFiltreType]=useState("Tous");
+  const[filtreSect,setFiltreSect]=useState("Tous");
+  const[sel,setSel]=useState(null);
+  const[showDeal,setShowDeal]=useState(null);
+  const[dealForm,setDealForm]=useState({service:"",valeur:"",detail:""});
+  const[deals,setDeals]=useState([
+    {id:"D001",de:"Tymeless",pour:"Sofia Al-Rashid",service:"Nettoyage jet privé Dubai",valeur:4800,statut:"en cours",date:"12/04"},
+    {id:"D002",de:"Leila Mansouri",pour:"Groupe Prestige SARL",service:"Mise en relation syndic",valeur:12000,statut:"proposé",date:"10/04"},
+    {id:"D003",de:"Fatoumata Diop",pour:"Ndoye Business Group",service:"Distribution Afrique Ouest",valeur:8000,statut:"validé",date:"08/04"},
+  ]);
+  const[msgs,setMsgs]=useState([
+    {de:"Sofia Al-Rashid",msg:"Bonjour Curtiss, intéressée par vos services à Dubai 🌟",h:"09:23",lu:false},
+    {de:"Fatoumata Diop",msg:"2 nouvelles sociétés depuis Dakar pour vous 🌍",h:"11:00",lu:true},
+  ]);
+
+  const tabs=[
+    {id:"annuaire",label:"🌍 Annuaire mondial"},
+    {id:"carte",label:"🗺 Carte réseau"},
+    {id:"deals",label:"🤝 Deals réseau"},
+    {id:"messagerie",label:"💬 Messagerie"},
+    {id:"stats",label:"📊 Statistiques"},
+  ];
+
+  if(!hasAccess(plan,"annuaire"))return <div style={{padding:20}}><UpgradeWall page="Réseau & Annuaire" plan={plan}/></div>;
+
+  const filtered=RESEAU_MONDIAL.filter(r=>{
+    const matchSearch=search===""||r.nom.toLowerCase().includes(search.toLowerCase())||r.secteur.toLowerCase().includes(search.toLowerCase())||r.ville.toLowerCase().includes(search.toLowerCase());
+    const matchCont=filtreCont==="Tous"||r.continent===filtreCont;
+    const matchType=filtreType==="Tous"||r.type===filtreType;
+    const matchSect=filtreSect==="Tous"||r.secteur===filtreSect;
+    return matchSearch&&matchCont&&matchType&&matchSect;
+  });
+
+  const statsCont=continents.slice(1).map(c=>({nom:c,count:RESEAU_MONDIAL.filter(r=>r.continent===c).length})).filter(c=>c.count>0);
+
+  return <div style={{padding:20}}>
+    {/* HEADER */}
+    <div style={{background:`linear-gradient(135deg,${C.card},#080818)`,border:`1px solid ${C.gold}33`,borderRadius:16,padding:20,marginBottom:16}}>
+      <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:4}}>TYMELESS · RÉSEAU MONDIAL</div>
+      <div style={{fontSize:22,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◱ Annuaire Business Mondial</div>
+      <div style={{fontSize:12,color:C.muted,marginBottom:14}}>Partenaires · Membres Club · Apporteurs d'affaires · {RESEAU_MONDIAL.length} contacts dans {statsCont.length} zones géographiques</div>
+      <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+        {statsCont.map((c,i)=>{const colors=[C.blue,C.gold,C.teal,C.green,C.purple];return <div key={i} style={{borderLeft:`2px solid ${colors[i%5]}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>{c.nom}</div><div style={{fontSize:16,fontWeight:700,color:colors[i%5]}}>{c.count} contacts</div></div>;})}
+      </div>
+    </div>
+
+    <div style={{marginBottom:14}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
+
+    {/* ─── ANNUAIRE ─────────────────────────────────────────── */}
+    {onglet==="annuaire"&&<>
+      {/* Filtres */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr auto auto auto",gap:8,marginBottom:16}}>
+        <Inp value={search} onChange={e=>setSearch(e.target.value)} placeholder="🔍 Rechercher un contact, secteur, ville..."/>
+        <Sel value={filtreCont} onChange={e=>setFiltreCont(e.target.value)} style={{minWidth:130}}>{continents.map(c=><option key={c}>{c}</option>)}</Sel>
+        <Sel value={filtreType} onChange={e=>setFiltreType(e.target.value)} style={{minWidth:140}}>{types.map(t=><option key={t}>{t}</option>)}</Sel>
+        <Sel value={filtreSect} onChange={e=>setFiltreSect(e.target.value)} style={{minWidth:160}}>{secteurs.map(s=><option key={s}>{s}</option>)}</Sel>
+      </div>
+      <div style={{fontSize:11,color:C.muted,marginBottom:12}}>{filtered.length} contact(s) trouvé(s)</div>
+
+      {sel?
+        /* FICHE DÉTAILLÉE */
+        <div>
+          <BtnGhost onClick={()=>setSel(null)} style={{marginBottom:14}}>← Retour à l'annuaire</BtnGhost>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+            <Card style={{borderColor:`${C.gold}33`}}>
+              <div style={{display:"flex",alignItems:"flex-start",gap:14,marginBottom:16}}>
+                <div style={{width:60,height:60,borderRadius:"50%",background:`${C.gold}22`,border:`2px solid ${C.gold}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:22,fontWeight:700,color:C.gold,flexShrink:0}}>{inits(sel.nom)}</div>
                 <div>
-                  {!m.isMe&&<div style={{fontSize:10,color:C.muted,marginBottom:3}}>{m.auteur}</div>}
-                  <div style={{background:m.isMe?C.navy:C.bg,color:m.isMe?"#fff":C.dark,border:`1px solid ${m.isMe?C.navy:C.border}`,borderRadius:m.isMe?"14px 14px 2px 14px":"14px 14px 14px 2px",padding:"9px 13px",fontSize:13,maxWidth:280,lineHeight:1.45}}>{m.msg}</div>
-                  <div style={{fontSize:10,color:C.muted,marginTop:3,textAlign:m.isMe?"right":"left"}}>{m.h}</div>
+                  <div style={{fontSize:17,fontWeight:700,color:C.text,marginBottom:2}}>{sel.nom}</div>
+                  <Pill color={sel.type==="Partenaire"?C.gold:sel.type==="Membre Club"?C.blue:C.green}>{sel.type}</Pill>
+                  <div style={{fontSize:12,color:C.muted,marginTop:6}}>{sel.pays} {sel.ville} · {sel.continent}</div>
                 </div>
               </div>
-            ))}
+              <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}22`,borderRadius:8,padding:12,marginBottom:14,fontSize:12,color:C.text,lineHeight:1.7,fontStyle:"italic"}}>"{sel.bio}"</div>
+              <div style={{display:"flex",flexDirection:"column",gap:6}}>
+                {[["📍 Localisation",`${sel.pays} ${sel.ville}`],["🏢 Secteur",sel.secteur],["📧 Email",sel.email],["📱 Téléphone",sel.tel],sel.ca>0?["💰 CA généré Tymeless",fmt(sel.ca)]:null,sel.deals>0?["🤝 Deals conclus",sel.deals+" deals"]:null].filter(Boolean).map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600,color:C.text}}>{v}</span></div>)}
+              </div>
+            </Card>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <Card>
+                <STitle>⚡ Actions rapides</STitle>
+                <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                  <Btn onClick={()=>{setShowDeal(sel);setOnglet("deals");setSel(null);}} style={{width:"100%"}}>🤝 Proposer un deal</Btn>
+                  <Btn onClick={()=>showToast(`📱 WhatsApp ouvert avec ${sel.nom}`)} style={{width:"100%",background:C.green,color:"#000"}}>📱 WhatsApp</Btn>
+                  <BtnGhost onClick={()=>showToast(`📧 Email envoyé à ${sel.email}`)} style={{width:"100%"}}>📧 Envoyer un email</BtnGhost>
+                  <BtnGhost onClick={()=>{setOnglet("messagerie");setSel(null);}} style={{width:"100%"}}>💬 Message interne</BtnGhost>
+                  <BtnGhost onClick={()=>showToast("📄 Fiche PDF exportée")} style={{width:"100%"}}>📄 Exporter fiche PDF</BtnGhost>
+                </div>
+              </Card>
+              <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
+                <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:8}}>🤖 Analyse IA — Potentiel business</div>
+                <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>{sel.secteur==="Aviation de luxe"||sel.secteur==="Yachting"?"Partenaire à très fort potentiel. Ses clients ont un pouvoir d'achat élevé et recherchent des services premium complémentaires. Opportunité de deal récurrent estimée à 15 000-40 000€/an.":sel.ca>5000?"Contact déjà rentable. Potentiel d'upsell estimé à "+(Math.round(sel.ca*0.3)).toLocaleString("fr")+"€ sur les 6 prochains mois avec une offre adaptée.":"Nouveau contact à fort potentiel. Recommandation : envoyer une présentation personnalisée dans les 48h pour maximiser les chances de collaboration."}</div>
+              </Card>
+            </div>
           </div>
-          <div style={{display:"flex",gap:8,padding:10,borderTop:`1px solid ${C.border}`,background:C.bg}}>
-            <Inp placeholder="Écrire un message..." value={inp} onChange={e=>setInp(e.target.value)} style={{flex:1}}/>
-            <button onClick={send} style={{background:C.navy,border:"none",borderRadius:10,width:38,height:38,cursor:"pointer",color:"#fff",fontSize:14,fontWeight:700,flexShrink:0}}>➤</button>
+        </div>
+      :
+        /* GRILLE CONTACTS */
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
+          {filtered.map((r,i)=><Card key={i} style={{cursor:"pointer",borderColor:`${C.border}`}} onClick={()=>setSel(r)}>
+            <div style={{display:"flex",alignItems:"flex-start",gap:10,marginBottom:10}}>
+              <div style={{width:44,height:44,borderRadius:"50%",background:`${C.gold}18`,border:`1px solid ${C.gold}33`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:15,fontWeight:700,color:C.gold,flexShrink:0}}>{inits(r.nom)}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:2,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.nom}</div>
+                <div style={{fontSize:10,color:C.muted}}>{r.pays} {r.ville}</div>
+                <Pill color={r.type==="Partenaire"?C.gold:r.type==="Membre Club"?C.blue:C.green}>{r.type}</Pill>
+              </div>
+            </div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:8,lineHeight:1.5}}>{r.bio.slice(0,80)}{r.bio.length>80?"...":""}</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <Pill color={C.purple}>{r.secteur}</Pill>
+              {r.ca>0&&<span style={{fontSize:10,color:C.green,fontWeight:700}}>{fmt(r.ca)}</span>}
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+              <Btn onClick={e=>{e.stopPropagation();setShowDeal(r);setOnglet("deals");}} style={{fontSize:10,padding:"6px 4px"}}>🤝 Deal</Btn>
+              <BtnGhost onClick={e=>{e.stopPropagation();showToast(`📱 WhatsApp ${r.nom}`);}} style={{fontSize:10,padding:"6px 4px"}}>📱 WA</BtnGhost>
+            </div>
+          </Card>)}
+        </div>
+      }
+    </>}
+
+    {/* ─── CARTE RÉSEAU ─────────────────────────────────────── */}
+    {onglet==="carte"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:16}}>
+        {statsCont.map((c,i)=>{const colors=[C.blue,C.gold,C.teal,C.green,C.purple];return <CT key={i} style={{cursor:"pointer",borderColor:`${colors[i%5]}44`}} onClick={()=>{setOnglet("annuaire");setFiltreCont(c.nom);}}>
+          <div style={{fontSize:9,color:colors[i%5],fontWeight:700,marginBottom:4,textTransform:"uppercase",letterSpacing:"0.1em"}}>{c.nom}</div>
+          <div style={{fontSize:22,fontWeight:700,color:colors[i%5]}}>{c.count}</div>
+          <div style={{fontSize:10,color:C.muted}}>contact{c.count>1?"s":""}</div>
+          <SM val={c.count} max={RESEAU_MONDIAL.length} color={colors[i%5]}/>
+        </CT>;})}
+      </div>
+      {/* Carte visuelle par continent */}
+      <Card>
+        <STitle>🌍 Répartition mondiale</STitle>
+        <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
+          {[["🌍 Afrique",["🇸🇳","🇲🇦","🇳🇬"],C.gold],["🌍 Europe",["🇫🇷","🇲🇨","🇨🇭","🇧🇪"],C.blue],["🌍 Moyen-Orient",["🇦🇪"],C.teal],["🌍 Amériques",["🇨🇦"],C.green],["🌍 Asie",["🇨🇳"],C.purple]].map(([zone,flags,color],i)=>{
+            const count=RESEAU_MONDIAL.filter(r=>r.pays&&flags.some(f=>r.pays.includes(f.replace(/[^a-zA-Z]/g,"").slice(0,2))||r.continent===zone.replace("🌍 ",""))).length;
+            const contacts=RESEAU_MONDIAL.filter(r=>r.continent===zone.replace("🌍 ",""));
+            return <div key={i} style={{background:`${color}08`,border:`1px solid ${color}22`,borderRadius:10,padding:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+                <div style={{fontSize:13,fontWeight:700,color}}>{zone} · {contacts.length} contact{contacts.length>1?"s":""}</div>
+                <BtnGhost onClick={()=>{setOnglet("annuaire");setFiltreCont(zone.replace("🌍 ",""));}} style={{fontSize:10,padding:"3px 10px"}}>Voir tous →</BtnGhost>
+              </div>
+              <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+                {contacts.map((c,j)=><div key={j} onClick={()=>{setSel(c);setOnglet("annuaire");}} style={{background:`${color}15`,border:`1px solid ${color}33`,borderRadius:8,padding:"6px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:6}}>
+                  <div style={{width:22,height:22,borderRadius:"50%",background:`${color}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color}}>{inits(c.nom)}</div>
+                  <div><div style={{fontSize:10,fontWeight:600,color:C.text}}>{c.nom.split(" ")[0]}</div><div style={{fontSize:9,color:C.muted}}>{c.pays} {c.ville}</div></div>
+                </div>)}
+              </div>
+            </div>;
+          })}
+        </div>
+        <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:8,padding:12}}>
+          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:4}}>🤖 IA — Opportunités géographiques</div>
+          <div style={{fontSize:11,color:C.text,lineHeight:1.7}}>Votre réseau est fort en Europe (10 contacts) et Afrique (4 contacts). Zone à développer : <b style={{color:C.gold}}>Amériques</b> — 1 seul contact au Canada. Recommandation : cibler des partenaires au Québec et aux États-Unis pour couvrir la diaspora africaine francophone.</div>
+        </div>
+      </Card>
+    </div>}
+
+    {/* ─── DEALS RÉSEAU ─────────────────────────────────────── */}
+    {onglet==="deals"&&<div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+        <div><div style={{fontSize:16,fontWeight:700,color:C.text}}>🤝 Deals du réseau</div><div style={{fontSize:11,color:C.muted}}>Proposez des collaborations directement depuis l'annuaire</div></div>
+        <Btn onClick={()=>setShowDeal({nom:"",email:""})}>+ Nouveau deal</Btn>
+      </div>
+
+      {showDeal&&<Card style={{marginBottom:16,borderColor:`${C.gold}44`}}>
+        <STitle>🤝 Proposer un deal — {showDeal.nom||"Contact libre"}</STitle>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {!showDeal.nom&&<Inp placeholder="Contact / entreprise" onChange={e=>setShowDeal(s=>({...s,nom:e.target.value}))}/>}
+          <Inp value={dealForm.service} onChange={e=>setDealForm(f=>({...f,service:e.target.value}))} placeholder="Service proposé (ex: Nettoyage jet privé, mise en relation...)"/>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <Inp value={dealForm.valeur} onChange={e=>setDealForm(f=>({...f,valeur:e.target.value}))} placeholder="Valeur estimée (€)"/>
+            <Sel style={{width:"100%"}}><option>Collaboration ponctuelle</option><option>Partenariat récurrent</option><option>Commission sur CA</option><option>Échange de services</option></Sel>
+          </div>
+          <Inp value={dealForm.detail} onChange={e=>setDealForm(f=>({...f,detail:e.target.value}))} placeholder="Détail de la proposition..."/>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={()=>{
+              const nd={id:"D00"+(deals.length+1),de:"Tymeless",pour:showDeal.nom,service:dealForm.service||"À préciser",valeur:Number(dealForm.valeur)||0,statut:"proposé",date:new Date().toLocaleDateString("fr")};
+              setDeals(d=>[nd,...d]);setShowDeal(null);setDealForm({service:"",valeur:"",detail:""});
+              showToast(`✅ Deal proposé à ${nd.pour} — Notification WhatsApp envoyée !`);
+            }}>✅ Envoyer la proposition</Btn>
+            <BtnGhost onClick={()=>setShowDeal(null)}>Annuler</BtnGhost>
+          </div>
+        </div>
+      </Card>}
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+        <KPI label="Deals en cours" val={deals.filter(d=>d.statut==="en cours").length} color={C.blue}/>
+        <KPI label="Deals validés" val={deals.filter(d=>d.statut==="validé").length} color={C.green}/>
+        <KPI label="Valeur totale" val={fmt(deals.reduce((a,d)=>a+d.valeur,0))} color={C.gold}/>
+      </div>
+
+      <Card>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Référence</TH><TH>Initiateur</TH><TH>Bénéficiaire</TH><TH>Service</TH><TH>Valeur</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+          <tbody>{deals.map((d,i)=><tr key={i}>
+            <Td style={{color:C.gold,fontSize:10,fontWeight:700}}>{d.id}</Td>
+            <Td style={{fontWeight:600}}>{d.de}</Td>
+            <Td style={{fontWeight:600}}>{d.pour}</Td>
+            <Td style={{fontSize:11,color:C.muted}}>{d.service}</Td>
+            <Td style={{color:C.green,fontWeight:700}}>{d.valeur>0?fmt(d.valeur):"À négocier"}</Td>
+            <Td><St s={d.statut}/></Td>
+            <Td><div style={{display:"flex",gap:4}}>
+              {d.statut==="proposé"&&<Btn onClick={()=>{setDeals(ds=>ds.map((x,j)=>j===i?{...x,statut:"en cours"}:x));showToast("✅ Deal accepté !");}} style={{fontSize:10,padding:"4px 8px",background:C.green}}>✅</Btn>}
+              {d.statut==="en cours"&&<Btn onClick={()=>{setDeals(ds=>ds.map((x,j)=>j===i?{...x,statut:"validé"}:x));showToast("🎉 Deal finalisé !");}} style={{fontSize:10,padding:"4px 8px"}}>Finaliser</Btn>}
+              <BtnGhost onClick={()=>showToast("💬 Chat deal ouvert")} style={{fontSize:10,padding:"4px 8px"}}>💬</BtnGhost>
+              <BtnGhost onClick={()=>showToast("📱 WhatsApp ouvert")} style={{fontSize:10,padding:"4px 8px"}}>WA</BtnGhost>
+            </div></Td>
+          </tr>)}</tbody>
+        </table>
+      </Card>
+    </div>}
+
+    {/* ─── MESSAGERIE ───────────────────────────────────────── */}
+    {onglet==="messagerie"&&<div style={{display:"grid",gridTemplateColumns:"280px 1fr",gap:12,height:500}}>
+      {/* Liste contacts */}
+      <Card style={{padding:0,overflow:"hidden"}}>
+        <div style={{padding:"12px 14px",borderBottom:`1px solid ${C.border}`,fontSize:11,fontWeight:700,color:C.muted}}>CONTACTS RÉSEAU</div>
+        <div style={{overflowY:"auto",height:"calc(100% - 44px)"}}>
+          {RESEAU_MONDIAL.slice(0,10).map((r,i)=>{
+            const msgNonLu=msgs.filter(m=>m.de===r.nom&&!m.lu).length;
+            return <div key={i} onClick={()=>{setMsgs(ms=>ms.map(m=>m.de===r.nom?{...m,lu:true}:m));setSel(r);}} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",cursor:"pointer",background:sel?.id===r.id?`${C.gold}0D`:"transparent",borderBottom:`1px solid ${C.border}22`}}>
+              <div style={{width:32,height:32,borderRadius:"50%",background:`${C.gold}22`,border:`1px solid ${C.gold}33`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:C.gold,flexShrink:0}}>{inits(r.nom)}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:11,fontWeight:msgNonLu>0?700:400,color:msgNonLu>0?C.text:C.muted,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{r.nom}</div>
+                <div style={{fontSize:9,color:C.muted}}>{r.pays} · {r.secteur}</div>
+              </div>
+              {msgNonLu>0&&<div style={{width:16,height:16,borderRadius:"50%",background:C.red,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:"#fff",flexShrink:0}}>{msgNonLu}</div>}
+            </div>;
+          })}
+        </div>
+      </Card>
+      {/* Zone de chat */}
+      <Card style={{padding:0,overflow:"hidden"}}>
+        {sel?<Chat
+          msgs={[...msgs.filter(m=>m.de===sel.nom).map(m=>({av:inits(m.de),msg:m.msg,h:m.h,moi:false})),]}
+          onSend={(msg)=>{setMsgs(ms=>[...ms,{de:"Tymeless",pour:sel.nom,msg,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),lu:true,moi:true}]);showToast(`✅ Message envoyé à ${sel.nom}`);}}
+          title={sel.nom}
+          subtitle={`${sel.pays} ${sel.ville} · ${sel.secteur}`}
+        />:<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",color:C.muted}}>
+          <div style={{fontSize:36,marginBottom:10}}>💬</div>
+          <div style={{fontSize:13}}>Sélectionne un contact pour envoyer un message</div>
+        </div>}
+      </Card>
+    </div>}
+
+    {/* ─── STATISTIQUES ─────────────────────────────────────── */}
+    {onglet==="stats"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+        <KPI label="Contacts total" val={RESEAU_MONDIAL.length} color={C.blue}/>
+        <KPI label="Pays représentés" val={[...new Set(RESEAU_MONDIAL.map(r=>r.pays))].length} color={C.gold}/>
+        <KPI label="CA généré réseau" val={fmt(RESEAU_MONDIAL.reduce((a,r)=>a+r.ca,0))} color={C.green}/>
+        <KPI label="Deals actifs" val={deals.length} color={C.teal}/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+        <Card>
+          <STitle>🌍 Contacts par continent</STitle>
+          {statsCont.map((c,i)=>{const colors=[C.blue,C.gold,C.teal,C.green,C.purple];return <div key={i} style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{c.nom}</span><span style={{color:colors[i%5],fontWeight:700}}>{c.count} contacts</span></div><SM val={c.count} max={RESEAU_MONDIAL.length} color={colors[i%5]}/></div>;})}
+        </Card>
+        <Card>
+          <STitle>🏢 Contacts par type</STitle>
+          {types.slice(1).map((t,i)=>{const count=RESEAU_MONDIAL.filter(r=>r.type===t).length;const colors=[C.gold,C.blue,C.green];return <div key={i} style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{t}</span><span style={{color:colors[i],fontWeight:700}}>{count}</span></div><SM val={count} max={RESEAU_MONDIAL.length} color={colors[i]}/></div>;})}
+        </Card>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <Card>
+          <STitle>💰 Top CA générés</STitle>
+          {RESEAU_MONDIAL.filter(r=>r.ca>0).sort((a,b)=>b.ca-a.ca).map((r,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{fontWeight:600}}>{r.nom}</span><span style={{color:C.green,fontWeight:700}}>{fmt(r.ca)}</span></div>)}
+        </Card>
+        <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
+          <STitle>🤖 IA — Recommandations réseau</STitle>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {[{txt:"Activez Shenzhen Trade Partners pour développer vos importations depuis la Chine. Potentiel : économiser 20-30% sur vos achats fournitures.",col:C.gold},{txt:"Jet Services Monaco + YachtCo Méditerranée = pack services ultra-premium. Proposez un deal croisé à vos clients VIP pour un panier moyen x3.",col:C.blue},{txt:"Votre réseau Afrique (Dakar, Lagos, Casablanca) est unique en France. C'est un avantage concurrentiel majeur. Développez-le en priorité.",col:C.green}].map((r,i)=><div key={i} style={{background:`${r.col}11`,border:`1px solid ${r.col}22`,borderRadius:7,padding:10,fontSize:11,color:C.text,lineHeight:1.6}}>{r.txt}</div>)}
           </div>
         </Card>
       </div>
+    </div>}
+  </div>;
+};
+// ─── PAGE WALLET MEMBRES ──────────────────────────────────────
+const PageWalletMembres=({plan,showToast})=>{
+  const[membres,setMembres]=useState(MEMBRES_WALLET);
+  if(!hasAccess(plan,"wallet_membres"))return <div style={{padding:20}}><UpgradeWall page="Wallets Membres" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◈ Wallets Membres</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Soldes · Abonnements · Renouvellements · Multi-devises</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+      <KPI label="Membres actifs" val={membres.length} color={C.blue}/>
+      <KPI label="Abonnements actifs" val={membres.length} color={C.gold}/>
+      <KPI label="Revenu abos/mois" val={fmt(membres.length*29)} color={C.green}/>
     </div>
-  );
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
+      {membres.map((m,i)=><Card key={i} style={{borderColor:`${C.gold}22`}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <div style={{width:36,height:36,borderRadius:"50%",background:`${C.gold}22`,border:`1px solid ${C.gold}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:C.gold}}>{inits(m.nom)}</div>
+          <div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:C.text}}>{m.nom}</div><div style={{fontSize:10,color:C.muted}}>{m.banque} · {m.pays}</div></div>
+          <St s={m.statut}/>
+        </div>
+        <div style={{background:C.card2,borderRadius:8,padding:10,marginBottom:10}}>
+          <div style={{fontSize:9,color:C.muted,marginBottom:3}}>SOLDE WALLET</div>
+          <div style={{fontSize:20,fontWeight:700,color:C.gold}}>{fmt(m.solde,m.devise)}</div>
+          <div style={{fontSize:9,color:C.muted,fontFamily:"'Courier New',monospace",marginTop:4}}>{m.iban}</div>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:8}}>
+          <span style={{color:C.muted}}>Plan : <b style={{color:m.type==="Enterprise"?C.purple:m.type==="Business Pro"?C.gold:C.blue}}>{m.type}</b></span>
+          <span style={{color:C.muted}}>Tx : <b style={{color:C.text}}>{m.transactions}</b></span>
+        </div>
+        <Btn onClick={()=>showToast(`💳 Carte virtuelle ${m.nom} créée !`)} style={{width:"100%",fontSize:11,background:m.carte?C.green+"22":"transparent",color:m.carte?C.green:C.muted,border:`1px solid ${m.carte?C.green:C.border}44`}}>{m.carte?"💳 Carte active":"+ Créer carte"}</Btn>
+      </Card>)}
+    </div>
+  </div>;
 };
 
-// NOTIFICATIONS
-const PageNotifications=()=>{
-  const [notifs,setNotifs]=useState(NOTIFS);
-  useEffect(()=>{supabase.from("notifications").select("*").order("created_at",{ascending:false}).limit(20).then(({data})=>{if(data)setNotifs(data);});},[]);
-  return(
-    <div>
-      <SectionTitle action={<Btn v="ghost" onClick={()=>setNotifs(p=>p.map(n=>({...n,lu:true})))}>✓ Tout marquer lu</Btn>}>🔔 Notifications</SectionTitle>
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {notifs.map((n,i)=>{
-          const tc={urgent:C.red,money:C.gold,good:C.green,info:C.blue};
-          return(
-            <div key={i} style={{background:n.lu?C.white:C.bg,border:`1px solid ${n.lu?C.border:tc[n.type]+"50"}`,borderRadius:14,padding:"14px 18px",display:"flex",gap:12,alignItems:"center",opacity:n.lu?0.65:1,boxShadow:n.lu?"none":"0 2px 12px rgba(15,23,42,0.06)"}}>
-              <span style={{fontSize:22,flexShrink:0}}>{n.icon}</span>
-              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:n.lu?400:600,color:C.dark}}>{n.titre}</div><div style={{fontSize:11,color:C.muted,marginTop:2}}>{n.h}</div></div>
-              {!n.lu&&<div style={{width:8,height:8,borderRadius:"50%",background:tc[n.type],flexShrink:0}}/>}
-              <Btn sm v="ghost" onClick={()=>setNotifs(p=>p.map(x=>x.id===n.id?{...x,lu:true}:x))}>Lu</Btn>
+// ─── PAGE EVENEMENTS ──────────────────────────────────────────
+const PageEvenements=({plan,showToast})=>{
+  const[evts,setEvts]=useState(EVENEMENTS);
+  if(!hasAccess(plan,"evenements"))return <div style={{padding:20}}><UpgradeWall page="Événements" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◆ Événements</div><div style={{fontSize:11,color:C.muted}}>Networking · Visio · QR Code · Inscriptions</div></div>
+      <Btn onClick={()=>showToast("✅ Événement créé !")}>+ Créer un événement</Btn>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:12}}>
+      {evts.map((e,i)=><Card key={i} style={{borderColor:e.statut==="complet"?`${C.red}44`:`${C.gold}22`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+          <Pill color={e.statut==="ouvert"?C.green:C.red}>{e.statut==="ouvert"?"🟢 Inscriptions ouvertes":"🔴 Complet"}</Pill>
+          <div style={{fontSize:12,color:C.gold,fontWeight:700}}>{e.prix}</div>
+        </div>
+        <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:4}}>{e.titre}</div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:2}}>📅 {e.date}</div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:12}}>📍 {e.lieu}</div>
+        <div style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:10,marginBottom:3}}><span style={{color:C.muted}}>Inscriptions</span><span style={{color:C.gold,fontWeight:700}}>{e.inscrits}/{e.max}</span></div><SM val={e.inscrits} max={e.max} color={e.inscrits===e.max?C.red:C.green}/></div>
+        <div style={{display:"flex",gap:8}}>
+          <Btn onClick={()=>showToast("📱 Lien QR Code copié !")} style={{flex:1,fontSize:11}}>📲 QR Code</Btn>
+          {e.statut==="ouvert"&&<BtnGhost onClick={()=>showToast("🎥 Visio Jitsi lancée !")} style={{flex:1,fontSize:11}}>🎥 Visio</BtnGhost>}
+        </div>
+      </Card>)}
+    </div>
+  </div>;
+};
+
+// ─── PAGE SCORING / NPS ───────────────────────────────────────
+const PageScoring=({plan,showToast})=>{
+  if(!hasAccess(plan,"scoring"))return <div style={{padding:20}}><UpgradeWall page="Réputation & NPS" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>★ Réputation & NPS</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Avis Google · Widget · IA · Rapport WhatsApp</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+      <KPI label="Note Google" val="★ 4.8" color={C.gold}/>
+      <KPI label="Nombre d'avis" val="23" color={C.blue}/>
+      <KPI label="NPS score" val="+72" color={C.green} sub="Excellent"/>
+      <KPI label="Taux réponse" val="91%" color={C.teal}/>
+    </div>
+    <Card>
+      <STitle>⭐ Derniers avis clients</STitle>
+      {AVIS.map((a,i)=><div key={i} style={{background:C.card2,borderRadius:10,padding:14,marginBottom:10,border:`1px solid ${C.border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+          <div style={{fontWeight:700,fontSize:12}}>{a.client}</div>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            {a.google&&<Pill color={C.blue}>Google</Pill>}
+            <div style={{color:C.gold}}>{"★".repeat(a.note)}</div>
+          </div>
+        </div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:4}}>{a.service}</div>
+        <div style={{fontSize:12,color:C.text,fontStyle:"italic",lineHeight:1.6}}>"{a.comm}"</div>
+        <div style={{marginTop:8,display:"flex",gap:8}}>
+          <Btn onClick={()=>showToast("✅ Réponse IA générée et publiée !")} style={{fontSize:10,padding:"4px 10px"}}>🤖 Répondre (IA)</Btn>
+          <BtnGhost onClick={()=>showToast("📱 Partagé sur WhatsApp !")} style={{fontSize:10,padding:"4px 8px"}}>📱 Partager</BtnGhost>
+        </div>
+      </div>)}
+    </Card>
+  </div>;
+};
+
+// ─── PAGE EQUIPE ──────────────────────────────────────────────
+const PageEquipe=({plan,showToast})=>{
+  const[equipe,setEquipe]=useState([
+    {id:1,nom:"Thomas Beaumont",prenom:"Thomas",role:"Responsable missions premium",statut:"En mission",localisation:"Airbnb Montmartre",pointage:"09:02",heures:6.5,conges:12,soldeConges:12,salaire:2800,perf:94,contrat:"CDI",email:"thomas@tymeless.io",tel:"+33 6 12 34 56 78",embauche:"01/03/2024",nss:"1 85 06 75 056 042 28",rib:"FR76 3000 4000 0100 0012 3456 789",adresse:"12 rue de la Paix, 75001 Paris",dateNaissance:"15/06/1985",couleur:"#4B7BFF",
+    missions:[{date:"15/04",service:"Nettoyage Airbnb Montmartre",client:"Isabelle Moreau",duree:"3h",note:5},{date:"14/04",service:"Nettoyage bureaux La Défense",client:"Marc Dupont",duree:"4h",note:5},{date:"12/04",service:"Rapatriement corps — Lefevre",client:"Pierre Lefevre",duree:"8h",note:5}],
+    evaluations:[{date:"01/04/2026",note:94,points:"Excellence technique, ponctualité parfaite, initiative",axes:"Développer compétences aviation privée",evaluateur:"Curtiss"},{date:"01/01/2026",note:88,points:"Très bonne maîtrise des protocoles premium",axes:"Communication client à perfectionner",evaluateur:"Curtiss"}],
+    formations:[{titre:"Protocole nettoyage jet privé",date:"15/03",statut:"complété",score:98},{titre:"Secourisme SST",date:"10/01",statut:"complété",score:95}],
+    documents:[{nom:"Carte d'identité",type:"ID",expire:"2030",statut:"valide"},{nom:"DPAE embauche",type:"RH",date:"01/03/2024",statut:"archivé"},{nom:"Contrat CDI",type:"Contrat",date:"01/03/2024",statut:"signé"}],
+    arrets:[],objectifs:[{obj:"Atteindre 50 missions/mois",actuel:38,cible:50,color:"#4B7BFF"},{obj:"Score client > 4.8",actuel:4.9,cible:4.8,color:"#2EC9B0"},{obj:"Zéro retard",actuel:0,cible:0,color:"#2EC9B0"}],
+    carriere:[{date:"01/03/2024",poste:"Technicien junior",salaire:2200},{date:"01/09/2024",poste:"Technicien senior",salaire:2500},{date:"01/03/2025",poste:"Responsable missions premium",salaire:2800}]},
+
+    {id:2,nom:"Abou Diallo",prenom:"Abou",role:"Technicien polyvalent",statut:"Disponible",localisation:"Paris 18e",pointage:"08:45",heures:5.2,conges:15,soldeConges:15,salaire:2200,perf:88,contrat:"CDD",email:"abou@tymeless.io",tel:"+33 6 98 76 54 32",embauche:"15/06/2024",nss:"1 92 03 75 115 224 55",rib:"FR76 1027 8060 0001 0234 5678 901",adresse:"45 avenue de Clichy, 75017 Paris",dateNaissance:"03/03/1992",couleur:"#9B5FFF",
+    missions:[{date:"15/04",service:"Nettoyage Airbnb Montmartre",client:"Isabelle Moreau",duree:"3h",note:5},{date:"13/04",service:"Entretien yacht",client:"Jet Services",duree:"5h",note:4}],
+    evaluations:[{date:"01/04/2026",note:88,points:"Polyvalence remarquable, bonne attitude",axes:"Améliorer vitesse d'exécution",evaluateur:"Curtiss"}],
+    formations:[{titre:"Nettoyage yacht — produits nacrés",date:"20/03",statut:"à faire",score:null},{titre:"Secourisme SST",date:"10/01",statut:"complété",score:90}],
+    documents:[{nom:"Titre de séjour",type:"ID",expire:"15/11/2026",statut:"valide"},{nom:"Contrat CDD",type:"Contrat",date:"15/06/2024",statut:"signé"}],
+    arrets:[{debut:"05/02/2026",fin:"08/02/2026",jours:3,motif:"Grippe",justif:"Arrêt médical fourni"}],
+    objectifs:[{obj:"30 missions/mois",actuel:22,cible:30,color:"#9B5FFF"},{obj:"Score client > 4.5",actuel:4.6,cible:4.5,color:"#2EC9B0"}],
+    carriere:[{date:"15/06/2024",poste:"Technicien junior",salaire:2000},{date:"01/01/2025",poste:"Technicien polyvalent",salaire:2200}]},
+
+    {id:3,nom:"Fatou Sarr",prenom:"Fatou",role:"Commercial & Relations clients",statut:"En RDV",localisation:"Client VIP 14h",pointage:"09:30",heures:4.8,conges:10,soldeConges:10,salaire:2400,perf:91,contrat:"CDI",email:"fatou@tymeless.io",tel:"+33 6 55 44 33 22",embauche:"01/09/2024",nss:"2 94 08 75 102 358 44",rib:"FR76 2004 1000 0101 0050 0678 912",adresse:"8 rue Victor Hugo, 75016 Paris",dateNaissance:"22/08/1994",couleur:"#FF5F9E",
+    missions:[{date:"17/04",service:"RDV client VIP Sofia Al-Rashid",client:"Sofia Al-Rashid",duree:"2h",note:5},{date:"14/04",service:"Prospection syndics 94",client:"—",duree:"4h",note:null}],
+    evaluations:[{date:"01/04/2026",note:91,points:"Excellente relation client, très bonne prospection",axes:"Développer compétences closing B2B",evaluateur:"Curtiss"}],
+    formations:[{titre:"Technique de vente B2B",date:"25/03",statut:"en cours",score:null},{titre:"Accueil client VIP",date:"15/02",statut:"complété",score:92}],
+    documents:[{nom:"Carte d'identité",type:"ID",expire:"2028",statut:"valide"},{nom:"Contrat CDI",type:"Contrat",date:"01/09/2024",statut:"signé"}],
+    arrets:[],
+    objectifs:[{obj:"20 nouveaux prospects/mois",actuel:17,cible:20,color:"#FF5F9E"},{obj:"CA apporté > 8 000€",actuel:6200,cible:8000,color:"#C9A84C"}],
+    carriere:[{date:"01/09/2024",poste:"Chargée de relations clients",salaire:2200},{date:"01/03/2025",poste:"Commercial & Relations clients",salaire:2400}]},
+  ]);
+
+  const[onglet,setOnglet]=useState("dashboard");
+  const[sel,setSel]=useState(null);
+  const[showAdd,setShowAdd]=useState(false);
+  const[addForm,setAddForm]=useState({nom:"",role:"",salaire:"",contrat:"CDI",email:"",tel:"",adresse:"",dateNaissance:""});
+  const[moisCal,setMoisCal]=useState(4);
+
+  const tabs=[
+    {id:"dashboard",label:"📊 Tableau de bord"},
+    {id:"equipe",label:"👥 Équipe"},
+    {id:"objectifs",label:"🎯 Objectifs & KPIs"},
+    {id:"pointage",label:"⏰ Pointage GPS"},
+    {id:"conges",label:"🏖 Congés"},
+    {id:"planning_cal",label:"📅 Calendrier congés"},
+    {id:"arrets",label:"🏥 Arrêts & Absences"},
+    {id:"paie",label:"💸 Paie & Charges"},
+    {id:"contrats",label:"📋 Contrats RH"},
+    {id:"documents",label:"🗂 Documents RH"},
+    {id:"entretiens",label:"💼 Entretiens & Évals"},
+    {id:"formations",label:"🎓 Formations"},
+    {id:"carriere",label:"📈 Évolution carrière"},
+    {id:"alertes",label:"🔔 Alertes RH"},
+    {id:"ia",label:"🤖 IA RH"},
+    {id:"juridique",label:"⚖ Juridique"},
+  ];
+
+  if(!hasAccess(plan,"equipe"))return <div style={{padding:20}}><UpgradeWall page="Équipe" plan={plan}/></div>;
+
+  const totalSalaire=equipe.reduce((a,e)=>a+e.salaire,0);
+  const totalArrets=equipe.reduce((a,e)=>a+e.arrets.length,0);
+  const perfMoy=Math.round(equipe.reduce((a,e)=>a+e.perf,0)/equipe.length);
+
+  return <div style={{padding:20}}>
+    {/* HEADER */}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+      <div>
+        <div style={{fontSize:18,fontWeight:700,color:"#EAE6DE",fontFamily:"Georgia,serif"}}>⊞ RH & Équipe</div>
+        <div style={{fontSize:11,color:"#5A5A7A"}}>Gestion complète des ressources humaines · {equipe.length} collaborateurs</div>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={()=>setShowAdd(s=>!s)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>+ Ajouter</button>
+        <button onClick={()=>showToast("📧 Rapport RH mensuel envoyé !")} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13,fontFamily:"inherit"}}>📊 Rapport RH</button>
+      </div>
+    </div>
+
+    {/* FORM ADD */}
+    {showAdd&&<div style={{background:"#0C0C1A",border:"1px solid #C9A84C44",borderRadius:12,padding:18,marginBottom:14}}>
+      <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:10,fontWeight:600}}>Nouveau collaborateur</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+        {[["Nom complet","nom"],["Poste / rôle","role"],["Email pro","email"],["Téléphone","tel"],["Date de naissance","dateNaissance"],["Adresse domicile","adresse"]].map(([ph,k])=><input key={k} value={addForm[k]} onChange={e=>setAddForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:"8px 12px",color:"#EAE6DE",fontSize:13,fontFamily:"inherit",outline:"none"}}/>)}
+        <input value={addForm.salaire} onChange={e=>setAddForm(f=>({...f,salaire:e.target.value}))} placeholder="Salaire net (€)" style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:"8px 12px",color:"#EAE6DE",fontSize:13,fontFamily:"inherit",outline:"none"}}/>
+        <select value={addForm.contrat} onChange={e=>setAddForm(f=>({...f,contrat:e.target.value}))} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 12px",color:"#EAE6DE",fontSize:12,fontFamily:"inherit"}}><option>CDI</option><option>CDD</option><option>Auto-entrepreneur</option><option>Intérim</option><option>Stage</option></select>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={()=>{
+          const colors=["#4B7BFF","#9B5FFF","#FF5F9E","#2EC9B0","#FF8C3A"];
+          const n={id:Date.now(),nom:addForm.nom,prenom:addForm.nom.split(" ")[0],role:addForm.role,statut:"Disponible",localisation:"—",pointage:"—",heures:0,conges:25,soldeConges:25,salaire:Number(addForm.salaire)||0,perf:0,contrat:addForm.contrat,email:addForm.email,tel:addForm.tel,embauche:new Date().toLocaleDateString("fr"),nss:"",rib:"",adresse:addForm.adresse,dateNaissance:addForm.dateNaissance,couleur:colors[equipe.length%colors.length],missions:[],evaluations:[],formations:[],documents:[],arrets:[],objectifs:[],carriere:[{date:new Date().toLocaleDateString("fr"),poste:addForm.role,salaire:Number(addForm.salaire)||0}]};
+          setEquipe(eq=>[...eq,n]);setShowAdd(false);setAddForm({nom:"",role:"",salaire:"",contrat:"CDI",email:"",tel:"",adresse:"",dateNaissance:""});
+          showToast(`✅ ${addForm.nom} ajouté à l'équipe !`);
+        }} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13,fontFamily:"inherit"}}>✅ Ajouter</button>
+        <button onClick={()=>setShowAdd(false)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>Annuler</button>
+      </div>
+    </div>}
+
+    {/* KPIs RAPIDES */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
+      {[["Effectif",equipe.length,"#4B7BFF"],["En mission",equipe.filter(e=>e.statut==="En mission").length,"#C9A84C"],["Masse salariale/mois","€"+totalSalaire.toLocaleString("fr"),"#FF5252"],["Perf. moyenne",perfMoy+"%","#2EC9B0"],["Arrêts ce mois",totalArrets,"#FF8C3A"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",border:`1px solid #1E1E36`,borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:c,fontFamily:"Georgia,serif"}}>{v}</div></div>)}
+    </div>
+
+    {/* TABS */}
+    <div style={{marginBottom:14,display:"flex",gap:4,background:"#121222",borderRadius:8,padding:4,flexWrap:"wrap"}}>
+      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?"#0C0C1A":"transparent",color:onglet===t.id?"#C9A84C":"#5A5A7A",border:onglet===t.id?"1px solid #1E1E36":"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
+    </div>
+
+    {/* ─── DASHBOARD ─────────────────────────────────────────── */}
+    {onglet==="dashboard"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+        <div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18}}>
+          <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:12,fontWeight:600}}>📊 Vue d'ensemble équipe</div>
+          {equipe.map((e,i)=>{const sc=e.statut==="En mission"?"#C9A84C":e.statut==="Disponible"?"#2EC9B0":"#4B7BFF";return <div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:"1px solid #1E1E3622"}}>
+            <div style={{width:36,height:36,borderRadius:"50%",background:e.couleur+"22",border:`2px solid ${e.couleur}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:e.couleur,flexShrink:0}}>{e.nom[0]}</div>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,fontWeight:700,color:"#EAE6DE"}}>{e.nom}</div>
+              <div style={{fontSize:9,color:"#5A5A7A"}}>{e.role}</div>
+              <div style={{marginTop:4,height:3,borderRadius:2,background:"#1E1E36",overflow:"hidden"}}><div style={{height:"100%",width:e.perf+"%",background:e.perf>=90?"#2EC9B0":e.perf>=70?"#C9A84C":"#FF8C3A",borderRadius:2}}/></div>
             </div>
-          );
+            <div style={{textAlign:"right"}}>
+              <div style={{fontSize:11,fontWeight:700,color:e.perf>=90?"#2EC9B0":"#C9A84C"}}>{e.perf}%</div>
+              <div style={{fontSize:9,padding:"1px 6px",background:sc+"22",color:sc,borderRadius:10,marginTop:2,fontWeight:600}}>{e.statut}</div>
+            </div>
+          </div>;})}
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16}}>
+            <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:10,fontWeight:600}}>💸 Répartition masse salariale</div>
+            {equipe.map((e,i)=><div key={i} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{e.prenom}</span><span style={{color:e.couleur,fontWeight:700}}>{e.salaire.toLocaleString("fr")}€</span></div><div style={{height:4,borderRadius:2,background:"#1E1E36"}}><div style={{height:"100%",width:(e.salaire/totalSalaire*100)+"%",background:e.couleur,borderRadius:2}}/></div></div>)}
+            <div style={{marginTop:8,fontSize:11,color:"#C9A84C",fontWeight:700,textAlign:"right"}}>Total : {totalSalaire.toLocaleString("fr")} € net · {Math.round(totalSalaire*1.43).toLocaleString("fr")} € brut</div>
+          </div>
+          <div style={{background:"#FF525211",border:"1px solid #FF525233",borderRadius:10,padding:14}}>
+            <div style={{fontSize:10,color:"#FF5252",fontWeight:600,marginBottom:8}}>🔔 Alertes RH du jour</div>
+            {[["⚠️","CDD Abou expire dans 2 mois","Décision CDI requise"],["📅","Visite médicale Thomas","Avant le 30/04/2026"],["📋","Entretien pro Fatou","À planifier avant sept."]].map(([ic,t,d],i)=><div key={i} style={{display:"flex",gap:8,padding:"5px 0",borderBottom:"1px solid #FF525222",fontSize:11}}><span>{ic}</span><div><div style={{color:"#EAE6DE",fontWeight:600}}>{t}</div><div style={{color:"#5A5A7A",fontSize:10}}>{d}</div></div></div>)}
+          </div>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        {[["🎯 Objectifs atteints","8/12","#2EC9B0"],["🎓 Formations complètes","3/5","#4B7BFF"],["📅 Jours de congés pris","12/52","#C9A84C"]].map(([l,v,c],i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:10,padding:14,textAlign:"center"}}><div style={{fontSize:11,color:"#5A5A7A",marginBottom:4}}>{l}</div><div style={{fontSize:22,fontWeight:700,color:c}}>{v}</div></div>)}
+      </div>
+    </div>}
+
+    {/* ─── EQUIPE ────────────────────────────────────────────── */}
+    {onglet==="equipe"&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(320px,1fr))",gap:12}}>
+      {equipe.map((e,i)=>{const sc=e.statut==="En mission"?"#C9A84C":e.statut==="Disponible"?"#2EC9B0":"#4B7BFF";return <div key={i} style={{background:"#0C0C1A",border:`1px solid ${sc}33`,borderRadius:12,padding:18,cursor:"pointer"}} onClick={()=>setSel(sel?.id===e.id?null:e)}>
+        {/* Avatar + infos */}
+        <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+          <div style={{width:52,height:52,borderRadius:"50%",background:e.couleur+"22",border:`2px solid ${e.couleur}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:700,color:e.couleur,flexShrink:0,position:"relative"}}>
+            {e.nom[0]}
+            <div style={{position:"absolute",bottom:0,right:0,width:14,height:14,borderRadius:"50%",background:sc,border:"2px solid #0C0C1A"}}/>
+          </div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:14,fontWeight:700,color:"#EAE6DE"}}>{e.nom}</div>
+            <div style={{fontSize:10,color:"#5A5A7A"}}>{e.role}</div>
+            <div style={{fontSize:9,color:"#5A5A7A"}}>📅 Depuis {e.embauche} · <span style={{color:e.contrat==="CDI"?"#2EC9B0":"#4B7BFF",fontWeight:600}}>{e.contrat}</span></div>
+          </div>
+          <div style={{textAlign:"right"}}><div style={{fontSize:9,padding:"2px 8px",background:sc+"22",color:sc,borderRadius:10,fontWeight:600,border:`1px solid ${sc}44`}}>{e.statut}</div></div>
+        </div>
+        {/* Métriques */}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:6,marginBottom:10}}>
+          {[["Heures/j",e.heures+"h","#4B7BFF"],["Congés",e.soldeConges+"j","#C9A84C"],["Perf",e.perf+"%","#2EC9B0"],["Salaire",e.salaire.toLocaleString("fr")+"€","#C9A84C"]].map(([l,v,c],j)=><div key={j} style={{background:"#121222",borderRadius:6,padding:"6px 4px",textAlign:"center"}}><div style={{fontSize:8,color:"#5A5A7A",marginBottom:2}}>{l}</div><div style={{fontSize:11,fontWeight:700,color:c}}>{v}</div></div>)}
+        </div>
+        <div style={{height:3,borderRadius:2,background:"#1E1E36",marginBottom:10}}><div style={{height:"100%",width:e.perf+"%",background:e.perf>=90?"#2EC9B0":e.perf>=70?"#C9A84C":"#FF8C3A",borderRadius:2}}/></div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:5}}>
+          {[["💸 Paie",()=>showToast(`✅ Fiche paie ${e.nom} générée`)],["📍 GPS",()=>showToast("📍 GPS ouvert")],["💬 Chat",()=>showToast(`💬 Chat ${e.nom}`)],["📋 Fiche",()=>setSel(sel?.id===e.id?null:e)]].map(([l,fn],j)=><button key={j} onClick={ev=>{ev.stopPropagation();fn();}} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 2px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>{l}</button>)}
+        </div>
+        {/* FICHE COMPLÈTE */}
+        {sel?.id===e.id&&<div style={{marginTop:12,borderTop:"1px solid #1E1E3644",paddingTop:12}}>
+          <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:8,fontWeight:600}}>INFORMATIONS COMPLÈTES</div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:4,marginBottom:10}}>
+            {[["📧 Email",e.email],["📱 Tél.",e.tel],["🏠 Adresse",e.adresse],["🎂 Naissance",e.dateNaissance],["🔒 N° SS",e.nss||"Non renseigné"],["🏦 RIB",e.rib||"Non renseigné"]].map(([k,v],j)=><div key={j} style={{background:"#121222",borderRadius:6,padding:"6px 8px"}}><div style={{fontSize:8,color:"#5A5A7A",marginBottom:1}}>{k}</div><div style={{fontSize:10,color:"#EAE6DE",fontWeight:600,wordBreak:"break-all"}}>{v}</div></div>)}
+          </div>
+          <div style={{fontSize:9,color:"#5A5A7A",marginBottom:4}}>Documents personnels</div>
+          {e.documents.map((d,j)=><div key={j} style={{display:"flex",justifyContent:"space-between",fontSize:10,padding:"3px 0",borderBottom:"1px solid #1E1E3622"}}><span>{d.nom}</span><span style={{color:d.statut==="valide"?"#2EC9B0":d.statut==="signé"?"#4B7BFF":"#5A5A7A"}}>{d.statut}{d.expire?" · expire "+d.expire:""}</span></div>)}
+        </div>}
+      </div>;})}
+    </div>}
+
+    {/* ─── OBJECTIFS & KPIs ──────────────────────────────────── */}
+    {onglet==="objectifs"&&<div>
+      {equipe.map((e,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18,marginBottom:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
+          <div style={{width:36,height:36,borderRadius:"50%",background:e.couleur+"22",border:`2px solid ${e.couleur}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:e.couleur}}>{e.nom[0]}</div>
+          <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{e.nom}</div><div style={{fontSize:10,color:"#5A5A7A"}}>{e.role}</div></div>
+          <div style={{fontSize:20,fontWeight:700,color:e.perf>=90?"#2EC9B0":"#C9A84C"}}>{e.perf}%</div>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {e.objectifs.length>0?e.objectifs.map((obj,j)=>{
+            const pct=typeof obj.actuel==="number"&&typeof obj.cible==="number"?Math.min(100,Math.round((obj.actuel/obj.cible)*100)):100;
+            const atteint=typeof obj.actuel==="number"?obj.actuel>=obj.cible:true;
+            return <div key={j} style={{background:"#121222",borderRadius:8,padding:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+                <div style={{fontSize:11,fontWeight:600}}>{obj.obj}</div>
+                <div style={{fontSize:11,color:atteint?"#2EC9B0":"#C9A84C",fontWeight:700}}>{atteint?"✅ Atteint":"🎯 En cours"}</div>
+              </div>
+              <div style={{display:"flex",alignItems:"center",gap:8}}>
+                <div style={{flex:1,height:6,borderRadius:3,background:"#1E1E36"}}><div style={{height:"100%",width:pct+"%",background:obj.color,borderRadius:3,transition:"width .3s"}}/></div>
+                <div style={{fontSize:10,color:"#5A5A7A",whiteSpace:"nowrap"}}>{typeof obj.actuel==="number"?obj.actuel+" / "+obj.cible:obj.actuel}</div>
+              </div>
+            </div>;
+          }):<div style={{fontSize:11,color:"#5A5A7A",textAlign:"center",padding:12}}>Aucun objectif défini</div>}
+        </div>
+        <button onClick={()=>showToast(`✅ Objectif ajouté pour ${e.nom}`)} style={{marginTop:10,background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Ajouter un objectif</button>
+      </div>)}
+    </div>}
+
+    {/* ─── POINTAGE ──────────────────────────────────────────── */}
+    {onglet==="pointage"&&<div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+        {[["Présents",equipe.length,"#2EC9B0"],["Heures totales",equipe.reduce((a,e)=>a+e.heures,0).toFixed(1)+"h","#4B7BFF"],["Retards","0","#C9A84C"],["Absents","0","#FF5252"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",borderRadius:8,padding:12,textAlign:"center"}}><div style={{fontSize:9,color:"#5A5A7A",marginBottom:4}}>{l}</div><div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div></div>)}
+      </div>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr>{["Collaborateur","Pointage arrivée","Localisation GPS","Heures/j","Mission en cours","Actions"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
+        <tbody>{equipe.map((e,i)=>{const sc=e.statut==="En mission"?"#C9A84C":e.statut==="Disponible"?"#2EC9B0":"#4B7BFF";return <tr key={i}>
+          <td style={{padding:"10px 10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <div style={{width:28,height:28,borderRadius:"50%",background:e.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:e.couleur}}>{e.nom[0]}</div>
+              <span style={{fontWeight:600}}>{e.nom}</span>
+            </div>
+          </td>
+          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#2ECDC4",fontWeight:700}}>{e.pointage!=="—"?`✅ ${e.pointage}`:"⏳ En attente"}</td>
+          <td style={{padding:"10px",fontSize:11,borderBottom:"1px solid #1E1E3622",color:"#5A5A7A"}}>📍 {e.localisation}</td>
+          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#4B7BFF",fontWeight:700}}>{e.heures}h</td>
+          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}><span style={{background:sc+"22",color:sc,padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>{e.statut}</span></td>
+          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}>
+            <div style={{display:"flex",gap:4}}>
+              <button onClick={()=>showToast(`📍 ${e.nom} — GPS : ${e.localisation}`)} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>📍 GPS</button>
+              <button onClick={()=>{setEquipe(eq=>eq.map((x,j)=>j===i?{...x,pointage:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"})}:x));showToast(`✅ Pointage ${e.nom} enregistré`);}} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>⏰ Pointer</button>
+            </div>
+          </td>
+        </tr>;})}
+        </tbody>
+      </table>
+    </div>}
+
+    {/* ─── CONGES ────────────────────────────────────────────── */}
+    {onglet==="conges"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+        {[["Congés acquis total",equipe.reduce((a,e)=>a+e.conges,0)+"j","#blue"],["Solde restant",equipe.reduce((a,e)=>a+e.soldeConges,0)+"j","#2EC9B0"],["Pris ce mois","4j","#C9A84C"],["Demandes en attente","2","#FF8C3A"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:c||"#4B7BFF"}}>{v}</div></div>)}
+      </div>
+      <div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18,marginBottom:12}}>
+        <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:10,fontWeight:600}}>Soldes par collaborateur</div>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr>{["Collaborateur","Acquis","Pris","Restant","RTT","Actions"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
+          <tbody>{equipe.map((e,i)=><tr key={i}>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:600}}>{e.nom}</td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#4B7BFF",fontWeight:700}}>{e.conges}j</td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#5A5A7A"}}>{e.conges-e.soldeConges}j</td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:e.soldeConges>5?"#2EC9B0":"#FF8C3A",fontWeight:700}}>{e.soldeConges}j</td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#C9A84C"}}>5j</td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}>
+              <div style={{display:"flex",gap:4}}>
+                <button onClick={()=>{setEquipe(eq=>eq.map((x,j)=>j===i?{...x,soldeConges:Math.max(0,x.soldeConges-1)}:x));showToast(`✅ 1 congé approuvé — ${e.nom}`);}} style={{background:"#2EC9B0",color:"#000",border:"none",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>✅ Approuver</button>
+                <button onClick={()=>showToast("❌ Congé refusé")} style={{background:"transparent",color:"#FF5252",border:"1px solid #FF525233",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>❌ Refuser</button>
+              </div>
+            </td>
+          </tr>)}</tbody>
+        </table>
+      </div>
+      <div style={{background:"#FF8C3A11",border:"1px solid #FF8C3A33",borderRadius:10,padding:14}}>
+        <div style={{fontSize:10,color:"#FF8C3A",fontWeight:600,marginBottom:8}}>📋 Demandes en attente</div>
+        {[{nom:"Thomas Beaumont",dates:"20-22 mai 2026",jours:3,type:"Congés payés"},{nom:"Abou Diallo",dates:"27 mai 2026",jours:1,type:"Congés payés"}].map((d,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #FF8C3A22",fontSize:12}}>
+          <div><span style={{fontWeight:600}}>{d.nom}</span> — {d.dates} ({d.jours}j · {d.type})</div>
+          <div style={{display:"flex",gap:6}}>
+            <button onClick={()=>showToast(`✅ ${d.nom} — congé approuvé !`)} style={{background:"#2EC9B0",color:"#000",border:"none",borderRadius:5,padding:"3px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>Approuver</button>
+            <button onClick={()=>showToast("❌ Refusé")} style={{background:"transparent",color:"#FF5252",border:"1px solid #FF525233",borderRadius:5,padding:"3px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>Refuser</button>
+          </div>
+        </div>)}
+      </div>
+    </div>}
+
+    {/* ─── PLANNING CALENDRIER ───────────────────────────────── */}
+    {onglet==="planning_cal"&&<div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontSize:13,fontWeight:700}}>📅 Calendrier des congés — {["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"][moisCal-1]} 2026</div>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={()=>setMoisCal(m=>Math.max(1,m-1))} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontFamily:"inherit"}}>← Préc.</button>
+          <button onClick={()=>setMoisCal(m=>Math.min(12,m+1))} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontFamily:"inherit"}}>Suiv. →</button>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:8}}>
+        {["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map(j=><div key={j} style={{textAlign:"center",fontSize:9,color:"#5A5A7A",fontWeight:600,padding:"4px 0"}}>{j}</div>)}
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
+        {Array.from({length:30},(_, i)=>{
+          const jour=i+1;
+          const congeThomas=moisCal===5&&jour>=20&&jour<=22;
+          const congeAbou=moisCal===5&&jour===27;
+          const weekend=(i+3)%7>=5;
+          return <div key={i} style={{background:weekend?"#121222":congeThomas?equipe[0].couleur+"33":congeAbou?equipe[1].couleur+"33":"#121222",border:`1px solid ${congeThomas?equipe[0].couleur+"55":congeAbou?equipe[1].couleur+"55":"#1E1E36"}`,borderRadius:4,padding:"6px 4px",textAlign:"center",minHeight:42}}>
+            <div style={{fontSize:11,color:weekend?"#1E1E36":"#EAE6DE",fontWeight:600}}>{jour}</div>
+            {congeThomas&&<div style={{fontSize:8,color:equipe[0].couleur,marginTop:2}}>Thomas</div>}
+            {congeAbou&&<div style={{fontSize:8,color:equipe[1].couleur,marginTop:2}}>Abou</div>}
+          </div>;
         })}
       </div>
+      <div style={{display:"flex",gap:12,marginTop:12,flexWrap:"wrap"}}>
+        {equipe.map((e,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:4,fontSize:10,color:"#5A5A7A"}}><div style={{width:10,height:10,borderRadius:2,background:e.couleur}}/>{e.prenom}</div>)}
+        <div style={{display:"flex",alignItems:"center",gap:4,fontSize:10,color:"#5A5A7A"}}><div style={{width:10,height:10,borderRadius:2,background:"#121222",border:"1px solid #1E1E36"}}/> Weekend</div>
+      </div>
+    </div>}
+
+    {/* ─── ARRETS MALADIE ────────────────────────────────────── */}
+    {onglet==="arrets"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+        {[["Arrêts ce mois",totalArrets,"#FF5252"],["Jours perdus",equipe.reduce((a,e)=>a+e.arrets.reduce((b,ar)=>b+ar.jours,0),0)+"j","#FF8C3A"],["Taux absentéisme","2.4%","#C9A84C"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:c}}>{v}</div></div>)}
+      </div>
+      {equipe.map((e,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16,marginBottom:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <div style={{width:32,height:32,borderRadius:"50%",background:e.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:e.couleur}}>{e.nom[0]}</div>
+          <div style={{flex:1,fontSize:13,fontWeight:700}}>{e.nom}</div>
+          <span style={{fontSize:11,color:e.arrets.length>0?"#FF5252":"#2EC9B0"}}>{e.arrets.length>0?e.arrets.length+" arrêt(s)":"✅ Aucun arrêt"}</span>
+        </div>
+        {e.arrets.length>0?<table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr>{["Début","Fin","Jours","Motif","Justificatif"].map(h=><th key={h} style={{textAlign:"left",padding:"6px 8px",fontSize:9,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
+          <tbody>{e.arrets.map((ar,j)=><tr key={j}><td style={{padding:"7px 8px",fontSize:11,borderBottom:"1px solid #1E1E3622",color:"#FF5252"}}>{ar.debut}</td><td style={{padding:"7px 8px",fontSize:11,borderBottom:"1px solid #1E1E3622"}}>{ar.fin}</td><td style={{padding:"7px 8px",fontSize:11,borderBottom:"1px solid #1E1E3622",fontWeight:700}}>{ar.jours}j</td><td style={{padding:"7px 8px",fontSize:11,borderBottom:"1px solid #1E1E3622"}}>{ar.motif}</td><td style={{padding:"7px 8px",fontSize:11,borderBottom:"1px solid #1E1E3622",color:"#2EC9B0"}}>{ar.justif}</td></tr>)}</tbody>
+        </table>:<div style={{fontSize:11,color:"#5A5A7A",padding:"8px 0"}}>Aucun arrêt maladie enregistré</div>}
+        <button onClick={()=>{const ar={debut:new Date().toLocaleDateString("fr"),fin:"—",jours:1,motif:"À préciser",justif:"En attente"};setEquipe(eq=>eq.map((x,j)=>j===i?{...x,arrets:[...x.arrets,ar]}:x));showToast(`✅ Arrêt enregistré pour ${e.nom}`);}} style={{marginTop:10,background:"transparent",color:"#FF5252",border:"1px solid #FF525233",borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Déclarer un arrêt</button>
+      </div>)}
+    </div>}
+
+    {/* ─── PAIE ──────────────────────────────────────────────── */}
+    {onglet==="paie"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+        {[["Masse nette/mois","€"+totalSalaire.toLocaleString("fr"),"#FF5252"],["Charges patronales (~43%)","€"+Math.round(totalSalaire*0.43).toLocaleString("fr"),"#FF8C3A"],["Coût total employeur","€"+Math.round(totalSalaire*1.43).toLocaleString("fr"),"#C9A84C"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:c}}>{v}</div></div>)}
+      </div>
+      <div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18,marginBottom:12}}>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr>{["Collaborateur","Contrat","Salaire net","Charges soc.","Coût total","Statut","Actions"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
+          <tbody>{equipe.map((e,i)=><tr key={i}>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:600}}>{e.nom}</td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}><span style={{background:(e.contrat==="CDI"?"#2EC9B0":"#4B7BFF")+"22",color:e.contrat==="CDI"?"#2EC9B0":"#4B7BFF",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>{e.contrat}</span></td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:700}}>{e.salaire.toLocaleString("fr")} €</td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#FF8C3A"}}>{Math.round(e.salaire*0.43).toLocaleString("fr")} €</td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#FF5252",fontWeight:700}}>{Math.round(e.salaire*1.43).toLocaleString("fr")} €</td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}><span style={{background:"#2EC9B022",color:"#2EC9B0",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>✓ À jour</span></td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}>
+              <div style={{display:"flex",gap:4}}>
+                <button onClick={()=>showToast(`✅ Fiche de paie ${e.nom} générée !`)} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>💸 Fiche</button>
+                <button onClick={()=>showToast(`📧 Bulletin envoyé à ${e.email}`)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>📧</button>
+              </div>
+            </td>
+          </tr>)}</tbody>
+        </table>
+      </div>
+      <button onClick={()=>showToast("✅ Toutes les fiches de paie générées et envoyées !")} style={{width:"100%",background:"#C9A84C",color:"#000",border:"none",borderRadius:8,padding:"10px 16px",cursor:"pointer",fontWeight:600,fontSize:13,fontFamily:"inherit"}}>💸 Générer & Envoyer toutes les fiches de paie — Avril 2026</button>
+    </div>}
+
+    {/* ─── CONTRATS ──────────────────────────────────────────── */}
+    {onglet==="contrats"&&<div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",fontWeight:600}}>📋 Contrats de travail</div>
+        <button onClick={()=>showToast("🤖 Contrat IA généré !")} style={{background:"#9B5FFF",color:"#fff",border:"none",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>🤖 Générer (IA)</button>
+      </div>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr>{["Collaborateur","Type","Embauche","Fin prévue","Poste","Salaire","Statut","Actions"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
+        <tbody>{equipe.map((e,i)=><tr key={i}>
+          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:600}}>{e.nom}</td>
+          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}><span style={{background:(e.contrat==="CDI"?"#2EC9B0":"#4B7BFF")+"22",color:e.contrat==="CDI"?"#2EC9B0":"#4B7BFF",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>{e.contrat}</span></td>
+          <td style={{padding:"10px",fontSize:10,borderBottom:"1px solid #1E1E3622",color:"#5A5A7A"}}>{e.embauche}</td>
+          <td style={{padding:"10px",fontSize:10,borderBottom:"1px solid #1E1E3622",color:e.contrat==="CDD"?"#FF8C3A":"#5A5A7A"}}>{e.contrat==="CDD"?"15/09/2025":"Indéterminée"}</td>
+          <td style={{padding:"10px",fontSize:11,borderBottom:"1px solid #1E1E3622",color:"#5A5A7A"}}>{e.role}</td>
+          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#C9A84C",fontWeight:700}}>{e.salaire.toLocaleString("fr")} €</td>
+          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}><span style={{background:"#2EC9B022",color:"#2EC9B0",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>✓ Signé</span></td>
+          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}>
+            <div style={{display:"flex",gap:4}}>
+              <button onClick={()=>showToast(`📄 Contrat ${e.nom} PDF`)} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>📄 PDF</button>
+              <button onClick={()=>showToast(`📱 Envoyé à ${e.nom}`)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>WA</button>
+            </div>
+          </td>
+        </tr>)}</tbody>
+      </table>
+    </div>}
+
+    {/* ─── DOCUMENTS RH ──────────────────────────────────────── */}
+    {onglet==="documents"&&<div>
+      {equipe.map((e,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16,marginBottom:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <div style={{width:32,height:32,borderRadius:"50%",background:e.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:e.couleur}}>{e.nom[0]}</div>
+          <div style={{flex:1,fontSize:13,fontWeight:700}}>{e.nom}</div>
+          <button onClick={()=>showToast(`📤 Document ajouté pour ${e.nom}`)} style={{background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>+ Ajouter document</button>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:8}}>
+          {e.documents.map((d,j)=><div key={j} style={{background:"#121222",borderRadius:8,padding:10,border:"1px solid #1E1E36"}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+              <span style={{fontSize:11,fontWeight:600}}>{d.nom}</span>
+              <span style={{fontSize:9,background:(d.statut==="valide"||d.statut==="signé")?"#2EC9B022":"#FF525222",color:(d.statut==="valide"||d.statut==="signé")?"#2EC9B0":"#FF5252",padding:"1px 5px",borderRadius:8,fontWeight:600}}>{d.statut}</span>
+            </div>
+            <div style={{fontSize:9,color:"#5A5A7A",marginBottom:6}}>{d.type}{d.expire?" · Expire : "+d.expire:""}{d.date?" · "+d.date:""}</div>
+            <div style={{display:"flex",gap:4}}>
+              <button onClick={()=>showToast(`📄 ${d.nom} téléchargé`)} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:4,padding:"3px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>📥 Voir</button>
+              <button onClick={()=>showToast(`📧 Envoyé à ${e.nom}`)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:4,padding:"3px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>📧</button>
+            </div>
+          </div>)}
+        </div>
+      </div>)}
+    </div>}
+
+    {/* ─── ENTRETIENS ────────────────────────────────────────── */}
+    {onglet==="entretiens"&&<div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",fontWeight:600}}>💼 Entretiens & Évaluations</div>
+        <button onClick={()=>showToast("✅ Entretien planifié et notification envoyée !")} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:6,padding:"7px 14px",cursor:"pointer",fontWeight:600,fontSize:12,fontFamily:"inherit"}}>+ Planifier un entretien</button>
+      </div>
+      {equipe.map((e,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16,marginBottom:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <div style={{width:36,height:36,borderRadius:"50%",background:e.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:e.couleur}}>{e.nom[0]}</div>
+          <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{e.nom}</div><div style={{fontSize:10,color:"#5A5A7A"}}>{e.evaluations.length} évaluation(s)</div></div>
+          <div style={{fontSize:18,fontWeight:700,color:e.perf>=90?"#2EC9B0":"#C9A84C"}}>{e.perf}%</div>
+        </div>
+        {e.evaluations.map((ev,j)=><div key={j} style={{background:"#121222",borderRadius:8,padding:12,marginBottom:8,border:"1px solid #1E1E36"}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+            <div style={{fontSize:11,fontWeight:600}}>Évaluation du {ev.date}</div>
+            <div style={{fontSize:16,fontWeight:700,color:ev.note>=90?"#2EC9B0":"#C9A84C"}}>{ev.note}/100</div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,fontSize:11}}>
+            <div style={{background:"#2EC9B011",borderRadius:6,padding:8}}><div style={{fontSize:9,color:"#2EC9B0",fontWeight:600,marginBottom:3}}>✅ POINTS FORTS</div><div style={{color:"#EAE6DE"}}>{ev.points}</div></div>
+            <div style={{background:"#FF8C3A11",borderRadius:6,padding:8}}><div style={{fontSize:9,color:"#FF8C3A",fontWeight:600,marginBottom:3}}>📈 AXES D'AMÉLIORATION</div><div style={{color:"#EAE6DE"}}>{ev.axes}</div></div>
+          </div>
+          <div style={{fontSize:10,color:"#5A5A7A",marginTop:6}}>Évaluateur : {ev.evaluateur}</div>
+        </div>)}
+        <button onClick={()=>showToast(`✅ Nouvelle évaluation créée pour ${e.nom}`)} style={{background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Nouvelle évaluation</button>
+      </div>)}
+    </div>}
+
+    {/* ─── FORMATIONS ────────────────────────────────────────── */}
+    {onglet==="formations"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+        {[["Formations complètes",equipe.reduce((a,e)=>a+e.formations.filter(f=>f.statut==="complété").length,0),"#2EC9B0"],["En cours",equipe.reduce((a,e)=>a+e.formations.filter(f=>f.statut==="en cours").length,0),"#4B7BFF"],["À faire",equipe.reduce((a,e)=>a+e.formations.filter(f=>f.statut==="à faire").length,0),"#FF8C3A"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:22,fontWeight:700,color:c}}>{v}</div></div>)}
+      </div>
+      {equipe.map((e,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16,marginBottom:10}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <div style={{width:32,height:32,borderRadius:"50%",background:e.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:e.couleur}}>{e.nom[0]}</div>
+          <div style={{flex:1,fontSize:13,fontWeight:700}}>{e.nom}</div>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {e.formations.map((f,j)=><div key={j} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#121222",borderRadius:7,padding:"8px 12px",border:"1px solid #1E1E36"}}>
+            <div><div style={{fontSize:11,fontWeight:600}}>{f.titre}</div><div style={{fontSize:9,color:"#5A5A7A"}}>{f.date}</div></div>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              {f.score&&<span style={{fontSize:11,fontWeight:700,color:"#2EC9B0"}}>{f.score}%</span>}
+              <span style={{fontSize:10,background:f.statut==="complété"?"#2EC9B022":f.statut==="en cours"?"#4B7BFF22":"#FF8C3A22",color:f.statut==="complété"?"#2EC9B0":f.statut==="en cours"?"#4B7BFF":"#FF8C3A",padding:"2px 8px",borderRadius:10,fontWeight:600}}>{f.statut}</span>
+              <button onClick={()=>showToast(`▶ Formation "${f.titre}" lancée`)} style={{background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:4,padding:"3px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>{f.statut==="complété"?"↺ Refaire":"▶ Lancer"}</button>
+            </div>
+          </div>)}
+        </div>
+        <button onClick={()=>showToast(`✅ Formation ajoutée pour ${e.nom}`)} style={{marginTop:10,background:"transparent",color:"#4B7BFF",border:"1px solid #4B7BFF33",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Assigner une formation</button>
+      </div>)}
+    </div>}
+
+    {/* ─── EVOLUTION CARRIERE ─────────────────────────────────── */}
+    {onglet==="carriere"&&<div>
+      {equipe.map((e,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18,marginBottom:12}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:16}}>
+          <div style={{width:40,height:40,borderRadius:"50%",background:e.couleur+"22",border:`2px solid ${e.couleur}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:e.couleur}}>{e.nom[0]}</div>
+          <div style={{flex:1}}><div style={{fontSize:14,fontWeight:700}}>{e.nom}</div><div style={{fontSize:10,color:"#5A5A7A"}}>Depuis {e.embauche} · Poste actuel : {e.role}</div></div>
+          <div style={{textAlign:"right"}}><div style={{fontSize:10,color:"#5A5A7A"}}>Salaire actuel</div><div style={{fontSize:16,fontWeight:700,color:"#C9A84C"}}>{e.salaire.toLocaleString("fr")} €</div></div>
+        </div>
+        <div style={{position:"relative",paddingLeft:24}}>
+          <div style={{position:"absolute",left:8,top:0,bottom:0,width:2,background:"#1E1E36",borderRadius:1}}/>
+          {e.carriere.map((c,j)=><div key={j} style={{position:"relative",marginBottom:16}}>
+            <div style={{position:"absolute",left:-20,top:4,width:10,height:10,borderRadius:"50%",background:j===e.carriere.length-1?e.couleur:"#1E1E36",border:`2px solid ${e.couleur}`}}/>
+            <div style={{background:"#121222",borderRadius:8,padding:10,border:`1px solid ${j===e.carriere.length-1?e.couleur+"44":"#1E1E36"}`}}>
+              <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+                <div><div style={{fontSize:12,fontWeight:700,color:j===e.carriere.length-1?e.couleur:"#EAE6DE"}}>{c.poste}</div><div style={{fontSize:9,color:"#5A5A7A"}}>{c.date}</div></div>
+                <div style={{fontSize:13,fontWeight:700,color:"#C9A84C"}}>{c.salaire.toLocaleString("fr")} €</div>
+              </div>
+              {j>0&&<div style={{fontSize:9,color:"#2EC9B0",marginTop:4}}>↗ +{(c.salaire-e.carriere[j-1].salaire).toLocaleString("fr")}€ ({Math.round((c.salaire-e.carriere[j-1].salaire)/e.carriere[j-1].salaire*100)}%)</div>}
+            </div>
+          </div>)}
+        </div>
+        <button onClick={()=>showToast(`✅ Promotion ${e.nom} enregistrée !`)} style={{background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Ajouter une promotion</button>
+      </div>)}
+    </div>}
+
+    {/* ─── ALERTES RH ────────────────────────────────────────── */}
+    {onglet==="alertes"&&<div>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {[
+          {niveau:"critique",icon:"🚨",titre:"CDD Abou Diallo — Expire dans 2 mois",detail:"Contrat CDD expire le 15/09/2025. Décision requise avant le 15/07. Options : conversion CDI ou fin de contrat.",action:"Convertir en CDI",couleur:"#FF5252"},
+          {niveau:"urgent",icon:"⚠️",titre:"Visite médicale obligatoire — Thomas Beaumont",detail:"Dernière visite : 01/03/2024. Renouvellement obligatoire avant le 30/04/2026. Médecin du travail à contacter.",action:"Planifier visite",couleur:"#FF8C3A"},
+          {niveau:"urgent",icon:"📋",titre:"Entretien professionnel — Tous les collaborateurs",detail:"Les entretiens professionnels doivent être réalisés tous les 2 ans. Fatou Sarr : à planifier avant septembre 2026.",action:"Planifier entretien",couleur:"#FF8C3A"},
+          {niveau:"info",icon:"📅",titre:"Solde congés — Abou Diallo",detail:"Abou a 15 jours de congés. Encourager la prise avant fin juin pour éviter le report.",action:"Contacter Abou",couleur:"#4B7BFF"},
+          {niveau:"info",icon:"🎓",titre:"Formation Abou — Nettoyage yacht à compléter",detail:"Module 'Nettoyage yacht — produits nacrés' assigné et non commencé. Deadline suggérée : 30/04.",action:"Relancer",couleur:"#9B5FFF"},
+          {niveau:"good",icon:"✅",titre:"Formation SST — Thomas et Abou à jour",detail:"Certifications Secourisme au Travail valides jusqu'en 2027.",action:null,couleur:"#2EC9B0"},
+        ].map((a,i)=><div key={i} style={{background:`${a.couleur}11`,border:`1px solid ${a.couleur}33`,borderRadius:10,padding:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}>
+                <span>{a.icon}</span>
+                <span style={{fontSize:12,fontWeight:700,color:a.couleur}}>{a.titre}</span>
+              </div>
+              <div style={{fontSize:11,color:"#EAE6DE",lineHeight:1.6,paddingLeft:24}}>{a.detail}</div>
+            </div>
+            {a.action&&<button onClick={()=>showToast(`✅ Action "${a.action}" enregistrée !`)} style={{background:a.couleur,color:a.niveau==="good"?"#000":"#000",border:"none",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:600,flexShrink:0,marginLeft:12}}>{a.action}</button>}
+          </div>
+        </div>)}
+      </div>
+    </div>}
+
+    {/* ─── IA RH ─────────────────────────────────────────────── */}
+    {onglet==="ia"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
+      <div style={{background:"#9B5FFF11",border:"1px solid #9B5FFF33",borderRadius:12,padding:16}}>
+        <div style={{fontSize:10,color:"#9B5FFF",fontWeight:600,marginBottom:8}}>🤖 Analyse RH globale — Claude Sonnet</div>
+        <div style={{fontSize:12,color:"#EAE6DE",lineHeight:1.8}}>Votre équipe de 3 personnes performe à {perfMoy}% en moyenne. Thomas est votre meilleur élément (94%) et justifie une prime. Le CDD d'Abou expire bientôt — la conversion en CDI est recommandée au vu de sa progression. Fatou excelle en relation client et pourrait évoluer vers un poste de responsable commerciale.</div>
+      </div>
+      {[{icon:"📈",titre:"Performance & Rémunération",txt:`Thomas (94%) mérite une augmentation de 200-300€. Abou progresse (+8pts en 3 mois), prévoir une revalorisation à la conversion CDI. Masse salariale actuelle : ${totalSalaire.toLocaleString("fr")}€/mois — raisonnable pour votre CA.`,col:"#2EC9B0"},{icon:"⚖️",titre:"Risques juridiques",txt:"1 risque identifié : CDD Abou Diallo à convertir ou non renouveler sous 2 mois. 1 visite médicale en retard (Thomas). 1 entretien professionnel à planifier (Fatou). Ces 3 points sont prioritaires.",col:"#FF8C3A"},{icon:"🏆",titre:"Recommandation recrutement",txt:"Votre CA +12% justifie un 4ème technicien. Profil idéal : polyvalent, zone Paris Est, 2 000€ net. Retour sur investissement en 3 mois. Publier l'offre sur Indeed + LinkedIn.",col:"#4B7BFF"},{icon:"💡",titre:"Optimisation coûts RH",txt:"Convention collective services à la personne applicable : exonérations URSSAF possibles. Chèques emploi service universels (CESU) pour réduire les charges de 15-20%. À valider avec votre expert-comptable.",col:"#C9A84C"}].map((a,i)=><div key={i} style={{background:`${a.col}11`,border:`1px solid ${a.col}33`,borderRadius:10,padding:14}}>
+        <div style={{fontSize:11,fontWeight:700,color:a.col,marginBottom:6}}>{a.icon} {a.titre}</div>
+        <div style={{fontSize:12,color:"#EAE6DE",lineHeight:1.7}}>{a.txt}</div>
+      </div>)}
+    </div>}
+
+    {/* ─── JURIDIQUE ─────────────────────────────────────────── */}
+    {onglet==="juridique"&&<div>
+      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+        {[["DPAE (Déclaration préalable à l'embauche)","✅ Faite à chaque embauche","Permanent","#2EC9B0"],["Registre du personnel","✅ À jour — 3 collaborateurs","Permanent","#2EC9B0"],["Affichage obligatoire (conventions, harcèlement...)","✅ Conforme","Vérifié 01/04/2026","#2EC9B0"],["Visite médicale — Thomas Beaumont","⚠️ Renouvellement obligatoire","Avant 30/04/2026","#FF8C3A"],["Visite médicale — Abou et Fatou","✅ Effectuées","Valides 12 mois","#2EC9B0"],["Formation sécurité SST — Thomas & Abou","✅ Certifiés","Valide jusqu'en 2027","#2EC9B0"],["Entretien professionnel — Fatou Sarr","⏳ À planifier","Avant 01/09/2026","#4B7BFF"],["Document unique d'évaluation des risques (DUER)","⚠️ À mettre à jour","Avant 30/06/2026","#FF8C3A"],["Mutuelle d'entreprise obligatoire (>1 salarié)","✅ Souscrite — Alan","Active","#2EC9B0"],["Prévoyance collective","✅ Souscrite","Active","#2EC9B0"]].map(([o,s,d,c],i)=><div key={i} style={{background:"#0C0C1A",borderRadius:8,padding:12,border:`1px solid ${c}22`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div><div style={{fontSize:12,fontWeight:600}}>{o}</div><div style={{fontSize:10,color:"#5A5A7A"}}>Échéance : {d}</div></div>
+          <span style={{background:c+"22",color:c,padding:"2px 10px",borderRadius:10,fontSize:10,fontWeight:600,border:`1px solid ${c}44`,flexShrink:0,marginLeft:10}}>{s}</span>
+        </div>)}
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={()=>showToast("📄 Registre du personnel téléchargé")} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:12,fontFamily:"inherit"}}>📄 Registre personnel</button>
+        <button onClick={()=>showToast("🤖 Checklist juridique complète générée")} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>🤖 Checklist IA</button>
+        <button onClick={()=>showToast("📋 DUER mis à jour par IA")} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>📋 Mettre à jour DUER</button>
+      </div>
+    </div>}
+  </div>;
+};
+// ─── PAGE PLANNING ────────────────────────────────────────────
+const PagePlanning=({plan,showToast,profil})=>{
+  const[vue,setVue]=useState("semaine");
+  const[planning,setPlanning]=useState(PLANNING);
+  if(!hasAccess(plan,"planning"))return <div style={{padding:20}}><UpgradeWall page="Planning & Agenda" plan={plan}/></div>;
+  const vues=[{id:"jour",label:"Jour"},{id:"semaine",label:"Semaine"},{id:"mois",label:"Mois"},{id:"equipe",label:"Équipe"},{id:"carte",label:"Carte"}];
+  return <div style={{padding:20}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>⊡ Planning & Agenda</div><div style={{fontSize:11,color:C.muted}}>5 vues · IA auto-planifier · Booking · Règles horaires</div></div>
+      <div style={{display:"flex",gap:8}}><Btn onClick={()=>showToast("🤖 IA a optimisé le planning !")}>🤖 Auto-planifier</Btn><BtnGhost onClick={()=>showToast("✅ Mission ajoutée")}>+ Mission</BtnGhost></div>
     </div>
-  );
+    <div style={{marginBottom:16}}><Tabs tabs={vues} active={vue} onChange={setVue}/></div>
+    <Card>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Date</TH><TH>Heure</TH><TH>Client</TH><TH>Service</TH><TH>Collaborateur</TH><TH>Durée</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+        <tbody>{planning.map((p,i)=><tr key={i}>
+          <Td style={{color:C.gold,fontWeight:600}}>{p.date}</Td>
+          <Td style={{color:C.blue,fontWeight:700}}>{p.h}</Td>
+          <Td style={{fontWeight:600}}>{p.client}</Td>
+          <Td style={{color:C.muted,fontSize:11}}>{p.service}</Td>
+          <Td><div style={{display:"flex",alignItems:"center",gap:6}}><div style={{width:22,height:22,borderRadius:"50%",background:`${C.blue}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:C.blue}}>{p.collab[0]}</div>{p.collab}</div></Td>
+          <Td><Pill color={C.blue}>{p.duree}</Pill></Td>
+          <Td><St s={p.statut}/></Td>
+          <Td><div style={{display:"flex",gap:4}}>
+            <BtnGhost onClick={()=>showToast("📱 Rappel envoyé")} style={{fontSize:9,padding:"3px 6px"}}>📱</BtnGhost>
+            <BtnGhost onClick={()=>setPlanning(pl=>pl.filter((_,j)=>j!==i))} style={{fontSize:9,padding:"3px 6px",color:C.red}}>✕</BtnGhost>
+          </div></Td>
+        </tr>)}</tbody>
+      </table>
+    </Card>
+  </div>;
 };
 
-// FORMATION
-const PageFormation=()=>(
-  <div>
-    <SectionTitle action={<Btn v="gold">+ Ajouter une formation</Btn>}>🎓 Formation Équipe</SectionTitle>
-    <div style={{display:"flex",flexDirection:"column",gap:14}}>
-      {[{titre:"🤖 Formation IA",items:["MAKE — automatisations & workflows","ChatGPT — prompts & business","Claude Code — développement & SaaS","Utilisation IA globale"]},{titre:"🧹 Formation métier",items:["Nettoyage Airbnb / bureaux / luxe","Conciergerie premium","Aviation / jet privé"]},{titre:"🏨 Hôtellerie & Restauration",items:["Standards hôteliers premium","Housekeeping","Accueil client VIP","Hygiène HACCP"]},{titre:"💼 Business & Équipe",items:["Prospection et vente","Réseau & partenariats","Utilisation du dashboard","Planning & organisation"]}].map((s,i)=>(
-        <Card key={i}>
-          <CardTitle>{s.titre}</CardTitle>
-          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}>
-            {s.items.map((item,j)=>(
-              <div key={j} style={{display:"flex",alignItems:"center",gap:8,background:C.bg,borderRadius:10,padding:"10px 12px",fontSize:13,color:C.dark}}>
-                <div style={{width:6,height:6,borderRadius:"50%",background:C.gold,flexShrink:0}}/>
-                {item}
-              </div>
-            ))}
-          </div>
-        </Card>
-      ))}
-    </div>
-  </div>
-);
-
-// OWNER
-const PageOwner=()=>(
-  <div>
-    <SectionTitle sub="Vue globale · Abonnements · Revenus · Alertes">👑 Centre de Contrôle Owner</SectionTitle>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:14,marginBottom:20}}>
-      <KPI label="CA global ce mois" val="24 380 €" color={C.dark}/>
-      <KPI label="Membres actifs" val="6" sub="dont 2 Business Pro" color={C.blue}/>
-      <KPI label="Revenus abonnements" val="348 €" sub="ce mois" color={C.gold}/>
-      <KPI label="Commissions 5% auto" val="3 412 €" color={C.purple}/>
-    </div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-      <Card>
-        <CardTitle>Membres par plan</CardTitle>
-        {[{plan:"Starter 29€",nb:3,color:C.blue},{plan:"Business Pro 99€",nb:2,color:C.gold},{plan:"Enterprise 150€",nb:1,color:C.purple}].map((m,i)=>(
-          <div key={i} style={{display:"flex",alignItems:"center",gap:12,padding:"10px 0",borderBottom:i<2?`1px solid ${C.border}`:undefined}}>
-            <Badge label={m.plan} color={m.color}/>
-            <div style={{flex:1,height:6,borderRadius:3,background:C.bg}}><div style={{height:"100%",width:`${m.nb*20}%`,background:m.color,borderRadius:3}}/></div>
-            <span style={{fontWeight:700,color:C.dark,fontSize:15}}>{m.nb}</span>
-          </div>
-        ))}
-      </Card>
-      <Card>
-        <CardTitle>Revenus SaaS projections</CardTitle>
-        {[{l:"Abonnements (6 membres)",v:"348 €/mois"},{l:"Commissions 5% transactions",v:"3 412 €/mois"},{l:"Objectif 50 membres",v:"4 950 €/mois"},{l:"Projection annuelle (50 membres)",v:"59 400 €/an"}].map((k,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"9px 0",borderBottom:i<3?`1px solid ${C.border}`:undefined,fontSize:13}}>
-            <span style={{color:C.muted}}>{k.l}</span>
-            <span style={{fontWeight:700,color:C.dark}}>{k.v}</span>
-          </div>
-        ))}
-      </Card>
-    </div>
-  </div>
-);
-
-// DEPLOIEMENTS
-const PageDeploiements=()=>(
-  <div>
-    <SectionTitle sub="Vendre Tymeless OS · Prix fixe + Maintenance + 5% transactions">🏢 Déploiements SaaS</SectionTitle>
-    <Card style={{marginBottom:20,borderColor:`${C.purple}40`,background:C.purpleBg}}>
-      <div style={{display:"flex",gap:14,alignItems:"center"}}><span style={{fontSize:28}}>🌍</span><div><div style={{fontWeight:700,color:C.purple,marginBottom:4,fontSize:15}}>Vendre Tymeless OS à une société</div><div style={{fontSize:13,color:C.mid,lineHeight:1.6}}><b style={{color:C.dark}}>Prix d'achat fixe</b> + <b style={{color:C.dark}}>Maintenance 500–2 000€/mois</b> + <b style={{color:C.purple}}>5% sur chaque transaction</b></div></div></div>
-    </Card>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:14}}>
-      {[{t:"Starter",p:"5 000 €",m:"500€/mois",f:["Jusqu'à 50 clients","Paiements intégrés","Bot WhatsApp","Support email"]},{t:"Business",p:"12 000 €",m:"1 000€/mois",f:["Jusqu'à 200 clients","Tout Starter","Annuaire réseau","Support prioritaire"],rec:true},{t:"Enterprise",p:"Sur devis",m:"2 000€+/mois",f:["Illimité","Tout Business","White-label complet","Support dédié"]}].map((p,i)=>(
-        <Card key={i} style={{borderColor:p.rec?`${C.gold}50`:C.border}}>
-          {p.rec&&<div style={{textAlign:"center",marginBottom:8}}><Badge label="⭐ Recommandé" color={C.gold} bg={C.goldLight}/></div>}
-          <div style={{textAlign:"center",marginBottom:14}}>
-            <div style={{fontFamily:"'Playfair Display',Georgia,serif",fontSize:18,fontWeight:700,color:C.dark}}>{p.t}</div>
-            <div style={{fontSize:22,fontWeight:800,color:C.gold,margin:"6px 0"}}>{p.p}</div>
-            <div style={{fontSize:12,color:C.muted}}>+ {p.m}</div>
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:5,marginBottom:14}}>{p.f.map((f,j)=><div key={j} style={{fontSize:13,color:C.mid}}>✓ {f}</div>)}</div>
-          <Btn v={p.rec?"gold":"ghost"} full>Déployer</Btn>
-        </Card>
-      ))}
-    </div>
-  </div>
-);
-
-// SETTINGS
-const PageSettings=({plan,onPlanChange})=>(
-  <div>
-    <SectionTitle>⚙️ Paramètres</SectionTitle>
-    <Card style={{marginBottom:20,borderColor:`${C.gold}50`,background:C.goldLight}}>
-      <CardTitle>Mode démo — Simuler un plan membre</CardTitle>
-      <div style={{display:"flex",gap:10,flexWrap:"wrap"}}>
-        {Object.values(PLANS).map(p=>(
-          <button key={p.id} onClick={()=>onPlanChange(p.id)} style={{background:plan===p.id?C.dark:C.white,color:plan===p.id?"#fff":C.mid,border:`1.5px solid ${plan===p.id?C.dark:C.border}`,borderRadius:12,padding:"10px 18px",cursor:"pointer",fontFamily:"inherit",fontSize:13,fontWeight:600,transition:"all 0.15s"}}>
-            {p.icon} {p.nom}<br/><span style={{fontSize:11,opacity:0.7}}>{p.prix}</span>
-          </button>
-        ))}
+// ─── PAGE PROSPECTION ─────────────────────────────────────────
+const PageProspection=({plan,showToast})=>{
+  const[onglet,setOnglet]=useState("sirene");
+  const[query,setQuery]=useState("");
+  const[leads,setLeads]=useState([{nom:"Syndic Lebrun SARL",secteur:"Syndic",ville:"Créteil",tel:"01 45 67 89 01",email:"contact@lebrun.fr",score:88},{nom:"Cabinet Moreau Gestion",secteur:"Gestion immo",ville:"Ivry-sur-Seine",tel:"01 56 78 90 12",email:"info@moreau-gestion.fr",score:74},{nom:"Résidences du Val",secteur:"Bailleur social",ville:"Villejuif",tel:"01 67 89 01 23",email:"rh@residences-val.fr",score:91},{nom:"SCI Châtillon",secteur:"SCI / Investisseurs",ville:"Châtillon",tel:"01 78 90 12 34",email:"sci@chatillon.fr",score:67}]);
+  const tabs=[{id:"sirene",label:"🏢 SIRENE / Leads"},{id:"sequences",label:"📧 Séquences"},{id:"bot",label:"🤖 Bot WhatsApp"},{id:"vocal",label:"🎙 Bot Vocal"},{id:"linkedin",label:"💼 LinkedIn"},{id:"stats",label:"📊 Stats"}];
+  if(!hasAccess(plan,"prospection"))return <div style={{padding:20}}><UpgradeWall page="Prospection Auto" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>⊕ Prospection Automatique</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>SIRENE · Bot vocal · Bot WhatsApp · LinkedIn · 59 fonctionnalités</div>
+    <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
+    {onglet==="sirene"&&<>
+      <div style={{display:"flex",gap:10,marginBottom:16}}>
+        <Inp value={query} onChange={e=>setQuery(e.target.value)} placeholder="🔍 Rechercher dans SIRENE (syndic, gestion, immo...)" style={{flex:1}}/>
+        <Sel style={{width:160}}><option>Val-de-Marne (94)</option><option>Paris (75)</option><option>Hauts-de-Seine (92)</option><option>Seine-Saint-Denis (93)</option></Sel>
+        <Btn onClick={()=>showToast("🔍 Recherche SIRENE lancée — 47 résultats trouvés !")}>Rechercher</Btn>
       </div>
-      <div style={{marginTop:12,fontSize:12,color:C.mid}}>Actuellement : <b style={{color:C.dark}}>{PLANS[plan]?.nom}</b> — Navigue pour voir les cadenas</div>
+      <Card>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <STitle>🎯 Leads qualifiés</STitle>
+          <Btn onClick={()=>showToast("✅ Séquence envoyée à tous les leads !")} style={{fontSize:11,padding:"6px 12px"}}>📧 Envoyer séquence à tous</Btn>
+        </div>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Entreprise</TH><TH>Secteur</TH><TH>Ville</TH><TH>Score IA</TH><TH>Actions</TH></tr></thead>
+          <tbody>{leads.map((l,i)=><tr key={i}>
+            <Td style={{fontWeight:700}}>{l.nom}</Td>
+            <Td><Pill color={C.blue}>{l.secteur}</Pill></Td>
+            <Td style={{color:C.muted}}>{l.ville}</Td>
+            <Td><div style={{display:"flex",alignItems:"center",gap:6}}><SM val={l.score} max={100} color={l.score>=80?C.green:C.gold}/><span style={{color:l.score>=80?C.green:C.gold,fontWeight:700}}>{l.score}</span></div></Td>
+            <Td><div style={{display:"flex",gap:4}}>
+              <Btn onClick={()=>showToast(`📱 WhatsApp envoyé à ${l.nom}`)} style={{padding:"4px 8px",fontSize:10}}>WA</Btn>
+              <BtnGhost onClick={()=>showToast(`📞 Appel vocal ${l.nom}`)} style={{padding:"4px 8px",fontSize:10}}>📞</BtnGhost>
+              <BtnGhost onClick={()=>showToast(`📧 Email envoyé à ${l.email}`)} style={{padding:"4px 8px",fontSize:10}}>✉️</BtnGhost>
+            </div></Td>
+          </tr>)}</tbody>
+        </table>
+      </Card>
+    </>}
+    {onglet==="sequences"&&<Card><STitle>📧 Séquences de prospection automatiques</STitle>
+      {[{nom:"Séquence Syndics 94",etapes:["J0: Email découverte","J3: Relance WhatsApp","J7: Appel vocal","J14: Offre personnalisée"],taux:34,envoyes:47,ouverts:29},
+        {nom:"Séquence Immobilier Premium",etapes:["J0: LinkedIn + Email","J2: WhatsApp","J5: Email étude de cas","J10: RDV proposé"],taux:28,envoyes:23,ouverts:15}].map((s,i)=><div key={i} style={{background:C.card2,borderRadius:10,padding:14,marginBottom:10,border:`1px solid ${C.border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><div style={{fontSize:13,fontWeight:700}}>{s.nom}</div><Pill color={C.green}>Taux: {s.taux}%</Pill></div>
+        <div style={{display:"flex",gap:8,marginBottom:8,flexWrap:"wrap"}}>{s.etapes.map((e,j)=><Pill key={j} color={C.blue}>{e}</Pill>)}</div>
+        <div style={{fontSize:11,color:C.muted}}>📨 {s.envoyes} envoyés · 👁 {s.ouverts} ouverts</div>
+        <Btn onClick={()=>showToast("✅ Séquence activée !")} style={{marginTop:8,fontSize:11}}>▶ Activer</Btn>
+      </div>)}
+    </Card>}
+    {onglet==="bot"&&<Card><STitle>🤖 Bot WhatsApp — Prospection automatique</STitle>
+      <div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:10,padding:14,marginBottom:14}}>
+        <div style={{fontSize:11,color:C.green,fontWeight:600,marginBottom:4}}>● Bot actif · Connecté à Meta API</div>
+        <div style={{fontSize:12,color:C.text}}>Modèle : claude-sonnet-4-5 · Webhook : actif · Réponse moyenne : 2.3s</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        <KPI label="Messages envoyés" val="247" color={C.blue}/>
+        <KPI label="Taux réponse" val="67%" color={C.green}/>
+        <KPI label="RDV générés" val="8" color={C.gold}/>
+      </div>
+    </Card>}
+    {onglet==="vocal"&&<Card><STitle>🎙 Bot Vocal IA</STitle>
+      <div style={{textAlign:"center",padding:"30px 0"}}>
+        <div style={{fontSize:48,marginBottom:12}}>🎙</div>
+        <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>Bot d'appel sortant automatique</div>
+        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Appelle automatiquement vos prospects SIRENE en se présentant comme l'assistant Tymeless</div>
+        <Btn onClick={()=>showToast("🎙 Campagne d'appels lancée !")}>▶ Lancer une campagne d'appels</Btn>
+      </div>
+    </Card>}
+    {onglet==="linkedin"&&<Card><STitle>💼 Prospection LinkedIn</STitle>
+      <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Envoi de messages LinkedIn automatiques via extension Chrome</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        <KPI label="Connexions envoyées" val="84" color={C.blue}/>
+        <KPI label="Acceptées" val="31" color={C.green}/>
+        <KPI label="Messages envoyés" val="27" color={C.gold}/>
+        <KPI label="RDV générés" val="4" color={C.teal}/>
+      </div>
+    </Card>}
+    {onglet==="stats"&&<Card><STitle>📊 Performance prospection globale</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        <KPI label="Leads générés" val="71" color={C.blue}/>
+        <KPI label="Taux conversion global" val="12%" color={C.green}/>
+        <KPI label="CA généré" val="8 400 €" color={C.gold}/>
+      </div>
+    </Card>}
+  </div>;
+};
+
+// ─── PAGE STOCK ───────────────────────────────────────────────
+const PageStock=({plan,showToast,profil})=>{
+  const[stock,setStock]=useState(STOCK);
+  if(!hasAccess(plan,"stock"))return <div style={{padding:20}}><UpgradeWall page="Stock" plan={plan}/></div>;
+  const critiques=stock.filter(s=>s.qte<s.min);
+  return <div style={{padding:20}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>⊟ Stock & Fournitures</div><div style={{fontSize:11,color:C.muted}}>QR terrain · IA prédictive · Commandes auto · Alertes</div></div>
+      <Btn onClick={()=>showToast("✅ Article ajouté au stock !")}>+ Ajouter article</Btn>
+    </div>
+    {critiques.length>0&&<div style={{background:`${C.red}11`,border:`1px solid ${C.red}33`,borderRadius:10,padding:12,marginBottom:16}}>
+      <div style={{fontSize:11,color:C.red,fontWeight:600,marginBottom:4}}>⚠️ {critiques.length} article(s) en stock critique</div>
+      <div style={{fontSize:11,color:C.text}}>{critiques.map(c=>c.art).join(", ")}</div>
+      <Btn onClick={()=>showToast("🛒 Commandes automatiques passées !")} style={{marginTop:8,fontSize:11}}>🛒 Commander automatiquement</Btn>
+    </div>}
+    <Card>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Article</TH><TH>Catégorie</TH><TH>Quantité</TH><TH>Seuil min</TH><TH>Unité</TH><TH>Fournisseur</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+        <tbody>{stock.map((s,i)=><tr key={i} style={{background:s.qte<s.min?`${C.red}08`:"transparent"}}>
+          <Td style={{fontWeight:600}}>{s.art}</Td>
+          <Td><Pill color={C.blue}>{s.cat}</Pill></Td>
+          <Td style={{fontWeight:700,color:s.qte<s.min?C.red:s.qte<=s.min*1.5?C.orange:C.green}}>{s.qte}</Td>
+          <Td style={{color:C.muted}}>{s.min}</Td>
+          <Td style={{color:C.muted}}>{s.u}</Td>
+          <Td style={{color:C.muted,fontSize:11}}>{s.four}</Td>
+          <Td>{s.qte<s.min?<Pill color={C.red}>⚠ Critique</Pill>:s.qte<=s.min*1.5?<Pill color={C.orange}>⚡ Bas</Pill>:<Pill color={C.green}>✓ OK</Pill>}</Td>
+          <Td><div style={{display:"flex",gap:4}}>
+            <Btn onClick={()=>{setStock(sk=>sk.map((x,j)=>j===i?{...x,qte:x.qte+10}:x));showToast("✅ Stock mis à jour");}} style={{padding:"4px 8px",fontSize:10}}>+10</Btn>
+            <BtnGhost onClick={()=>showToast("📦 Commande passée")} style={{padding:"4px 8px",fontSize:10}}>Commander</BtnGhost>
+          </div></Td>
+        </tr>)}</tbody>
+      </table>
     </Card>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16}}>
-      {[{t:"Société",items:["Nom : Tymeless","Email : contact@tymeless.fr","Pays : France","Langues : FR · EN · AR · RU"]},{t:"Tarification",items:["Starter : 29€/mois","Business Pro : 99€/mois","Enterprise : 150€/mois","White-label : 5K–12K€"]},{t:"Commissions",items:["Partenaire → Tymeless : 15–30%","Tymeless → Partenaire : 15–30%","Transactions système : 5% auto","Deals réseau : 15–30%"]},{t:"Paiements",items:["Flutterwave : ✓ Wave, Orange Money, MTN","CinetPay : ✓ Wave Sénégal","Carte bancaire : ✓ Active","Paiement WhatsApp : ✓ Actif"]}].map((s,i)=>(
-        <Card key={i}>
-          <CardTitle>{s.t}</CardTitle>
-          {s.items.map((item,j)=><div key={j} style={{fontSize:13,color:item.includes("✓")?C.green:C.mid,padding:"7px 0",borderBottom:j<s.items.length-1?`1px solid ${C.border}`:undefined}}>{item}</div>)}
-        </Card>
-      ))}
-    </div>
-  </div>
-);
+  </div>;
+};
 
-// PAGE SIMPLE GÉNÉRIQUE
-const PageSimple=({title,items})=>(
-  <div>
-    <SectionTitle>{title}</SectionTitle>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:14}}>
-      {items.map((item,i)=>(
-        <Card key={i}>
-          <div style={{fontSize:22,marginBottom:10}}>{item.icon}</div>
-          <div style={{fontWeight:600,color:C.dark,marginBottom:6,fontSize:15}}>{item.titre}</div>
-          <div style={{fontSize:13,color:C.muted,lineHeight:1.6}}>{item.desc}</div>
-        </Card>
-      ))}
-    </div>
-  </div>
-);
+// ─── PAGE SERVICES ────────────────────────────────────────────
+const PageServices=({plan,showToast,profil})=>{
+  const services=profil?.services||PROFIL_DEFAUT.services;
+  const[onglet,setOnglet]=useState("catalogue");
+  const tabs=[{id:"catalogue",label:"📦 Catalogue"},{id:"upsell",label:"⚡ Upsell"},{id:"cgv",label:"📋 CGV/CGU"}];
+  if(!hasAccess(plan,"services"))return <div style={{padding:20}}><UpgradeWall page="Produits & Services" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>⊛ Produits & Services</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Catalogue · Upsell auto · CGV/CGU · Tarification IA</div>
+    <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
+    {onglet==="catalogue"&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
+      {services.map((s,i)=>{const prix=[480,850,1200,2400,4800,320][i%6];return <Card key={i} style={{cursor:"pointer",borderColor:`${C.gold}22`}}>
+        <div style={{fontSize:24,marginBottom:8}}>{"🏠🛳✈🏥💼🔨"[i%6]}</div>
+        <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>{s}</div>
+        <div style={{fontSize:18,fontWeight:700,color:C.gold,marginBottom:8}}>{fmt(prix)}</div>
+        <div style={{fontSize:10,color:C.muted,marginBottom:10}}>Commission Tymeless 5% · TVA 20%</div>
+        <Btn onClick={()=>showToast(`✅ Devis ${s} créé !`)} style={{width:"100%",fontSize:11}}>+ Créer un devis</Btn>
+      </Card>;})}
+    </div>}
+    {onglet==="upsell"&&<Card><STitle>⚡ Tunnel de vente — Upsell automatique</STitle>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {[{from:"Service Standard",to:"Service Premium",uplift:"+40%",trigger:"Après 3 missions",auto:true},{from:"Mensuel",to:"Annuel",uplift:"-15% (fidélité)",trigger:"Après 6 mois",auto:true},{from:"Starter",to:"Business Pro",uplift:"Accès réseau B2B",trigger:"Si CA > 5000€/mois",auto:false}].map((u,i)=><CT key={i}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div><div style={{fontSize:12,fontWeight:700}}>{u.from} → {u.to}</div><div style={{fontSize:10,color:C.muted}}>{u.trigger}</div></div>
+            <div style={{textAlign:"right"}}><Pill color={C.gold}>{u.uplift}</Pill><div style={{fontSize:9,color:u.auto?C.green:C.muted,marginTop:4}}>{u.auto?"🤖 Auto":"Manuel"}</div></div>
+          </div>
+        </CT>)}
+      </div>
+    </Card>}
+    {onglet==="cgv"&&<Card><STitle>📋 CGV / CGU SaaS</STitle>
+      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:8,padding:12,marginBottom:12}}>
+        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:4}}>🤖 Générés par IA — Claude</div>
+        <div style={{fontSize:11,color:C.text,lineHeight:1.8}}>Vos CGV sont à jour selon le droit français. Dernière mise à jour : 01/04/2026. Conformité RGPD : ✅</div>
+      </div>
+      <div style={{display:"flex",gap:8}}><Btn onClick={()=>showToast("📄 CGV téléchargées en PDF")}>📄 Télécharger PDF</Btn><BtnGhost onClick={()=>showToast("✅ CGV régénérées par IA")}>🤖 Régénérer (IA)</BtnGhost></div>
+    </Card>}
+  </div>;
+};
 
-// ─── APP ROOT ─────────────────────────────────────────────────
+// ─── PAGE CHAT ────────────────────────────────────────────────
+const PageChat=({plan,showToast})=>{
+  const[espace,setEspace]=useState("equipe");
+  const[msgsEq,setMsgsEq]=useState(MSGS_EQUIPE.map(m=>({...m,moi:m.auteur==="Béné"})));
+  const[msgsPt,setMsgsPt]=useState(MSGS_PART.map(m=>({...m,moi:m.auteur==="Béné"})));
+  const[msgsAI,setMsgsAI]=useState([{av:"AI",msg:"Bonjour ! Je suis l'assistant IA Tymeless, propulsé par Claude. Comment puis-je vous aider ?",h:"09:00",moi:false}]);
+  const espaces=[{id:"equipe",label:"👥 Équipe",badge:MSGS_EQUIPE.filter(m=>!m.lu&&m.auteur!=="Béné").length},{id:"partenaires",label:"⬡ Partenaires",badge:MSGS_PART.filter(m=>!m.lu).length},{id:"ai",label:"🤖 Assistant IA"},{id:"visio",label:"🎥 Visio Jitsi"}];
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>💬 Chat</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>WhatsApp style · Appel vocal · Visio Jitsi · 4 espaces</div>
+    <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>{espaces.map(e=><button key={e.id} onClick={()=>setEspace(e.id)} style={{background:espace===e.id?C.card:C.card2,color:espace===e.id?C.gold:C.muted,border:`1px solid ${espace===e.id?C.gold+"44":C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"inherit",fontSize:12,display:"flex",alignItems:"center",gap:6}}>{e.label}{e.badge>0&&<span style={{background:C.red,color:"#fff",borderRadius:20,padding:"0 5px",fontSize:9,fontWeight:700}}>{e.badge}</span>}</button>)}
+    </div>
+    <Card style={{height:460,padding:0,overflow:"hidden"}}>
+      {espace==="equipe"&&<Chat msgs={msgsEq} onSend={(msg)=>setMsgsEq(ms=>[...ms,{av:"B",auteur:"Béné",msg,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),lu:true,moi:true}])} title="Chat Équipe" subtitle="Thomas · Abou · Fatou"/>}
+      {espace==="partenaires"&&<Chat msgs={msgsPt} onSend={(msg)=>setMsgsPt(ms=>[...ms,{av:"B",auteur:"Béné",msg,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),lu:true,moi:true}])} title="Chat Partenaires" subtitle="Leila · Fatoumata"/>}
+      {espace==="ai"&&<Chat msgs={msgsAI} onSend={async(msg)=>{const userMsg={av:"B",msg,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),moi:true};setMsgsAI(ms=>[...ms,userMsg]);setTimeout(()=>setMsgsAI(ms=>[...ms,{av:"AI",msg:`Je traite votre demande : "${msg.slice(0,30)}..."`,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),moi:false}]),800);}} title="Assistant IA Tymeless" subtitle="Propulsé par Claude (Anthropic)"/>}
+      {espace==="visio"&&<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",gap:16}}>
+        <div style={{fontSize:48}}>🎥</div>
+        <div style={{fontSize:14,fontWeight:700,color:C.text}}>Visioconférence Jitsi</div>
+        <div style={{fontSize:11,color:C.muted}}>Lancer une réunion d'équipe ou avec un client</div>
+        <div style={{display:"flex",gap:10}}>
+          <Btn onClick={()=>showToast("🎥 Salle Jitsi créée : meet.tymeless.io/curtiss")}>🎥 Nouvelle salle</Btn>
+          <BtnGhost onClick={()=>showToast("🔗 Lien copié !")}>🔗 Copier le lien</BtnGhost>
+        </div>
+      </div>}
+    </Card>
+  </div>;
+};
+
+// ─── PAGE NOTIFICATIONS ───────────────────────────────────────
+const PageNotifications=({notifs,setNotifs})=>{
+  const marquerLus=()=>setNotifs(ns=>ns.map(n=>({...n,lu:true})));
+  return <div style={{padding:20}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>🔔 Notifications</div><div style={{fontSize:11,color:C.muted}}>Temps réel · WhatsApp · Dashboard · Configuration</div></div>
+      <BtnGhost onClick={marquerLus}>✓ Tout marquer lu</BtnGhost>
+    </div>
+    <div style={{display:"flex",flexDirection:"column",gap:8}}>
+      {notifs.map((n,i)=><div key={i} onClick={()=>setNotifs(ns=>ns.map((x,j)=>j===i?{...x,lu:true}:x))} style={{background:n.lu?C.card2:C.card,border:`1px solid ${n.lu?C.border:n.type==="urgent"?C.red+"44":n.type==="money"?C.gold+"44":C.border}`,borderRadius:10,padding:"12px 16px",cursor:"pointer",display:"flex",gap:12,alignItems:"center"}}>
+        <div style={{fontSize:20,flexShrink:0}}>{n.icon}</div>
+        <div style={{flex:1}}>
+          <div style={{fontSize:12,fontWeight:n.lu?400:700,color:C.text}}>{n.titre}</div>
+          <div style={{fontSize:10,color:C.muted,marginTop:2}}>{n.heure}</div>
+        </div>
+        {!n.lu&&<div style={{width:8,height:8,borderRadius:"50%",background:n.type==="urgent"?C.red:n.type==="money"?C.gold:C.blue,flexShrink:0}}/>}
+      </div>)}
+    </div>
+  </div>;
+};
+
+// ─── PAGE SIGNATURES / CONTRATS ───────────────────────────────
+const PageSignatures=({plan,showToast})=>{
+  const MODELES_CONTRATS=[
+    {id:"prestation",label:"Contrat de prestation de services",type:"Commercial",desc:"Pour vos missions clients (nettoyage, conciergerie, jet, yacht...)"},
+    {id:"partenariat",label:"Contrat de partenariat / AA",type:"Commercial",desc:"Pour vos apporteurs d'affaires — taux de commission, durée, clauses"},
+    {id:"cdi",label:"Contrat CDI",type:"RH",desc:"Contrat à durée indéterminée — temps plein ou partiel"},
+    {id:"cdd",label:"Contrat CDD",type:"RH",desc:"Contrat à durée déterminée — avec date de fin précise"},
+    {id:"alternance",label:"Contrat d'alternance",type:"RH",desc:"Apprentissage ou professionnalisation — 1 à 3 ans"},
+    {id:"stage",label:"Convention de stage",type:"RH",desc:"Stage obligatoire ou volontaire — gratification légale"},
+    {id:"freelance",label:"Contrat freelance / Auto-entrepreneur",type:"Commercial",desc:"Pour prestataires indépendants — sans lien de subordination"},
+    {id:"confidentialite",label:"NDA — Accord de confidentialité",type:"Juridique",desc:"Protège vos informations sensibles avec clients et partenaires"},
+    {id:"saas",label:"Contrat SaaS / Licence logicielle",type:"Tech",desc:"Pour vos clients white-label Tymeless OS"},
+    {id:"fournisseur",label:"Contrat fournisseur",type:"Commercial",desc:"Conditions générales d'achat avec vos fournisseurs"},
+  ];
+
+  const[contrats,setContrats]=useState([
+    {id:"CTR-001",titre:"Contrat prestation — Sofia Al-Rashid",type:"Commercial",modele:"prestation",client:"Sofia Al-Rashid",categorie:"Client",statut:"signé",date:"01/03/2024",expire:"28/02/2027",valeur:2400,signataire:"Sofia Al-Rashid",signé_le:"03/03/2024",fichier:"CTR-001-sofia.pdf"},
+    {id:"CTR-002",titre:"Contrat AA — Thomas Beaumont",type:"RH",modele:"partenariat",client:"Thomas Beaumont",categorie:"Partenaire",statut:"signé",date:"01/03/2024",expire:"28/02/2026",valeur:0,signataire:"Thomas Beaumont",signé_le:"01/03/2024",fichier:"CTR-002-thomas.pdf"},
+    {id:"CTR-003",titre:"Contrat AA — Groupe Prestige SARL",type:"Commercial",modele:"partenariat",client:"Groupe Prestige SARL",categorie:"Partenaire",statut:"signé",date:"01/04/2024",expire:"31/03/2027",valeur:0,signataire:"M. Beaumont DG",signé_le:"02/04/2024",fichier:"CTR-003-prestige.pdf"},
+    {id:"CTR-004",titre:"CDI — Abou Diallo",type:"RH",modele:"cdi",client:"Abou Diallo",categorie:"RH",statut:"signé",date:"15/06/2024",expire:"—",valeur:2200,signataire:"Abou Diallo",signé_le:"15/06/2024",fichier:"CTR-004-abou.pdf"},
+    {id:"CTR-005",titre:"CDD — Fatou Sarr",type:"RH",modele:"cdd",client:"Fatou Sarr",categorie:"RH",statut:"signé",date:"01/09/2024",expire:"31/08/2025",valeur:2400,signataire:"Fatou Sarr",signé_le:"01/09/2024",fichier:"CTR-005-fatou.pdf"},
+    {id:"CTR-006",titre:"Contrat SaaS — Cabinet Delmas",type:"Tech",modele:"saas",client:"Cabinet Delmas",categorie:"Client SaaS",statut:"envoyé",date:"15/04/2026",expire:"14/04/2027",valeur:500,signataire:"Me Delmas",signé_le:null,fichier:null},
+    {id:"CTR-007",titre:"NDA — Jet Services Monaco",type:"Juridique",modele:"confidentialite",client:"Jet Services Monaco",categorie:"Partenaire",statut:"brouillon",date:"20/04/2026",expire:"19/04/2028",valeur:0,signataire:"Antoine Rivière",signé_le:null,fichier:null},
+    {id:"CTR-008",titre:"Contrat fournisseur — CleanPro",type:"Commercial",modele:"fournisseur",client:"CleanPro",categorie:"Fournisseur",statut:"expiré",date:"01/01/2024",expire:"31/12/2024",valeur:0,signataire:"Dir. Commercial",signé_le:"02/01/2024",fichier:"CTR-008-cleanpro.pdf"},
+  ]);
+
+  const[onglet,setOnglet]=useState("dashboard");
+  const[showCreate,setShowCreate]=useState(false);
+  const[createForm,setCreateForm]=useState({modele:"prestation",titre:"",client:"",categorie:"Client",expire:"",valeur:""});
+  const[showSign,setShowSign]=useState(null);
+  const[signStep,setSignStep]=useState(1);
+  const[sel,setSel]=useState(null);
+  const[filtreType,setFiltreType]=useState("Tous");
+
+  const tabs=[
+    {id:"dashboard",label:"📊 Tableau de bord"},
+    {id:"tous",label:"📋 Tous les contrats"},
+    {id:"creer",label:"✍ Créer un contrat"},
+    {id:"esign",label:"✒ E-Signature"},
+    {id:"avenants",label:"📝 Avenants"},
+    {id:"archivage",label:"🗄 Archivage"},
+    {id:"alertes",label:"🔔 Alertes"},
+  ];
+
+  const statutColor={signé:C.green,envoyé:C.blue,brouillon:C.muted,expiré:C.red};
+  const categories=["Tous","Client","Partenaire","RH","Fournisseur","Client SaaS"];
+
+  const filtered=filtreType==="Tous"?contrats:contrats.filter(c=>c.categorie===filtreType);
+  const signés=contrats.filter(c=>c.statut==="signé").length;
+  const envoyés=contrats.filter(c=>c.statut==="envoyé").length;
+  const brouillons=contrats.filter(c=>c.statut==="brouillon").length;
+  const expirés=contrats.filter(c=>c.statut==="expiré").length;
+
+  if(!hasAccess(plan,"signature"))return <div style={{padding:20}}><UpgradeWall page="signature" plan={plan}/></div>;
+
+  return <div style={{padding:20}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+      <div>
+        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>✦ Contrats & Signatures</div>
+        <div style={{fontSize:11,color:C.muted}}>E-signature · Modèles IA · Archivage · Alertes · {contrats.length} contrats</div>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <BtnGhost onClick={()=>setOnglet("esign")}>✒ Signer un contrat</BtnGhost>
+        <Btn onClick={()=>setOnglet("creer")}>+ Nouveau contrat</Btn>
+      </div>
+    </div>
+
+    {/* KPIs */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
+      {[["Total contrats",contrats.length,C.blue],["Signés",signés,C.green],["Envoyés",envoyés,C.gold],["Brouillons",brouillons,C.muted],["Expirés",expirés,C.red]].map(([l,v,c],i)=><CT key={i}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:c}}>{v}</div></CT>)}
+    </div>
+
+    <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
+      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
+    </div>
+
+    {/* ── DASHBOARD ───────────────────────────── */}
+    {onglet==="dashboard"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+        <Card>
+          <STitle>📊 Contrats par catégorie</STitle>
+          {categories.slice(1).map((cat,i)=>{const n=contrats.filter(c=>c.categorie===cat).length;const colors=[C.blue,C.gold,C.green,C.orange,C.purple];return <div key={i} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{cat}</span><span style={{color:colors[i],fontWeight:700}}>{n}</span></div><SM val={n} max={contrats.length} color={colors[i]}/></div>;})}
+        </Card>
+        <Card>
+          <STitle>⚠️ Contrats à surveiller</STitle>
+          {[...contrats.filter(c=>c.statut==="expiré"||c.statut==="envoyé")].map((c,i)=><div key={i} style={{background:c.statut==="expiré"?`${C.red}11`:`${C.orange}11`,border:`1px solid ${c.statut==="expiré"?C.red:C.orange}33`,borderRadius:8,padding:10,marginBottom:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+              <div><div style={{fontSize:12,fontWeight:700}}>{c.titre}</div><div style={{fontSize:10,color:C.muted}}>{c.categorie} · {c.expire!=="—"?"Expire: "+c.expire:""}</div></div>
+              <div style={{display:"flex",gap:6}}>
+                <St s={c.statut}/>
+                {c.statut==="envoyé"&&<Btn onClick={()=>{setShowSign(c);setOnglet("esign");}} style={{fontSize:10,padding:"4px 8px"}}>✒ Signer</Btn>}
+                {c.statut==="expiré"&&<Btn onClick={()=>showToast("🔄 Renouvellement initié")} style={{fontSize:10,padding:"4px 8px",background:C.orange}}>🔄 Renouveler</Btn>}
+              </div>
+            </div>
+          </div>)}
+        </Card>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        {[["✒ E-signatures ce mois","3",C.teal],["📄 PDFs générés","12",C.blue],["⏱ Délai signature moyen","2.4 jours",C.gold]].map(([l,v,c],i)=><KPI key={i} label={l} val={v} color={c}/>)}
+      </div>
+    </div>}
+
+    {/* ── TOUS LES CONTRATS ───────────────────── */}
+    {onglet==="tous"&&<div>
+      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
+        {categories.map(cat=><button key={cat} onClick={()=>setFiltreType(cat)} style={{background:filtreType===cat?C.gold:"transparent",color:filtreType===cat?"#000":C.muted,border:`1px solid ${filtreType===cat?C.gold:C.border}`,borderRadius:20,padding:"5px 14px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:filtreType===cat?700:400}}>{cat}</button>)}
+      </div>
+      {sel?<div>
+        <BtnGhost onClick={()=>setSel(null)} style={{marginBottom:14}}>← Retour à la liste</BtnGhost>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          <Card style={{borderColor:`${statutColor[sel.statut]||C.border}44`}}>
+            <div style={{fontSize:16,fontWeight:700,marginBottom:4}}>{sel.titre}</div>
+            <div style={{display:"flex",gap:8,marginBottom:14}}><Pill color={C.purple}>{sel.type}</Pill><Pill color={C.blue}>{sel.categorie}</Pill><St s={sel.statut}/></div>
+            {[["📅 Date création",sel.date],["⏱ Expiration",sel.expire],["👤 Signataire",sel.signataire],["✅ Signé le",sel.signé_le||"En attente"],["💰 Valeur",sel.valeur>0?fmt(sel.valeur):"—"],["📄 Fichier",sel.fichier||"Non généré"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600}}>{v}</span></div>)}
+          </Card>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <Card>
+              <STitle>⚡ Actions</STitle>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                {sel.statut==="envoyé"&&<Btn onClick={()=>{setShowSign(sel);setOnglet("esign");setSignStep(1);}} style={{background:C.green}}>✒ Signer maintenant</Btn>}
+                {sel.statut==="brouillon"&&<Btn onClick={()=>{setContrats(cs=>cs.map(c=>c.id===sel.id?{...c,statut:"envoyé"}:c));setSel(s=>({...s,statut:"envoyé"}));showToast(`✅ Contrat envoyé à ${sel.client} pour signature`);}}>📤 Envoyer pour signature</Btn>}
+                <Btn onClick={()=>showToast(`📄 PDF ${sel.titre} téléchargé`)} style={{background:C.blue}}>📄 Télécharger PDF</Btn>
+                <BtnGhost onClick={()=>showToast(`📱 Contrat envoyé à ${sel.client} sur WhatsApp`)}>📱 Envoyer WhatsApp</BtnGhost>
+                <BtnGhost onClick={()=>showToast("📝 Avenant créé")}>📝 Créer un avenant</BtnGhost>
+                {sel.statut==="expiré"&&<Btn onClick={()=>{setContrats(cs=>cs.map(c=>c.id===sel.id?{...c,statut:"brouillon",date:new Date().toLocaleDateString("fr")}:c));setSel(s=>({...s,statut:"brouillon"}));showToast("🔄 Contrat renouvelé — à envoyer pour signature");}} style={{background:C.orange}}>🔄 Renouveler le contrat</Btn>}
+              </div>
+            </Card>
+            <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
+              <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Analyse IA Claude</div>
+              <div style={{fontSize:11,color:C.text,lineHeight:1.7}}>
+                {sel.statut==="expiré"?"Ce contrat est expiré. Recommandation : renouvelez rapidement pour sécuriser la relation commerciale. Proposez une révision des conditions tarifaires (+8% aligné sur l'inflation).":sel.statut==="envoyé"?"En attente de signature depuis "+sel.date+". Envoyez un rappel WhatsApp pour accélérer la signature. Délai moyen : 2-3 jours.":"Contrat en bonne santé. Vérifiez l'échéance dans 3 mois pour anticiper le renouvellement."}
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>:<Card>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Contrat</TH><TH>Type</TH><TH>Catégorie</TH><TH>Client/Partie</TH><TH>Date</TH><TH>Expiration</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+          <tbody>{filtered.map((c,i)=><tr key={i} style={{cursor:"pointer"}} onClick={()=>setSel(c)}>
+            <Td style={{fontWeight:700,fontSize:11}}>{c.id}</Td>
+            <Td><Pill color={c.type==="RH"?C.green:c.type==="Tech"?C.blue:c.type==="Juridique"?C.purple:C.gold}>{c.type}</Pill></Td>
+            <Td><Pill color={C.blue}>{c.categorie}</Pill></Td>
+            <Td style={{fontWeight:600}}>{c.client}</Td>
+            <Td style={{color:C.muted,fontSize:10}}>{c.date}</Td>
+            <Td style={{color:c.statut==="expiré"?C.red:C.muted,fontSize:10,fontWeight:c.statut==="expiré"?700:400}}>{c.expire}</Td>
+            <Td><St s={c.statut}/></Td>
+            <Td onClick={e=>e.stopPropagation()}><div style={{display:"flex",gap:4}}>
+              {c.statut==="brouillon"&&<Btn onClick={()=>{setContrats(cs=>cs.map(x=>x.id===c.id?{...x,statut:"envoyé"}:x));showToast("📤 Envoyé pour signature");}} style={{fontSize:9,padding:"3px 8px"}}>Envoyer</Btn>}
+              {c.statut==="envoyé"&&<Btn onClick={()=>{setShowSign(c);setOnglet("esign");setSignStep(1);}} style={{fontSize:9,padding:"3px 8px",background:C.green}}>✒</Btn>}
+              <BtnGhost onClick={()=>showToast("📄 PDF téléchargé")} style={{fontSize:9,padding:"3px 8px"}}>PDF</BtnGhost>
+            </div></Td>
+          </tr>)}</tbody>
+        </table>
+      </Card>}
+    </div>}
+
+    {/* ── CRÉER UN CONTRAT ────────────────────── */}
+    {onglet==="creer"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+        <div>
+          <Card style={{marginBottom:12}}>
+            <STitle>📋 Informations du contrat</STitle>
+            <div style={{display:"flex",flexDirection:"column",gap:10}}>
+              <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Modèle de contrat *</label>
+                <select value={createForm.modele} onChange={e=>setCreateForm(f=>({...f,modele:e.target.value}))} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:7,padding:"9px 12px",color:C.text,fontSize:12,fontFamily:"inherit",width:"100%"}}>
+                  {MODELES_CONTRATS.map(m=><option key={m.id} value={m.id}>{m.label} ({m.type})</option>)}
+                </select>
+              </div>
+              <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Titre du contrat</label><Inp value={createForm.titre} onChange={e=>setCreateForm(f=>({...f,titre:e.target.value}))} placeholder="Ex: Contrat prestation — Client X"/></div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Partie / Client</label><Inp value={createForm.client} onChange={e=>setCreateForm(f=>({...f,client:e.target.value}))} placeholder="Nom ou raison sociale"/></div>
+                <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Catégorie</label>
+                  <select value={createForm.categorie} onChange={e=>setCreateForm(f=>({...f,categorie:e.target.value}))} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:7,padding:"8px 12px",color:C.text,fontSize:12,fontFamily:"inherit",width:"100%"}}>
+                    {["Client","Partenaire","RH","Fournisseur","Client SaaS"].map(c=><option key={c}>{c}</option>)}
+                  </select>
+                </div>
+              </div>
+              <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+                <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Date d'expiration</label><Inp value={createForm.expire} onChange={e=>setCreateForm(f=>({...f,expire:e.target.value}))} placeholder="JJ/MM/AAAA"/></div>
+                <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Valeur (€)</label><Inp value={createForm.valeur} onChange={e=>setCreateForm(f=>({...f,valeur:e.target.value}))} placeholder="0"/></div>
+              </div>
+              <div style={{display:"flex",gap:8}}>
+                <Btn onClick={()=>{
+                  const m=MODELES_CONTRATS.find(x=>x.id===createForm.modele);
+                  const nc={id:`CTR-00${contrats.length+1}`,titre:createForm.titre||m.label+" — "+createForm.client,type:m.type,modele:createForm.modele,client:createForm.client||"À renseigner",categorie:createForm.categorie,statut:"brouillon",date:new Date().toLocaleDateString("fr"),expire:createForm.expire||"—",valeur:Number(createForm.valeur)||0,signataire:createForm.client,signé_le:null,fichier:null};
+                  setContrats(cs=>[nc,...cs]);setCreateForm({modele:"prestation",titre:"",client:"",categorie:"Client",expire:"",valeur:""});
+                  showToast(`✅ Contrat "${nc.titre}" créé en brouillon !`);setOnglet("tous");
+                }}>✅ Créer en brouillon</Btn>
+                <BtnGhost onClick={()=>showToast("🤖 Contrat rédigé par Claude IA !")}>🤖 Rédiger avec IA</BtnGhost>
+              </div>
+            </div>
+          </Card>
+        </div>
+        <div>
+          <Card>
+            <STitle>📁 Modèles disponibles</STitle>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {MODELES_CONTRATS.map((m,i)=>{const colors={Commercial:C.gold,RH:C.green,Juridique:C.purple,Tech:C.blue};return <div key={i} onClick={()=>setCreateForm(f=>({...f,modele:m.id}))} style={{background:createForm.modele===m.id?`${colors[m.type]||C.gold}15`:C.card2,border:`1px solid ${createForm.modele===m.id?colors[m.type]||C.gold:C.border}`,borderRadius:8,padding:10,cursor:"pointer"}}>
+                <div style={{display:"flex",justifyContent:"space-between",marginBottom:2}}>
+                  <div style={{fontSize:11,fontWeight:700,color:createForm.modele===m.id?colors[m.type]||C.gold:C.text}}>{m.label}</div>
+                  <Pill color={colors[m.type]||C.gold}>{m.type}</Pill>
+                </div>
+                <div style={{fontSize:10,color:C.muted}}>{m.desc}</div>
+              </div>;})}
+            </div>
+          </Card>
+        </div>
+      </div>
+    </div>}
+
+    {/* ── E-SIGNATURE ─────────────────────────── */}
+    {onglet==="esign"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+        <div>
+          <Card style={{marginBottom:12}}>
+            <STitle>✒ Signer un contrat</STitle>
+            <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
+              {contrats.filter(c=>c.statut==="envoyé"||c.statut==="brouillon").map((c,i)=><div key={i} onClick={()=>{setShowSign(c);setSignStep(1);}} style={{background:showSign?.id===c.id?`${C.gold}15`:C.card2,border:`1px solid ${showSign?.id===c.id?C.gold:C.border}`,borderRadius:8,padding:10,cursor:"pointer"}}>
+                <div style={{display:"flex",justifyContent:"space-between"}}>
+                  <div><div style={{fontSize:11,fontWeight:700}}>{c.titre}</div><div style={{fontSize:9,color:C.muted}}>{c.client} · {c.date}</div></div>
+                  <St s={c.statut}/>
+                </div>
+              </div>)}
+            </div>
+            {showSign&&<div>
+              <div style={{background:C.card2,borderRadius:10,padding:14,marginBottom:12,border:`1px solid ${C.border}`}}>
+                <div style={{fontSize:12,fontWeight:700,marginBottom:4}}>{showSign.titre}</div>
+                <div style={{fontSize:10,color:C.muted,marginBottom:10}}>Signataire : {showSign.signataire} · {showSign.client}</div>
+                {/* Étapes signature */}
+                <div style={{display:"flex",gap:8,marginBottom:14}}>
+                  {[{n:1,l:"Vérification"},{n:2,l:"Lecture"},{n:3,l:"Signature"},{n:4,l:"Confirmation"}].map(s=><div key={s.n} style={{flex:1,textAlign:"center"}}>
+                    <div style={{width:28,height:28,borderRadius:"50%",background:signStep>=s.n?C.gold:`${C.border}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:signStep>=s.n?"#000":C.muted,margin:"0 auto 4px"}}>{signStep>s.n?"✓":s.n}</div>
+                    <div style={{fontSize:9,color:signStep>=s.n?C.gold:C.muted}}>{s.l}</div>
+                  </div>)}
+                </div>
+                {signStep===1&&<div>
+                  <div style={{fontSize:11,color:C.text,marginBottom:10,lineHeight:1.6}}>Vous allez signer électroniquement le contrat <b style={{color:C.gold}}>{showSign.titre}</b>. Cette signature a valeur légale selon le règlement eIDAS de l'Union Européenne.</div>
+                  <Btn onClick={()=>setSignStep(2)}>Continuer →</Btn>
+                </div>}
+                {signStep===2&&<div>
+                  <div style={{background:C.dark,borderRadius:8,padding:12,fontSize:11,color:C.muted,lineHeight:1.9,marginBottom:10,maxHeight:120,overflowY:"auto"}}>
+                    <b style={{color:C.gold}}>CONTRAT DE {showSign.type.toUpperCase()}</b><br/>
+                    Entre Tymeless Services SASU (SIREN: 123 456 789) et {showSign.client}.<br/>
+                    Il est convenu ce qui suit : La prestation sera réalisée selon les conditions définies...<br/>
+                    Durée : du {showSign.date} au {showSign.expire}. Valeur : {showSign.valeur>0?fmt(showSign.valeur):"Définie en annexe"}.<br/>
+                    Lu et approuvé.
+                  </div>
+                  <div style={{display:"flex",gap:8}}>
+                    <BtnGhost onClick={()=>setSignStep(1)}>← Retour</BtnGhost>
+                    <Btn onClick={()=>setSignStep(3)}>J'ai lu le contrat →</Btn>
+                  </div>
+                </div>}
+                {signStep===3&&<div>
+                  <div style={{fontSize:11,color:C.muted,marginBottom:10}}>Tapez votre nom complet pour valider votre signature électronique :</div>
+                  <Inp placeholder={showSign.signataire+" (tapez votre nom)"} style={{marginBottom:10}}/>
+                  <div style={{fontSize:10,color:C.muted,marginBottom:10}}>📍 Votre IP et horodatage seront enregistrés · Conforme eIDAS</div>
+                  <div style={{display:"flex",gap:8}}>
+                    <BtnGhost onClick={()=>setSignStep(2)}>← Retour</BtnGhost>
+                    <Btn onClick={()=>setSignStep(4)} style={{background:C.green}}>✒ Signer électroniquement</Btn>
+                  </div>
+                </div>}
+                {signStep===4&&<div style={{textAlign:"center",padding:"10px 0"}}>
+                  <div style={{fontSize:32,marginBottom:8}}>✅</div>
+                  <div style={{fontSize:14,fontWeight:700,color:C.green,marginBottom:4}}>Contrat signé avec succès !</div>
+                  <div style={{fontSize:11,color:C.muted,marginBottom:12}}>Signé le {new Date().toLocaleDateString("fr")} à {new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"})} · eIDAS conforme</div>
+                  <div style={{display:"flex",gap:8,justifyContent:"center"}}>
+                    <Btn onClick={()=>{setContrats(cs=>cs.map(c=>c.id===showSign.id?{...c,statut:"signé",signé_le:new Date().toLocaleDateString("fr"),fichier:`${showSign.id}-signé.pdf`}:c));showToast("✅ Contrat signé et archivé ! PDF envoyé par email.");setShowSign(null);setSignStep(1);}}>📄 Télécharger PDF signé</Btn>
+                    <BtnGhost onClick={()=>showToast("📱 Copie envoyée sur WhatsApp")}>📱 WhatsApp</BtnGhost>
+                  </div>
+                </div>}
+              </div>
+            </div>}
+          </Card>
+        </div>
+        <Card>
+          <STitle>📋 Historique des signatures</STitle>
+          {contrats.filter(c=>c.statut==="signé").map((c,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${C.green}22`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+              <div style={{fontSize:11,fontWeight:700}}>{c.titre}</div>
+              <Pill color={C.green}>✓ Signé</Pill>
+            </div>
+            <div style={{fontSize:10,color:C.muted,marginBottom:6}}>{c.client} · Signé le {c.signé_le}</div>
+            <div style={{display:"flex",gap:6}}>
+              <BtnGhost onClick={()=>showToast(`📄 ${c.fichier} téléchargé`)} style={{fontSize:9,padding:"3px 8px"}}>📄 PDF signé</BtnGhost>
+              <BtnGhost onClick={()=>showToast("🔐 Certificat eIDAS téléchargé")} style={{fontSize:9,padding:"3px 8px"}}>🔐 Certificat</BtnGhost>
+            </div>
+          </div>)}
+        </Card>
+      </div>
+    </div>}
+
+    {/* ── AVENANTS ────────────────────────────── */}
+    {onglet==="avenants"&&<div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <STitle>📝 Avenants & Renouvellements</STitle>
+        <Btn onClick={()=>showToast("📝 Avenant créé en brouillon !")}>+ Créer un avenant</Btn>
+      </div>
+      <Card style={{marginBottom:12}}>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {[{contrat:"CTR-002",titre:"Avenant 1 — Augmentation commission Thomas Beaumont",motif:"Passage de 20% à 22% dès le 01/05/2026",date:"20/04/2026",statut:"brouillon"},{contrat:"CTR-005",titre:"Avenant 1 — Renouvellement CDD Fatou Sarr",motif:"Extension 6 mois + 200€/mois augmentation",date:"28/03/2026",statut:"signé"},{contrat:"CTR-008",titre:"Avenant 1 — Renouvellement fournisseur CleanPro",motif:"Reconduction annuelle avec révision tarifaire +5%",date:"15/04/2026",statut:"envoyé"}].map((av,i)=><div key={i} style={{background:C.card2,borderRadius:10,padding:14,border:`1px solid ${C.border}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+              <div>
+                <div style={{fontSize:12,fontWeight:700,marginBottom:2}}>{av.titre}</div>
+                <div style={{fontSize:10,color:C.muted}}>Contrat {av.contrat} · {av.date}</div>
+                <div style={{fontSize:11,color:C.text,marginTop:4,fontStyle:"italic"}}>"{av.motif}"</div>
+              </div>
+              <St s={av.statut}/>
+            </div>
+            <div style={{display:"flex",gap:6,marginTop:8}}>
+              {av.statut==="brouillon"&&<Btn onClick={()=>showToast("📤 Avenant envoyé pour signature")} style={{fontSize:10,padding:"5px 10px"}}>Envoyer</Btn>}
+              {av.statut==="envoyé"&&<Btn onClick={()=>showToast("✒ Avenant signé !")} style={{fontSize:10,padding:"5px 10px",background:C.green}}>✒ Signer</Btn>}
+              <BtnGhost onClick={()=>showToast("📄 PDF avenant téléchargé")} style={{fontSize:10,padding:"5px 8px"}}>PDF</BtnGhost>
+            </div>
+          </div>)}
+        </div>
+      </Card>
+      <Card>
+        <STitle>🔄 Renouvellements à venir</STitle>
+        {contrats.filter(c=>c.expire!=="—"&&c.statut==="signé").map((c,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
+          <div><div style={{fontWeight:600}}>{c.titre}</div><div style={{fontSize:10,color:C.muted}}>Expire le {c.expire}</div></div>
+          <Btn onClick={()=>showToast(`🔄 Renouvellement ${c.titre} initié`)} style={{fontSize:10,padding:"4px 10px",background:C.teal}}>🔄 Renouveler</Btn>
+        </div>)}
+      </Card>
+    </div>}
+
+    {/* ── ARCHIVAGE ───────────────────────────── */}
+    {onglet==="archivage"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+        <KPI label="Contrats archivés" val={contrats.filter(c=>c.fichier).length} color={C.blue}/>
+        <KPI label="Stockage utilisé" val="142 MB" color={C.gold}/>
+        <KPI label="Durée conservation" val="10 ans" color={C.green}/>
+      </div>
+      <Card>
+        <STitle>🗄 Archive sécurisée</STitle>
+        <div style={{background:`${C.green}08`,border:`1px solid ${C.green}22`,borderRadius:8,padding:12,marginBottom:12,fontSize:11,color:C.text}}>
+          🔒 Vos contrats sont stockés de manière chiffrée (AES-256) sur Supabase. Conservation légale 10 ans. Conforme RGPD.
+        </div>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Contrat</TH><TH>Type</TH><TH>Signé le</TH><TH>Fichier</TH><TH>Actions</TH></tr></thead>
+          <tbody>{contrats.filter(c=>c.fichier).map((c,i)=><tr key={i}>
+            <Td style={{fontWeight:600,fontSize:11}}>{c.titre}</Td>
+            <Td><Pill color={C.blue}>{c.type}</Pill></Td>
+            <Td style={{color:C.muted,fontSize:10}}>{c.signé_le}</Td>
+            <Td style={{fontSize:10,color:C.teal,fontFamily:"monospace"}}>{c.fichier}</Td>
+            <Td><div style={{display:"flex",gap:4}}>
+              <Btn onClick={()=>showToast(`📥 ${c.fichier} téléchargé`)} style={{fontSize:9,padding:"3px 8px"}}>📥 PDF</Btn>
+              <BtnGhost onClick={()=>showToast("🔐 Certificat eIDAS téléchargé")} style={{fontSize:9,padding:"3px 8px"}}>🔐</BtnGhost>
+            </div></Td>
+          </tr>)}</tbody>
+        </table>
+      </Card>
+    </div>}
+
+    {/* ── ALERTES ─────────────────────────────── */}
+    {onglet==="alertes"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
+      {[
+        {icon:"🚨",t:"Contrat expiré — CleanPro (fournisseur)",d:"CTR-008 expiré le 31/12/2024. Aucun renouvellement initié. Risque : commandes non couvertes par contrat.",c:C.red,a:"Renouveler",fn:()=>showToast("🔄 Renouvellement CleanPro initié")},
+        {icon:"⏰",t:"Contrat à signer — Cabinet Delmas",d:"CTR-006 envoyé le 15/04. En attente de signature depuis 11 jours. Envoyez un rappel.",c:C.orange,a:"Relancer",fn:()=>showToast("📱 Rappel WhatsApp envoyé à Me Delmas")},
+        {icon:"📅",t:"Expiration dans 60 jours — Thomas Beaumont",d:"CTR-002 expire le 28/02/2026. Préparez le renouvellement maintenant pour éviter une rupture.",c:C.gold,a:"Préparer renouvellement",fn:()=>showToast("📝 Renouvellement CTR-002 créé en brouillon")},
+        {icon:"✅",t:"Tous les contrats RH sont à jour",d:"CDI Thomas + CDD Fatou + CDI Abou — tous signés et valides.",c:C.green,a:null,fn:null},
+      ].map((a,i)=><div key={i} style={{background:`${a.c}11`,border:`1px solid ${a.c}33`,borderRadius:10,padding:14,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+        <div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:a.c,marginBottom:4}}>{a.icon} {a.t}</div><div style={{fontSize:11,color:C.text,lineHeight:1.6}}>{a.d}</div></div>
+        {a.a&&<Btn onClick={a.fn} color={a.c} style={{fontSize:11,padding:"7px 14px",flexShrink:0,color:a.c===C.green?"#000":"#000"}}>{a.a}</Btn>}
+      </div>)}
+    </div>}
+  </div>;
+};
+
+// ─── PAGE FACTURATION ÉLECTRONIQUE ───────────────────────────
+const PageFacturation=({plan,showToast})=>{
+  const[onglet,setOnglet]=useState("dashboard");
+  const[factures,setFactures]=useState([
+    {id:"FE-2026-001",client:"Sofia Al-Rashid",siren:"—",montantHT:2000,tva:400,ttc:2400,date:"13/04/2026",statut:"acceptée",format:"Factur-X",envoyéDGFiP:true,fichierXML:"FE-2026-001.xml",fichierPDF:"FE-2026-001.pdf"},
+    {id:"FE-2026-002",client:"Pierre Lefevre",siren:"123 456 789",montantHT:4000,tva:800,ttc:4800,date:"12/04/2026",statut:"émise",format:"Factur-X",envoyéDGFiP:true,fichierXML:"FE-2026-002.xml",fichierPDF:"FE-2026-002.pdf"},
+    {id:"FE-2026-003",client:"Groupe Prestige SARL",siren:"987 654 321",montantHT:1500,tva:300,ttc:1800,date:"10/04/2026",statut:"rejetée",format:"UBL",envoyéDGFiP:false,fichierXML:null,fichierPDF:"FE-2026-003.pdf"},
+    {id:"FE-2026-004",client:"Cabinet Delmas",siren:"456 789 123",montantHT:800,tva:160,ttc:960,date:"08/04/2026",statut:"reçue",format:"Factur-X",envoyéDGFiP:true,fichierXML:"FE-2026-004.xml",fichierPDF:"FE-2026-004.pdf"},
+  ]);
+
+  const CLIENTS_CONFORMITE=[
+    {nom:"Sofia Al-Rashid",siren:"—",type:"Particulier",prete:false,raison:"Particulier — non soumis à la facturation électronique B2B"},
+    {nom:"Groupe Prestige SARL",siren:"987 654 321",type:"Grande entreprise",prete:true,raison:"Déjà connectée à Chorus Pro"},
+    {nom:"Cabinet Delmas",siren:"456 789 123",type:"PME",prete:true,raison:"SIREN validé · PDP Pennylane"},
+    {nom:"Pierre Lefevre",siren:"123 456 789",type:"Micro-entreprise",prete:false,raison:"Obligatoire sept. 2027 — anticiper dès maintenant"},
+    {nom:"Jean-Marc Olivier",siren:"789 012 345",type:"Grande entreprise",prete:true,raison:"Chorus Pro actif depuis jan. 2026"},
+  ];
+
+  const[newFact,setNewFact]=useState({client:"",siren:"",montantHT:"",tva:"20",description:"",format:"Factur-X"});
+  const tvaMontant=newFact.montantHT?Math.round(Number(newFact.montantHT)*(Number(newFact.tva)/100)):0;
+  const ttc=newFact.montantHT?Number(newFact.montantHT)+tvaMontant:0;
+
+  const tabs=[
+    {id:"dashboard",label:"📊 Tableau de bord"},
+    {id:"creer",label:"➕ Créer une facture"},
+    {id:"historique",label:"📋 Historique"},
+    {id:"conformite",label:"✅ Conformité clients"},
+    {id:"ereporting",label:"📤 E-reporting TVA"},
+    {id:"guide",label:"📖 Guide réforme"},
+  ];
+
+  const statutColor={acceptée:C.green,émise:C.blue,rejetée:C.red,reçue:C.teal};
+  const totalHT=factures.reduce((a,f)=>a+f.montantHT,0);
+  const totalTVA=factures.reduce((a,f)=>a+f.tva,0);
+  const envoyées=factures.filter(f=>f.envoyéDGFiP).length;
+
+  if(!hasAccess(plan,"compta"))return <div style={{padding:20}}><UpgradeWall page="compta" plan={plan}/></div>;
+
+  return <div style={{padding:20}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+      <div>
+        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>🧾 Facturation Électronique</div>
+        <div style={{fontSize:11,color:C.muted}}>Réforme État français · Factur-X · Chorus Pro · DGFiP · E-reporting TVA</div>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <div style={{background:`${C.green}15`,border:`1px solid ${C.green}33`,borderRadius:8,padding:"6px 12px",fontSize:10,color:C.green,fontWeight:600}}>● Connecté à Chorus Pro</div>
+        <Btn onClick={()=>setOnglet("creer")}>+ Nouvelle facture</Btn>
+      </div>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+      {[["Factures émises",factures.length,C.blue],["Envoyées DGFiP",envoyées,C.green],["CA HT total",fmt(totalHT),C.gold],["TVA collectée",fmt(totalTVA),C.orange]].map(([l,v,c],i)=><CT key={i}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div></CT>)}
+    </div>
+
+    <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
+      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
+    </div>
+
+    {/* ── DASHBOARD ─────────────────────────── */}
+    {onglet==="dashboard"&&<div>
+      <div style={{background:`linear-gradient(135deg,${C.card},#0A1A0A)`,border:`1px solid ${C.green}33`,borderRadius:14,padding:20,marginBottom:14}}>
+        <div style={{fontSize:10,color:C.green,fontWeight:600,letterSpacing:"0.1em",marginBottom:8}}>🇫🇷 RÉFORME FACTURATION ÉLECTRONIQUE — ÉTAT FRANÇAIS</div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
+          {[{phase:"Grandes entreprises",date:"Sept. 2026",statut:"⚡ Imminent",color:C.red},{phase:"PME / ETI",date:"Sept. 2027",statut:"📅 Préparer",color:C.orange},{phase:"Micro-entreprises",date:"Sept. 2027",statut:"📅 Préparer",color:C.gold}].map((p,i)=><div key={i} style={{background:`${p.color}11`,border:`1px solid ${p.color}33`,borderRadius:8,padding:12}}>
+            <div style={{fontSize:9,color:p.color,fontWeight:600,marginBottom:2}}>{p.statut}</div>
+            <div style={{fontSize:11,fontWeight:700}}>{p.phase}</div>
+            <div style={{fontSize:12,fontWeight:700,color:p.color,marginTop:4}}>{p.date}</div>
+          </div>)}
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <Card>
+          <STitle>📊 Statut des dernières factures</STitle>
+          {factures.map((f,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`}}>
+            <div><div style={{fontSize:11,fontWeight:600}}>{f.id}</div><div style={{fontSize:10,color:C.muted}}>{f.client} · {f.date}</div></div>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <div style={{fontSize:11,fontWeight:700,color:C.gold}}>{fmt(f.ttc)}</div>
+              <Pill color={statutColor[f.statut]||C.muted}>{f.statut}</Pill>
+            </div>
+          </div>)}
+        </Card>
+        <Card>
+          <STitle>✅ Conformité réseau Tymeless</STitle>
+          {CLIENTS_CONFORMITE.map((c,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${C.border}22`}}>
+            <div><div style={{fontSize:11,fontWeight:600}}>{c.nom}</div><div style={{fontSize:9,color:C.muted}}>{c.type}</div></div>
+            <Pill color={c.prete?C.green:C.orange}>{c.prete?"✓ Prêt":"À anticiper"}</Pill>
+          </div>)}
+        </Card>
+      </div>
+    </div>}
+
+    {/* ── CRÉER FACTURE ─────────────────────── */}
+    {onglet==="creer"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+      <Card>
+        <STitle>➕ Nouvelle facture électronique conforme</STitle>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Client *</label><Inp value={newFact.client} onChange={e=>setNewFact(f=>({...f,client:e.target.value}))} placeholder="Nom / raison sociale"/></div>
+            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>SIREN (si entreprise)</label><Inp value={newFact.siren} onChange={e=>setNewFact(f=>({...f,siren:e.target.value}))} placeholder="123 456 789"/></div>
+          </div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Description de la prestation *</label><Inp value={newFact.description} onChange={e=>setNewFact(f=>({...f,description:e.target.value}))} placeholder="Ex: Nettoyage Airbnb Montmartre — avril 2026"/></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
+            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Montant HT (€) *</label><Inp value={newFact.montantHT} onChange={e=>setNewFact(f=>({...f,montantHT:e.target.value}))} placeholder="0.00"/></div>
+            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>TVA (%)</label>
+              <select value={newFact.tva} onChange={e=>setNewFact(f=>({...f,tva:e.target.value}))} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:7,padding:"8px 12px",color:C.text,fontSize:12,fontFamily:"inherit",width:"100%"}}>
+                <option value="20">20% — Normal</option><option value="10">10% — Intermédiaire</option><option value="5.5">5.5% — Réduit</option><option value="0">0% — Exonéré</option>
+              </select>
+            </div>
+            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Format</label>
+              <select value={newFact.format} onChange={e=>setNewFact(f=>({...f,format:e.target.value}))} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:7,padding:"8px 12px",color:C.text,fontSize:12,fontFamily:"inherit",width:"100%"}}>
+                <option>Factur-X</option><option>UBL</option><option>CII</option>
+              </select>
+            </div>
+          </div>
+          {newFact.montantHT&&<div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:8,padding:12}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
+              <div><div style={{fontSize:9,color:C.muted}}>HT</div><div style={{fontSize:16,fontWeight:700}}>{fmt(Number(newFact.montantHT))}</div></div>
+              <div><div style={{fontSize:9,color:C.muted}}>TVA {newFact.tva}%</div><div style={{fontSize:16,fontWeight:700,color:C.orange}}>{fmt(tvaMontant)}</div></div>
+              <div><div style={{fontSize:9,color:C.gold}}>TTC</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(ttc)}</div></div>
+            </div>
+          </div>}
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={()=>{
+              if(!newFact.client||!newFact.montantHT)return showToast("⚠️ Remplissez client et montant");
+              const nf={id:`FE-2026-00${factures.length+1}`,client:newFact.client,siren:newFact.siren||"—",montantHT:Number(newFact.montantHT),tva:tvaMontant,ttc,date:new Date().toLocaleDateString("fr"),statut:"émise",format:newFact.format,envoyéDGFiP:false,fichierXML:`FE-2026-00${factures.length+1}.xml`,fichierPDF:`FE-2026-00${factures.length+1}.pdf`};
+              setFactures(fs=>[nf,...fs]);setNewFact({client:"",siren:"",montantHT:"",tva:"20",description:"",format:"Factur-X"});
+              showToast("✅ Facture électronique créée ! Envoi DGFiP / Chorus Pro en cours...");setOnglet("historique");
+            }}>✅ Créer & Envoyer DGFiP</Btn>
+            <BtnGhost onClick={()=>showToast("📄 Aperçu PDF généré")}>👁 Aperçu PDF</BtnGhost>
+          </div>
+        </div>
+      </Card>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <Card style={{background:`${C.blue}08`,borderColor:`${C.blue}33`}}>
+          <STitle>📋 Mentions obligatoires (vérification auto)</STitle>
+          {[["Numéro de facture séquentiel","✅ Auto-généré"],["Date d'émission","✅ Auto"],["SIREN émetteur Tymeless","✅ 123 456 789"],["SIREN destinataire","✅ Si renseigné"],["Montant HT","✅ Saisi"],["Taux et montant TVA","✅ Calculé auto"],["Montant TTC","✅ Calculé auto"],["Format structuré Factur-X","✅ Sélectionné"],["Signature électronique","✅ Horodatage auto"]].map(([m,s],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}><span>{m}</span><span style={{color:C.green,fontWeight:600}}>{s}</span></div>)}
+        </Card>
+        <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
+          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 IA — Conseils conformité</div>
+          <div style={{fontSize:11,color:C.text,lineHeight:1.7}}>Le format <b style={{color:C.gold}}>Factur-X</b> est recommandé — c'est un PDF enrichi d'un fichier XML qui satisfait toutes les exigences de la DGFiP. Il est lisible par les humains et les systèmes informatiques. Chorus Pro l'accepte nativement.</div>
+        </Card>
+      </div>
+    </div>}
+
+    {/* ── HISTORIQUE ────────────────────────── */}
+    {onglet==="historique"&&<Card>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>N° Facture</TH><TH>Client</TH><TH>SIREN</TH><TH>Date</TH><TH>HT</TH><TH>TVA</TH><TH>TTC</TH><TH>Format</TH><TH>DGFiP</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+        <tbody>{factures.map((f,i)=><tr key={i}>
+          <Td style={{color:C.gold,fontWeight:700,fontSize:10}}>{f.id}</Td>
+          <Td style={{fontWeight:600}}>{f.client}</Td>
+          <Td style={{color:C.muted,fontSize:10,fontFamily:"monospace"}}>{f.siren}</Td>
+          <Td style={{color:C.muted,fontSize:10}}>{f.date}</Td>
+          <Td style={{color:C.text,fontWeight:600}}>{fmt(f.montantHT)}</Td>
+          <Td style={{color:C.orange}}>{fmt(f.tva)}</Td>
+          <Td style={{color:C.gold,fontWeight:700}}>{fmt(f.ttc)}</Td>
+          <Td><Pill color={C.blue}>{f.format}</Pill></Td>
+          <Td><Pill color={f.envoyéDGFiP?C.green:C.red}>{f.envoyéDGFiP?"✓ Envoyé":"✗ Non envoyé"}</Pill></Td>
+          <Td><Pill color={statutColor[f.statut]||C.muted}>{f.statut}</Pill></Td>
+          <Td><div style={{display:"flex",gap:4}}>
+            <Btn onClick={()=>showToast(`📄 ${f.fichierPDF} téléchargé`)} style={{fontSize:9,padding:"3px 6px"}}>PDF</Btn>
+            {f.fichierXML&&<BtnGhost onClick={()=>showToast(`📦 ${f.fichierXML} téléchargé`)} style={{fontSize:9,padding:"3px 6px"}}>XML</BtnGhost>}
+            {!f.envoyéDGFiP&&<Btn onClick={()=>{setFactures(fs=>fs.map((x,j)=>j===i?{...x,envoyéDGFiP:true,statut:"émise"}:x));showToast("✅ Envoyé à la DGFiP via Chorus Pro");}} style={{fontSize:9,padding:"3px 6px",background:C.teal}}>DGFiP</Btn>}
+          </div></Td>
+        </tr>)}</tbody>
+      </table>
+    </Card>}
+
+    {/* ── CONFORMITÉ ────────────────────────── */}
+    {onglet==="conformite"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+        <KPI label="Clients prêts" val={CLIENTS_CONFORMITE.filter(c=>c.prete).length} color={C.green}/>
+        <KPI label="À anticiper" val={CLIENTS_CONFORMITE.filter(c=>!c.prete).length} color={C.orange}/>
+        <KPI label="Taux conformité" val={Math.round(CLIENTS_CONFORMITE.filter(c=>c.prete).length/CLIENTS_CONFORMITE.length*100)+"%"} color={C.teal}/>
+      </div>
+      <Card>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Client</TH><TH>SIREN</TH><TH>Type</TH><TH>Statut</TH><TH>Note</TH><TH>Action</TH></tr></thead>
+          <tbody>{CLIENTS_CONFORMITE.map((c,i)=><tr key={i}>
+            <Td style={{fontWeight:700}}>{c.nom}</Td>
+            <Td style={{fontFamily:"monospace",fontSize:10,color:C.muted}}>{c.siren}</Td>
+            <Td><Pill color={c.type==="Grande entreprise"?C.red:c.type==="PME"?C.orange:C.blue}>{c.type}</Pill></Td>
+            <Td><Pill color={c.prete?C.green:C.orange}>{c.prete?"✓ Conforme":"À préparer"}</Pill></Td>
+            <Td style={{fontSize:10,color:C.muted}}>{c.raison}</Td>
+            <Td>{!c.prete&&<Btn onClick={()=>showToast(`📧 Guide conformité envoyé à ${c.nom}`)} style={{fontSize:10,padding:"4px 8px"}}>Envoyer guide</Btn>}</Td>
+          </tr>)}</tbody>
+        </table>
+      </Card>
+    </div>}
+
+    {/* ── E-REPORTING TVA ───────────────────── */}
+    {onglet==="ereporting"&&<div>
+      <div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:12,padding:16,marginBottom:14}}>
+        <div style={{fontSize:10,color:C.orange,fontWeight:600,marginBottom:6}}>📤 E-REPORTING TVA — TRANSMISSION AUTOMATIQUE DGFiP</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Depuis la réforme, toutes les transactions B2B et B2C doivent être reportées automatiquement à la DGFiP. Tymeless OS génère et transmet les données automatiquement via l'API Chorus Pro.</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+        <Card>
+          <STitle>📊 TVA collectée — Avril 2026</STitle>
+          {[["TVA 20% (normal)",fmt(factures.reduce((a,f)=>a+f.tva,0)),C.red],["TVA 10% (intermédiaire)","0 €",C.orange],["TVA 5.5% (réduit)","0 €",C.gold],["Total TVA à déclarer",fmt(factures.reduce((a,f)=>a+f.tva,0)),C.orange]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
+        </Card>
+        <Card>
+          <STitle>📅 Calendrier déclarations</STitle>
+          {[{periode:"T1 2026 (janv–mars)",echeance:"30/04/2026",statut:"transmis",montant:"4 820 €"},{periode:"T2 2026 (avr–juin)",echeance:"31/07/2026",statut:"en cours",montant:fmt(factures.reduce((a,f)=>a+f.tva,0))},{periode:"T3 2026 (juil–sept)",echeance:"31/10/2026",statut:"à venir",montant:"—"}].map((d,i)=><div key={i} style={{background:C.card2,borderRadius:7,padding:10,marginBottom:6,border:`1px solid ${C.border}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:11,fontWeight:600}}>{d.periode}</span><Pill color={d.statut==="transmis"?C.green:d.statut==="en cours"?C.gold:C.muted}>{d.statut}</Pill></div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:10}}><span style={{color:C.muted}}>Échéance : {d.echeance}</span><span style={{color:C.orange,fontWeight:700}}>{d.montant}</span></div>
+          </div>)}
+        </Card>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <Btn onClick={()=>showToast("✅ E-reporting TVA Q2 transmis à la DGFiP !")}>📤 Transmettre Q2 2026 à la DGFiP</Btn>
+        <BtnGhost onClick={()=>showToast("📄 Rapport TVA Q2 téléchargé")}>📄 Télécharger rapport</BtnGhost>
+        <BtnGhost onClick={()=>showToast("📧 Comptable notifié")}>📧 Notifier comptable</BtnGhost>
+      </div>
+    </div>}
+
+    {/* ── GUIDE ─────────────────────────────── */}
+    {onglet==="guide"&&<div>
+      <Card style={{marginBottom:12,background:`${C.blue}08`,borderColor:`${C.blue}33`}}>
+        <div style={{fontSize:10,color:C.blue,fontWeight:600,marginBottom:10,letterSpacing:"0.1em"}}>📖 GUIDE COMPLET — RÉFORME FACTURATION ÉLECTRONIQUE FRANCE 2026-2027</div>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {[{titre:"Qu'est-ce que la facturation électronique ?",contenu:"Obligation légale d'émettre et recevoir les factures B2B en format structuré (pas un simple PDF). La facture doit contenir des données lisibles par machine (XML) pour transmission automatique à la DGFiP.",color:C.blue},{titre:"Quels formats sont acceptés ?",contenu:"• Factur-X : PDF enrichi + XML — recommandé car lisible humain ET machine\n• UBL (Universal Business Language) : format XML pur\n• CII (Cross Industry Invoice) : autre format XML\nTymeless OS génère nativement Factur-X.",color:C.gold},{titre:"Qu'est-ce que Chorus Pro ?",contenu:"Portail public du gouvernement français pour l'échange de factures électroniques. Obligatoire pour les factures émises aux entités publiques (État, collectivités). Tymeless OS s'y connecte automatiquement.",color:C.green},{titre:"Qu'est-ce que le e-reporting ?",contenu:"Transmission automatique à la DGFiP des données de transactions B2B et B2C. Cela remplace (à terme) la déclaration manuelle de TVA. Fréquence : mensuelle ou trimestrielle.",color:C.orange},{titre:"Calendrier d'application",contenu:"• Sept. 2026 : Grandes entreprises (CA > 250M€ ou +5000 salariés)\n• Sept. 2027 : PME, ETI, Micro-entreprises\nRecommandation : préparez-vous maintenant pour anticiper.",color:C.purple}].map((s,i)=><div key={i} style={{background:`${s.color}08`,border:`1px solid ${s.color}22`,borderRadius:8,padding:12}}>
+            <div style={{fontSize:11,fontWeight:700,color:s.color,marginBottom:4}}>❓ {s.titre}</div>
+            <div style={{fontSize:11,color:C.text,lineHeight:1.7,whiteSpace:"pre-line"}}>{s.contenu}</div>
+          </div>)}
+        </div>
+      </Card>
+      <div style={{display:"flex",gap:8}}>
+        <Btn onClick={()=>showToast("📄 Guide PDF téléchargé")}>📄 Télécharger le guide PDF</Btn>
+        <BtnGhost onClick={()=>showToast("📧 Guide envoyé à vos clients")}>📧 Envoyer à vos clients</BtnGhost>
+      </div>
+    </div>}
+  </div>;
+};
+
+
+// ─── PAGE FORMATION ───────────────────────────────────────────
+const PageFormation=({plan,showToast})=>{
+  if(!hasAccess(plan,"formation"))return <div style={{padding:20}}><UpgradeWall page="Formation" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>⊿ Formation équipe</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Normes sectorielles · Certifications · Protocoles · Vente modules</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+      <KPI label="Formations" val={FORMATION.length} color={C.blue}/>
+      <KPI label="Complétées" val={FORMATION.filter(f=>f.statut==="complété").length} color={C.green}/>
+      <KPI label="Score moyen" val={Math.round(FORMATION.filter(f=>f.score).reduce((a,f)=>a+(f.score||0),0)/FORMATION.filter(f=>f.score).length)+"%"} color={C.gold}/>
+    </div>
+    <Card>
+      <STitle>📚 Modules de formation</STitle>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Formation</TH><TH>Collaborateurs</TH><TH>Statut</TH><TH>Score</TH><TH>Actions</TH></tr></thead>
+        <tbody>{FORMATION.map((f,i)=><tr key={i}>
+          <Td style={{fontWeight:600}}>{f.titre}</Td>
+          <Td style={{color:C.muted}}>{f.collab}</Td>
+          <Td><St s={f.statut}/></Td>
+          <Td style={{color:f.score>=90?C.green:f.score>=70?C.gold:C.muted,fontWeight:700}}>{f.score?`${f.score}%`:"—"}</Td>
+          <Td><Btn onClick={()=>showToast(`🎓 Module "${f.titre}" lancé`)} style={{padding:"4px 8px",fontSize:10}}>{f.statut==="à faire"?"▶ Démarrer":"↺ Refaire"}</Btn></Td>
+        </tr>)}</tbody>
+      </table>
+    </Card>
+  </div>;
+};
+
+// ─── PAGE DEALS ───────────────────────────────────────────────
+const PageDeals=({plan,showToast})=>{
+  const deals=[{id:"DEAL-001",nom:"Contrat Hôtel Prestige Paris",valeur:12000,prob:85,phase:"Proposition",client:"Claire Bernard",dead:"30/04"},{id:"DEAL-002",nom:"Partenariat Jet Services Monaco",valeur:24000,prob:92,phase:"Négociation",client:"Antoine Rivière",dead:"15/05"},{id:"DEAL-003",nom:"SaaS White-label Cabinet Dupont",valeur:5000,prob:60,phase:"Qualification",client:"Me Dupont",dead:"30/05"}];
+  if(!hasAccess(plan,"crm"))return <div style={{padding:20}}><UpgradeWall page="Deals" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>📋 Deals & Opportunités</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Pipeline Kanban · Probabilités IA · Propositions · Suivi</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+      <KPI label="Pipeline total" val={fmt(deals.reduce((a,d)=>a+d.valeur,0))} color={C.gold}/>
+      <KPI label="Probabilité moy." val={Math.round(deals.reduce((a,d)=>a+d.prob,0)/deals.length)+"%"} color={C.green}/>
+      <KPI label="CA pondéré" val={fmt(deals.reduce((a,d)=>a+d.valeur*(d.prob/100),0))} color={C.teal}/>
+    </div>
+    <Card>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Opportunité</TH><TH>Client</TH><TH>Valeur</TH><TH>Phase</TH><TH>Probabilité IA</TH><TH>Deadline</TH><TH>Actions</TH></tr></thead>
+        <tbody>{deals.map((d,i)=><tr key={i}>
+          <Td style={{fontWeight:600}}>{d.nom}</Td>
+          <Td style={{color:C.muted}}>{d.client}</Td>
+          <Td style={{color:C.gold,fontWeight:700}}>{fmt(d.valeur)}</Td>
+          <Td><Pill color={d.phase==="Négociation"?C.green:d.phase==="Proposition"?C.gold:C.blue}>{d.phase}</Pill></Td>
+          <Td><div style={{display:"flex",alignItems:"center",gap:6}}><SM val={d.prob} max={100} color={d.prob>=80?C.green:C.gold}/><span style={{color:d.prob>=80?C.green:C.gold,fontWeight:700}}>{d.prob}%</span></div></Td>
+          <Td style={{color:C.muted,fontSize:10}}>{d.dead}</Td>
+          <Td><div style={{display:"flex",gap:4}}>
+            <Btn onClick={()=>showToast(`✅ Proposition envoyée pour ${d.nom}`)} style={{padding:"4px 8px",fontSize:10}}>Proposer</Btn>
+            <BtnGhost style={{padding:"4px 8px",fontSize:10}} onClick={()=>showToast("🤖 Analyse IA générée")}>IA</BtnGhost>
+          </div></Td>
+        </tr>)}</tbody>
+      </table>
+    </Card>
+  </div>;
+};
+
+// ─── PAGE DEPLOIEMENT SAAS ────────────────────────────────────
+const PageDeploiement=({plan,showToast})=>{
+  const clients=[{nom:"Cabinet Juridique Delmas",plan:"Starter",mrr:500,statut:"actif",url:"delmas.tymeless.app",users:3},{nom:"Immo Premium Lyon",plan:"Business",mrr:1000,statut:"actif",url:"immo-premium.tymeless.app",users:8},{nom:"RH Solutions Dakar",plan:"Enterprise",mrr:1500,statut:"trial",url:"rh-dakar.tymeless.app",users:12}];
+  if(!hasAccess(plan,"deploiement"))return <div style={{padding:20}}><UpgradeWall page="Déploiement SaaS" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>🌍 Déploiement SaaS White-label</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Clients SaaS · Revenus · ARR · Onboarding · White-label</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+      <KPI label="Clients SaaS" val={clients.length} color={C.blue}/>
+      <KPI label="MRR" val={fmt(clients.reduce((a,c)=>a+c.mrr,0))} color={C.gold}/>
+      <KPI label="ARR projeté" val={fmt(clients.reduce((a,c)=>a+c.mrr,0)*12)} color={C.green}/>
+      <KPI label="Users totaux" val={clients.reduce((a,c)=>a+c.users,0)} color={C.purple}/>
+    </div>
+    <Card>
+      <STitle>🏢 Clients SaaS actifs</STitle>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Entreprise</TH><TH>Plan</TH><TH>MRR</TH><TH>Utilisateurs</TH><TH>URL</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+        <tbody>{clients.map((c,i)=><tr key={i}>
+          <Td style={{fontWeight:600}}>{c.nom}</Td>
+          <Td><Pill color={c.plan==="Enterprise"?C.purple:c.plan==="Business"?C.gold:C.blue}>{c.plan}</Pill></Td>
+          <Td style={{color:C.gold,fontWeight:700}}>{fmt(c.mrr)}/mois</Td>
+          <Td style={{color:C.blue}}>{c.users} users</Td>
+          <Td style={{fontSize:10,color:C.teal}}>{c.url}</Td>
+          <Td><St s={c.statut}/></Td>
+          <Td><Btn onClick={()=>showToast(`⚙ Dashboard ${c.nom} ouvert`)} style={{padding:"4px 8px",fontSize:10}}>Gérer</Btn></Td>
+        </tr>)}</tbody>
+      </table>
+    </Card>
+  </div>;
+};
+
+// ─── PAGE API ─────────────────────────────────────────────────
+const PageAPI=({plan,showToast})=>{
+  const[apiKey,setApiKey]=useState("ty_live_••••••••••••••••••••••••••••••••");
+  const tabs=[{id:"keys",label:"🔑 Clés API"},{id:"webhooks",label:"🔔 Webhooks"},{id:"docs",label:"📚 Docs"},{id:"logs",label:"📋 Logs"}];
+  const[onglet,setOnglet]=useState("keys");
+  if(!hasAccess(plan,"api"))return <div style={{padding:20}}><UpgradeWall page="API Tymeless" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◇ API Tymeless</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Clés API · Webhooks · Documentation · Logs · Intégrations</div>
+    <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
+    {onglet==="keys"&&<Card>
+      <STitle>🔑 Clés API</STitle>
+      <div style={{background:C.card2,borderRadius:10,padding:16,marginBottom:12,border:`1px solid ${C.border}`}}>
+        <div style={{fontSize:10,color:C.muted,marginBottom:6}}>CLÉ API DE PRODUCTION</div>
+        <div style={{fontFamily:"'Courier New',monospace",fontSize:13,color:C.gold,marginBottom:10}}>{apiKey}</div>
+        <div style={{display:"flex",gap:8}}>
+          <Btn onClick={()=>showToast("✅ Clé API copiée !")} style={{fontSize:11}}>📋 Copier</Btn>
+          <BtnGhost onClick={()=>showToast("🔄 Nouvelle clé générée !")} style={{fontSize:11}}>🔄 Régénérer</BtnGhost>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        <KPI label="Appels/mois" val="2 847" color={C.blue}/>
+        <KPI label="Succès" val="99.2%" color={C.green}/>
+        <KPI label="Latence moy." val="234ms" color={C.gold}/>
+      </div>
+    </Card>}
+    {onglet==="webhooks"&&<Card><STitle>🔔 Webhooks configurés</STitle>
+      {[{evt:"paiement.reçu",url:"https://app.tymeless.io/webhooks/payment",statut:"actif"},{evt:"devis.signé",url:"https://app.tymeless.io/webhooks/devis",statut:"actif"},{evt:"client.nouveau",url:"https://zapier.com/hooks/tymeless/abc123",statut:"actif"}].map((w,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${C.border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><Pill color={C.gold}>{w.evt}</Pill><St s={w.statut}/></div>
+        <div style={{fontSize:10,fontFamily:"monospace",color:C.muted}}>{w.url}</div>
+      </div>)}
+      <Btn onClick={()=>showToast("✅ Webhook ajouté !")} style={{marginTop:8}}>+ Ajouter webhook</Btn>
+    </Card>}
+    {onglet==="docs"&&<Card><STitle>📚 Documentation API</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        {[["POST /api/devis","Créer un devis",C.gold],["POST /api/paiements","Initier un paiement",C.green],["GET /api/clients","Lister les clients",C.blue],["POST /api/messages","Envoyer WhatsApp",C.teal],["GET /api/planning","Voir le planning",C.purple],["POST /api/contrats","Créer un contrat",C.orange]].map(([ep,desc,c],i)=><CT key={i}><div style={{fontFamily:"monospace",fontSize:11,color:c,marginBottom:3}}>{ep}</div><div style={{fontSize:10,color:C.muted}}>{desc}</div></CT>)}
+      </div>
+    </Card>}
+    {onglet==="logs"&&<Card><STitle>📋 Logs API récents</STitle>
+      {[{m:"POST",ep:"/api/devis",code:200,t:"2ms",dt:"Aujourd'hui 14:32"},{m:"GET",ep:"/api/clients",code:200,t:"8ms",dt:"Aujourd'hui 14:30"},{m:"POST",ep:"/api/paiements",code:200,t:"145ms",dt:"Aujourd'hui 14:28"}].map((l,i)=><div key={i} style={{display:"flex",gap:10,padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11,alignItems:"center"}}>
+        <Pill color={C.blue}>{l.m}</Pill>
+        <span style={{fontFamily:"monospace",color:C.text,flex:1}}>{l.ep}</span>
+        <Pill color={C.green}>{l.code}</Pill>
+        <span style={{color:C.muted}}>{l.t}</span>
+        <span style={{color:C.muted,fontSize:9}}>{l.dt}</span>
+      </div>)}
+    </Card>}
+  </div>;
+};
+
+// ─── PAGE SETTINGS ────────────────────────────────────────────
+const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
+  const[onglet,setOnglet]=useState("entreprise");
+  const tabs=[{id:"entreprise",label:"🏢 Entreprise"},{id:"integrations",label:"🔗 Intégrations"},{id:"ia",label:"🤖 IA & Claude"},{id:"securite",label:"🛡 Sécurité"},{id:"notifications",label:"🔔 Notifications"},{id:"secteur",label:"⊛ Secteur"}];
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>⚙ Paramètres</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Entreprise · Intégrations · IA · Sécurité · RGPD</div>
+    <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
+    {onglet==="entreprise"&&<Card>
+      <STitle>🏢 Informations entreprise</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        {[["Nom","Tymeless Services SASU"],["SIREN","123 456 789"],["TVA","FR12 123456789"],["Adresse","75 rue de Rivoli, Paris 75001"],["Email","contact@tymeless.io"],["Téléphone","+33 1 23 45 67 89"]].map(([k,v],i)=><div key={i}><label style={{fontSize:10,color:C.muted,display:"block",marginBottom:4}}>{k}</label><Inp value={v} onChange={()=>{}}/></div>)}
+      </div>
+      <Btn onClick={()=>showToast("✅ Paramètres sauvegardés")} style={{marginTop:12}}>Sauvegarder</Btn>
+    </Card>}
+    {onglet==="integrations"&&<Card>
+      <STitle>🔗 Intégrations actives</STitle>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {[{n:"Meta WhatsApp API",s:true,c:C.green},{n:"Flutterwave",s:true,c:C.gold},{n:"CinetPay",s:true,c:C.green},{n:"Stripe",s:false,c:C.muted},{n:"Vercel",s:true,c:C.blue},{n:"Supabase",s:true,c:C.green},{n:"Google Calendar",s:false,c:C.muted}].map((it,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,border:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+          <div style={{fontSize:12,fontWeight:600}}>{it.n}</div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <Pill color={it.s?C.green:C.muted}>{it.s?"● Connecté":"○ Déconnecté"}</Pill>
+            <BtnGhost onClick={()=>showToast(`✅ ${it.n} ${it.s?"déconnecté":"connecté"}`)} style={{fontSize:10,padding:"3px 8px"}}>{it.s?"Déconnecter":"Connecter"}</BtnGhost>
+          </div>
+        </div>)}
+      </div>
+    </Card>}
+    {onglet==="ia"&&<Card>
+      <STitle>🤖 Configuration IA — Claude (Anthropic)</STitle>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Clé API Anthropic</label><div style={{display:"flex",gap:8}}><Inp value={sirApiKey} onChange={e=>setSirApiKey(e.target.value)} placeholder="sk-ant-..." style={{flex:1}}/><Btn onClick={()=>showToast("✅ Clé sauvegardée")}>Sauver</Btn></div></div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Modèle IA</label><Sel style={{width:"100%"}}><option value="claude-sonnet-4-5">claude-sonnet-4-5 (Recommandé)</option><option value="claude-opus-4-5">claude-opus-4-5 (Premium)</option></Sel></div>
+        <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Fonctionnalités IA activées</div>{["Analyse business","Relances automatiques","Génération de devis","Recommandations investissement","Réponses avis clients","Chat assistant"].map((f,i)=><div key={i} style={{fontSize:11,color:C.green,padding:"3px 0"}}>✅ {f}</div>)}</CT>
+      </div>
+    </Card>}
+    {onglet==="securite"&&<Card>
+      <STitle>🛡 Sécurité & Conformité</STitle>
+      {[["Authentification 2FA","Activée",C.green],["RGPD","Conforme",C.green],["Chiffrement données","AES-256",C.green],["Sauvegarde automatique","Quotidienne",C.blue],["Journaux d'accès","Activés",C.green]].map(([k,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{k}</span><Pill color={c}>{v}</Pill></div>)}
+    </Card>}
+    {onglet==="notifications"&&<Card>
+      <STitle>🔔 Préférences de notification</STitle>
+      {[["Paiements reçus","Email + WhatsApp"],["Nouveaux clients","Email"],["Devis en attente","WhatsApp + Push"],["Alertes stock","Push"],["Rapport hebdo","Email lundi 8h"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{k}</span><Pill color={C.blue}>{v}</Pill></div>)}
+    </Card>}
+    {onglet==="secteur"&&<Card>
+      <STitle>⊛ Profil sectoriel</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:8}}>
+        {Object.entries(PROFILS_SECTEURS).map(([key,p])=><div key={key} onClick={()=>{setProfil(p);showToast(`✅ Profil "${p.label}" activé`);}} style={{background:profil?.label===p.label?`${p.couleur}22`:"transparent",border:`1px solid ${profil?.label===p.label?p.couleur:C.border}`,borderRadius:8,padding:10,cursor:"pointer"}}>
+          <div style={{fontSize:12,fontWeight:600,color:profil?.label===p.label?p.couleur:C.text}}>{p.label}</div>
+        </div>)}
+      </div>
+    </Card>}
+  </div>;
+};
+
+// ─── PAGE ADMIN ───────────────────────────────────────────────
+const PageAdmin=({plan,showToast})=>{
+  if(plan!=="owner")return <div style={{padding:20}}><div style={{textAlign:"center",padding:60}}><div style={{fontSize:40}}>👑</div><div style={{fontSize:16,color:C.text,marginTop:8}}>Réservé à Curtiss</div></div></div>;
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>👑 Admin Curtiss</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Vue globale · Tous les revenus · Commissions · IA CEO</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+      <KPI label="CA global" val="24 380 €" color={C.gold}/>
+      <KPI label="Membres Club" val="47" color={C.blue}/>
+      <KPI label="ARR SaaS" val="36 000 €" color={C.green}/>
+      <KPI label="Score CEO" val="88/100" color={C.teal}/>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Card><STitle>📊 Vue 360° Tymeless</STitle>
+        {[["Revenus services",18200,C.gold],["Revenus SaaS",3000,C.green],["Revenus Club",1380,C.blue],["Commissions 5%",2400,C.teal]].map(([n,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div>)}
+      </Card>
+      <Card><STitle>🤖 Analyse CEO — Claude</STitle>
+        <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:8,padding:12}}>
+          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:4}}>Intelligence artificielle · Claude Sonnet</div>
+          <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Tymeless performe en dessous de son potentiel sur le SaaS. Recommandation : concentrer 30% des efforts commerciaux sur la conversion de 5 prospects SaaS identifiés. ROI estimé : +18 000€ ARR en Q3.</div>
+        </div>
+      </Card>
+    </div>
+  </div>;
+};
+
+// ─── COMPOSANT PRINCIPAL ──────────────────────────────────────
 export default function TymelessOS() {
-  const [page,  setPage]  = useState("accueil");
-  const [plan,  setPlan]  = useState("owner");
-  const [notifs,setNotifs] = useState(NOTIFS);
+  const[page,setPage]=useState("accueil");
+  const[plan,setPlan]=useState("owner");
+  const[notifs,setNotifs]=useState(INIT_NOTIFS);
+  const[toast,setToast]=useState(null);
+  const[profil,setProfil]=useState(PROFIL_DEFAUT);
+  const[sirApiKey,setSirApiKey]=useState(()=>typeof window!=="undefined"?localStorage.getItem("ty_anthropic")||"":"");
+  const[sidebarOpen,setSidebarOpen]=useState(true);
 
-  const planInfo = PLANS[plan] || PLANS.owner;
-  const unread   = notifs.filter(n=>!n.lu).length;
+  const showToast=(msg)=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
+  useEffect(()=>{if(sirApiKey&&typeof window!=="undefined")localStorage.setItem("ty_anthropic",sirApiKey);},[sirApiKey]);
 
-  // Rendu avec contrôle d'accès
-  const renderPage = () => {
-    // Pages toujours accessibles
-    if (FREE_PAGES.includes(page)) {
-      const freePages = {
-        wallet:       <PageWallet/>,
-        cartes:       <PageCartes/>,
-        iban:         <PageIBAN/>,
-        historique:   <PageWallet/>,
-        notifications:<PageNotifications/>,
-        "chat-equipe":<PageChatEquipe/>,
-        pointage:     <PagePointage/>,
-        settings:     <PageSettings plan={plan} onPlanChange={p=>{setPlan(p);setPage("accueil");}}/>,
-      };
-      return freePages[page] || <PageWallet/>;
-    }
+  const badges={notifs:notifs.filter(n=>!n.lu).length,devis:INIT_DEVIS.filter(d=>d.statut==="en_attente").length,crm:CRM_LEADS.filter(l=>l.etape==="Nouveau").length,comm:2,chat_eq:MSGS_EQUIPE.filter(m=>!m.lu).length,stock:STOCK.filter(s=>s.qte<s.min).length};
 
-    // Pages verrouillées pour Starter
-    if (LOCKED_PAGES.includes(page) && plan==="starter") {
-      return <UpgradeWall page={page} onUpgrade={p=>{setPlan(p);setPage("annuaire");}}/>;
-    }
-
-    // Pages Business Pro+
-    const pages = {
-      accueil:           <PageAccueil setPage={setPage} plan={plan}/>,
-      "vue-ensemble":    <PageOverview setPage={setPage}/>,
-      crm:               <PageCRM/>,
-      devis:             <PageDevis/>,
-      comptabilite:      <PageCompta/>,
-      tresorerie:        <PageTresorerie/>,
-      analytique:        <PageTresorerie/>,
-      investissement:    <PageInvestissement/>,
-      annuaire:          <PageSimple title="🌍 Annuaire Mondial" items={[{icon:"🤝",titre:"Réseau B2B",desc:"Entrepreneurs du monde entier prêts à faire affaires"},{icon:"💼",titre:"Deals potentiels",desc:"Mises en relation avec commission 15–30%"},{icon:"🌍",titre:"30+ pays",desc:"France, Sénégal, Maroc, Émirats, Côte d'Ivoire..."},{icon:"💰",titre:"Revenus passifs",desc:"Tymeless prend 5% sur chaque transaction réseau"}]}/>,
-      "mises-en-relation":<PageSimple title="🤝 Mises en relation" items={[{icon:"🎯",titre:"Matching automatique",desc:"L'IA identifie les meilleures synergies entre membres"},{icon:"💬",titre:"Introduction directe",desc:"Message envoyé sur WhatsApp automatiquement"},{icon:"📊",titre:"Suivi des deals",desc:"De la mise en relation jusqu'au deal signé"},{icon:"💸",titre:"Commissions auto",desc:"15–30% calculées et facturées automatiquement"}]}/>,
-      deals:             <PageSimple title="💼 Deals" items={[{icon:"🤝",titre:"Deals en cours",desc:"Suivi en temps réel de tous les deals actifs"},{icon:"✅",titre:"Deals gagnés",desc:"CA généré via le réseau Tymeless"},{icon:"💰",titre:"Commissions",desc:"Tymeless perçoit sa part automatiquement"},{icon:"📄",titre:"Contrats",desc:"Générés et signés électroniquement"}]}/>,
-      opportunites:      <PageSimple title="🚀 Opportunités Business" items={[{icon:"📢",titre:"Publier une opportunité",desc:"Partager un besoin ou une offre au réseau"},{icon:"👀",titre:"Voir les opportunités",desc:"Toutes les opportunités des membres Business Pro"},{icon:"🎯",titre:"Proposer ses services",desc:"Répondre aux besoins du réseau"},{icon:"🌍",titre:"Portée mondiale",desc:"Visible par tous les membres dans le monde"}]}/>,
-      missions:          <PageSimple title="📌 Demandes de missions" items={[{icon:"📋",titre:"Missions disponibles",desc:"Tâches et missions postées par les membres"},{icon:"✋",titre:"Postuler",desc:"Répondre aux missions qui correspondent à ton profil"},{icon:"📊",titre:"Suivi",desc:"Statut en temps réel de tes candidatures"},{icon:"💰",titre:"Paiement sécurisé",desc:"Via wallet Tymeless avec escrow"}]}/>,
-      propositions:      <PageSimple title="📬 Propositions" items={[{icon:"📨",titre:"Propositions reçues",desc:"Missions et opportunités qui t'ont été proposées"},{icon:"✅",titre:"Accepter",desc:"Valider une proposition et démarrer"},{icon:"❌",titre:"Refuser",desc:"Décliner poliment avec un message automatique"},{icon:"💬",titre:"Négocier",desc:"Chat direct avec l'initiateur de la proposition"}]}/>,
-      "chat-business":   <PageSimple title="💬 Chat Business" items={[{icon:"🤝",titre:"Chat partenaires",desc:"Communication directe avec tes partenaires B2B"},{icon:"💼",titre:"Négociation deals",desc:"Espace dédié pour négocier les conditions"},{icon:"📄",titre:"Partage documents",desc:"Envoyer contrats et devis directement en chat"},{icon:"🔒",titre:"Chiffré et sécurisé",desc:"Tous les échanges sont protégés"}]}/>,
-      planning:          <PagePlanning/>,
-      "rendez-vous":     <PageRendezVous/>,
-      reservations:      <PageSimple title="🗓️ Pages de Réservation" items={[{icon:"🔗",titre:"Lien public",desc:"https://tymeless.fr/rdv/bene — envoyé automatiquement"},{icon:"📅",titre:"Créneaux disponibles",desc:"Gestion des disponibilités en temps réel"},{icon:"✅",titre:"Confirmation auto",desc:"Email + WhatsApp envoyés automatiquement"},{icon:"📱",titre:"Compatible mobile",desc:"Réservation depuis n'importe quel appareil"}]}/>,
-      services:          <PageSimple title="🧰 Catalogue Services" items={[{icon:"🏠",titre:"Nettoyage Airbnb",desc:"250€ · Marge 68%"},{icon:"✈️",titre:"Jet Privé",desc:"2 200€ · Marge 80%"},{icon:"⚰️",titre:"Rapatriement",desc:"4 500€ · Marge 75%"},{icon:"🛥️",titre:"Yacht",desc:"1 800€ · Marge 72%"}]}/>,
-      stock:             <PageStock/>,
-      contrats:          <PageSimple title="📄 Contrats & Signatures" items={[{icon:"✍️",titre:"E-signature",desc:"Signer en un clic depuis mobile ou desktop"},{icon:"📋",titre:"Contrats partenaires",desc:"Générés automatiquement avec les taux de commission"},{icon:"📁",titre:"Archivage",desc:"Tous les contrats stockés et accessibles"},{icon:"⏰",titre:"Alertes d'expiration",desc:"Notification 30 jours avant la date de fin"}]}/>,
-      formation:         <PageFormation/>,
-      equipe:            <PageEquipe/>,
-      collaborateurs:    <PageSimple title="➕ Gestion Collaborateurs" items={[{icon:"➕",titre:"Ajouter",desc:"Inviter un nouveau collaborateur par WhatsApp"},{icon:"🔑",titre:"Rôles & accès",desc:"Définir les droits par profil"},{icon:"📊",titre:"Performance",desc:"Suivi missions et évaluations"},{icon:"💰",titre:"Rémunération",desc:"Paiement via wallet Tymeless"}]}/>,
-      owner:             <PageOwner/>,
-      kpi:               <PageSimple title="📊 KPI Globaux" items={[{icon:"💰",titre:"CA global",desc:"Tous clients et membres confondus"},{icon:"📈",titre:"Croissance",desc:"Courbe mensuelle depuis le lancement"},{icon:"🤝",titre:"Deals réseau",desc:"CA généré via les mises en relation"},{icon:"⭐",titre:"NPS global",desc:"Score de satisfaction moyen tous membres"}]}/>,
-      "commissions-owner":<PageSimple title="💸 Commissions Tymeless" items={[{icon:"💰",titre:"5% automatiques",desc:"Prélevés sur chaque transaction du wallet"},{icon:"🤝",titre:"Sur les deals réseau",desc:"15–30% sur chaque deal conclu via Tymeless"},{icon:"📊",titre:"Abonnements membres",desc:"29€ / 99€ / 150€ par mois"},{icon:"🌍",titre:"SaaS white-label",desc:"5K–12K€ achat + maintenance + 5% transactions"}]}/>,
-      deploiements:      <PageDeploiements/>,
-    };
-    return pages[page] || <PageAccueil setPage={setPage} plan={plan}/>;
+  const pageMap={
+    accueil:<PageAccueil notifs={notifs} setNotifs={setNotifs} profil={profil} setPage={setPage}/>,
+    wallet:<PageWallet plan={plan} showToast={showToast} profil={profil}/>,
+    cartes:<PageCartes showToast={showToast}/>,
+    overview:<PageOverview plan={plan} profil={profil}/>,
+    crm:<PageCRM plan={plan} showToast={showToast} profil={profil}/>,
+    devis:<PageDevis plan={plan} showToast={showToast} profil={profil}/>,
+    investissement:<PageInvestissement plan={plan} showToast={showToast}/>,
+    compta:<PageCompta plan={plan} showToast={showToast}/>,
+    tresorerie:<PageTresorerie plan={plan}/>,
+    analytique:<PageAnalytique plan={plan}/>,
+    clients:<PageClients plan={plan} showToast={showToast}/>,
+    partenaires:<PagePartenaires plan={plan} showToast={showToast}/>,
+    club_affaires:<PageClubAffaires plan={plan} showToast={showToast}/>,
+    annuaire:<PageAnnuaire plan={plan} showToast={showToast}/>,
+    wallet_membres:<PageWalletMembres plan={plan} showToast={showToast}/>,
+    evenements:<PageEvenements plan={plan} showToast={showToast}/>,
+    scoring:<PageScoring plan={plan} showToast={showToast}/>,
+    equipe:<PageEquipe plan={plan} showToast={showToast}/>,
+    planning:<PagePlanning plan={plan} showToast={showToast} profil={profil}/>,
+    prospection:<PageProspection plan={plan} showToast={showToast}/>,
+    deals:<PageDeals plan={plan} showToast={showToast}/>,
+    stock:<PageStock plan={plan} showToast={showToast} profil={profil}/>,
+    services:<PageServices plan={plan} showToast={showToast} profil={profil}/>,
+    chat:<PageChat plan={plan} showToast={showToast}/>,
+    notifications:<PageNotifications notifs={notifs} setNotifs={setNotifs}/>,
+    signature:<PageSignatures plan={plan} showToast={showToast}/>,
+    facturation:<PageFacturation plan={plan} showToast={showToast}/>,
+    formation:<PageFormation plan={plan} showToast={showToast}/>,
+    deploiement:<PageDeploiement plan={plan} showToast={showToast}/>,
+    api:<PageAPI plan={plan} showToast={showToast}/>,
+    settings:<PageSettings plan={plan} showToast={showToast} sirApiKey={sirApiKey} setSirApiKey={setSirApiKey} profil={profil} setProfil={setProfil}/>,
+    admin:<PageAdmin plan={plan} showToast={showToast}/>,
   };
 
   return (
-    <div style={{ minHeight:"100vh", display:"grid", gridTemplateColumns:"260px 1fr", fontFamily:"'DM Sans', 'Inter', ui-sans-serif, system-ui, sans-serif", background:C.bg }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;700&family=DM+Sans:wght@300;400;500;600;700;800&display=swap');
-        * { box-sizing: border-box; }
-        ::-webkit-scrollbar { width: 5px; }
-        ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: #CBD5E1; border-radius: 3px; }
-        button { transition: opacity 0.15s; }
-        button:hover { opacity: 0.85; }
-        tr:hover td { background: #F8FAFC; }
-      `}</style>
+    <div style={{display:"flex",height:"100vh",background:C.dark,color:C.text,fontFamily:"'Segoe UI',system-ui,sans-serif",overflow:"hidden"}}>
 
       {/* ── SIDEBAR ── */}
-      <aside style={{ background:`linear-gradient(180deg,${C.navy} 0%,${C.navy2} 100%)`, color:"#fff", padding:"20px 14px", minHeight:"100vh", position:"sticky", top:0, height:"100vh", overflowY:"auto", borderRight:`1px solid ${C.navyBorder}` }}>
-        {/* LOGO */}
-        <div style={{ marginBottom:24 }}>
-          <div style={{ width:42, height:42, borderRadius:14, background:`linear-gradient(135deg,${C.gold},${C.gold}99)`, display:"flex", alignItems:"center", justifyContent:"center", fontWeight:800, fontSize:18, marginBottom:10, color:C.dark }}>T</div>
-          <div style={{ fontSize:20, fontWeight:800 }}>Tymeless</div>
-          <div style={{ color:"#64748B", fontSize:12, marginTop:2 }}>OS · {planInfo.nom}</div>
+      <div style={{width:sidebarOpen?210:0,minWidth:sidebarOpen?210:0,background:C.card,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",transition:"all 0.2s",overflow:"hidden"}}>
+        {/* Logo */}
+        <div style={{padding:"14px 14px 10px",borderBottom:`1px solid ${C.border}`}}>
+          <div style={{fontSize:17,fontWeight:700,color:C.gold,letterSpacing:"0.1em",fontFamily:"Georgia,serif"}}>TYMELESS</div>
+          <div style={{fontSize:9,color:"#9090B8",letterSpacing:"0.2em",marginTop:2}}>OS · OWNER DASHBOARD</div>
+          <select value={profil?.label||PROFIL_DEFAUT.label} onChange={e=>{const p=Object.values(PROFILS_SECTEURS).find(s=>s.label===e.target.value);if(p)setProfil(p);}} style={{marginTop:8,background:C.card2,border:`1px solid ${C.gold}44`,borderRadius:5,padding:"4px 6px",color:C.gold,fontSize:10,width:"100%",fontFamily:"inherit"}}>
+            {Object.values(PROFILS_SECTEURS).map(p=><option key={p.label} value={p.label}>{p.label}</option>)}
+          </select>
         </div>
 
-        {/* MENU */}
-        <div style={{ flex:1, overflowY:"auto" }}>
-          {NAV.map((section,gi) => (
-            <div key={gi} style={{ marginBottom:18 }}>
-              <div style={{ fontSize:10, textTransform:"uppercase", letterSpacing:"0.12em", color:"#64748B", fontWeight:700, marginBottom:6, paddingLeft:8 }}>{section.title}</div>
-              <div style={{ display:"grid", gap:2 }}>
-                {section.items.map(item => {
-                  const active = page === item.key;
-                  const locked = item.locked && plan === "starter";
-                  return (
-                    <button key={item.key+item.label} onClick={() => setPage(item.key)} style={{ textAlign:"left", border:"none", cursor:"pointer", padding:"9px 10px", borderRadius:12, fontSize:13, color:active?"#fff":"#94A3B8", background:active?`linear-gradient(135deg,rgba(201,168,76,0.35),rgba(201,168,76,0.15))`:"transparent", fontWeight:active?600:400, display:"flex", alignItems:"center", gap:7, transition:"all 0.15s", borderLeft:`2px solid ${active?C.gold:"transparent"}` }}>
-                      <span style={{ flexShrink:0 }}>{locked?"🔒":item.label.split(" ")[0]}</span>
-                      <span style={{ flex:1 }}>{item.label.split(" ").slice(1).join(" ")}</span>
-                      {locked && <span style={{ fontSize:9, color:C.gold+"88" }}>Pro</span>}
-                    </button>
-                  );
-                })}
-              </div>
+        {/* Nav */}
+        <div style={{flex:1,overflowY:"auto",padding:"6px 0"}}>
+          {NAV.map((grp,gi)=><div key={gi}>
+            <div style={{fontSize:9,color:"#9090B8",letterSpacing:"0.2em",textTransform:"uppercase",padding:"10px 13px 3px",marginTop:gi>0?4:0,fontWeight:600}}>{grp.group}</div>
+            {grp.items.map((item)=>{
+              const active=page===item.id;
+              const locked=!hasAccess(plan,item.id);
+              const badge=item.badge?badges[item.badge]:0;
+              return (
+                <button key={item.id} onClick={()=>setPage(item.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 13px",cursor:"pointer",color:active?C.gold:locked?"#6A6A8A":"#C0C0D8",background:active?`${C.gold}0E`:"transparent",border:"none",borderLeft:`2px solid ${active?C.gold:"transparent"}`,width:"100%",textAlign:"left",fontFamily:"inherit",fontSize:12,fontWeight:active?600:400}}>
+                  <span style={{fontSize:14,flexShrink:0}}>{locked?"🔒":item.icon}</span>
+                  <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.label}</span>
+                  {badge>0&&<span style={{background:C.red,color:"#fff",borderRadius:20,padding:"0 5px",fontSize:9,fontWeight:700,flexShrink:0}}>{badge}</span>}
+                </button>
+              );
+            })}
+          </div>)}
+        </div>
+
+        {/* Plan switcher */}
+        <div style={{padding:"8px 12px",borderTop:`1px solid ${C.border}`}}>
+          <select value={plan} onChange={e=>setPlan(e.target.value)} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 8px",color:C.gold,fontSize:11,width:"100%",fontFamily:"inherit"}}>
+            {Object.values(PLANS).map(p=><option key={p.id} value={p.id}>{p.icon} {p.nom}</option>)}
+          </select>
+        </div>
+
+        {/* User */}
+        <div style={{padding:"10px 13px",borderTop:`1px solid ${C.border}`}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <div style={{width:30,height:30,borderRadius:"50%",background:`${C.gold}22`,border:`1px solid ${C.gold}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:C.gold,flexShrink:0}}>C</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:11,fontWeight:600,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>Curtiss</div>
+              <div style={{fontSize:9,color:C.gold}}>★ Owner · Tymeless</div>
             </div>
-          ))}
-        </div>
-
-        {/* UPGRADE BUTTON (si Starter) */}
-        {plan === "starter" && (
-          <button onClick={()=>setPage("settings")} style={{ width:"100%", background:`${C.gold}15`, border:`1px solid ${C.gold}40`, borderRadius:14, padding:"10px 12px", cursor:"pointer", fontFamily:"inherit", marginBottom:10, textAlign:"center" }}>
-            <div style={{ fontSize:12, color:C.gold, fontWeight:700 }}>✦ Passer Business Pro</div>
-            <div style={{ fontSize:10, color:"#64748B" }}>99€/mois — Tout débloquer</div>
-          </button>
-        )}
-
-        {/* USER */}
-        <div style={{ padding:"10px 8px", borderTop:`1px solid ${C.navyBorder}`, display:"flex", alignItems:"center", gap:10 }}>
-          <div style={{ width:32, height:32, borderRadius:10, background:`${C.gold}25`, border:`1px solid ${C.gold}50`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:13, color:C.gold, fontWeight:700 }}>B</div>
-          <div>
-            <div style={{ fontSize:12, fontWeight:600, color:"#E2E8F0" }}>Béné</div>
-            <div style={{ fontSize:10, color:C.gold }}>{planInfo.icon} {planInfo.nom}</div>
+            {notifs.filter(n=>!n.lu).length>0&&<span style={{background:C.red,color:"#fff",borderRadius:20,padding:"0 5px",fontSize:9,fontWeight:700}}>{notifs.filter(n=>!n.lu).length}</span>}
           </div>
-          {unread > 0 && <span style={{ marginLeft:"auto", background:C.red, color:"#fff", borderRadius:999, padding:"1px 7px", fontSize:9, fontWeight:700 }}>{unread}</span>}
         </div>
-      </aside>
+      </div>
 
       {/* ── MAIN ── */}
-      <div style={{ display:"flex", flexDirection:"column", minWidth:0 }}>
-        {/* TOPBAR */}
-        <header style={{ height:70, background:"rgba(255,255,255,0.85)", backdropFilter:"blur(12px)", borderBottom:`1px solid ${C.border}`, display:"flex", alignItems:"center", justifyContent:"space-between", padding:"0 24px", position:"sticky", top:0, zIndex:20, boxShadow:"0 1px 10px rgba(15,23,42,0.04)" }}>
-          <div>
-            <div style={{ fontSize:20, fontWeight:700, color:C.dark, fontFamily:"'Playfair Display',Georgia,serif" }}>
-              {NAV.flatMap(s=>s.items).find(i=>i.key===page)?.label?.replace("🔒 ","") || "Accueil"}
-            </div>
-            <div style={{ fontSize:11, color:C.muted }}>Dashboard premium · Tymeless OS</div>
+      <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
+        {/* Topbar */}
+        <div style={{background:C.card,borderBottom:`1px solid ${C.border}`,padding:"8px 16px",display:"flex",alignItems:"center",gap:10,flexShrink:0}}>
+          <button onClick={()=>setSidebarOpen(s=>!s)} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:18,fontFamily:"inherit",padding:"0 4px"}}>☰</button>
+          <div style={{flex:1}}/>
+          <div style={{background:`${C.teal}11`,border:`1px solid ${C.teal}44`,borderRadius:8,padding:"5px 12px",textAlign:"right"}}>
+            <div style={{fontSize:9,color:C.teal}}>💳 Wallet Tymeless</div>
+            <div style={{fontSize:16,fontWeight:700,color:C.gold}}>18 420 €</div>
           </div>
-          <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-            <div style={{ background:plan==="starter"?C.blueBg:plan==="business"?C.goldLight:C.purpleBg, color:plan==="starter"?C.blue:plan==="business"?C.gold:C.purple, padding:"7px 14px", borderRadius:999, fontSize:12, fontWeight:700, border:`1px solid ${plan==="starter"?C.blueBorder:plan==="business"?C.goldBorder:"#DDD6FE"}` }}>
-              {planInfo.icon} Plan : {planInfo.nom}
-            </div>
-            <button onClick={()=>setPage("notifications")} style={{ position:"relative", background:"transparent", border:`1px solid ${C.border}`, borderRadius:10, width:38, height:38, cursor:"pointer", fontSize:16, display:"flex", alignItems:"center", justifyContent:"center" }}>
-              🔔
-              {unread > 0 && <span style={{ position:"absolute", top:-4, right:-4, background:C.red, color:"#fff", borderRadius:999, width:16, height:16, fontSize:9, fontWeight:700, display:"flex", alignItems:"center", justifyContent:"center" }}>{unread}</span>}
-            </button>
-            <div style={{ width:36, height:36, borderRadius:10, background:C.goldLight, border:`1px solid ${C.goldBorder}`, display:"flex", alignItems:"center", justifyContent:"center", fontSize:14, fontWeight:700, color:C.gold }}>B</div>
-          </div>
-        </header>
+          <button onClick={()=>setPage("notifications")} style={{background:"transparent",border:"none",cursor:"pointer",position:"relative",padding:4}}>
+            <span style={{fontSize:20}}>🔔</span>
+            {notifs.filter(n=>!n.lu).length>0&&<span style={{position:"absolute",top:0,right:0,background:C.red,color:"#fff",borderRadius:"50%",width:16,height:16,fontSize:9,fontWeight:700,display:"flex",alignItems:"center",justifyContent:"center"}}>{notifs.filter(n=>!n.lu).length}</span>}
+          </button>
+        </div>
 
-        {/* CONTENT */}
-        <main style={{ padding:"24px", flex:1, overflowY:"auto" }}>
-          {page === "accueil" ? <PageAccueil setPage={setPage} plan={plan}/> : renderPage()}
-        </main>
+        {/* Page content */}
+        <div style={{flex:1,overflowY:"auto"}}>
+          {pageMap[page]||<div style={{padding:40,textAlign:"center",color:C.muted}}>Module en développement</div>}
+        </div>
       </div>
+
+      {/* ── TOAST ── */}
+      {toast&&<div style={{position:"fixed",bottom:24,right:24,background:C.card,border:`1px solid ${C.gold}44`,borderRadius:10,padding:"12px 20px",boxShadow:"0 8px 32px rgba(0,0,0,0.5)",zIndex:9999,fontSize:13,color:C.text,maxWidth:320,animation:"slideIn 0.3s ease"}}>{toast}</div>}
+
+      <style>{`
+        *{box-sizing:border-box;}
+        ::-webkit-scrollbar{width:4px;height:4px;}
+        ::-webkit-scrollbar-track{background:transparent;}
+        ::-webkit-scrollbar-thumb{background:${C.border};border-radius:2px;}
+        ::-webkit-scrollbar-thumb:hover{background:${C.muted};}
+        select option{background:${C.card};}
+        @keyframes slideIn{from{transform:translateY(20px);opacity:0;}to{transform:translateY(0);opacity:1;}}
+      `}</style>
     </div>
   );
 }
