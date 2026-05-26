@@ -1,5 +1,10 @@
 "use client";
-import TymelessPortail from "./TymelessPortail";
+import dynamic from "next/dynamic";
+
+const TymelessPortail = dynamic(() => import("./TymelessPortail"), {
+  ssr: false,
+});
+
 export default function Page() {
   return <TymelessPortail />;
 }
