@@ -593,5 +593,3 @@ export default function Page() {
     {toast&&<div style={{position:"fixed",bottom:24,right:24,background:"#0C0C1A",border:"1px solid #C9A84C44",borderRadius:10,padding:"12px 20px",zIndex:9999,fontSize:13,color:"#EAE6DE",maxWidth:320}}>{toast}</div>}
   </div>;
 }
-
-export { TymelessPortail as default };
