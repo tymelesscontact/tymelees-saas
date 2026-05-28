@@ -11,11 +11,11 @@ const C = {
 
 // ─── COMPTES DE DEMO ──────────────────────────────────────────
 const COMPTES = [
-  { email:"sofia@vip.ae",       password:"tymeless123", type:"client",    nom:"Sofia Al-Rashid",    avatar:"S", couleur:C.gold   },
-  { email:"marc@dupont.fr",     password:"tymeless123", type:"client",    nom:"Marc Dupont",         avatar:"M", couleur:C.blue   },
-  { email:"thomas@partner.fr",  password:"tymeless123", type:"apporteur", nom:"Thomas Beaumont",     avatar:"T", couleur:C.green  },
-  { email:"fatou@dakar.sn",     password:"tymeless123", type:"apporteur", nom:"Fatoumata Diop",      avatar:"F", couleur:C.purple },
-  { email:"leila@partner.fr",   password:"tymeless123", type:"apporteur", nom:"Leila Mansouri",      avatar:"L", couleur:C.orange },
+  { email:"sofia@vip.ae",       password:"xyra123", type:"client",    nom:"Sofia Al-Rashid",    avatar:"S", couleur:C.gold   },
+  { email:"marc@dupont.fr",     password:"xyra123", type:"client",    nom:"Marc Dupont",         avatar:"M", couleur:C.blue   },
+  { email:"thomas@partner.fr",  password:"xyra123", type:"apporteur", nom:"Thomas Beaumont",     avatar:"T", couleur:C.green  },
+  { email:"fatou@dakar.sn",     password:"xyra123", type:"apporteur", nom:"Fatoumata Diop",      avatar:"F", couleur:C.purple },
+  { email:"leila@partner.fr",   password:"xyra123", type:"apporteur", nom:"Leila Mansouri",      avatar:"L", couleur:C.orange },
 ];
 
 // ─── ATOMS ────────────────────────────────────────────────────
@@ -51,13 +51,13 @@ const Login=({onLogin})=>{
     <div style={{width:"100%",maxWidth:420,padding:24}}>
       {/* Logo */}
       <div style={{textAlign:"center",marginBottom:36}}>
-        <div style={{fontSize:28,fontWeight:700,color:C.gold,letterSpacing:"0.15em",fontFamily:"Georgia,serif"}}>TYMELESS</div>
+        <div style={{fontSize:28,fontWeight:700,color:C.gold,letterSpacing:"0.15em",fontFamily:"Georgia,serif"}}>XYRA</div>
         <div style={{fontSize:11,color:C.muted,letterSpacing:"0.2em",marginTop:4}}>PORTAIL · ESPACE PERSONNEL</div>
       </div>
 
       <Card style={{padding:32}}>
         <div style={{fontSize:18,fontWeight:700,color:C.text,marginBottom:4,fontFamily:"Georgia,serif"}}>Connexion</div>
-        <div style={{fontSize:12,color:C.muted,marginBottom:24}}>Accédez à votre espace personnel Tymeless</div>
+        <div style={{fontSize:12,color:C.muted,marginBottom:24}}>Accédez à votre espace personnel Xyra</div>
 
         <div style={{marginBottom:14}}>
           <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:6}}>Adresse email</label>
@@ -76,7 +76,7 @@ const Login=({onLogin})=>{
 
         <Btn onClick={handleLogin} style={{marginBottom:16}}>{loading?"Connexion en cours...":"Se connecter"}</Btn>
 
-        <div style={{fontSize:11,color:C.muted,textAlign:"center"}}>Vous n'avez pas encore accès ? Contactez Tymeless sur <span style={{color:C.gold}}>contact@tymeless.io</span></div>
+        <div style={{fontSize:11,color:C.muted,textAlign:"center"}}>Vous n'avez pas encore accès ? Contactez Xyra sur <span style={{color:C.gold}}>contact@xyra.io</span></div>
       </Card>
 
       {/* Comptes démo */}
@@ -86,7 +86,7 @@ const Login=({onLogin})=>{
           <span style={{color:C.text}}>{c.email}</span>
           <Pill color={c.type==="client"?C.blue:C.green}>{c.type==="client"?"Client":"Apporteur"}</Pill>
         </div>)}
-        <div style={{fontSize:10,color:C.muted,marginTop:8}}>Mot de passe : <span style={{color:C.gold,fontFamily:"monospace"}}>tymeless123</span></div>
+        <div style={{fontSize:10,color:C.muted,marginTop:8}}>Mot de passe : <span style={{color:C.gold,fontFamily:"monospace"}}>xyra123</span></div>
       </div>
     </div>
   </div>;
@@ -118,7 +118,7 @@ const PortailClient=({user,onLogout,showToast})=>{
     {id:"missions",icon:"📍",label:"Mes missions"},
     {id:"paiement",icon:"💳",label:"Payer en ligne"},
     {id:"historique",icon:"📋",label:"Historique"},
-    {id:"contact",icon:"💬",label:"Contacter Tymeless"},
+    {id:"contact",icon:"💬",label:"Contacter Xyra"},
     {id:"avis",icon:"⭐",label:"Donner un avis"},
   ];
 
@@ -126,12 +126,12 @@ const PortailClient=({user,onLogout,showToast})=>{
     {/* Sidebar */}
     <div style={{width:220,background:C.card,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",flexShrink:0}}>
       <div style={{padding:"18px 16px 12px",borderBottom:`1px solid ${C.border}`}}>
-        <div style={{fontSize:14,fontWeight:700,color:C.gold,letterSpacing:"0.1em",fontFamily:"Georgia,serif"}}>TYMELESS</div>
+        <div style={{fontSize:14,fontWeight:700,color:C.gold,letterSpacing:"0.1em",fontFamily:"Georgia,serif"}}>XYRA</div>
         <div style={{fontSize:9,color:C.muted,letterSpacing:"0.2em",marginTop:2}}>ESPACE CLIENT</div>
       </div>
       <div style={{padding:"12px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:10}}>
         <div style={{width:36,height:36,borderRadius:"50%",background:user.couleur+"22",border:`2px solid ${user.couleur}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:user.couleur}}>{user.avatar}</div>
-        <div><div style={{fontSize:12,fontWeight:700,color:C.text}}>{user.nom}</div><div style={{fontSize:9,color:C.green}}>● Client Tymeless</div></div>
+        <div><div style={{fontSize:12,fontWeight:700,color:C.text}}>{user.nom}</div><div style={{fontSize:9,color:C.green}}>● Client Xyra</div></div>
       </div>
       <div style={{flex:1,padding:"8px 0"}}>
         {nav.map(n=><button key={n.id} onClick={()=>setPage(n.id)} style={{display:"flex",alignItems:"center",gap:10,padding:"9px 14px",cursor:"pointer",color:page===n.id?C.gold:"#C0C0D8",background:page===n.id?`${C.gold}0E`:"transparent",border:"none",borderLeft:`2px solid ${page===n.id?C.gold:"transparent"}`,width:"100%",textAlign:"left",fontFamily:"inherit",fontSize:12,fontWeight:page===n.id?700:400}}>
@@ -148,9 +148,9 @@ const PortailClient=({user,onLogout,showToast})=>{
       {/* Accueil */}
       {page==="accueil"&&<div style={{padding:24}}>
         <div style={{background:`linear-gradient(135deg,${C.card},#0A1A14)`,border:`1px solid ${C.gold}33`,borderRadius:16,padding:24,marginBottom:20}}>
-          <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:6}}>TYMELESS · ESPACE PERSONNEL</div>
+          <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:6}}>XYRA · ESPACE PERSONNEL</div>
           <div style={{fontSize:24,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>Bonjour {user.nom.split(" ")[0]} 👋</div>
-          <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Bienvenue dans votre espace client Tymeless</div>
+          <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Bienvenue dans votre espace client Xyra</div>
           <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
             <div style={{borderLeft:`2px solid ${C.gold}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Total facturé</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>{fmt(histo.reduce((a,h)=>a+h.montant,0))}</div></div>
             <div style={{borderLeft:`2px solid ${C.green}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Missions</div><div style={{fontSize:16,fontWeight:700,color:C.green}}>{missions.length}</div></div>
@@ -174,7 +174,7 @@ const PortailClient=({user,onLogout,showToast})=>{
               <div style={{fontSize:13,fontWeight:700,marginBottom:4}}>{d.service}</div>
               <div style={{fontSize:18,fontWeight:700,color:C.gold,marginBottom:10}}>{fmt(d.montant)}</div>
               <div style={{display:"flex",gap:8}}>
-                <Btn onClick={()=>showToast("✅ Devis signé — Tymeless vous contacte !")} style={{flex:1,padding:"8px 10px",fontSize:11}}>✅ Signer</Btn>
+                <Btn onClick={()=>showToast("✅ Devis signé — Xyra vous contacte !")} style={{flex:1,padding:"8px 10px",fontSize:11}}>✅ Signer</Btn>
                 <BtnGhost onClick={()=>setPage("contact")} style={{flex:1,fontSize:11}}>💬 Question</BtnGhost>
               </div>
             </div>)}
@@ -185,7 +185,7 @@ const PortailClient=({user,onLogout,showToast})=>{
       {/* Devis & Factures */}
       {page==="devis"&&<div style={{padding:24}}>
         <div style={{fontSize:20,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◧ Devis & Factures</div>
-        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Retrouvez tous vos documents Tymeless</div>
+        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Retrouvez tous vos documents Xyra</div>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           {devis.map((d,i)=><Card key={i} style={{borderColor:d.statut==="en_attente"?`${C.orange}44`:C.border}}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
@@ -210,7 +210,7 @@ const PortailClient=({user,onLogout,showToast})=>{
       {/* Missions */}
       {page==="missions"&&<div style={{padding:24}}>
         <div style={{fontSize:20,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>📍 Mes missions</div>
-        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Suivi en temps réel de toutes vos missions Tymeless</div>
+        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Suivi en temps réel de toutes vos missions Xyra</div>
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
           {missions.map((m,i)=>{
             const sc=m.statut==="terminé"?C.green:m.statut==="en cours"?C.gold:C.blue;
@@ -259,7 +259,7 @@ const PortailClient=({user,onLogout,showToast})=>{
       {/* Historique */}
       {page==="historique"&&<div style={{padding:24}}>
         <div style={{fontSize:20,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>📋 Historique complet</div>
-        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Toutes vos transactions et missions avec Tymeless</div>
+        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Toutes vos transactions et missions avec Xyra</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:20}}>
           <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted,marginBottom:4}}>Total dépensé</div><div style={{fontSize:20,fontWeight:700,color:C.gold}}>{fmt(histo.reduce((a,h)=>a+h.montant,0))}</div></CT>
           <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted,marginBottom:4}}>Missions réalisées</div><div style={{fontSize:20,fontWeight:700,color:C.green}}>{missions.filter(m=>m.statut==="terminé").length}</div></CT>
@@ -281,7 +281,7 @@ const PortailClient=({user,onLogout,showToast})=>{
 
       {/* Contact */}
       {page==="contact"&&<div style={{padding:24}}>
-        <div style={{fontSize:20,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>💬 Contacter Tymeless</div>
+        <div style={{fontSize:20,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>💬 Contacter Xyra</div>
         <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Notre équipe répond en moins de 2h</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
           <Card>
@@ -299,7 +299,7 @@ const PortailClient=({user,onLogout,showToast})=>{
             </div>
           </Card>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            {[{icon:"📱",titre:"WhatsApp",detail:"+33 1 23 45 67 89",action:"Ouvrir WhatsApp",color:C.green},{icon:"📧",titre:"Email",detail:"contact@tymeless.io",action:"Envoyer un email",color:C.blue},{icon:"🕐",titre:"Horaires",detail:"Lun–Ven 8h–19h\nSam 9h–17h",action:null,color:C.gold}].map((c,i)=><Card key={i} style={{borderColor:`${c.color}33`}}>
+            {[{icon:"📱",titre:"WhatsApp",detail:"+33 1 23 45 67 89",action:"Ouvrir WhatsApp",color:C.green},{icon:"📧",titre:"Email",detail:"contact@xyra.io",action:"Envoyer un email",color:C.blue},{icon:"🕐",titre:"Horaires",detail:"Lun–Ven 8h–19h\nSam 9h–17h",action:null,color:C.gold}].map((c,i)=><Card key={i} style={{borderColor:`${c.color}33`}}>
               <div style={{fontSize:20,marginBottom:6}}>{c.icon}</div>
               <div style={{fontSize:12,fontWeight:700,marginBottom:2}}>{c.titre}</div>
               <div style={{fontSize:11,color:C.muted,whiteSpace:"pre-line",marginBottom:c.action?10:0}}>{c.detail}</div>
@@ -386,7 +386,7 @@ const PortailApporteur=({user,onLogout,showToast})=>{
     {/* Sidebar */}
     <div style={{width:220,background:C.card,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",flexShrink:0}}>
       <div style={{padding:"18px 16px 12px",borderBottom:`1px solid ${C.border}`}}>
-        <div style={{fontSize:14,fontWeight:700,color:C.gold,letterSpacing:"0.1em",fontFamily:"Georgia,serif"}}>TYMELESS</div>
+        <div style={{fontSize:14,fontWeight:700,color:C.gold,letterSpacing:"0.1em",fontFamily:"Georgia,serif"}}>XYRA</div>
         <div style={{fontSize:9,color:C.muted,letterSpacing:"0.2em",marginTop:2}}>ESPACE PARTENAIRE</div>
       </div>
       <div style={{padding:"12px 10px",borderBottom:`1px solid ${C.border}`,display:"flex",alignItems:"center",gap:10}}>
@@ -408,7 +408,7 @@ const PortailApporteur=({user,onLogout,showToast})=>{
       {/* Accueil */}
       {page==="accueil"&&<div style={{padding:24}}>
         <div style={{background:`linear-gradient(135deg,${C.card},#0A1A0A)`,border:`1px solid ${C.green}33`,borderRadius:16,padding:24,marginBottom:20}}>
-          <div style={{fontSize:9,color:C.green,letterSpacing:"0.2em",marginBottom:6}}>TYMELESS · ESPACE PARTENAIRE</div>
+          <div style={{fontSize:9,color:C.green,letterSpacing:"0.2em",marginBottom:6}}>XYRA · ESPACE PARTENAIRE</div>
           <div style={{fontSize:24,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>Bonjour {user.nom.split(" ")[0]} 👋</div>
           <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Votre tableau de bord apporteur d'affaires</div>
           <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
@@ -434,7 +434,7 @@ const PortailApporteur=({user,onLogout,showToast})=>{
               <div style={{fontSize:11,color:C.muted,marginBottom:4}}>{contrat.taux}% de {fmt(l.ca)}</div>
               <div style={{fontSize:18,fontWeight:700,color:C.green}}>{fmt(l.comm)}</div>
             </div>)}
-            <Btn onClick={()=>showToast("📱 Rappel de commission envoyé à Tymeless !")} style={{marginTop:8,fontSize:11}}>💰 Demander le paiement</Btn>
+            <Btn onClick={()=>showToast("📱 Rappel de commission envoyé à Xyra !")} style={{marginTop:8,fontSize:11}}>💰 Demander le paiement</Btn>
           </Card>
         </div>
       </div>}
@@ -473,13 +473,13 @@ const PortailApporteur=({user,onLogout,showToast})=>{
             {[["Nom de l'entreprise","nom","text"],["Nom du contact","contact","text"],["Secteur d'activité","secteur","text"],["Téléphone","tel","tel"],["Email","email","email"]].map(([ph,k,t])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{ph}</label><input type={t} value={newLead[k]} onChange={e=>setNewLead(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontSize:13,fontFamily:"inherit",outline:"none",width:"100%",boxSizing:"border-box"}}/></div>)}
             <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Notes / Contexte</label><textarea value={newLead.note} onChange={e=>setNewLead(f=>({...f,note:e.target.value}))} placeholder="Besoin identifié, budget estimé, contexte..." rows={4} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px 12px",color:C.text,fontSize:13,fontFamily:"inherit",outline:"none",width:"100%",resize:"vertical",boxSizing:"border-box"}}/></div>
             <div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:8,padding:12,fontSize:11,color:C.text}}>
-              💡 Rappel : votre commission est de <b style={{color:C.gold}}>{contrat.taux}%</b> du CA signé. Tymeless vous notifie dès que le lead est qualifié et quand le contrat est signé.
+              💡 Rappel : votre commission est de <b style={{color:C.gold}}>{contrat.taux}%</b> du CA signé. Xyra vous notifie dès que le lead est qualifié et quand le contrat est signé.
             </div>
             <Btn onClick={()=>{
               if(!newLead.nom)return showToast("⚠️ Remplissez au moins le nom de l'entreprise");
               const nl={id:`L-00${mesLeads.length+1}`,nom:newLead.nom,contact:newLead.contact,secteur:newLead.secteur,date:new Date().toLocaleDateString("fr"),statut:"qualifié",ca:0,comm:0,note:newLead.note};
               setMesLeads(l=>[nl,...l]);setNewLead({nom:"",contact:"",secteur:"",tel:"",email:"",note:""});
-              showToast("✅ Lead soumis ! Tymeless vous répond sous 24h.");setPage("leads");
+              showToast("✅ Lead soumis ! Xyra vous répond sous 24h.");setPage("leads");
             }}>✅ Soumettre ce lead</Btn>
           </div>
         </Card>
@@ -511,7 +511,7 @@ const PortailApporteur=({user,onLogout,showToast})=>{
       {/* Contrat */}
       {page==="contrat"&&<div style={{padding:24}}>
         <div style={{fontSize:20,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>📋 Mon contrat</div>
-        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Conditions de votre partenariat Tymeless</div>
+        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Conditions de votre partenariat Xyra</div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
           <Card style={{borderColor:`${C.gold}33`}}>
             <div style={{fontSize:9,color:C.gold,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:14,fontWeight:600}}>Détails du contrat</div>
@@ -520,7 +520,7 @@ const PortailApporteur=({user,onLogout,showToast})=>{
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <Card style={{background:`${C.green}08`,borderColor:`${C.green}33`}}>
               <div style={{fontSize:11,fontWeight:700,color:C.green,marginBottom:8}}>✅ Vos droits</div>
-              {["Commission sur tout CA signé","Accès portail partenaire 24h/24","Notification immédiate à chaque étape","Support dédié Tymeless","Historique complet des paiements"].map((d,i)=><div key={i} style={{fontSize:11,color:C.text,padding:"3px 0"}}>• {d}</div>)}
+              {["Commission sur tout CA signé","Accès portail partenaire 24h/24","Notification immédiate à chaque étape","Support dédié Xyra","Historique complet des paiements"].map((d,i)=><div key={i} style={{fontSize:11,color:C.text,padding:"3px 0"}}>• {d}</div>)}
             </Card>
             <div style={{display:"flex",flexDirection:"column",gap:8}}>
               <Btn onClick={()=>showToast("📄 Contrat PDF téléchargé")}>📄 Télécharger le contrat PDF</Btn>
@@ -532,12 +532,12 @@ const PortailApporteur=({user,onLogout,showToast})=>{
 
       {/* Messagerie */}
       {page==="messagerie"&&<div style={{padding:24}}>
-        <div style={{fontSize:20,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:16}}>💬 Messagerie Tymeless</div>
+        <div style={{fontSize:20,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:16}}>💬 Messagerie Xyra</div>
         <Card style={{height:460,padding:0,overflow:"hidden"}}>
           <div style={{display:"flex",flexDirection:"column",height:"100%"}}>
             <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.border}`,background:C.card2,display:"flex",alignItems:"center",gap:10}}>
               <div style={{width:32,height:32,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:C.gold}}>T</div>
-              <div><div style={{fontSize:13,fontWeight:700}}>Tymeless — Équipe</div><div style={{fontSize:10,color:C.green}}>● En ligne</div></div>
+              <div><div style={{fontSize:13,fontWeight:700}}>Xyra — Équipe</div><div style={{fontSize:10,color:C.green}}>● En ligne</div></div>
             </div>
             <div style={{flex:1,overflowY:"auto",padding:16,display:"flex",flexDirection:"column",gap:10}}>
               {msgs.map((m,i)=><div key={i} style={{display:"flex",gap:8,flexDirection:m.moi?"row-reverse":"row"}}>
@@ -571,7 +571,7 @@ const PortailApporteur=({user,onLogout,showToast})=>{
             {Object.entries({qualifié:C.gold,proposition:C.blue,gagné:C.green,perdu:C.muted}).map(([s,c])=>{const n=mesLeads.filter(l=>l.statut===s).length;return <div key={s} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{textTransform:"capitalize"}}>{s}</span><span style={{color:c,fontWeight:700}}>{n}</span></div><SM val={n} max={mesLeads.length} color={c}/></div>;})}
           </Card>
           <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
-            <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:8}}>🤖 Analyse Tymeless</div>
+            <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:8}}>🤖 Analyse Xyra</div>
             <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Votre taux de conversion de <b style={{color:C.gold}}>{tauxConv}%</b> est excellent — la moyenne du réseau est 18%. Vos leads dans le secteur <b style={{color:C.teal}}>Immobilier</b> convertissent le mieux. Continuez à sourcer dans ce secteur pour maximiser vos commissions.</div>
           </Card>
         </div>
