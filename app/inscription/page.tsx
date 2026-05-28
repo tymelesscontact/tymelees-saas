@@ -81,12 +81,12 @@ export default function Inscription() {
     currency: "EUR",
     payment_options: "mobilemoney,card,ussd",
     customer: {
-      email: form.email || "client@tymeless.com",
+      email: form.email || "client@xyra.com",
       name: form.societe || "Client",
       phone_number: "0000000000",
     },
     customizations: {
-      title: "Tymeless OS",
+      title: "Xyra OS",
       description: `Abonnement ${form.plan} — ${form.metier}`,
       logo: "https://tymelees-saas-yzel.vercel.app/favicon.ico",
     },
@@ -164,7 +164,7 @@ export default function Inscription() {
         <div>
           <div style={{ fontSize: 64, marginBottom: 24 }}>🎉</div>
           <h1 style={{ fontSize: "clamp(32px,5vw,52px)", fontWeight: 300, marginBottom: 16 }}>
-            Bienvenue sur <em style={{ color: "#c9a96e", fontStyle: "italic" }}>Tymeless OS !</em>
+            Bienvenue sur <em style={{ color: "#c9a96e", fontStyle: "italic" }}>Xyra OS !</em>
           </h1>
           <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 16, color: "rgba(240,234,214,0.6)", marginBottom: 16, lineHeight: 1.7 }}>
             Paiement confirmé · Compte créé avec succès
@@ -221,7 +221,7 @@ export default function Inscription() {
 
       {/* HEADER */}
       <div style={{ borderBottom: "1px solid rgba(201,169,110,0.1)", padding: "18px 40px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <a href="/" style={{ fontSize: 20, fontWeight: 300, letterSpacing: "0.08em", color: "#c9a96e", textDecoration: "none" }}>TYMELESS <em>OS</em></a>
+        <a href="/" style={{ fontSize: 20, fontWeight: 300, letterSpacing: "0.08em", color: "#c9a96e", textDecoration: "none" }}>XYRA <em>OS</em></a>
         <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "rgba(240,234,214,0.4)" }}>
           Déjà inscrit ? <a href={`/dashboard/client?plan=${form.plan.toLowerCase().replace(/ /g,"_")}&societe=${encodeURIComponent(form.societe)}&secteur=${encodeURIComponent(form.metier)}`} style={{ color: "#c9a96e", textDecoration: "none" }}>Connexion →</a>
         </span>
