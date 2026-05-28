@@ -568,7 +568,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
   const[aiMsg]=useState("2 devis en attente — priorité du jour. CA hebdo +12%. Thomas en mission, Abou disponible. Penser à relancer Isabelle Moreau pour le renouvellement contrat mensuel.");
   return <div style={{padding:20}}>
     <div style={{background:`linear-gradient(135deg,${C.card},#0A1A14)`,border:`1px solid ${C.gold}33`,borderRadius:16,padding:24,marginBottom:16}}>
-      <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:6}}>TYMELESS OS · OWNER DASHBOARD</div>
+      <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:6}}>XYRA · OWNER DASHBOARD</div>
       <div style={{fontSize:26,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>Bonjour Curtiss ✦</div>
       <div style={{fontSize:11,color:C.muted,marginBottom:16}}>{new Date().toLocaleDateString("fr-FR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})} · Paris</div>
       <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:12,marginBottom:16}}>
@@ -1493,7 +1493,7 @@ const PageClients=({plan,showToast})=>{
 // ─── PAGE PARTENAIRES ─────────────────────────────────────────
 const PagePartenaires=({plan,showToast})=>{
   const[parts,setParts]=useState([
-    {id:"p1",nom:"Thomas Beaumont",role:"Apporteur d'affaires",comm:20,ca:12400,contrats:8,statut:"actif",dues:2480,paye:4800,rib:"FR76 3000 4000 0100 0012 3456 789",email:"thomas@tymeless.io",tel:"+33 6 12 34 56 78",adresse:"12 rue de la Paix, Paris",embauche:"01/03/2024",couleur:C.blue,
+    {id:"p1",nom:"Thomas Beaumont",role:"Apporteur d'affaires",comm:20,ca:12400,contrats:8,statut:"actif",dues:2480,paye:4800,rib:"FR76 3000 4000 0100 0012 3456 789",email:"thomas@xyra.io",tel:"+33 6 12 34 56 78",adresse:"12 rue de la Paix, Paris",embauche:"01/03/2024",couleur:C.blue,
      leads:[{nom:"Hôtel Prestige Paris",statut:"gagné",ca:8000,date:"10/04"},{nom:"SCI Châtillon",statut:"en cours",ca:2400,date:"08/04"},{nom:"Cabinet Lebrun",statut:"perdu",ca:0,date:"05/04"}],
      docs:[{nom:"Contrat AA signé",type:"Contrat",date:"01/03/2024",statut:"signé"},{nom:"RIB bancaire",type:"RIB",date:"01/03/2024",statut:"valide"},{nom:"DPAE",type:"RH",date:"01/03/2024",statut:"archivé"}],
      msgs:[{msg:"Bonjour, j'ai un nouveau prospect intéressant pour vous 🚀",h:"09:14",moi:false},{msg:"Top ! Envoyez-moi les coordonnées",h:"09:20",moi:true}]},
@@ -1999,7 +1999,7 @@ const PageClubAffaires=({plan,showToast})=>{
           <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Salon Visio Club VIP</div>
           <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Salle privée membres Club Tymeless</div>
           <div style={{display:"flex",gap:8,justifyContent:"center"}}>
-            <Btn onClick={()=>showToast("🎥 Salle club : meet.tymeless.io/club")}>🎥 Rejoindre</Btn>
+            <Btn onClick={()=>showToast("🎥 Salle club : meet.xyra.io/club")}>🎥 Rejoindre</Btn>
             <BtnGhost onClick={()=>showToast("📅 Visio planifiée !")}>📅 Planifier</BtnGhost>
           </div>
         </div>
@@ -2032,7 +2032,7 @@ const PageAnnuaire=({plan,showToast})=>{
   // ── Données réseau mondial ─────────────────────────────────
   const RESEAU_MONDIAL=[
     // Partenaires existants
-    {id:"r1",nom:"Thomas Beaumont",type:"Apporteur d'affaires",secteur:"Conciergerie",pays:"🇫🇷",ville:"Paris",continent:"Europe",tel:"+33 6 12 34 56 78",email:"thomas@tymeless.io",ca:12400,deals:8,bio:"Spécialiste missions premium Airbnb & résidentiel Paris"},
+    {id:"r1",nom:"Thomas Beaumont",type:"Apporteur d'affaires",secteur:"Conciergerie",pays:"🇫🇷",ville:"Paris",continent:"Europe",tel:"+33 6 12 34 56 78",email:"thomas@xyra.io",ca:12400,deals:8,bio:"Spécialiste missions premium Airbnb & résidentiel Paris"},
     {id:"r2",nom:"Leila Mansouri",type:"Partenaire",secteur:"Immobilier",pays:"🇫🇷",ville:"Lyon",continent:"Europe",tel:"+33 6 44 55 66 77",email:"leila.m@mail.fr",ca:8700,deals:5,bio:"Agent immobilier spécialisée résidentiel haut de gamme"},
     {id:"r3",nom:"Groupe Prestige SARL",type:"Partenaire",secteur:"Syndic & Gestion",pays:"🇫🇷",ville:"Paris",continent:"Europe",tel:"+33 1 44 55 66 77",email:"contact@prestige.fr",ca:22000,deals:14,bio:"Syndic professionnel, gestionnaire de 200+ résidences Paris"},
     {id:"r4",nom:"Fatoumata Diop",type:"Apporteur d'affaires",secteur:"Finance Afrique",pays:"🇸🇳",ville:"Dakar",continent:"Afrique",tel:"+221 77 123 45 67",email:"fatou.d@dakar.sn",ca:6800,deals:4,bio:"Consultante finance d'entreprise, réseau Afrique de l'Ouest"},
@@ -2067,7 +2067,7 @@ const PageAnnuaire=({plan,showToast})=>{
   const[showDeal,setShowDeal]=useState(null);
   const[dealForm,setDealForm]=useState({service:"",valeur:"",detail:""});
   const[deals,setDeals]=useState([
-    {id:"D001",de:"Tymeless",pour:"Sofia Al-Rashid",service:"Nettoyage jet privé Dubai",valeur:4800,statut:"en cours",date:"12/04"},
+    {id:"D001",de:"Xyra",pour:"Sofia Al-Rashid",service:"Nettoyage jet privé Dubai",valeur:4800,statut:"en cours",date:"12/04"},
     {id:"D002",de:"Leila Mansouri",pour:"Groupe Prestige SARL",service:"Mise en relation syndic",valeur:12000,statut:"proposé",date:"10/04"},
     {id:"D003",de:"Fatoumata Diop",pour:"Ndoye Business Group",service:"Distribution Afrique Ouest",valeur:8000,statut:"validé",date:"08/04"},
   ]);
@@ -2240,7 +2240,7 @@ const PageAnnuaire=({plan,showToast})=>{
           <Inp value={dealForm.detail} onChange={e=>setDealForm(f=>({...f,detail:e.target.value}))} placeholder="Détail de la proposition..."/>
           <div style={{display:"flex",gap:8}}>
             <Btn onClick={()=>{
-              const nd={id:"D00"+(deals.length+1),de:"Tymeless",pour:showDeal.nom,service:dealForm.service||"À préciser",valeur:Number(dealForm.valeur)||0,statut:"proposé",date:new Date().toLocaleDateString("fr")};
+              const nd={id:"D00"+(deals.length+1),de:"Xyra",pour:showDeal.nom,service:dealForm.service||"À préciser",valeur:Number(dealForm.valeur)||0,statut:"proposé",date:new Date().toLocaleDateString("fr")};
               setDeals(d=>[nd,...d]);setShowDeal(null);setDealForm({service:"",valeur:"",detail:""});
               showToast(`✅ Deal proposé à ${nd.pour} — Notification WhatsApp envoyée !`);
             }}>✅ Envoyer la proposition</Btn>
@@ -2299,7 +2299,7 @@ const PageAnnuaire=({plan,showToast})=>{
       <Card style={{padding:0,overflow:"hidden"}}>
         {sel?<Chat
           msgs={[...msgs.filter(m=>m.de===sel.nom).map(m=>({av:inits(m.de),msg:m.msg,h:m.h,moi:false})),]}
-          onSend={(msg)=>{setMsgs(ms=>[...ms,{de:"Tymeless",pour:sel.nom,msg,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),lu:true,moi:true}]);showToast(`✅ Message envoyé à ${sel.nom}`);}}
+          onSend={(msg)=>{setMsgs(ms=>[...ms,{de:"Xyra",pour:sel.nom,msg,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),lu:true,moi:true}]);showToast(`✅ Message envoyé à ${sel.nom}`);}}
           title={sel.nom}
           subtitle={`${sel.pays} ${sel.ville} · ${sel.secteur}`}
         />:<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",color:C.muted}}>
@@ -2440,7 +2440,7 @@ const PageScoring=({plan,showToast})=>{
 // ─── PAGE EQUIPE ──────────────────────────────────────────────
 const PageEquipe=({plan,showToast})=>{
   const[equipe,setEquipe]=useState([
-    {id:1,nom:"Thomas Beaumont",prenom:"Thomas",role:"Responsable missions premium",statut:"En mission",localisation:"Airbnb Montmartre",pointage:"09:02",heures:6.5,conges:12,soldeConges:12,salaire:2800,perf:94,contrat:"CDI",email:"thomas@tymeless.io",tel:"+33 6 12 34 56 78",embauche:"01/03/2024",nss:"1 85 06 75 056 042 28",rib:"FR76 3000 4000 0100 0012 3456 789",adresse:"12 rue de la Paix, 75001 Paris",dateNaissance:"15/06/1985",couleur:"#4B7BFF",
+    {id:1,nom:"Thomas Beaumont",prenom:"Thomas",role:"Responsable missions premium",statut:"En mission",localisation:"Airbnb Montmartre",pointage:"09:02",heures:6.5,conges:12,soldeConges:12,salaire:2800,perf:94,contrat:"CDI",email:"thomas@xyra.io",tel:"+33 6 12 34 56 78",embauche:"01/03/2024",nss:"1 85 06 75 056 042 28",rib:"FR76 3000 4000 0100 0012 3456 789",adresse:"12 rue de la Paix, 75001 Paris",dateNaissance:"15/06/1985",couleur:"#4B7BFF",
     missions:[{date:"15/04",service:"Nettoyage Airbnb Montmartre",client:"Isabelle Moreau",duree:"3h",note:5},{date:"14/04",service:"Nettoyage bureaux La Défense",client:"Marc Dupont",duree:"4h",note:5},{date:"12/04",service:"Rapatriement corps — Lefevre",client:"Pierre Lefevre",duree:"8h",note:5}],
     evaluations:[{date:"01/04/2026",note:94,points:"Excellence technique, ponctualité parfaite, initiative",axes:"Développer compétences aviation privée",evaluateur:"Curtiss"},{date:"01/01/2026",note:88,points:"Très bonne maîtrise des protocoles premium",axes:"Communication client à perfectionner",evaluateur:"Curtiss"}],
     formations:[{titre:"Protocole nettoyage jet privé",date:"15/03",statut:"complété",score:98},{titre:"Secourisme SST",date:"10/01",statut:"complété",score:95}],
@@ -2448,7 +2448,7 @@ const PageEquipe=({plan,showToast})=>{
     arrets:[],objectifs:[{obj:"Atteindre 50 missions/mois",actuel:38,cible:50,color:"#4B7BFF"},{obj:"Score client > 4.8",actuel:4.9,cible:4.8,color:"#2EC9B0"},{obj:"Zéro retard",actuel:0,cible:0,color:"#2EC9B0"}],
     carriere:[{date:"01/03/2024",poste:"Technicien junior",salaire:2200},{date:"01/09/2024",poste:"Technicien senior",salaire:2500},{date:"01/03/2025",poste:"Responsable missions premium",salaire:2800}]},
 
-    {id:2,nom:"Abou Diallo",prenom:"Abou",role:"Technicien polyvalent",statut:"Disponible",localisation:"Paris 18e",pointage:"08:45",heures:5.2,conges:15,soldeConges:15,salaire:2200,perf:88,contrat:"CDD",email:"abou@tymeless.io",tel:"+33 6 98 76 54 32",embauche:"15/06/2024",nss:"1 92 03 75 115 224 55",rib:"FR76 1027 8060 0001 0234 5678 901",adresse:"45 avenue de Clichy, 75017 Paris",dateNaissance:"03/03/1992",couleur:"#9B5FFF",
+    {id:2,nom:"Abou Diallo",prenom:"Abou",role:"Technicien polyvalent",statut:"Disponible",localisation:"Paris 18e",pointage:"08:45",heures:5.2,conges:15,soldeConges:15,salaire:2200,perf:88,contrat:"CDD",email:"abou@xyra.io",tel:"+33 6 98 76 54 32",embauche:"15/06/2024",nss:"1 92 03 75 115 224 55",rib:"FR76 1027 8060 0001 0234 5678 901",adresse:"45 avenue de Clichy, 75017 Paris",dateNaissance:"03/03/1992",couleur:"#9B5FFF",
     missions:[{date:"15/04",service:"Nettoyage Airbnb Montmartre",client:"Isabelle Moreau",duree:"3h",note:5},{date:"13/04",service:"Entretien yacht",client:"Jet Services",duree:"5h",note:4}],
     evaluations:[{date:"01/04/2026",note:88,points:"Polyvalence remarquable, bonne attitude",axes:"Améliorer vitesse d'exécution",evaluateur:"Curtiss"}],
     formations:[{titre:"Nettoyage yacht — produits nacrés",date:"20/03",statut:"à faire",score:null},{titre:"Secourisme SST",date:"10/01",statut:"complété",score:90}],
@@ -2457,7 +2457,7 @@ const PageEquipe=({plan,showToast})=>{
     objectifs:[{obj:"30 missions/mois",actuel:22,cible:30,color:"#9B5FFF"},{obj:"Score client > 4.5",actuel:4.6,cible:4.5,color:"#2EC9B0"}],
     carriere:[{date:"15/06/2024",poste:"Technicien junior",salaire:2000},{date:"01/01/2025",poste:"Technicien polyvalent",salaire:2200}]},
 
-    {id:3,nom:"Fatou Sarr",prenom:"Fatou",role:"Commercial & Relations clients",statut:"En RDV",localisation:"Client VIP 14h",pointage:"09:30",heures:4.8,conges:10,soldeConges:10,salaire:2400,perf:91,contrat:"CDI",email:"fatou@tymeless.io",tel:"+33 6 55 44 33 22",embauche:"01/09/2024",nss:"2 94 08 75 102 358 44",rib:"FR76 2004 1000 0101 0050 0678 912",adresse:"8 rue Victor Hugo, 75016 Paris",dateNaissance:"22/08/1994",couleur:"#FF5F9E",
+    {id:3,nom:"Fatou Sarr",prenom:"Fatou",role:"Commercial & Relations clients",statut:"En RDV",localisation:"Client VIP 14h",pointage:"09:30",heures:4.8,conges:10,soldeConges:10,salaire:2400,perf:91,contrat:"CDI",email:"fatou@xyra.io",tel:"+33 6 55 44 33 22",embauche:"01/09/2024",nss:"2 94 08 75 102 358 44",rib:"FR76 2004 1000 0101 0050 0678 912",adresse:"8 rue Victor Hugo, 75016 Paris",dateNaissance:"22/08/1994",couleur:"#FF5F9E",
     missions:[{date:"17/04",service:"RDV client VIP Sofia Al-Rashid",client:"Sofia Al-Rashid",duree:"2h",note:5},{date:"14/04",service:"Prospection syndics 94",client:"—",duree:"4h",note:null}],
     evaluations:[{date:"01/04/2026",note:91,points:"Excellente relation client, très bonne prospection",axes:"Développer compétences closing B2B",evaluateur:"Curtiss"}],
     formations:[{titre:"Technique de vente B2B",date:"25/03",statut:"en cours",score:null},{titre:"Accueil client VIP",date:"15/02",statut:"complété",score:92}],
@@ -3481,7 +3481,7 @@ const PageChat=({plan,showToast})=>{
         <div style={{fontSize:14,fontWeight:700,color:C.text}}>Visioconférence Jitsi</div>
         <div style={{fontSize:11,color:C.muted}}>Lancer une réunion d'équipe ou avec un client</div>
         <div style={{display:"flex",gap:10}}>
-          <Btn onClick={()=>showToast("🎥 Salle Jitsi créée : meet.tymeless.io/curtiss")}>🎥 Nouvelle salle</Btn>
+          <Btn onClick={()=>showToast("🎥 Salle Jitsi créée : meet.xyra.io/curtiss")}>🎥 Nouvelle salle</Btn>
           <BtnGhost onClick={()=>showToast("🔗 Lien copié !")}>🔗 Copier le lien</BtnGhost>
         </div>
       </div>}
@@ -3635,7 +3635,7 @@ const PageSignatures=({plan,showToast})=>{
     {id:"stage",label:"Convention de stage",type:"RH",desc:"Stage obligatoire ou volontaire — gratification légale"},
     {id:"freelance",label:"Contrat freelance / Auto-entrepreneur",type:"Commercial",desc:"Pour prestataires indépendants — sans lien de subordination"},
     {id:"confidentialite",label:"NDA — Accord de confidentialité",type:"Juridique",desc:"Protège vos informations sensibles avec clients et partenaires"},
-    {id:"saas",label:"Contrat SaaS / Licence logicielle",type:"Tech",desc:"Pour vos clients white-label Tymeless OS"},
+    {id:"saas",label:"Contrat SaaS / Licence logicielle",type:"Tech",desc:"Pour vos clients white-label Xyra"},
     {id:"fournisseur",label:"Contrat fournisseur",type:"Commercial",desc:"Conditions générales d'achat avec vos fournisseurs"},
   ];
 
@@ -3866,7 +3866,7 @@ const PageSignatures=({plan,showToast})=>{
                 {signStep===2&&<div>
                   <div style={{background:C.dark,borderRadius:8,padding:12,fontSize:11,color:C.muted,lineHeight:1.9,marginBottom:10,maxHeight:120,overflowY:"auto"}}>
                     <b style={{color:C.gold}}>CONTRAT DE {showSign.type.toUpperCase()}</b><br/>
-                    Entre Tymeless Services SASU (SIREN: 123 456 789) et {showSign.client}.<br/>
+                    Entre Xyra SaaS SASU (SIREN: 123 456 789) et {showSign.client}.<br/>
                     Il est convenu ce qui suit : La prestation sera réalisée selon les conditions définies...<br/>
                     Durée : du {showSign.date} au {showSign.expire}. Valeur : {showSign.valeur>0?fmt(showSign.valeur):"Définie en annexe"}.<br/>
                     Lu et approuvé.
@@ -4186,7 +4186,7 @@ const PageFacturation=({plan,showToast})=>{
     {onglet==="ereporting"&&<div>
       <div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:12,padding:16,marginBottom:14}}>
         <div style={{fontSize:10,color:C.orange,fontWeight:600,marginBottom:6}}>📤 E-REPORTING TVA — TRANSMISSION AUTOMATIQUE DGFiP</div>
-        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Depuis la réforme, toutes les transactions B2B et B2C doivent être reportées automatiquement à la DGFiP. Tymeless OS génère et transmet les données automatiquement via l'API Chorus Pro.</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Depuis la réforme, toutes les transactions B2B et B2C doivent être reportées automatiquement à la DGFiP. Xyra génère et transmet les données automatiquement via l'API Chorus Pro.</div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
         <Card>
@@ -4213,7 +4213,7 @@ const PageFacturation=({plan,showToast})=>{
       <Card style={{marginBottom:12,background:`${C.blue}08`,borderColor:`${C.blue}33`}}>
         <div style={{fontSize:10,color:C.blue,fontWeight:600,marginBottom:10,letterSpacing:"0.1em"}}>📖 GUIDE COMPLET — RÉFORME FACTURATION ÉLECTRONIQUE FRANCE 2026-2027</div>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {[{titre:"Qu'est-ce que la facturation électronique ?",contenu:"Obligation légale d'émettre et recevoir les factures B2B en format structuré (pas un simple PDF). La facture doit contenir des données lisibles par machine (XML) pour transmission automatique à la DGFiP.",color:C.blue},{titre:"Quels formats sont acceptés ?",contenu:"• Factur-X : PDF enrichi + XML — recommandé car lisible humain ET machine\n• UBL (Universal Business Language) : format XML pur\n• CII (Cross Industry Invoice) : autre format XML\nTymeless OS génère nativement Factur-X.",color:C.gold},{titre:"Qu'est-ce que Chorus Pro ?",contenu:"Portail public du gouvernement français pour l'échange de factures électroniques. Obligatoire pour les factures émises aux entités publiques (État, collectivités). Tymeless OS s'y connecte automatiquement.",color:C.green},{titre:"Qu'est-ce que le e-reporting ?",contenu:"Transmission automatique à la DGFiP des données de transactions B2B et B2C. Cela remplace (à terme) la déclaration manuelle de TVA. Fréquence : mensuelle ou trimestrielle.",color:C.orange},{titre:"Calendrier d'application",contenu:"• Sept. 2026 : Grandes entreprises (CA > 250M€ ou +5000 salariés)\n• Sept. 2027 : PME, ETI, Micro-entreprises\nRecommandation : préparez-vous maintenant pour anticiper.",color:C.purple}].map((s,i)=><div key={i} style={{background:`${s.color}08`,border:`1px solid ${s.color}22`,borderRadius:8,padding:12}}>
+          {[{titre:"Qu'est-ce que la facturation électronique ?",contenu:"Obligation légale d'émettre et recevoir les factures B2B en format structuré (pas un simple PDF). La facture doit contenir des données lisibles par machine (XML) pour transmission automatique à la DGFiP.",color:C.blue},{titre:"Quels formats sont acceptés ?",contenu:"• Factur-X : PDF enrichi + XML — recommandé car lisible humain ET machine\n• UBL (Universal Business Language) : format XML pur\n• CII (Cross Industry Invoice) : autre format XML\nXyra génère nativement Factur-X.",color:C.gold},{titre:"Qu'est-ce que Chorus Pro ?",contenu:"Portail public du gouvernement français pour l'échange de factures électroniques. Obligatoire pour les factures émises aux entités publiques (État, collectivités). Xyra s'y connecte automatiquement.",color:C.green},{titre:"Qu'est-ce que le e-reporting ?",contenu:"Transmission automatique à la DGFiP des données de transactions B2B et B2C. Cela remplace (à terme) la déclaration manuelle de TVA. Fréquence : mensuelle ou trimestrielle.",color:C.orange},{titre:"Calendrier d'application",contenu:"• Sept. 2026 : Grandes entreprises (CA > 250M€ ou +5000 salariés)\n• Sept. 2027 : PME, ETI, Micro-entreprises\nRecommandation : préparez-vous maintenant pour anticiper.",color:C.purple}].map((s,i)=><div key={i} style={{background:`${s.color}08`,border:`1px solid ${s.color}22`,borderRadius:8,padding:12}}>
             <div style={{fontSize:11,fontWeight:700,color:s.color,marginBottom:4}}>❓ {s.titre}</div>
             <div style={{fontSize:11,color:C.text,lineHeight:1.7,whiteSpace:"pre-line"}}>{s.contenu}</div>
           </div>)}
@@ -4261,7 +4261,7 @@ const PageDeals=({plan,showToast})=>{
   const[deals,setDeals]=useState([
     {id:"DEAL-001",nom:"Contrat Hôtel Prestige Paris",valeur:12000,prob:85,etape:"Proposition",client:"Claire Bernard",tel:"+33 1 23 45 67",email:"claire@prestige.fr",dead:"30/04/2026",source:"CRM",desc:"Nettoyage 40 chambres/jour + entretien communs",actions:[{date:"14/04",type:"Email",note:"Proposition envoyée"},{date:"12/04",type:"RDV",note:"Présentation en présentiel"}],dernierContact:"14/04"},
     {id:"DEAL-002",nom:"Partenariat Jet Services Monaco",valeur:24000,prob:92,etape:"Négociation",client:"Antoine Rivière",tel:"+377 99 88 77",email:"a.riviere@jetservices.mc",dead:"15/05/2026",source:"Réseau",desc:"Contrat annuel nettoyage flotte jets privés Monaco",actions:[{date:"13/04",type:"WhatsApp",note:"Contre-proposition reçue"},{date:"10/04",type:"RDV",note:"Négociation tarifs"}],dernierContact:"13/04"},
-    {id:"DEAL-003",nom:"SaaS White-label Cabinet Dupont",valeur:5000,prob:60,etape:"Qualification",client:"Me Dupont",tel:"+33 1 55 66 77",email:"dupont@cabinet.fr",dead:"30/05/2026",source:"LinkedIn",desc:"Licence Tymeless OS pour cabinet juridique 15 personnes",actions:[{date:"11/04",type:"Email",note:"Envoi documentation"}],dernierContact:"11/04"},
+    {id:"DEAL-003",nom:"SaaS White-label Cabinet Dupont",valeur:5000,prob:60,etape:"Qualification",client:"Me Dupont",tel:"+33 1 55 66 77",email:"dupont@cabinet.fr",dead:"30/05/2026",source:"LinkedIn",desc:"Licence Xyra pour cabinet juridique 15 personnes",actions:[{date:"11/04",type:"Email",note:"Envoi documentation"}],dernierContact:"11/04"},
     {id:"DEAL-004",nom:"Syndic Val-de-Marne — Lot 5 résidences",valeur:18000,prob:45,etape:"Identification",client:"M. Lefebre",tel:"+33 1 44 55 66",email:"lefebre@syndic.fr",dead:"30/06/2026",source:"Prospection",desc:"Nettoyage 5 résidences Val-de-Marne — contrat annuel",actions:[{date:"10/04",type:"Appel",note:"Premier contact cold call"}],dernierContact:"10/04"},
   ]);
   const[onglet,setOnglet]=useState("kanban");
@@ -4504,7 +4504,7 @@ const PageAPI=({plan,showToast})=>{
       </div>
     </Card>}
     {onglet==="webhooks"&&<Card><STitle>🔔 Webhooks configurés</STitle>
-      {[{evt:"paiement.reçu",url:"https://app.tymeless.io/webhooks/payment",statut:"actif"},{evt:"devis.signé",url:"https://app.tymeless.io/webhooks/devis",statut:"actif"},{evt:"client.nouveau",url:"https://zapier.com/hooks/tymeless/abc123",statut:"actif"}].map((w,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${C.border}`}}>
+      {[{evt:"paiement.reçu",url:"https://app.xyra.io/webhooks/payment",statut:"actif"},{evt:"devis.signé",url:"https://app.xyra.io/webhooks/devis",statut:"actif"},{evt:"client.nouveau",url:"https://zapier.com/hooks/tymeless/abc123",statut:"actif"}].map((w,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${C.border}`}}>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><Pill color={C.gold}>{w.evt}</Pill><St s={w.statut}/></div>
         <div style={{fontSize:10,fontFamily:"monospace",color:C.muted}}>{w.url}</div>
       </div>)}
@@ -4532,8 +4532,8 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
   const[onglet,setOnglet]=useState("entreprise");
 
   // États formulaires
-  const[entreprise,setEntreprise]=useState({nom:"Tymeless Services SASU",siren:"123 456 789",tva:"FR12 123456789",adresse:"75 rue de Rivoli",ville:"Paris",cp:"75001",pays:"France",tel:"+33 1 23 45 67 89",email:"contact@tymeless.io",site:"tymeless.io",logo:""});
-  const[profUser,setProfUser]=useState({prenom:"Curtiss",nom:"Fondateur",email:"curtiss@tymeless.io",tel:"+33 6 00 11 22 33",titre:"Fondateur & CEO",avatar:"C"});
+  const[entreprise,setEntreprise]=useState({nom:"Xyra SaaS SASU",siren:"123 456 789",tva:"FR12 123456789",adresse:"75 rue de Rivoli",ville:"Paris",cp:"75001",pays:"France",tel:"+33 1 23 45 67 89",email:"contact@xyra.io",site:"xyra.io",logo:""});
+  const[profUser,setProfUser]=useState({prenom:"Curtiss",nom:"Fondateur",email:"curtiss@xyra.io",tel:"+33 6 00 11 22 33",titre:"Fondateur & CEO",avatar:"C"});
   const[mdp,setMdp]=useState({actuel:"",nouveau:"",confirmer:""});
   const[mdpVisible,setMdpVisible]=useState({actuel:false,nouveau:false,confirmer:false});
   const[theme,setTheme]=useState("dark");
@@ -4541,9 +4541,9 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
   const[deux_fa,setDeuxFa]=useState(true);
   const[domaine,setDomaine]=useState({sous_domaine:"curtiss",domaine_custom:"",ssl:true,actif:false});
   const[utilisateurs,setUtilisateurs]=useState([
-    {id:1,nom:"Thomas Beaumont",email:"thomas@tymeless.io",role:"Collaborateur",acces:["planning","stock","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 09:02"},
-    {id:2,nom:"Abou Diallo",email:"abou@tymeless.io",role:"Collaborateur",acces:["planning","stock","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 08:45"},
-    {id:3,nom:"Fatou Sarr",email:"fatou@tymeless.io",role:"Commercial",acces:["crm","devis","clients","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 09:30"},
+    {id:1,nom:"Thomas Beaumont",email:"thomas@xyra.io",role:"Collaborateur",acces:["planning","stock","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 09:02"},
+    {id:2,nom:"Abou Diallo",email:"abou@xyra.io",role:"Collaborateur",acces:["planning","stock","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 08:45"},
+    {id:3,nom:"Fatou Sarr",email:"fatou@xyra.io",role:"Commercial",acces:["crm","devis","clients","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 09:30"},
   ]);
   const[inviteForm,setInviteForm]=useState({email:"",role:"Collaborateur"});
   const[sessions]=useState([{device:"MacBook Pro — Chrome",ip:"92.168.1.1",lieu:"Paris, France",date:"Maintenant",actuelle:true},{device:"iPhone 14 — Safari",ip:"92.168.1.2",lieu:"Paris, France",date:"Il y a 2h",actuelle:false}]);
@@ -4581,7 +4581,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
 
   return <div style={{padding:20}}>
     <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>⚙ Paramètres</div>
-    <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Gérez tous les aspects de votre compte Tymeless OS</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Gérez tous les aspects de votre compte Xyra</div>
 
     {/* TABS SCROLLABLE */}
     <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
@@ -4684,7 +4684,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
         <STitle>📋 Historique de facturation</STitle>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead><tr><TH>Date</TH><TH>Description</TH><TH>Montant</TH><TH>Statut</TH><TH>Action</TH></tr></thead>
-          <tbody>{[{date:"01/05/2026",desc:"Abonnement Owner — Mai 2026",montant:"—",statut:"owner"},{date:"01/04/2026",desc:"Abonnement Owner — Avril 2026",montant:"—",statut:"owner"},{date:"01/03/2026",desc:"Setup initial Tymeless OS",montant:"0 €",statut:"payé"}].map((f,i)=><tr key={i}>
+          <tbody>{[{date:"01/05/2026",desc:"Abonnement Owner — Mai 2026",montant:"—",statut:"owner"},{date:"01/04/2026",desc:"Abonnement Owner — Avril 2026",montant:"—",statut:"owner"},{date:"01/03/2026",desc:"Setup initial Xyra",montant:"0 €",statut:"payé"}].map((f,i)=><tr key={i}>
             <Td style={{color:C.muted,fontSize:10}}>{f.date}</Td>
             <Td style={{fontWeight:600}}>{f.desc}</Td>
             <Td style={{color:C.gold,fontWeight:700}}>{f.montant}</Td>
@@ -4898,7 +4898,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
             {/* Owner (non modifiable) */}
             <tr style={{background:`${C.gold}08`}}>
               <Td><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:28,height:28,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:C.gold}}>C</div><span style={{fontWeight:700}}>Curtiss (Vous)</span></div></Td>
-              <Td style={{color:C.muted}}>curtiss@tymeless.io</Td>
+              <Td style={{color:C.muted}}>curtiss@xyra.io</Td>
               <Td><Pill color={C.gold}>★ Owner</Pill></Td>
               <Td style={{color:C.muted,fontSize:10}}>Maintenant</Td>
               <Td><Pill color={C.green}>Actif</Pill></Td>
@@ -4926,16 +4926,16 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
         <STitle>🌍 URL Tymeless (sous-domaine)</STitle>
         <div style={{background:C.card2,borderRadius:10,padding:14,marginBottom:12,border:`1px solid ${C.border}`}}>
           <div style={{fontSize:9,color:C.muted,marginBottom:4}}>URL ACTUELLE</div>
-          <div style={{fontFamily:"monospace",fontSize:13,color:C.teal}}>{domaine.sous_domaine}.tymeless.io</div>
+          <div style={{fontFamily:"monospace",fontSize:13,color:C.teal}}>{domaine.sous_domaine}.xyra.io</div>
         </div>
         <div style={{marginBottom:12}}>
           <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Personnaliser le sous-domaine</label>
           <div style={{display:"flex",gap:8,alignItems:"center"}}>
             <Inp value={domaine.sous_domaine} onChange={e=>setDomaine(d=>({...d,sous_domaine:e.target.value}))} placeholder="votre-nom" style={{flex:1}}/>
-            <span style={{fontSize:11,color:C.muted,whiteSpace:"nowrap"}}>.tymeless.io</span>
+            <span style={{fontSize:11,color:C.muted,whiteSpace:"nowrap"}}>.xyra.io</span>
           </div>
         </div>
-        <Btn onClick={()=>showToast(`✅ Sous-domaine "${domaine.sous_domaine}.tymeless.io" activé !`)}>Appliquer</Btn>
+        <Btn onClick={()=>showToast(`✅ Sous-domaine "${domaine.sous_domaine}.xyra.io" activé !`)}>Appliquer</Btn>
       </Card>
       <Card>
         <STitle>🏷 Domaine personnalisé (White-label)</STitle>
@@ -4957,7 +4957,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
     {onglet==="rgpd"&&<div>
       <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:12,padding:16,marginBottom:14}}>
         <div style={{fontSize:10,color:C.blue,fontWeight:600,marginBottom:6}}>🔒 CONFORMITÉ RGPD — RÈGLEMENT GÉNÉRAL SUR LA PROTECTION DES DONNÉES</div>
-        <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Tymeless OS est conforme au RGPD. Vos données sont chiffrées (AES-256), hébergées en Europe (Supabase EU) et ne sont jamais revendues.</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Xyra est conforme au RGPD. Vos données sont chiffrées (AES-256), hébergées en Europe (Supabase EU) et ne sont jamais revendues.</div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
         <Card>
@@ -4968,7 +4968,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
           <STitle>✅ Droits RGPD</STitle>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
             <Btn onClick={()=>showToast("📦 Export de vos données en cours — email dans 24h")} style={{background:C.blue}}>📦 Exporter toutes mes données</Btn>
-            <BtnGhost onClick={()=>showToast("📧 Demande envoyée à DPO@tymeless.io")}>✏️ Demander rectification</BtnGhost>
+            <BtnGhost onClick={()=>showToast("📧 Demande envoyée à DPO@xyra.io")}>✏️ Demander rectification</BtnGhost>
             <BtnGhost onClick={()=>showToast("⏳ Demande de suppression envoyée — traitement 30j")} style={{color:C.orange,borderColor:`${C.orange}44`}}>🗑 Demander suppression données</BtnGhost>
             <div style={{background:`${C.red}11`,border:`1px solid ${C.red}33`,borderRadius:8,padding:10}}>
               <div style={{fontSize:10,color:C.red,fontWeight:600,marginBottom:4}}>⚠️ Zone dangereuse</div>
@@ -4979,7 +4979,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
       </div>
       <Card>
         <STitle>🍪 Politique de confidentialité</STitle>
-        <div style={{fontSize:11,color:C.muted,lineHeight:1.7,marginBottom:10}}>Tymeless collecte uniquement les données nécessaires au fonctionnement du service. Aucune donnée n'est partagée avec des tiers sans consentement explicite. Vous pouvez exercer vos droits à tout moment en contactant dpo@tymeless.io</div>
+        <div style={{fontSize:11,color:C.muted,lineHeight:1.7,marginBottom:10}}>Tymeless collecte uniquement les données nécessaires au fonctionnement du service. Aucune donnée n'est partagée avec des tiers sans consentement explicite. Vous pouvez exercer vos droits à tout moment en contactant dpo@xyra.io</div>
         <div style={{display:"flex",gap:8}}><BtnGhost onClick={()=>showToast("📄 Politique confidentialité téléchargée")}>📄 Télécharger PDF</BtnGhost><BtnGhost onClick={()=>showToast("📧 Email DPO ouvert")}>📧 Contacter le DPO</BtnGhost></div>
       </Card>
     </div>}
@@ -5012,9 +5012,53 @@ const PageAdmin=({plan,showToast})=>{
 };
 
 // ─── COMPOSANT PRINCIPAL ──────────────────────────────────────
-export default function TymelessOS() {
+export default function Xyra() {
   const[page,setPage]=useState("accueil");
   const[plan,setPlan]=useState("owner");
+
+  // ── SUPABASE — Chargement vraies données ──────────────────
+  const[sbLoading,setSbLoading]=useState(true);
+  const[clients,setClients]=useState([]);
+  const[devis,setDevis]=useState([]);
+  const[paiements,setPaiements]=useState([]);
+  const[partenaires,setPartenaires]=useState([]);
+  const[equipe,setEquipe]=useState([]);
+  const[missions,setMissions]=useState([]);
+  const[stock,setStock]=useState([]);
+  const[deals,setDeals]=useState([]);
+
+  useState(()=>{
+    const loadData=async()=>{
+      try{
+        const {createClient}=await import('@supabase/supabase-js');
+        const sb=createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        );
+        const[c,d,p,part,eq,m,s,dl]=await Promise.all([
+          sb.from('clients').select('*').order('created_at',{ascending:false}),
+          sb.from('devis').select('*').order('created_at',{ascending:false}),
+          sb.from('paiements').select('*').order('date_transaction',{ascending:false}),
+          sb.from('partenaires').select('*'),
+          sb.from('equipe').select('*'),
+          sb.from('missions').select('*').order('date_mission',{ascending:true}),
+          sb.from('stock').select('*'),
+          sb.from('deals').select('*').order('created_at',{ascending:false}),
+        ]);
+        if(c.data?.length)setClients(c.data);
+        if(d.data?.length)setDevis(d.data);
+        if(p.data?.length)setPaiements(p.data);
+        if(part.data?.length)setPartenaires(part.data);
+        if(eq.data?.length)setEquipe(eq.data);
+        if(m.data?.length)setMissions(m.data);
+        if(s.data?.length)setStock(s.data);
+        if(dl.data?.length)setDeals(dl.data);
+      }catch(e){console.error('Supabase:',e);}
+      finally{setSbLoading(false);}
+    };
+    loadData();
+  },[]);
+
   const[notifs,setNotifs]=useState(INIT_NOTIFS);
   const[toast,setToast]=useState(null);
   const[profil,setProfil]=useState(PROFIL_DEFAUT);
@@ -5060,6 +5104,14 @@ export default function TymelessOS() {
     settings:<PageSettings plan={plan} showToast={showToast} sirApiKey={sirApiKey} setSirApiKey={setSirApiKey} profil={profil} setProfil={setProfil}/>,
     admin:<PageAdmin plan={plan} showToast={showToast}/>,
   };
+
+  if(sbLoading)return <div style={{minHeight:"100vh",background:"#06060E",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
+    <div style={{fontSize:28,fontWeight:700,color:"#C9A84C",fontFamily:"Georgia,serif",letterSpacing:"0.15em"}}>TYMELESS</div>
+    <div style={{fontSize:12,color:"#5A5A7A",letterSpacing:"0.2em",marginBottom:8}}>Chargement de vos données...</div>
+    <div style={{width:200,height:3,background:"#1E1E36",borderRadius:2,overflow:"hidden"}}>
+      <div style={{width:"70%",height:"100%",background:"#C9A84C",borderRadius:2}}/>
+    </div>
+  </div>;
 
   return (
     <div style={{display:"flex",height:"100vh",background:C.dark,color:C.text,fontFamily:"'Segoe UI',system-ui,sans-serif",overflow:"hidden"}}>
