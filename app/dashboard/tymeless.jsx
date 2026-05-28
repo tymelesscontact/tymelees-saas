@@ -403,7 +403,7 @@ const PageWallet=({plan,showToast,profil})=>{
     <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
     {onglet==="solde"&&<>
       <div style={{background:`linear-gradient(135deg,${C.card},#0A1A14)`,border:`1px solid ${C.teal}44`,borderRadius:16,padding:24,marginBottom:16}}>
-        <div style={{fontSize:10,color:C.teal,letterSpacing:"0.2em",marginBottom:8}}>SOLDE WALLET TYMELESS · FLUTTERWAVE + STRIPE</div>
+        <div style={{fontSize:10,color:C.teal,letterSpacing:"0.2em",marginBottom:8}}>SOLDE WALLET XYRA · FLUTTERWAVE + STRIPE</div>
         <div style={{display:"flex",alignItems:"flex-end",gap:12,marginBottom:8}}>
           <div style={{fontSize:44,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>{fmt(soldeConv,devise)}</div>
           <Sel value={devise} onChange={e=>setDevise(e.target.value)} style={{marginBottom:6}}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel>
@@ -1399,7 +1399,7 @@ const PageClients=({plan,showToast})=>{
     {/* ── SOLVABILITÉ ── */}
     {onglet==="solvabilite"&&<div>
       <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:12,padding:16,marginBottom:14}}>
-        <div style={{fontSize:10,color:C.blue,fontWeight:600,marginBottom:6}}>🎯 SCORE DE SOLVABILITÉ TYMELESS</div>
+        <div style={{fontSize:10,color:C.blue,fontWeight:600,marginBottom:6}}>🎯 SCORE DE SOLVABILITÉ XYRA</div>
         <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Le score de solvabilité vous indique si vous pouvez travailler sereinement avec un client. Il est calculé à partir des revenus estimés, l'historique de paiement et le profil général. <b style={{color:C.green}}>80-100 = Excellent</b> · <b style={{color:C.gold}}>60-79 = Bon</b> · <b style={{color:C.orange}}>40-59 = Moyen</b> · <b style={{color:C.red}}>0-39 = Risqué</b></div>
       </div>
       {clients.map((c,i)=><Card key={i} style={{marginBottom:10,borderColor:`${scoreColor(c.score)}33`}}>
@@ -1456,7 +1456,7 @@ const PageClients=({plan,showToast})=>{
     {/* ── UPSELL ── */}
     {onglet==="upsell"&&<div>
       <div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:12,padding:14,marginBottom:14}}>
-        <div style={{fontSize:10,color:C.gold,fontWeight:600,marginBottom:6}}>⚡ UPSELL AUTOMATIQUE — IA TYMELESS</div>
+        <div style={{fontSize:10,color:C.gold,fontWeight:600,marginBottom:6}}>⚡ UPSELL AUTOMATIQUE — IA XYRA</div>
         <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Claude analyse le profil de chaque client et génère automatiquement la meilleure proposition d'upsell au bon moment.</div>
       </div>
       {clients.map((c,i)=>{const upsellCA=Math.round(c.ca*0.4);return <Card key={i} style={{marginBottom:10,borderColor:`${C.gold}22`}}>
@@ -1937,7 +1937,7 @@ const PageClubAffaires=({plan,showToast})=>{
   if(!hasAccess(plan,"annuaire"))return <div style={{padding:20}}><UpgradeWall page="annuaire" plan={plan}/></div>;
   return <div style={{padding:20}}>
     <div style={{background:`linear-gradient(135deg,${C.card},#0A0A1A)`,border:`1px solid ${C.gold}44`,borderRadius:16,padding:20,marginBottom:14}}>
-      <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:4}}>CLUB TYMELESS · RÉSEAU AFFAIRES PRIVÉ</div>
+      <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:4}}>CLUB XYRA · RÉSEAU AFFAIRES PRIVÉ</div>
       <div style={{fontSize:22,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◈ Club d'affaires Tymeless</div>
       <div style={{fontSize:12,color:C.muted,marginBottom:12}}>Réseau privé · Deals exclusifs -10% · IA Match · Événements VIP · {MEMBRES.length} membres actifs</div>
       <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
@@ -2099,7 +2099,7 @@ const PageAnnuaire=({plan,showToast})=>{
   return <div style={{padding:20}}>
     {/* HEADER */}
     <div style={{background:`linear-gradient(135deg,${C.card},#080818)`,border:`1px solid ${C.gold}33`,borderRadius:16,padding:20,marginBottom:16}}>
-      <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:4}}>TYMELESS · RÉSEAU MONDIAL</div>
+      <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:4}}>XYRA · RÉSEAU MONDIAL</div>
       <div style={{fontSize:22,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◱ Annuaire Business Mondial</div>
       <div style={{fontSize:12,color:C.muted,marginBottom:14}}>Partenaires · Membres Club · Apporteurs d'affaires · {RESEAU_MONDIAL.length} contacts dans {statsCont.length} zones géographiques</div>
       <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
@@ -5106,7 +5106,7 @@ export default function Xyra() {
   };
 
   if(sbLoading)return <div style={{minHeight:"100vh",background:"#06060E",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
-    <div style={{fontSize:28,fontWeight:700,color:"#C9A84C",fontFamily:"Georgia,serif",letterSpacing:"0.15em"}}>TYMELESS</div>
+    <div style={{fontSize:28,fontWeight:700,color:"#C9A84C",fontFamily:"Georgia,serif",letterSpacing:"0.15em"}}>XYRA</div>
     <div style={{fontSize:12,color:"#5A5A7A",letterSpacing:"0.2em",marginBottom:8}}>Chargement de vos données...</div>
     <div style={{width:200,height:3,background:"#1E1E36",borderRadius:2,overflow:"hidden"}}>
       <div style={{width:"70%",height:"100%",background:"#C9A84C",borderRadius:2}}/>
@@ -5120,7 +5120,7 @@ export default function Xyra() {
       <div style={{width:sidebarOpen?210:0,minWidth:sidebarOpen?210:0,background:C.card,borderRight:`1px solid ${C.border}`,display:"flex",flexDirection:"column",transition:"all 0.2s",overflow:"hidden"}}>
         {/* Logo */}
         <div style={{padding:"14px 14px 10px",borderBottom:`1px solid ${C.border}`}}>
-          <div style={{fontSize:17,fontWeight:700,color:C.gold,letterSpacing:"0.1em",fontFamily:"Georgia,serif"}}>TYMELESS</div>
+          <div style={{fontSize:17,fontWeight:700,color:C.gold,letterSpacing:"0.1em",fontFamily:"Georgia,serif"}}>XYRA</div>
           <div style={{fontSize:9,color:"#9090B8",letterSpacing:"0.2em",marginTop:2}}>OS · OWNER DASHBOARD</div>
           <select value={profil?.label||PROFIL_DEFAUT.label} onChange={e=>{const p=Object.values(PROFILS_SECTEURS).find(s=>s.label===e.target.value);if(p)setProfil(p);}} style={{marginTop:8,background:C.card2,border:`1px solid ${C.gold}44`,borderRadius:5,padding:"4px 6px",color:C.gold,fontSize:10,width:"100%",fontFamily:"inherit"}}>
             {Object.values(PROFILS_SECTEURS).map(p=><option key={p.label} value={p.label}>{p.label}</option>)}
