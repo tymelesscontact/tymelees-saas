@@ -28,9 +28,12 @@ export default function LoginPage() {
         return;
       }
       if (data.session) {
-        // Sauvegarder le token dans localStorage
-        localStorage.setItem("sb-access-token", data.session.access_token);
-        localStorage.setItem("sb-refresh-token", data.session.refresh_token);
+        // Sauvegarder dans cookie ET localStorage
+        const token = data.session.access_token;
+        const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
+        document.cookie = `sb-access-token=${token}; path=/; expires=${expires}; SameSite=Lax`;
+        document.cookie = `sb-jigwcrybfhvlmzoclbih-auth-token=${token}; path=/; expires=${expires}; SameSite=Lax`;
+        localStorage.setItem("sb-access-token", token);
         window.location.replace("/dashboard");
       }
     } catch (e: any) {
