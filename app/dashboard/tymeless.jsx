@@ -4450,52 +4450,348 @@ const PageDeals=({plan,showToast})=>{
 const PageDeploiement=({plan,showToast})=>{
   const[tenants,setTenants]=useState([]);
   const[loading,setLoading]=useState(true);
+  const[view,setView]=useState("dashboard");
+  const[selectedClient,setSelectedClient]=useState(null);
+  const[searchQ,setSearchQ]=useState("");
+  const[filterPlan,setFilterPlan]=useState("tous");
+  const[filterStatut,setFilterStatut]=useState("tous");
+  const[mrr,setMrr]=useState(0);
+
+  const calcSolvabilite=(t)=>{
+    let score=50;
+    if(t.plan==="enterprise")score+=20;
+    else if(t.plan==="business_pro")score+=10;
+    if(t.pays&&["France","Allemagne","Royaume-Uni","Émirats arabes unis (Dubaï)","États-Unis","Canada"].includes(t.pays))score+=15;
+    if(t.taille==="20+")score+=15;
+    else if(t.taille==="6 à 20")score+=10;
+    else if(t.taille==="2 à 5")score+=5;
+    if(t.statut==="actif")score+=10;
+    if(t.created_at){
+      const days=(Date.now()-new Date(t.created_at).getTime())/(1000*60*60*24);
+      if(days>30)score+=5;
+    }
+    return Math.min(100,score);
+  };
+
+  const scoreCouleur=(s)=>s>=80?C.green:s>=50?C.gold:C.red;
+  const scoreLabel=(s)=>s>=80?"🟢 Solvable":s>=50?"🟡 Moyen":"🔴 Risqué";
 
   useEffect(()=>{
-    const loadTenants=async()=>{
+    const load=async()=>{
       try{
         const {createClient}=await import('@supabase/supabase-js');
-        const sb=createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-        );
+        const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
         const{data}=await sb.from('tenants').select('*').order('created_at',{ascending:false});
-        if(data)setTenants(data);
+        if(data){
+          setTenants(data);
+          setMrr(data.reduce((a,t)=>a+(t.plan_price||0),0));
+        }
       }catch(e){console.error(e);}
       setLoading(false);
     };
-    loadTenants();
+    load();
   },[]);
 
-  const mrr=tenants.reduce((a,t)=>a+(t.plan_price||0),0);
+  const filtered=tenants.filter(t=>{
+    const q=searchQ.toLowerCase();
+    const matchQ=!q||t.societe?.toLowerCase().includes(q)||t.email?.toLowerCase().includes(q)||t.pays?.toLowerCase().includes(q);
+    const matchPlan=filterPlan==="tous"||t.plan===filterPlan;
+    const matchStatut=filterStatut==="tous"||t.statut===filterStatut;
+    return matchQ&&matchPlan&&matchStatut;
+  });
+
+  const churn=tenants.filter(t=>t.statut==="suspendu").length;
+  const essai=tenants.filter(t=>t.statut==="essai").length;
+  const actifs=tenants.filter(t=>t.statut==="actif").length;
+  const arr=mrr*12;
+  const ltv=mrr>0?mrr*24:0;
+  const tauxConv=tenants.length>0?Math.round((actifs/tenants.length)*100):0;
+
+  const planColors={starter:C.blue,business_pro:C.gold,enterprise:C.purple};
 
   if(!checkAccess("deploiement",plan))return <div style={{padding:20}}><UpgradeWall page="Déploiement SaaS" plan={plan}/></div>;
+
+  // ── FICHE CLIENT ────────────────────────────────────────────
+  if(selectedClient){
+    const t=selectedClient;
+    const score=calcSolvabilite(t);
+    const daysLeft=t.trial_ends_at?Math.max(0,Math.ceil((new Date(t.trial_ends_at)-Date.now())/(1000*60*60*24))):0;
+    return <div style={{padding:20}}>
+      <Btn onClick={()=>setSelectedClient(null)} style={{marginBottom:16,fontSize:12}}>← Retour</Btn>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+        {/* Infos principales */}
+        <Card>
+          <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
+            <div style={{width:48,height:48,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,color:C.gold}}>{t.societe?.[0]||"?"}</div>
+            <div>
+              <div style={{fontSize:16,fontWeight:700,color:C.text}}>{t.societe}</div>
+              <div style={{fontSize:11,color:C.muted}}>{t.email}</div>
+              <div style={{fontSize:11,color:C.muted}}>{t.pays} · {t.taille}</div>
+            </div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {[[" Plan",t.plan||"—"],[" Métier",t.metier||"—"],[" Statut",t.statut||"—"],[" Inscription",t.created_at?new Date(t.created_at).toLocaleDateString("fr-FR"):"—"]].map(([l,v],i)=>(
+              <div key={i} style={{background:C.card2,borderRadius:6,padding:"8px 10px"}}>
+                <div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em"}}>{l}</div>
+                <div style={{fontSize:12,fontWeight:600,color:C.text,marginTop:2}}>{v}</div>
+              </div>
+            ))}
+          </div>
+        </Card>
+        {/* Score solvabilité */}
+        <Card>
+          <STitle>💳 Score de Solvabilité</STitle>
+          <div style={{textAlign:"center",padding:"16px 0"}}>
+            <div style={{fontSize:52,fontWeight:700,color:scoreCouleur(score)}}>{score}</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:8}}>/100</div>
+            <div style={{fontSize:14,fontWeight:600,color:scoreCouleur(score)}}>{scoreLabel(score)}</div>
+            <div style={{height:8,background:C.border,borderRadius:4,margin:"12px 0",overflow:"hidden"}}>
+              <div style={{height:"100%",width:score+"%",background:scoreCouleur(score),borderRadius:4,transition:"width 1s"}}/>
+            </div>
+          </div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {[
+              ["Plan souscrit",t.plan==="enterprise"?"+20pts":t.plan==="business_pro"?"+10pts":"+0pts",t.plan==="enterprise"||t.plan==="business_pro"],
+              ["Pays de confiance",["France","Allemagne","Émirats arabes unis (Dubaï)","États-Unis"].includes(t.pays)?"+15pts":"0pts",["France","Allemagne","Émirats arabes unis (Dubaï)","États-Unis"].includes(t.pays)],
+              ["Grande structure",t.taille==="20+"?"+15pts":t.taille==="6 à 20"?"+10pts":"+5pts",true],
+              ["Compte actif",t.statut==="actif"?"+10pts":"0pts",t.statut==="actif"],
+            ].map(([l,v,ok],i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}>
+                <span style={{color:C.muted}}>{l}</span>
+                <span style={{color:ok?C.green:C.muted,fontWeight:600}}>{v}</span>
+              </div>
+            ))}
+          </div>
+          {score<50&&<div style={{marginTop:12,background:`${C.red}15`,border:`1px solid ${C.red}33`,borderRadius:6,padding:"8px 10px",fontSize:11,color:C.red}}>⚠️ Risque élevé — Demander paiement immédiat</div>}
+          {score>=50&&score<80&&<div style={{marginTop:12,background:`${C.gold}15`,border:`1px solid ${C.gold}33`,borderRadius:6,padding:"8px 10px",fontSize:11,color:C.gold}}>⚡ Surveiller — Essai limité recommandé</div>}
+          {score>=80&&<div style={{marginTop:12,background:`${C.green}15`,border:`1px solid ${C.green}33`,borderRadius:6,padding:"8px 10px",fontSize:11,color:C.green}}>✅ Client fiable — Accès complet recommandé</div>}
+        </Card>
+      </div>
+      {/* KPIs client */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:12}}>
+        <KPI label="MRR" val={fmt(t.plan_price||0)} color={C.gold}/>
+        <KPI label="LTV estimée" val={fmt((t.plan_price||0)*24)} color={C.green}/>
+        <KPI label="Jours essai restants" val={daysLeft} color={daysLeft<3?C.red:C.blue}/>
+        <KPI label="Score solvabilité" val={score+"/100"} color={scoreCouleur(score)}/>
+      </div>
+      {/* Actions */}
+      <Card>
+        <STitle>⚡ Actions rapides</STitle>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <Btn onClick={()=>{showToast("📱 WhatsApp ouvert");window.open(`https://wa.me/?text=Bonjour ${t.societe}, bienvenue sur Xyra !`)}} style={{background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 WhatsApp</Btn>
+          <Btn onClick={()=>showToast("📧 Email envoyé à "+t.email)} style={{background:`${C.blue}22`,color:C.blue,border:`1px solid ${C.blue}44`}}>📧 Email</Btn>
+          <Btn onClick={()=>showToast("⬆️ Plan mis à jour")} style={{background:`${C.gold}22`,color:C.gold,border:`1px solid ${C.gold}44`}}>⬆️ Changer plan</Btn>
+          <Btn onClick={()=>showToast("🎁 +7 jours offerts")} style={{background:`${C.purple}22`,color:C.purple,border:`1px solid ${C.purple}44`}}>🎁 Offrir 7 jours</Btn>
+          <Btn onClick={()=>showToast("⏸️ Compte suspendu")} style={{background:`${C.red}22`,color:C.red,border:`1px solid ${C.red}44`}}>⏸️ Suspendre</Btn>
+        </div>
+      </Card>
+      {/* Timeline */}
+      <Card style={{marginTop:12}}>
+        <STitle>📋 Timeline</STitle>
+        {[
+          {date:t.created_at?new Date(t.created_at).toLocaleDateString("fr-FR"):"—",action:"Inscription",detail:`Plan ${t.plan} · ${t.pays}`,c:C.green},
+          {date:"—",action:"Paiement",detail:`${t.plan_price||0}€/mois`,c:C.gold},
+          {date:"—",action:"Onboarding",detail:"Guide de démarrage",c:C.blue},
+        ].map((e,i)=>(
+          <div key={i} style={{display:"flex",gap:12,padding:"8px 0",borderBottom:`1px solid ${C.border}22`}}>
+            <div style={{width:6,height:6,borderRadius:"50%",background:e.c,flexShrink:0,marginTop:5}}/>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,fontWeight:600,color:C.text}}>{e.action}</div>
+              <div style={{fontSize:11,color:C.muted}}>{e.detail}</div>
+            </div>
+            <div style={{fontSize:10,color:C.muted}}>{e.date}</div>
+          </div>
+        ))}
+      </Card>
+    </div>;
+  }
+
+  // ── VUE PRINCIPALE ──────────────────────────────────────────
   return <div style={{padding:20}}>
-    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>🌍 Déploiement SaaS — Clients Xyra</div>
-    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Vue owner · Tous vos clients en temps réel</div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>🌍 Déploiement SaaS — Vue Owner</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Clients Xyra · MRR · Solvabilité · Alertes temps réel</div>
+
+    {/* KPIs */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:16}}>
       <KPI label="Clients SaaS" val={tenants.length} color={C.blue}/>
       <KPI label="MRR" val={fmt(mrr)} color={C.gold}/>
-      <KPI label="ARR projeté" val={fmt(mrr*12)} color={C.green}/>
-      <KPI label="En essai" val={tenants.filter(t=>t.statut==="essai").length} color={C.purple}/>
+      <KPI label="ARR projeté" val={fmt(arr)} color={C.green}/>
+      <KPI label="En essai" val={essai} color={C.orange}/>
+      <KPI label="Taux conversion" val={tauxConv+"%"} color={C.purple}/>
+      <KPI label="Churned" val={churn} color={C.red}/>
     </div>
-    <Card>
-      <STitle>🏢 Clients actifs</STitle>
-      {loading?<div style={{color:C.muted,padding:20,textAlign:"center"}}>Chargement...</div>:
-      tenants.length===0?<div style={{color:C.muted,padding:20,textAlign:"center"}}>Aucun client inscrit pour le moment</div>:
+
+    {/* Alertes */}
+    {tenants.filter(t=>{
+      const days=t.trial_ends_at?Math.ceil((new Date(t.trial_ends_at)-Date.now())/(1000*60*60*24)):99;
+      return days<=2&&t.statut==="essai";
+    }).length>0&&(
+      <div style={{background:`${C.red}15`,border:`1px solid ${C.red}33`,borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:12,color:C.red}}>
+        🚨 {tenants.filter(t=>{const d=t.trial_ends_at?Math.ceil((new Date(t.trial_ends_at)-Date.now())/(1000*60*60*24)):99;return d<=2&&t.statut==="essai";}).length} client(s) en fin d'essai dans moins de 48h
+      </div>
+    )}
+
+    {/* Tabs */}
+    <div style={{display:"flex",gap:4,marginBottom:12}}>
+      {[["dashboard","📊 Vue globale"],["clients","🏢 Clients"],["revenus","💰 Revenus"],["solvabilite","💳 Solvabilité"]].map(([id,label])=>(
+        <button key={id} onClick={()=>setView(id)} style={{padding:"6px 14px",borderRadius:6,border:`1px solid ${view===id?C.gold:C.border}`,background:view===id?`${C.gold}15`:"transparent",color:view===id?C.gold:C.muted,cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>{label}</button>
+      ))}
+    </div>
+
+    {/* Vue globale */}
+    {view==="dashboard"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
+        <Card>
+          <STitle>📊 Répartition par plan</STitle>
+          {["starter","business_pro","enterprise"].map(p=>{
+            const count=tenants.filter(t=>t.plan===p).length;
+            const pct=tenants.length>0?Math.round((count/tenants.length)*100):0;
+            return <div key={p} style={{marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}>
+                <span style={{color:C.text,textTransform:"capitalize"}}>{p.replace("_"," ")}</span>
+                <span style={{color:planColors[p]||C.blue,fontWeight:600}}>{count} clients · {pct}%</span>
+              </div>
+              <div style={{height:6,background:C.border,borderRadius:3,overflow:"hidden"}}>
+                <div style={{height:"100%",width:pct+"%",background:planColors[p]||C.blue,borderRadius:3}}/>
+              </div>
+            </div>;
+          })}
+        </Card>
+        <Card>
+          <STitle>🌍 Top pays</STitle>
+          {Object.entries(tenants.reduce((acc,t)=>{const p=t.pays||"Inconnu";acc[p]=(acc[p]||0)+1;return acc;},{})).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([pays,count])=>(
+            <div key={pays} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}>
+              <span style={{color:C.text}}>{pays}</span>
+              <span style={{color:C.gold,fontWeight:600}}>{count} client{count>1?"s":""}</span>
+            </div>
+          ))}
+          {tenants.length===0&&<div style={{color:C.muted,fontSize:12}}>Aucun client</div>}
+        </Card>
+        <Card>
+          <STitle>⚡ Alertes owner</STitle>
+          {tenants.filter(t=>calcSolvabilite(t)<50).length>0&&<div style={{fontSize:11,color:C.red,padding:"5px 8px",background:`${C.red}11`,borderRadius:4,marginBottom:6}}>🔴 {tenants.filter(t=>calcSolvabilite(t)<50).length} client(s) solvabilité faible</div>}
+          {essai>0&&<div style={{fontSize:11,color:C.orange,padding:"5px 8px",background:`${C.orange}11`,borderRadius:4,marginBottom:6}}>⏳ {essai} client(s) en période d'essai</div>}
+          {churn>0&&<div style={{fontSize:11,color:C.red,padding:"5px 8px",background:`${C.red}11`,borderRadius:4,marginBottom:6}}>⚠️ {churn} client(s) churned</div>}
+          {tenants.length===0&&<div style={{color:C.muted,fontSize:12}}>Aucune alerte</div>}
+          {tenants.length>0&&churn===0&&essai===0&&<div style={{fontSize:11,color:C.green,padding:"5px 8px",background:`${C.green}11`,borderRadius:4}}>✅ Tout va bien !</div>}
+        </Card>
+      </div>
+    </div>}
+
+    {/* Vue clients */}
+    {view==="clients"&&<Card>
+      <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+        <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Rechercher..." style={{flex:1,minWidth:150,background:C.card2,border:`1px solid ${C.border}`,color:C.text,padding:"7px 10px",borderRadius:6,fontSize:12,outline:"none",fontFamily:"inherit"}}/>
+        <select value={filterPlan} onChange={e=>setFilterPlan(e.target.value)} style={{background:C.card2,border:`1px solid ${C.border}`,color:C.text,padding:"7px 10px",borderRadius:6,fontSize:12,outline:"none",fontFamily:"inherit"}}>
+          <option value="tous">Tous les plans</option>
+          <option value="starter">Starter</option>
+          <option value="business_pro">Business Pro</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
+        <select value={filterStatut} onChange={e=>setFilterStatut(e.target.value)} style={{background:C.card2,border:`1px solid ${C.border}`,color:C.text,padding:"7px 10px",borderRadius:6,fontSize:12,outline:"none",fontFamily:"inherit"}}>
+          <option value="tous">Tous statuts</option>
+          <option value="essai">Essai</option>
+          <option value="actif">Actif</option>
+          <option value="suspendu">Suspendu</option>
+        </select>
+      </div>
+      {loading?<div style={{color:C.muted,textAlign:"center",padding:20}}>Chargement...</div>:
+      filtered.length===0?<div style={{color:C.muted,textAlign:"center",padding:20}}>Aucun client trouvé</div>:
       <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Entreprise</TH><TH>Métier</TH><TH>Plan</TH><TH>MRR</TH><TH>Pays</TH><TH>Statut</TH><TH>Date</TH></tr></thead>
-        <tbody>{tenants.map((t,i)=><tr key={i}>
-          <Td style={{fontWeight:600}}>{t.societe}</Td>
-          <Td style={{fontSize:11,color:C.muted}}>{t.metier||"—"}</Td>
-          <Td><Pill color={t.plan==="enterprise"?C.purple:t.plan==="business_pro"?C.gold:C.blue}>{t.plan}</Pill></Td>
-          <Td style={{color:C.gold,fontWeight:700}}>{fmt(t.plan_price||0)}/mois</Td>
-          <Td style={{fontSize:11}}>{t.pays||"—"}</Td>
-          <Td><St s={t.statut||"essai"}/></Td>
-          <Td style={{fontSize:10,color:C.muted}}>{t.created_at?new Date(t.created_at).toLocaleDateString("fr-FR"):"—"}</Td>
-        </tr>)}</tbody>
+        <thead><tr><TH>Entreprise</TH><TH>Plan</TH><TH>Pays</TH><TH>MRR</TH><TH>Solvabilité</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+        <tbody>{filtered.map((t,i)=>{
+          const score=calcSolvabilite(t);
+          return <tr key={i}>
+            <Td style={{fontWeight:600}}>{t.societe}</Td>
+            <Td><Pill color={planColors[t.plan]||C.blue}>{t.plan?.replace("_"," ")||"—"}</Pill></Td>
+            <Td style={{fontSize:11}}>{t.pays||"—"}</Td>
+            <Td style={{color:C.gold,fontWeight:700}}>{fmt(t.plan_price||0)}/mois</Td>
+            <Td>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div style={{width:40,height:4,background:C.border,borderRadius:2,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:score+"%",background:scoreCouleur(score)}}/>
+                </div>
+                <span style={{fontSize:10,color:scoreCouleur(score),fontWeight:600}}>{score}</span>
+              </div>
+            </Td>
+            <Td><St s={t.statut||"essai"}/></Td>
+            <Td><Btn onClick={()=>setSelectedClient(t)} style={{padding:"3px 8px",fontSize:10}}>Voir fiche →</Btn></Td>
+          </tr>;
+        })}</tbody>
       </table>}
-    </Card>
+    </Card>}
+
+    {/* Vue revenus */}
+    {view==="revenus"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <Card>
+          <STitle>💰 MRR par plan</STitle>
+          {["starter","business_pro","enterprise"].map(p=>{
+            const total=tenants.filter(t=>t.plan===p).reduce((a,t)=>a+(t.plan_price||0),0);
+            return <div key={p} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
+              <span style={{color:C.text,textTransform:"capitalize"}}>{p.replace("_"," ")}</span>
+              <span style={{color:C.gold,fontWeight:700}}>{fmt(total)}/mois</span>
+            </div>;
+          })}
+          <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0",fontSize:13,fontWeight:700}}>
+            <span style={{color:C.text}}>Total MRR</span>
+            <span style={{color:C.gold}}>{fmt(mrr)}/mois</span>
+          </div>
+        </Card>
+        <Card>
+          <STitle>📈 Projections</STitle>
+          {[["MRR actuel",fmt(mrr),"mois"],["ARR projeté",fmt(arr),"an"],["LTV moyenne (24 mois)",fmt(ltv),"client"],["Taux conversion",tauxConv+"%","essai→payant"]].map(([l,v,u],i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
+              <span style={{color:C.muted}}>{l}</span>
+              <div style={{textAlign:"right"}}>
+                <span style={{color:C.gold,fontWeight:700}}>{v}</span>
+                <span style={{color:C.muted,fontSize:10,marginLeft:4}}>/{u}</span>
+              </div>
+            </div>
+          ))}
+        </Card>
+      </div>
+    </div>}
+
+    {/* Vue solvabilité */}
+    {view==="solvabilite"&&<Card>
+      <STitle>💳 Score de solvabilité — Tous les clients</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
+        {[["🟢 Solvables",tenants.filter(t=>calcSolvabilite(t)>=80).length,C.green],["🟡 Moyens",tenants.filter(t=>calcSolvabilite(t)>=50&&calcSolvabilite(t)<80).length,C.gold],["🔴 Risqués",tenants.filter(t=>calcSolvabilite(t)<50).length,C.red]].map(([l,v,c],i)=>(
+          <div key={i} style={{background:`${c}11`,border:`1px solid ${c}33`,borderRadius:8,padding:"12px",textAlign:"center"}}>
+            <div style={{fontSize:22,fontWeight:700,color:c}}>{v}</div>
+            <div style={{fontSize:11,color:C.muted,marginTop:2}}>{l}</div>
+          </div>
+        ))}
+      </div>
+      {loading?<div style={{color:C.muted,textAlign:"center",padding:20}}>Chargement...</div>:
+      tenants.length===0?<div style={{color:C.muted,textAlign:"center",padding:20}}>Aucun client</div>:
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Entreprise</TH><TH>Pays</TH><TH>Plan</TH><TH>Taille</TH><TH>Score</TH><TH>Niveau</TH><TH>Action</TH></tr></thead>
+        <tbody>{tenants.sort((a,b)=>calcSolvabilite(a)-calcSolvabilite(b)).map((t,i)=>{
+          const score=calcSolvabilite(t);
+          return <tr key={i}>
+            <Td style={{fontWeight:600}}>{t.societe}</Td>
+            <Td style={{fontSize:11}}>{t.pays||"—"}</Td>
+            <Td><Pill color={planColors[t.plan]||C.blue}>{t.plan?.replace("_"," ")||"—"}</Pill></Td>
+            <Td style={{fontSize:11}}>{t.taille||"—"}</Td>
+            <Td>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div style={{width:50,height:5,background:C.border,borderRadius:2,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:score+"%",background:scoreCouleur(score)}}/>
+                </div>
+                <span style={{fontSize:11,color:scoreCouleur(score),fontWeight:700}}>{score}/100</span>
+              </div>
+            </Td>
+            <Td><span style={{fontSize:10,color:scoreCouleur(score)}}>{scoreLabel(score)}</span></Td>
+            <Td>
+              {score<50?<Btn onClick={()=>showToast("📧 Demande paiement envoyée")} style={{padding:"3px 8px",fontSize:9,background:`${C.red}22`,color:C.red,border:`1px solid ${C.red}44`}}>Demander paiement</Btn>:
+              <Btn onClick={()=>setSelectedClient(t)} style={{padding:"3px 8px",fontSize:10}}>Voir fiche</Btn>}
+            </Td>
+          </tr>;
+        })}</tbody>
+      </table>}
+    </Card>}
   </div>;
 };
 
