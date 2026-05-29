@@ -87,7 +87,7 @@ const NAV = [
     { id:"facturation",    icon:"🧾", label:"Facturation Électronique"},
     { id:"formation",     icon:"⊿",  label:"Formation équipe"     },
     { id:"deploiement",   icon:"🌍", label:"Déploiement SaaS"     },
-    { id:"api",           icon:"◇",  label:"API Tymeless"         },
+    { id:"api",           icon:"◇",  label:"API Xyra"         },
     { id:"settings",      icon:"⚙",  label:"Paramètres"           },
     { id:"admin",         icon:"👑", label:"Admin Curtiss"         },
   ]},
@@ -138,9 +138,9 @@ const CHARGES=[{cat:"Fournitures nettoyage",mois:420},{cat:"Transport & carburan
 const TRESORERIE_90J=[{sem:"S16 (15 avr)",e:6480,s:3200,sol:8240},{sem:"S17 (22 avr)",e:5200,s:4100,sol:9340},{sem:"S18 (29 avr)",e:7800,s:3500,sol:13640},{sem:"S19 (6 mai)",e:6100,s:6800,sol:12940},{sem:"S20 (13 mai)",e:8400,s:3200,sol:18140},{sem:"S21 (20 mai)",e:9200,s:4400,sol:22940,pred:true},{sem:"S22 (27 mai)",e:7600,s:3100,sol:27440,pred:true},{sem:"S23 (3 juin)",e:10200,s:5200,sol:32440,pred:true}];
 const INIT_NOTIFS=[{id:1,type:"urgent",icon:"⚠",titre:"2 devis en attente de validation",heure:"09:00",lu:false},{id:2,type:"urgent",icon:"📦",titre:"Stock critique — Produit vitres + 2 articles",heure:"08:30",lu:false},{id:3,type:"info",icon:"💬",titre:"Abou : produit vitres épuisé",heure:"13:20",lu:false},{id:4,type:"money",icon:"💰",titre:"Commission Leila Mansouri : 1 305€ à payer",heure:"Hier",lu:true},{id:5,type:"good",icon:"⭐",titre:"Nouvel avis 5★ — Sofia Al-Rashid",heure:"Hier",lu:true}];
 const CONTRATS=[{id:"CTR-001",type:"Partenaire",nom:"Thomas Beaumont",comm:"20%",statut:"signé",date:"01/03",expire:"28/02/2027"},{id:"CTR-002",type:"Partenaire",nom:"Leila Mansouri",comm:"15%",statut:"signé",date:"15/02",expire:"14/02/2027"},{id:"CTR-003",type:"Prestation",nom:"Groupe Prestige SARL",comm:"12%",statut:"signé",date:"01/04",expire:"31/03/2027"}];
-const AVIS=[{client:"Sofia Al-Rashid",note:5,service:"Jet privé",comm:"Service impeccable, équipe très pro !",google:true},{client:"Jean-Marc Olivier",note:5,service:"Résidentiel",comm:"Tymeless c'est le top, je recommande.",google:true},{client:"Pierre Lefevre",note:4,service:"Rapatriement",comm:"Très bien géré dans un moment difficile.",google:false}];
+const AVIS=[{client:"Sofia Al-Rashid",note:5,service:"Jet privé",comm:"Service impeccable, équipe très pro !",google:true},{client:"Jean-Marc Olivier",note:5,service:"Résidentiel",comm:"Xyra c'est le top, je recommande.",google:true},{client:"Pierre Lefevre",note:4,service:"Rapatriement",comm:"Très bien géré dans un moment difficile.",google:false}];
 const FORMATION=[{titre:"Protocole nettoyage jet privé",collab:"Thomas, Abou",statut:"complété",score:98},{titre:"Process rapatriement corps",collab:"Thomas",statut:"complété",score:95},{titre:"Accueil client VIP",collab:"Fatou",statut:"en cours",score:null},{titre:"Nettoyage yacht – produits nacrés",collab:"Abou",statut:"à faire",score:null}];
-const EVENEMENTS=[{titre:"Networking Tymeless — Paris",date:"25/04/2026",lieu:"Hôtel George V",inscrits:24,max:40,prix:"80€",statut:"ouvert"},{titre:"Forum Entrepreneurs Afrique",date:"10/05/2026",lieu:"Paris – Salle Opéra",inscrits:52,max:100,prix:"45€",statut:"ouvert"},{titre:"Soirée Partenaires VIP",date:"15/05/2026",lieu:"Monaco – Invitation",inscrits:18,max:20,prix:"0€",statut:"complet"}];
+const EVENEMENTS=[{titre:"Networking Xyra — Paris",date:"25/04/2026",lieu:"Hôtel George V",inscrits:24,max:40,prix:"80€",statut:"ouvert"},{titre:"Forum Entrepreneurs Afrique",date:"10/05/2026",lieu:"Paris – Salle Opéra",inscrits:52,max:100,prix:"45€",statut:"ouvert"},{titre:"Soirée Partenaires VIP",date:"15/05/2026",lieu:"Monaco – Invitation",inscrits:18,max:20,prix:"0€",statut:"complet"}];
 const MSGS_EQUIPE=[{id:1,auteur:"Thomas",av:"T",msg:"Béné, prospect Dupont confirmé pour jeudi 🙌",h:"09:14",lu:true},{id:2,auteur:"Abou",av:"A",msg:"Nettoyage Airbnb Montmartre terminé ✅",h:"10:32",lu:true},{id:3,auteur:"Abou",av:"A",msg:"Produit vitres épuisé, je rachète ?",h:"13:20",lu:false},{id:4,auteur:"Thomas",av:"T",msg:"Rappel rapatriement Lefevre demain 8h ✈️",h:"14:45",lu:false}];
 const MSGS_PART=[{id:1,auteur:"Leila",av:"L",msg:"Bonjour Béné, j'ai un client pour le résidentiel 👋",h:"08:30",lu:true},{id:2,auteur:"Fatou",av:"F",msg:"2 nouvelles sociétés depuis Dakar 🌍",h:"11:00",lu:false}];
 const INIT_HISTO=[{id:"PAY-001",type:"entree",libelle:"Paiement Sofia Al-Rashid",montant:2400,devise:"EUR",methode:"Carte",date:"13/04 14:32",statut:"confirmé",ref:"TYM-0042",com:120},{id:"PAY-002",type:"entree",libelle:"Paiement Pierre Lefevre",montant:4800,devise:"EUR",methode:"Virement SEPA",date:"12/04 09:15",statut:"confirmé",ref:"TYM-0041",com:240},{id:"PAY-003",type:"sortie",libelle:"Commission Thomas Beaumont",montant:2480,devise:"EUR",methode:"Virement SEPA",date:"11/04 16:00",statut:"envoyé",ref:"COM-001",com:0},{id:"PAY-004",type:"entree",libelle:"Paiement Fatoumata Diop",montant:557480,devise:"XOF",methode:"Wave",date:"10/04 11:20",statut:"confirmé",ref:"TYM-0038",com:27874},{id:"PAY-005",type:"sortie",libelle:"Fournitures CleanPro",montant:420,devise:"EUR",methode:"Virement SEPA",date:"09/04 10:00",statut:"envoyé",ref:"FOUR-001",com:0}];
@@ -193,7 +193,7 @@ const MODULE_PREVIEWS={
   stock:{icon:"⊟",desc:"Stock & Fournitures",features:["Alertes stock critique","IA prédictive","Commandes auto","QR terrain"]},
   services:{icon:"⊛",desc:"Produits & Services",features:["Catalogue services","Tarification IA","Tunnel upsell","CGV/CGU auto"]},
   deploiement:{icon:"🌍",desc:"Déploiement SaaS",features:["Clients white-label","Revenus MRR/ARR","Onboarding auto","Dashboard revendeurs"]},
-  api:{icon:"◇",desc:"API Tymeless",features:["Clés API sécurisées","Webhooks temps réel","Documentation complète","Logs & monitoring"]},
+  api:{icon:"◇",desc:"API Xyra",features:["Clés API sécurisées","Webhooks temps réel","Documentation complète","Logs & monitoring"]},
 };
 
 const UpgradeWall=({page,plan,onUpgrade})=>{
@@ -236,7 +236,7 @@ const UpgradeWall=({page,plan,onUpgrade})=>{
           <Btn onClick={()=>onUpgrade&&onUpgrade(p.id)} color={p.color} style={{fontSize:12,padding:"8px 0"}}>⚡ Passer à {p.nom}</Btn>
         </div>)}
         <div style={{background:`${C.green}08`,border:`1px solid ${C.green}22`,borderRadius:8,padding:12,fontSize:11,color:C.muted,textAlign:"center"}}>
-          💬 Questions ? <span style={{color:C.gold,cursor:"pointer"}}>Contactez Tymeless →</span>
+          💬 Questions ? <span style={{color:C.gold,cursor:"pointer"}}>Contactez Xyra →</span>
         </div>
       </div>
     </div>
@@ -305,7 +305,7 @@ const Convertisseur=()=>{
       <div style={{fontSize:20,color:C.muted}}>⇄</div>
       <div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:7,padding:"8px 12px",fontSize:14,fontWeight:700,color:C.gold,marginBottom:4}}>{isNaN(r)?"-":r.toLocaleString("fr",{maximumFractionDigits:2})}</div><Sel value={ve} onChange={e=>setVe(e.target.value)} style={{width:"100%"}}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel></div>
     </div>
-    <div style={{marginTop:8,fontSize:10,color:C.muted,textAlign:"center"}}>1 {de} = {conv(1,de,ve).toFixed(4)} {ve} · Taux de référence Tymeless</div>
+    <div style={{marginTop:8,fontSize:10,color:C.muted,textAlign:"center"}}>1 {de} = {conv(1,de,ve).toFixed(4)} {ve} · Taux de référence Xyra</div>
   </CT>;
 };
 
@@ -459,7 +459,7 @@ const PageWallet=({plan,showToast,profil})=>{
         </div>
         <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Méthode d'encaissement</label><Sel value={payForm.methode} onChange={e=>setPayForm(f=>({...f,methode:e.target.value}))} style={{width:"100%"}}>{METHODES_PAY.map(m=><option key={m.id} value={m.id}>{m.icon} {m.nom} — {m.zone}</option>)}</Sel></div>
         <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Référence devis</label><Inp value={payForm.ref} onChange={e=>setPayForm(f=>({...f,ref:e.target.value}))} placeholder="Ex: TYM-0044"/></div>
-        {payForm.montant&&<div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:8,padding:10,fontSize:11,color:C.green}}>Commission Tymeless 5% : {fmt(Number(payForm.montant)*0.05,payForm.devise)}</div>}
+        {payForm.montant&&<div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:8,padding:10,fontSize:11,color:C.green}}>Commission Xyra 5% : {fmt(Number(payForm.montant)*0.05,payForm.devise)}</div>}
         <Btn onClick={()=>handleEncaisser(payForm)} style={{background:C.green,color:"#000",marginTop:4}}>💰 Encaisser</Btn>
       </div>
     </Card></div>}
@@ -522,7 +522,7 @@ const PageWallet=({plan,showToast,profil})=>{
       </div>
     </Card>}
     {onglet==="virements"&&<Card><STitle>🏦 Virements bancaires SEPA</STitle>
-      <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Envoyez des virements SEPA directement depuis votre wallet Tymeless.</div>
+      <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Envoyez des virements SEPA directement depuis votre wallet Xyra.</div>
       <div style={{display:"flex",flexDirection:"column",gap:10,maxWidth:480}}>
         <Inp placeholder="IBAN bénéficiaire (FR76...)"/>
         <Inp placeholder="BIC/SWIFT"/>
@@ -609,7 +609,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
 
 // ─── PAGE OVERVIEW ────────────────────────────────────────────
 const PageOverview=({plan,profil})=>{
-  const kpis=[{l:"CA ce mois",v:"24 380 €",c:C.green,t:"↗ +12%"},{l:"Marge nette",v:"61%",c:C.teal,t:"↗ +4pts"},{l:"Missions",v:"14",c:C.blue,t:"Ce mois"},{l:"Devis signés",v:"8",c:C.gold,t:"/ 12 envoyés"},{l:"NPS moyen",v:"★ 4.6",c:C.gold,t:"23 avis"},{l:"Clients actifs",v:"5",c:C.purple,t:"dont 2 VIP"},{l:"Commissions",v:"8 525 €",c:C.orange,t:"À payer"},{l:"Score Tymeless",v:"74/100",c:C.gold,t:"🟡 Bon"}];
+  const kpis=[{l:"CA ce mois",v:"24 380 €",c:C.green,t:"↗ +12%"},{l:"Marge nette",v:"61%",c:C.teal,t:"↗ +4pts"},{l:"Missions",v:"14",c:C.blue,t:"Ce mois"},{l:"Devis signés",v:"8",c:C.gold,t:"/ 12 envoyés"},{l:"NPS moyen",v:"★ 4.6",c:C.gold,t:"23 avis"},{l:"Clients actifs",v:"5",c:C.purple,t:"dont 2 VIP"},{l:"Commissions",v:"8 525 €",c:C.orange,t:"À payer"},{l:"Score Xyra",v:"74/100",c:C.gold,t:"🟡 Bon"}];
   return <div style={{padding:20}}>
     <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◈ Vue d'ensemble</div>
     <div style={{fontSize:11,color:C.muted,marginBottom:16}}>KPIs · Santé business · Alertes critiques · Actions rapides</div>
@@ -633,7 +633,7 @@ const SolvabiliteWidget=({score,nom})=>{
   const label=score>=80?"Excellent":score>=60?"Bon":score>=40?"Moyen":"Risqué";
   return <div style={{background:`${color}11`,border:`1px solid ${color}33`,borderRadius:10,padding:"8px 12px",display:"flex",alignItems:"center",gap:12}}>
     <div style={{fontSize:22,fontWeight:700,color,fontFamily:"Georgia,serif",minWidth:44}}>{score}</div>
-    <div><div style={{fontSize:10,color,fontWeight:600}}>Score Solvabilité Tymeless</div><div style={{fontSize:11,color:C.muted}}>{label} · {nom}</div></div>
+    <div><div style={{fontSize:10,color,fontWeight:600}}>Score Solvabilité Xyra</div><div style={{fontSize:11,color:C.muted}}>{label} · {nom}</div></div>
     <SM val={score} max={100} color={color}/>
   </div>;
 };
@@ -870,7 +870,7 @@ const PageDevis=({plan,showToast,profil})=>{
         </Card>
         <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
           <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Bot WhatsApp connecté</div>
-          <div style={{fontSize:11,color:C.text,lineHeight:1.6}}>Le devis sera automatiquement envoyé via le bot WhatsApp Tymeless. Le client peut signer directement depuis WhatsApp.</div>
+          <div style={{fontSize:11,color:C.text,lineHeight:1.6}}>Le devis sera automatiquement envoyé via le bot WhatsApp Xyra. Le client peut signer directement depuis WhatsApp.</div>
         </Card>
       </div>
     </div>}
@@ -891,7 +891,7 @@ const PageDevis=({plan,showToast,profil})=>{
     {onglet==="relances"&&<div>
       <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:12,padding:14,marginBottom:14}}>
         <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Relances automatiques — Claude IA + Bot WhatsApp</div>
-        <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Les relances sont envoyées automatiquement via le bot WhatsApp Tymeless selon les règles ci-dessous. Vous pouvez personnaliser chaque message.</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Les relances sont envoyées automatiquement via le bot WhatsApp Xyra selon les règles ci-dessous. Vous pouvez personnaliser chaque message.</div>
       </div>
       {devis.filter(d=>d.statut==="envoyé"||d.statut==="vu").map((d,i)=><Card key={i} style={{marginBottom:10,borderColor:`${C.orange}33`}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
@@ -1016,7 +1016,7 @@ const TabCharges=({showToast})=>{
 const TabFournisseurs=({showToast})=>{
   const fours=[{nom:"CleanPro",cat:"Fournitures nettoyage",contact:"0800 123 456",iban:"FR76 1234...",last:"420€ · 09/04",delai:"J+3"},{nom:"TextilePro",cat:"Textile premium",contact:"01 44 55 66 77",iban:"FR76 5678...",last:"380€ · 07/04",delai:"J+5"},{nom:"MedSupply",cat:"Matériel médical",contact:"01 77 88 99 00",iban:"FR76 9012...",last:"520€ · 05/04",delai:"J+7"},{nom:"YachtCare",cat:"Entretien yacht",contact:"+377 99 88 77",iban:"MC58 0000...",last:"290€ · 03/04",delai:"J+10"},{nom:"LuxEquip",cat:"Équipements jet",contact:"+33 1 55 66 77 88",iban:"FR76 3456...",last:"840€ · 01/04",delai:"J+14"}];
   return <div>
-    <STitle>🏭 Fournisseurs Tymeless</STitle>
+    <STitle>🏭 Fournisseurs Xyra</STitle>
     <table style={{width:"100%",borderCollapse:"collapse"}}>
       <thead><tr><TH>Fournisseur</TH><TH>Catégorie</TH><TH>Contact</TH><TH>Dernier paiement</TH><TH>Délai livraison</TH><TH>Action</TH></tr></thead>
       <tbody>{fours.map((f,i)=><tr key={i}>
@@ -1435,7 +1435,7 @@ const PageClients=({plan,showToast})=>{
           {clients.map((c,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${C.border}`}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,fontWeight:700}}>{c.nom}</span><Pill color={C.blue}>{c.tunnel.replace(/_/g," ")}</Pill></div>
             <div style={{fontSize:11,color:C.muted,marginBottom:6}}>
-              {c.tunnel==="nouveau"?"→ Envoi présentation Tymeless + devis découverte":c.tunnel==="negociation"?"→ Proposition geste commercial / devis ajusté":c.tunnel==="client_regulier"?"→ Offre fidélité + upsell service supérieur":"→ Invitation événement VIP + offre exclusive"}
+              {c.tunnel==="nouveau"?"→ Envoi présentation Xyra + devis découverte":c.tunnel==="negociation"?"→ Proposition geste commercial / devis ajusté":c.tunnel==="client_regulier"?"→ Offre fidélité + upsell service supérieur":"→ Invitation événement VIP + offre exclusive"}
             </div>
             <Btn onClick={()=>showToast(`🤖 Relance IA envoyée à ${c.nom} via WhatsApp`)} style={{fontSize:10,padding:"5px 10px"}}>Lancer relance auto</Btn>
           </div>)}
@@ -1747,7 +1747,7 @@ const PagePartenaires=({plan,showToast})=>{
       <Card style={{background:`${C.blue}08`,borderColor:`${C.blue}33`}}>
         <STitle>📝 Modèle de contrat — Clauses standards</STitle>
         <div style={{display:"flex",flexDirection:"column",gap:6}}>
-          {["Commission versée sous 30 jours après encaissement client","Taux de commission fixé contractuellement — révisable annuellement","Lead valide = prospect non connu de Tymeless depuis + de 6 mois","Commission due uniquement si le deal est signé et encaissé","Résiliation par l'une ou l'autre partie avec préavis de 30 jours"].map((c,i)=><div key={i} style={{fontSize:11,color:C.text,padding:"6px 10px",background:C.card2,borderRadius:6}}>• {c}</div>)}
+          {["Commission versée sous 30 jours après encaissement client","Taux de commission fixé contractuellement — révisable annuellement","Lead valide = prospect non connu de Xyra depuis + de 6 mois","Commission due uniquement si le deal est signé et encaissé","Résiliation par l'une ou l'autre partie avec préavis de 30 jours"].map((c,i)=><div key={i} style={{fontSize:11,color:C.text,padding:"6px 10px",background:C.card2,borderRadius:6}}>• {c}</div>)}
         </div>
       </Card>
     </div>}
@@ -1908,7 +1908,7 @@ const PagePartenaires=({plan,showToast})=>{
           {p.id==="p1"&&`Thomas est votre apporteur le plus actif (${p.contrats} contrats). Taux de conversion : ${Math.round(p.leads.filter(l=>l.statut==="gagné").length/p.leads.length*100)}%. Recommandation : augmentez sa commission à ${p.comm+2}% pour accélérer l'apport et viser ${fmt(p.ca*1.4)} de CA.`}
           {p.id==="p2"&&`Leila Mansouri performe bien sur l'immobilier résidentiel. ${p.leads.length} leads soumis, taux de conversion ${Math.round(p.leads.filter(l=>l.statut==="gagné").length/p.leads.length*100)}%. Recommandation : ciblez ensemble les syndics du Rhône pour maximiser le potentiel.`}
           {p.id==="p3"&&`Groupe Prestige SARL est votre meilleur partenaire (${fmt(p.ca)}). ${p.contrats} contrats signés. Recommandation : proposez un partenariat exclusif sur les syndics Île-de-France et augmentez la commission à ${p.comm+3}%.`}
-          {p.id==="p4"&&`Fatoumata Diop est votre pont vers l'Afrique de l'Ouest. Énorme potentiel non exploité. Recommandation : organisez une visio mensuelle pour briefer sur les nouvelles offres Tymeless et cibler ensemble les ETI sénégalaises.`}
+          {p.id==="p4"&&`Fatoumata Diop est votre pont vers l'Afrique de l'Ouest. Énorme potentiel non exploité. Recommandation : organisez une visio mensuelle pour briefer sur les nouvelles offres Xyra et cibler ensemble les ETI sénégalaises.`}
         </div>
         <div style={{display:"flex",gap:8,marginTop:10}}>
           <Btn onClick={()=>showToast(`✅ Proposition envoyée à ${p.nom}`)} style={{fontSize:11,flex:1}}>Envoyer proposition IA</Btn>
@@ -1938,7 +1938,7 @@ const PageClubAffaires=({plan,showToast})=>{
   return <div style={{padding:20}}>
     <div style={{background:`linear-gradient(135deg,${C.card},#0A0A1A)`,border:`1px solid ${C.gold}44`,borderRadius:16,padding:20,marginBottom:14}}>
       <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:4}}>CLUB XYRA · RÉSEAU AFFAIRES PRIVÉ</div>
-      <div style={{fontSize:22,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◈ Club d'affaires Tymeless</div>
+      <div style={{fontSize:22,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◈ Club d'affaires Xyra</div>
       <div style={{fontSize:12,color:C.muted,marginBottom:12}}>Réseau privé · Deals exclusifs -10% · IA Match · Événements VIP · {MEMBRES.length} membres actifs</div>
       <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
         <div style={{borderLeft:`2px solid ${C.gold}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>Membres</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>{MEMBRES.length}</div></div>
@@ -1997,7 +1997,7 @@ const PageClubAffaires=({plan,showToast})=>{
         <div style={{textAlign:"center",padding:"24px 0"}}>
           <div style={{fontSize:36,marginBottom:10}}>🎥</div>
           <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Salon Visio Club VIP</div>
-          <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Salle privée membres Club Tymeless</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Salle privée membres Club Xyra</div>
           <div style={{display:"flex",gap:8,justifyContent:"center"}}>
             <Btn onClick={()=>showToast("🎥 Salle club : meet.xyra.io/club")}>🎥 Rejoindre</Btn>
             <BtnGhost onClick={()=>showToast("📅 Visio planifiée !")}>📅 Planifier</BtnGhost>
@@ -2006,7 +2006,7 @@ const PageClubAffaires=({plan,showToast})=>{
       </Card>
     </div>}
     {onglet==="avantages"&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
-      {[{icon:"💎",titre:"Remise -10% entre membres",desc:"Tous les services entre membres Club au tarif préférentiel",color:C.gold},{icon:"🤖",titre:"IA Match Business",desc:"Claude identifie les meilleures synergies du réseau chaque semaine",color:C.purple},{icon:"🌍",titre:"Annuaire privé mondial",desc:"Accès à l'annuaire complet avec coordonnées directes",color:C.blue},{icon:"📅",titre:"Événements VIP exclusifs",desc:"Invitations prioritaires soirées networking et forums",color:C.teal},{icon:"💳",titre:"Carte Membre Tymeless",desc:"Carte virtuelle Club avec cashback 2% sur les achats réseau",color:C.green},{icon:"📊",titre:"Rapport business mensuel",desc:"Analyse IA personnalisée par Claude chaque 1er du mois",color:C.orange}].map((a,i)=><Card key={i} style={{borderColor:`${a.color}33`,textAlign:"center"}}>
+      {[{icon:"💎",titre:"Remise -10% entre membres",desc:"Tous les services entre membres Club au tarif préférentiel",color:C.gold},{icon:"🤖",titre:"IA Match Business",desc:"Claude identifie les meilleures synergies du réseau chaque semaine",color:C.purple},{icon:"🌍",titre:"Annuaire privé mondial",desc:"Accès à l'annuaire complet avec coordonnées directes",color:C.blue},{icon:"📅",titre:"Événements VIP exclusifs",desc:"Invitations prioritaires soirées networking et forums",color:C.teal},{icon:"💳",titre:"Carte Membre Xyra",desc:"Carte virtuelle Club avec cashback 2% sur les achats réseau",color:C.green},{icon:"📊",titre:"Rapport business mensuel",desc:"Analyse IA personnalisée par Claude chaque 1er du mois",color:C.orange}].map((a,i)=><Card key={i} style={{borderColor:`${a.color}33`,textAlign:"center"}}>
         <div style={{fontSize:28,marginBottom:8}}>{a.icon}</div>
         <div style={{fontSize:13,fontWeight:700,color:a.color,marginBottom:6}}>{a.titre}</div>
         <div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>{a.desc}</div>
@@ -2021,7 +2021,7 @@ const PageClubAffaires=({plan,showToast})=>{
           <KPI label="Taux engagement" val="84%" color={C.teal}/>
         </div>
       </Card>
-      <Card><STitle>💰 Revenus Club Tymeless</STitle>
+      <Card><STitle>💰 Revenus Club Xyra</STitle>
         {[["Abonnements (29€/mois)",fmt(MEMBRES.length*29),C.gold],["Commissions deals (5%)",fmt(7100),C.green],["Événements",fmt(2400),C.blue],["Total mensuel",fmt(MEMBRES.length*29+7100+2400),C.teal]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
       </Card>
     </div>}
@@ -2136,7 +2136,7 @@ const PageAnnuaire=({plan,showToast})=>{
               </div>
               <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}22`,borderRadius:8,padding:12,marginBottom:14,fontSize:12,color:C.text,lineHeight:1.7,fontStyle:"italic"}}>"{sel.bio}"</div>
               <div style={{display:"flex",flexDirection:"column",gap:6}}>
-                {[["📍 Localisation",`${sel.pays} ${sel.ville}`],["🏢 Secteur",sel.secteur],["📧 Email",sel.email],["📱 Téléphone",sel.tel],sel.ca>0?["💰 CA généré Tymeless",fmt(sel.ca)]:null,sel.deals>0?["🤝 Deals conclus",sel.deals+" deals"]:null].filter(Boolean).map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600,color:C.text}}>{v}</span></div>)}
+                {[["📍 Localisation",`${sel.pays} ${sel.ville}`],["🏢 Secteur",sel.secteur],["📧 Email",sel.email],["📱 Téléphone",sel.tel],sel.ca>0?["💰 CA généré Xyra",fmt(sel.ca)]:null,sel.deals>0?["🤝 Deals conclus",sel.deals+" deals"]:null].filter(Boolean).map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600,color:C.text}}>{v}</span></div>)}
               </div>
             </Card>
             <div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -3055,7 +3055,7 @@ const PageProspection=({plan,showToast})=>{
       <div style={{textAlign:"center",padding:"30px 0"}}>
         <div style={{fontSize:48,marginBottom:12}}>🎙</div>
         <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>Bot d'appel sortant automatique</div>
-        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Appelle automatiquement vos prospects SIRENE en se présentant comme l'assistant Tymeless</div>
+        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Appelle automatiquement vos prospects SIRENE en se présentant comme l'assistant Xyra</div>
         <Btn onClick={()=>showToast("🎙 Campagne d'appels lancée !")}>▶ Lancer une campagne d'appels</Btn>
       </div>
     </Card>}
@@ -3121,7 +3121,7 @@ const PageStock=({plan,showToast,profil})=>{
     {qrScan&&<div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:10,padding:14,marginBottom:12,textAlign:"center"}}>
       <div style={{fontSize:24,marginBottom:6}}>📱</div>
       <div style={{fontSize:12,fontWeight:700,marginBottom:4}}>QR Code Scan — Terrain</div>
-      <div style={{fontSize:11,color:C.muted,marginBottom:10}}>Utilisez l'app Tymeless sur votre téléphone pour scanner les QR codes des articles en entrepôt. Les mouvements se synchronisent en temps réel.</div>
+      <div style={{fontSize:11,color:C.muted,marginBottom:10}}>Utilisez l'app Xyra sur votre téléphone pour scanner les QR codes des articles en entrepôt. Les mouvements se synchronisent en temps réel.</div>
       <div style={{display:"flex",gap:8,justifyContent:"center"}}>
         <Btn onClick={()=>{showToast("✅ QR Code généré — envoyez à votre équipe");setQrScan(false);}} style={{fontSize:11}}>Générer QR Codes</Btn>
         <BtnGhost onClick={()=>setQrScan(false)} style={{fontSize:11}}>Fermer</BtnGhost>
@@ -3465,7 +3465,7 @@ const PageChat=({plan,showToast})=>{
   const[espace,setEspace]=useState("equipe");
   const[msgsEq,setMsgsEq]=useState(MSGS_EQUIPE.map(m=>({...m,moi:m.auteur==="Béné"})));
   const[msgsPt,setMsgsPt]=useState(MSGS_PART.map(m=>({...m,moi:m.auteur==="Béné"})));
-  const[msgsAI,setMsgsAI]=useState([{av:"AI",msg:"Bonjour ! Je suis l'assistant IA Tymeless, propulsé par Claude. Comment puis-je vous aider ?",h:"09:00",moi:false}]);
+  const[msgsAI,setMsgsAI]=useState([{av:"AI",msg:"Bonjour ! Je suis l'assistant IA Xyra, propulsé par Claude. Comment puis-je vous aider ?",h:"09:00",moi:false}]);
   const espaces=[{id:"equipe",label:"👥 Équipe",badge:MSGS_EQUIPE.filter(m=>!m.lu&&m.auteur!=="Béné").length},{id:"partenaires",label:"⬡ Partenaires",badge:MSGS_PART.filter(m=>!m.lu).length},{id:"ai",label:"🤖 Assistant IA"},{id:"visio",label:"🎥 Visio Jitsi"}];
   return <div style={{padding:20}}>
     <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>💬 Chat</div>
@@ -3475,7 +3475,7 @@ const PageChat=({plan,showToast})=>{
     <Card style={{height:460,padding:0,overflow:"hidden"}}>
       {espace==="equipe"&&<Chat msgs={msgsEq} onSend={(msg)=>setMsgsEq(ms=>[...ms,{av:"B",auteur:"Béné",msg,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),lu:true,moi:true}])} title="Chat Équipe" subtitle="Thomas · Abou · Fatou"/>}
       {espace==="partenaires"&&<Chat msgs={msgsPt} onSend={(msg)=>setMsgsPt(ms=>[...ms,{av:"B",auteur:"Béné",msg,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),lu:true,moi:true}])} title="Chat Partenaires" subtitle="Leila · Fatoumata"/>}
-      {espace==="ai"&&<Chat msgs={msgsAI} onSend={async(msg)=>{const userMsg={av:"B",msg,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),moi:true};setMsgsAI(ms=>[...ms,userMsg]);setTimeout(()=>setMsgsAI(ms=>[...ms,{av:"AI",msg:`Je traite votre demande : "${msg.slice(0,30)}..."`,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),moi:false}]),800);}} title="Assistant IA Tymeless" subtitle="Propulsé par Claude (Anthropic)"/>}
+      {espace==="ai"&&<Chat msgs={msgsAI} onSend={async(msg)=>{const userMsg={av:"B",msg,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),moi:true};setMsgsAI(ms=>[...ms,userMsg]);setTimeout(()=>setMsgsAI(ms=>[...ms,{av:"AI",msg:`Je traite votre demande : "${msg.slice(0,30)}..."`,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),moi:false}]),800);}} title="Assistant IA Xyra" subtitle="Propulsé par Claude (Anthropic)"/>}
       {espace==="visio"&&<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",gap:16}}>
         <div style={{fontSize:48}}>🎥</div>
         <div style={{fontSize:14,fontWeight:700,color:C.text}}>Visioconférence Jitsi</div>
@@ -3607,10 +3607,10 @@ const PageNotifications=({notifs,setNotifs,showToast})=>{
     {onglet==="whatsapp"&&<div>
       <div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:12,padding:16,marginBottom:14}}>
         <div style={{fontSize:10,color:C.green,fontWeight:600,marginBottom:6}}>📱 BOT WHATSAPP — NOTIFICATIONS AUTOMATIQUES</div>
-        <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Le bot WhatsApp Tymeless envoie automatiquement des notifications à vous et vos clients selon les événements configurés ci-dessous.</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Le bot WhatsApp Xyra envoie automatiquement des notifications à vous et vos clients selon les événements configurés ci-dessous.</div>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {[{evt:"Paiement reçu",msg:"💰 Paiement de {montant} reçu de {client}. Votre wallet Tymeless est crédité.",actif:true},{evt:"Devis signé",msg:"✅ {client} vient de signer le devis {id} pour {montant}. Félicitations !",actif:true},{evt:"Stock critique",msg:"⚠️ ALERTE STOCK : {article} est en dessous du seuil minimum ({qte} {u} restants). Commander chez {four}.",actif:true},{evt:"Nouveau lead",msg:"🎯 Nouveau lead soumis par {partenaire} : {entreprise}. Valeur estimée : {ca}€.",actif:true},{evt:"Rappel devis",msg:"📋 Rappel : le devis {id} pour {client} ({montant}) est en attente depuis {jours} jours.",actif:true},{evt:"Mission terminée",msg:"✅ Mission terminée : {service} chez {client}. L'équipe {equipe} a terminé à {heure}.",actif:false}].map((w,i)=><Card key={i} style={{borderColor:w.actif?`${C.green}33`:C.border}}>
+        {[{evt:"Paiement reçu",msg:"💰 Paiement de {montant} reçu de {client}. Votre wallet Xyra est crédité.",actif:true},{evt:"Devis signé",msg:"✅ {client} vient de signer le devis {id} pour {montant}. Félicitations !",actif:true},{evt:"Stock critique",msg:"⚠️ ALERTE STOCK : {article} est en dessous du seuil minimum ({qte} {u} restants). Commander chez {four}.",actif:true},{evt:"Nouveau lead",msg:"🎯 Nouveau lead soumis par {partenaire} : {entreprise}. Valeur estimée : {ca}€.",actif:true},{evt:"Rappel devis",msg:"📋 Rappel : le devis {id} pour {client} ({montant}) est en attente depuis {jours} jours.",actif:true},{evt:"Mission terminée",msg:"✅ Mission terminée : {service} chez {client}. L'équipe {equipe} a terminé à {heure}.",actif:false}].map((w,i)=><Card key={i} style={{borderColor:w.actif?`${C.green}33`:C.border}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:8}}>
             <div style={{fontSize:12,fontWeight:700}}>{w.evt}</div>
             <div onClick={()=>showToast(w.actif?"🔕 Notification désactivée":"🔔 Notification activée")} style={{width:36,height:20,borderRadius:10,background:w.actif?C.green:C.border,cursor:"pointer",position:"relative",flexShrink:0}}>
@@ -4074,7 +4074,7 @@ const PageFacturation=({plan,showToast})=>{
           </div>)}
         </Card>
         <Card>
-          <STitle>✅ Conformité réseau Tymeless</STitle>
+          <STitle>✅ Conformité réseau Xyra</STitle>
           {CLIENTS_CONFORMITE.map((c,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${C.border}22`}}>
             <div><div style={{fontSize:11,fontWeight:600}}>{c.nom}</div><div style={{fontSize:9,color:C.muted}}>{c.type}</div></div>
             <Pill color={c.prete?C.green:C.orange}>{c.prete?"✓ Prêt":"À anticiper"}</Pill>
@@ -4127,7 +4127,7 @@ const PageFacturation=({plan,showToast})=>{
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         <Card style={{background:`${C.blue}08`,borderColor:`${C.blue}33`}}>
           <STitle>📋 Mentions obligatoires (vérification auto)</STitle>
-          {[["Numéro de facture séquentiel","✅ Auto-généré"],["Date d'émission","✅ Auto"],["SIREN émetteur Tymeless","✅ 123 456 789"],["SIREN destinataire","✅ Si renseigné"],["Montant HT","✅ Saisi"],["Taux et montant TVA","✅ Calculé auto"],["Montant TTC","✅ Calculé auto"],["Format structuré Factur-X","✅ Sélectionné"],["Signature électronique","✅ Horodatage auto"]].map(([m,s],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}><span>{m}</span><span style={{color:C.green,fontWeight:600}}>{s}</span></div>)}
+          {[["Numéro de facture séquentiel","✅ Auto-généré"],["Date d'émission","✅ Auto"],["SIREN émetteur Xyra","✅ 123 456 789"],["SIREN destinataire","✅ Si renseigné"],["Montant HT","✅ Saisi"],["Taux et montant TVA","✅ Calculé auto"],["Montant TTC","✅ Calculé auto"],["Format structuré Factur-X","✅ Sélectionné"],["Signature électronique","✅ Horodatage auto"]].map(([m,s],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}><span>{m}</span><span style={{color:C.green,fontWeight:600}}>{s}</span></div>)}
         </Card>
         <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
           <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 IA — Conseils conformité</div>
@@ -4292,7 +4292,7 @@ const PageDeals=({plan,showToast})=>{
         <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Étape initiale</label><Sel value={addForm.etape} onChange={e=>setAddForm(f=>({...f,etape:e.target.value}))} style={{width:"100%"}}>{ETAPES.map(e=><option key={e}>{e}</option>)}</Sel></div>
       </div>
       <div style={{display:"flex",gap:8}}>
-        <Btn onClick={()=>{const nd={id:`DEAL-00${deals.length+1}`,nom:addForm.nom,valeur:Number(addForm.valeur)||0,prob:Number(addForm.prob)||50,etape:addForm.etape,client:addForm.client,tel:addForm.tel,email:addForm.email,dead:addForm.dead,source:addForm.source,desc:addForm.desc,actions:[{date:new Date().toLocaleDateString("fr"),type:"Création",note:"Deal créé dans Tymeless"}],dernierContact:new Date().toLocaleDateString("fr")};setDeals(d=>[nd,...d]);setShowAdd(false);setAddForm({nom:"",client:"",valeur:"",prob:"50",etape:"Identification",dead:"",email:"",tel:"",source:"CRM",desc:""});showToast(`✅ Deal "${nd.nom}" créé !`);}}>✅ Créer le deal</Btn>
+        <Btn onClick={()=>{const nd={id:`DEAL-00${deals.length+1}`,nom:addForm.nom,valeur:Number(addForm.valeur)||0,prob:Number(addForm.prob)||50,etape:addForm.etape,client:addForm.client,tel:addForm.tel,email:addForm.email,dead:addForm.dead,source:addForm.source,desc:addForm.desc,actions:[{date:new Date().toLocaleDateString("fr"),type:"Création",note:"Deal créé dans Xyra"}],dernierContact:new Date().toLocaleDateString("fr")};setDeals(d=>[nd,...d]);setShowAdd(false);setAddForm({nom:"",client:"",valeur:"",prob:"50",etape:"Identification",dead:"",email:"",tel:"",source:"CRM",desc:""});showToast(`✅ Deal "${nd.nom}" créé !`);}}>✅ Créer le deal</Btn>
         <BtnGhost onClick={()=>setShowAdd(false)}>Annuler</BtnGhost>
       </div>
     </Card>}
@@ -4448,43 +4448,66 @@ const PageDeals=({plan,showToast})=>{
 };
 // ─── PAGE DEPLOIEMENT SAAS ────────────────────────────────────
 const PageDeploiement=({plan,showToast})=>{
-  const clients=[{nom:"Cabinet Juridique Delmas",plan:"Starter",mrr:500,statut:"actif",url:"delmas.tymeless.app",users:3},{nom:"Immo Premium Lyon",plan:"Business",mrr:1000,statut:"actif",url:"immo-premium.tymeless.app",users:8},{nom:"RH Solutions Dakar",plan:"Enterprise",mrr:1500,statut:"trial",url:"rh-dakar.tymeless.app",users:12}];
-  if(!hasAccess(plan,"deploiement"))return <div style={{padding:20}}><UpgradeWall page="Déploiement SaaS" plan={plan}/></div>;
+  const[tenants,setTenants]=useState([]);
+  const[loading,setLoading]=useState(true);
+
+  useEffect(()=>{
+    const loadTenants=async()=>{
+      try{
+        const {createClient}=await import('@supabase/supabase-js');
+        const sb=createClient(
+          process.env.NEXT_PUBLIC_SUPABASE_URL,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+        );
+        const{data}=await sb.from('tenants').select('*').order('created_at',{ascending:false});
+        if(data)setTenants(data);
+      }catch(e){console.error(e);}
+      setLoading(false);
+    };
+    loadTenants();
+  },[]);
+
+  const mrr=tenants.reduce((a,t)=>a+(t.plan_price||0),0);
+
+  if(!checkAccess("deploiement",plan))return <div style={{padding:20}}><UpgradeWall page="Déploiement SaaS" plan={plan}/></div>;
   return <div style={{padding:20}}>
-    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>🌍 Déploiement SaaS White-label</div>
-    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Clients SaaS · Revenus · ARR · Onboarding · White-label</div>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>🌍 Déploiement SaaS — Clients Xyra</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Vue owner · Tous vos clients en temps réel</div>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
-      <KPI label="Clients SaaS" val={clients.length} color={C.blue}/>
-      <KPI label="MRR" val={fmt(clients.reduce((a,c)=>a+c.mrr,0))} color={C.gold}/>
-      <KPI label="ARR projeté" val={fmt(clients.reduce((a,c)=>a+c.mrr,0)*12)} color={C.green}/>
-      <KPI label="Users totaux" val={clients.reduce((a,c)=>a+c.users,0)} color={C.purple}/>
+      <KPI label="Clients SaaS" val={tenants.length} color={C.blue}/>
+      <KPI label="MRR" val={fmt(mrr)} color={C.gold}/>
+      <KPI label="ARR projeté" val={fmt(mrr*12)} color={C.green}/>
+      <KPI label="En essai" val={tenants.filter(t=>t.statut==="essai").length} color={C.purple}/>
     </div>
     <Card>
-      <STitle>🏢 Clients SaaS actifs</STitle>
+      <STitle>🏢 Clients actifs</STitle>
+      {loading?<div style={{color:C.muted,padding:20,textAlign:"center"}}>Chargement...</div>:
+      tenants.length===0?<div style={{color:C.muted,padding:20,textAlign:"center"}}>Aucun client inscrit pour le moment</div>:
       <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Entreprise</TH><TH>Plan</TH><TH>MRR</TH><TH>Utilisateurs</TH><TH>URL</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
-        <tbody>{clients.map((c,i)=><tr key={i}>
-          <Td style={{fontWeight:600}}>{c.nom}</Td>
-          <Td><Pill color={c.plan==="Enterprise"?C.purple:c.plan==="Business"?C.gold:C.blue}>{c.plan}</Pill></Td>
-          <Td style={{color:C.gold,fontWeight:700}}>{fmt(c.mrr)}/mois</Td>
-          <Td style={{color:C.blue}}>{c.users} users</Td>
-          <Td style={{fontSize:10,color:C.teal}}>{c.url}</Td>
-          <Td><St s={c.statut}/></Td>
-          <Td><Btn onClick={()=>showToast(`⚙ Dashboard ${c.nom} ouvert`)} style={{padding:"4px 8px",fontSize:10}}>Gérer</Btn></Td>
+        <thead><tr><TH>Entreprise</TH><TH>Métier</TH><TH>Plan</TH><TH>MRR</TH><TH>Pays</TH><TH>Statut</TH><TH>Date</TH></tr></thead>
+        <tbody>{tenants.map((t,i)=><tr key={i}>
+          <Td style={{fontWeight:600}}>{t.societe}</Td>
+          <Td style={{fontSize:11,color:C.muted}}>{t.metier||"—"}</Td>
+          <Td><Pill color={t.plan==="enterprise"?C.purple:t.plan==="business_pro"?C.gold:C.blue}>{t.plan}</Pill></Td>
+          <Td style={{color:C.gold,fontWeight:700}}>{fmt(t.plan_price||0)}/mois</Td>
+          <Td style={{fontSize:11}}>{t.pays||"—"}</Td>
+          <Td><St s={t.statut||"essai"}/></Td>
+          <Td style={{fontSize:10,color:C.muted}}>{t.created_at?new Date(t.created_at).toLocaleDateString("fr-FR"):"—"}</Td>
         </tr>)}</tbody>
-      </table>
+      </table>}
     </Card>
   </div>;
 };
+
 
 // ─── PAGE API ─────────────────────────────────────────────────
 const PageAPI=({plan,showToast})=>{
   const[apiKey,setApiKey]=useState("ty_live_••••••••••••••••••••••••••••••••");
   const tabs=[{id:"keys",label:"🔑 Clés API"},{id:"webhooks",label:"🔔 Webhooks"},{id:"docs",label:"📚 Docs"},{id:"logs",label:"📋 Logs"}];
   const[onglet,setOnglet]=useState("keys");
-  if(!hasAccess(plan,"api"))return <div style={{padding:20}}><UpgradeWall page="API Tymeless" plan={plan}/></div>;
+  if(!hasAccess(plan,"api"))return <div style={{padding:20}}><UpgradeWall page="API Xyra" plan={plan}/></div>;
   return <div style={{padding:20}}>
-    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◇ API Tymeless</div>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◇ API Xyra</div>
     <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Clés API · Webhooks · Documentation · Logs · Intégrations</div>
     <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
     {onglet==="keys"&&<Card>
@@ -4923,7 +4946,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
     {/* ── DOMAINE WHITE-LABEL ── */}
     {onglet==="domaine"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
       <Card>
-        <STitle>🌍 URL Tymeless (sous-domaine)</STitle>
+        <STitle>🌍 URL Xyra (sous-domaine)</STitle>
         <div style={{background:C.card2,borderRadius:10,padding:14,marginBottom:12,border:`1px solid ${C.border}`}}>
           <div style={{fontSize:9,color:C.muted,marginBottom:4}}>URL ACTUELLE</div>
           <div style={{fontFamily:"monospace",fontSize:13,color:C.teal}}>{domaine.sous_domaine}.xyra.io</div>
@@ -4979,7 +5002,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
       </div>
       <Card>
         <STitle>🍪 Politique de confidentialité</STitle>
-        <div style={{fontSize:11,color:C.muted,lineHeight:1.7,marginBottom:10}}>Tymeless collecte uniquement les données nécessaires au fonctionnement du service. Aucune donnée n'est partagée avec des tiers sans consentement explicite. Vous pouvez exercer vos droits à tout moment en contactant dpo@xyra.io</div>
+        <div style={{fontSize:11,color:C.muted,lineHeight:1.7,marginBottom:10}}>Xyra collecte uniquement les données nécessaires au fonctionnement du service. Aucune donnée n'est partagée avec des tiers sans consentement explicite. Vous pouvez exercer vos droits à tout moment en contactant dpo@xyra.io</div>
         <div style={{display:"flex",gap:8}}><BtnGhost onClick={()=>showToast("📄 Politique confidentialité téléchargée")}>📄 Télécharger PDF</BtnGhost><BtnGhost onClick={()=>showToast("📧 Email DPO ouvert")}>📧 Contacter le DPO</BtnGhost></div>
       </Card>
     </div>}
@@ -4998,13 +5021,13 @@ const PageAdmin=({plan,showToast})=>{
       <KPI label="Score CEO" val="88/100" color={C.teal}/>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-      <Card><STitle>📊 Vue 360° Tymeless</STitle>
+      <Card><STitle>📊 Vue 360° Xyra</STitle>
         {[["Revenus services",18200,C.gold],["Revenus SaaS",3000,C.green],["Revenus Club",1380,C.blue],["Commissions 5%",2400,C.teal]].map(([n,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div>)}
       </Card>
       <Card><STitle>🤖 Analyse CEO — Claude</STitle>
         <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:8,padding:12}}>
           <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:4}}>Intelligence artificielle · Claude Sonnet</div>
-          <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Tymeless performe en dessous de son potentiel sur le SaaS. Recommandation : concentrer 30% des efforts commerciaux sur la conversion de 5 prospects SaaS identifiés. ROI estimé : +18 000€ ARR en Q3.</div>
+          <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Xyra performe en dessous de son potentiel sur le SaaS. Recommandation : concentrer 30% des efforts commerciaux sur la conversion de 5 prospects SaaS identifiés. ROI estimé : +18 000€ ARR en Q3.</div>
         </div>
       </Card>
     </div>
@@ -5159,7 +5182,7 @@ export default function Xyra() {
             <div style={{width:30,height:30,borderRadius:"50%",background:`${C.gold}22`,border:`1px solid ${C.gold}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:C.gold,flexShrink:0}}>C</div>
             <div style={{flex:1,minWidth:0}}>
               <div style={{fontSize:11,fontWeight:600,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>Curtiss</div>
-              <div style={{fontSize:9,color:C.gold}}>★ Owner · Tymeless</div>
+              <div style={{fontSize:9,color:C.gold}}>★ Owner · Xyra</div>
             </div>
             {notifs.filter(n=>!n.lu).length>0&&<span style={{background:C.red,color:"#fff",borderRadius:20,padding:"0 5px",fontSize:9,fontWeight:700}}>{notifs.filter(n=>!n.lu).length}</span>}
           </div>
@@ -5173,7 +5196,7 @@ export default function Xyra() {
           <button onClick={()=>setSidebarOpen(s=>!s)} style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:18,fontFamily:"inherit",padding:"0 4px"}}>☰</button>
           <div style={{flex:1}}/>
           <div style={{background:`${C.teal}11`,border:`1px solid ${C.teal}44`,borderRadius:8,padding:"5px 12px",textAlign:"right"}}>
-            <div style={{fontSize:9,color:C.teal}}>💳 Wallet Tymeless</div>
+            <div style={{fontSize:9,color:C.teal}}>💳 Wallet Xyra</div>
             <div style={{fontSize:16,fontWeight:700,color:C.gold}}>18 420 €</div>
           </div>
           <button onClick={()=>setPage("notifications")} style={{background:"transparent",border:"none",cursor:"pointer",position:"relative",padding:4}}>
