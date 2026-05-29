@@ -4509,7 +4509,7 @@ const PageDeploiement=({plan,showToast})=>{
 
   const planColors={starter:C.blue,business_pro:C.gold,enterprise:C.purple};
 
-  if(!checkAccess("deploiement",plan))return <div style={{padding:20}}><UpgradeWall page="Déploiement SaaS" plan={plan}/></div>;
+  if(!hasAccess(plan,"deploiement"))return <div style={{padding:20}}><UpgradeWall page="Déploiement SaaS" plan={plan}/></div>;
 
   // ── FICHE CLIENT ────────────────────────────────────────────
   if(selectedClient){
