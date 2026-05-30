@@ -131,6 +131,22 @@ export default function Inscription() {
         created_at: new Date().toISOString(),
       }]);
 
+      // Envoyer emails automatiques
+      await fetch('/api/send-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'welcome',
+          email: form.email,
+          societe: form.societe,
+          prenom: form.gerant,
+          plan: form.plan,
+          planPrice: form.planPrice,
+          metier: form.metier,
+          pays: form.pays,
+        }),
+      });
+
       return { success: true, userId };
     } catch (e: any) {
       console.error(e);

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { Resend } from 'resend';
 
+const resend = new Resend(process.env.RESEND_API_KEY);
+
 export async function POST(req: NextRequest) {
-  const resend = new Resend(process.env.RESEND_API_KEY);
   try {
     const { type, email, societe, prenom, plan, planPrice, metier, pays } = await req.json();
 
     if (type === 'welcome') {
+      // Email bienvenue au client
       await resend.emails.send({
         from: 'Xyra <onboarding@resend.dev>',
         to: email,
@@ -37,9 +39,10 @@ export async function POST(req: NextRequest) {
         `
       });
 
+      // Notification owner
       await resend.emails.send({
         from: 'Xyra Alerts <onboarding@resend.dev>',
-        to: 'xyra.contact@gmail.com',
+        to: 'curtiss.tymeless@gmail.com',
         subject: `🎉 Nouveau client — ${societe} — ${planPrice}€/mois`,
         html: `
           <div style="font-family:'Segoe UI',sans-serif;background:#06060E;color:#EAE6DE;padding:32px;max-width:500px;margin:0 auto;">
