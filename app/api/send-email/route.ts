@@ -69,7 +69,7 @@ export async function POST(req: NextRequest) {
       // Notification owner
       await resend.emails.send({
         from: 'Xyra Alerts <onboarding@resend.dev>',
-        to: 'curtiss.tymeless@gmail.com',
+        to: 'xyra.solution@gmail.com',
         subject: `🎉 Nouveau client — ${societe} — ${planPrice}€/mois`,
         html: `
           <div style="font-family:'Segoe UI',sans-serif;background:#06060E;color:#EAE6DE;padding:32px;max-width:500px;margin:0 auto;">
