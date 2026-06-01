@@ -10,24 +10,38 @@ const C = {
 };
 
 const PLANS = {
-  starter: {id:"starter",nom:"Starter",prix:"49€/mois",color:"#4B7BFF",icon:"◎",acces:["wallet","cartes","paiements_entrants","paiements_sortants","historique","devises"],description:"Wallet · Paiements · Carte virtuelle · IBAN mondial"},
-  business: {id:"business",nom:"Business Pro",prix:"99€/mois",color:"#C9A84C",icon:"✦",acces:["tout"],description:"Tout Starter + Réseau B2B · Annuaire · Commissions · Prospection · Investissement IA"},
-  enterprise:{id:"enterprise",nom:"Enterprise",prix:"150€/mois",color:"#9B5FFF",icon:"◈",acces:["tout"],description:"Tout Business Pro + Bot WhatsApp intégré · Support dédié · White-label"},
-  owner:    {id:"owner",nom:"Owner",prix:"—",color:"#C9A84C",icon:"★",acces:["tout"],description:"Accès total — Curtiss"},
+  starter:  {id:"starter",  nom:"Starter",       prix:"59€/mois",  color:"#4B7BFF", icon:"◎", acces:["wallet","cartes","crm","devis","facturation"], description:"Wallet · Paiements · Cartes · CRM · Devis · Facturation"},
+  business: {id:"business", nom:"Business Pro",  prix:"129€/mois", color:"#C9A84C", icon:"✦", acces:["tout"], description:"Tout Starter + Suite complète métier · Équipe · Analytique · Prospection"},
+  enterprise:{id:"enterprise",nom:"Enterprise",  prix:"249€/mois", color:"#9B5FFF", icon:"◈", acces:["tout"], description:"Tout Business Pro + Bot WhatsApp · API · Déploiement SaaS · Support 24h"},
+  owner:    {id:"owner",    nom:"Owner",          prix:"—",         color:"#C9A84C", icon:"★", acces:["tout"], description:"Accès total — Curtiss"},
+};
+
+const MODULE_PRICES = {
+  overview:19, analytique:19, tresorerie:19, compta:19,
+  clients:14, partenaires:19, club_affaires:19, annuaire:14,
+  wallet_membres:19, evenements:14, scoring:14,
+  equipe:19, planning:14, prospection:29, deals:14,
+  stock:14, services:14, notifications:9, signature:19,
+  formation:14, deploiement:49, api:29, investissement:24,
 };
 
 const PAGE_ACCESS = {
+  // Starter (59€) — base
   wallet:         ["starter","business","enterprise","owner"],
   cartes:         ["starter","business","enterprise","owner"],
+  crm:            ["starter","business","enterprise","owner"],
+  devis:          ["starter","business","enterprise","owner"],
+  facturation:    ["starter","business","enterprise","owner"],
+  settings:       ["starter","business","enterprise","owner"],
+  // Business Pro (129€)
   overview:       ["business","enterprise","owner"],
-  crm:            ["business","enterprise","owner"],
-  devis:          ["business","enterprise","owner"],
   investissement: ["business","enterprise","owner"],
   compta:         ["business","enterprise","owner"],
   tresorerie:     ["business","enterprise","owner"],
   analytique:     ["business","enterprise","owner"],
   clients:        ["business","enterprise","owner"],
   partenaires:    ["business","enterprise","owner"],
+  club_affaires:  ["business","enterprise","owner"],
   annuaire:       ["business","enterprise","owner"],
   wallet_membres: ["business","enterprise","owner"],
   evenements:     ["business","enterprise","owner"],
@@ -35,15 +49,15 @@ const PAGE_ACCESS = {
   equipe:         ["business","enterprise","owner"],
   planning:       ["business","enterprise","owner"],
   prospection:    ["business","enterprise","owner"],
+  deals:          ["business","enterprise","owner"],
   stock:          ["business","enterprise","owner"],
   services:       ["business","enterprise","owner"],
   notifications:  ["business","enterprise","owner"],
   signature:      ["business","enterprise","owner"],
   formation:      ["business","enterprise","owner"],
-  deploiement:    ["business","enterprise","owner"],
-  api:            ["business","enterprise","owner"],
-  settings:       ["business","enterprise","owner"],
-  facturation:    ["business","enterprise","owner"],
+  // Enterprise (249€)
+  deploiement:    ["enterprise","owner"],
+  api:            ["enterprise","owner"],
 };
 
 const NAV = [
@@ -84,12 +98,24 @@ const NAV = [
     { id:"chat",          icon:"💬", label:"Chat",                badge:"chat_eq"},
     { id:"notifications", icon:"🔔", label:"Notifications",       badge:"notifs" },
     { id:"signature",     icon:"✦",  label:"Contrats & Signatures" },
-    { id:"facturation",    icon:"🧾", label:"Facturation Électronique"},
+    { id:"facturation",   icon:"🧾", label:"Facturation Électronique"},
     { id:"formation",     icon:"⊿",  label:"Formation équipe"     },
     { id:"deploiement",   icon:"🌍", label:"Déploiement SaaS"     },
-    { id:"api",           icon:"◇",  label:"API Xyra"         },
+    { id:"api",           icon:"◇",  label:"API Xyra"             },
     { id:"settings",      icon:"⚙",  label:"Paramètres"           },
     { id:"admin",         icon:"👑", label:"Admin Curtiss"         },
+  ]},
+  { group:"BIENTÔT DISPONIBLE", items:[
+    { id:"gestion_projet",  icon:"📊", label:"Gestion de projet",   soon:true },
+    { id:"marketing",       icon:"📣", label:"Marketing & Campagnes",soon:true },
+    { id:"organisation",    icon:"📝", label:"Organisation & Wiki",  soon:true },
+    { id:"booking",         icon:"🗓", label:"Booking public",       soon:true },
+    { id:"app_mobile",      icon:"📱", label:"Application mobile",   soon:true },
+    { id:"iban_bancaire",   icon:"🏦", label:"IBAN bancaire réel",   soon:true },
+    { id:"avance_factures", icon:"💰", label:"Avance sur factures",  soon:true },
+    { id:"academie",        icon:"🎓", label:"Académie Xyra",        soon:true },
+    { id:"traduction",      icon:"🌍", label:"Traduction auto",      soon:true },
+    { id:"centre_appels",   icon:"📞", label:"Centre d'appels IA",   soon:true },
   ]},
 ];
 
@@ -107,6 +133,26 @@ const PROFILS_SECTEURS={
 };
 
 const PROFIL_DEFAUT=PROFILS_SECTEURS.conciergerie;
+
+const MODULES_PAR_SECTEUR={
+  conciergerie:["accueil","wallet","cartes","overview","crm","devis","compta","tresorerie","analytique","clients","partenaires","club_affaires","annuaire","wallet_membres","evenements","scoring","equipe","planning","prospection","deals","stock","services","chat","notifications","signature","facturation","formation","deploiement","api","settings","admin"],
+  restaurant:["accueil","wallet","cartes","overview","crm","devis","compta","tresorerie","analytique","clients","scoring","equipe","planning","stock","services","chat","notifications","signature","facturation","settings"],
+  hotel:["accueil","wallet","cartes","overview","crm","devis","compta","tresorerie","analytique","clients","partenaires","scoring","equipe","planning","stock","services","chat","notifications","signature","facturation","settings"],
+  btp:["accueil","wallet","cartes","overview","crm","devis","compta","tresorerie","analytique","clients","partenaires","scoring","equipe","planning","prospection","deals","stock","services","chat","notifications","signature","facturation","settings"],
+  medical:["accueil","wallet","cartes","overview","crm","devis","compta","tresorerie","analytique","clients","scoring","equipe","planning","stock","services","chat","notifications","signature","facturation","settings"],
+  beaute:["accueil","wallet","cartes","overview","crm","devis","compta","tresorerie","analytique","clients","scoring","equipe","planning","stock","services","chat","notifications","signature","facturation","settings"],
+  transport:["accueil","wallet","cartes","overview","crm","devis","compta","tresorerie","analytique","clients","partenaires","scoring","equipe","planning","prospection","deals","chat","notifications","signature","facturation","settings"],
+  immobilier:["accueil","wallet","cartes","overview","crm","devis","compta","tresorerie","analytique","clients","partenaires","annuaire","scoring","equipe","planning","prospection","deals","services","chat","notifications","signature","facturation","settings"],
+  formation:["accueil","wallet","cartes","overview","crm","devis","compta","tresorerie","analytique","clients","partenaires","scoring","equipe","planning","prospection","deals","services","chat","notifications","signature","facturation","formation","settings"],
+  autre:["accueil","wallet","cartes","overview","crm","devis","compta","tresorerie","analytique","clients","partenaires","scoring","equipe","planning","prospection","deals","stock","services","chat","notifications","signature","facturation","settings"],
+};
+
+const getModulesBySecteur=(secteurLabel,isPlanOwner=false)=>{
+  if(isPlanOwner)return null; // owner voit tout
+  const key=Object.keys(PROFILS_SECTEURS).find(k=>PROFILS_SECTEURS[k].label===secteurLabel);
+  return key?MODULES_PAR_SECTEUR[key]:null;
+};
+
 
 const DEVISES=[
   {code:"EUR",symbol:"€",flag:"🇪🇺",nom:"Euro",taux:1},
@@ -194,51 +240,120 @@ const MODULE_PREVIEWS={
   services:{icon:"⊛",desc:"Produits & Services",features:["Catalogue services","Tarification IA","Tunnel upsell","CGV/CGU auto"]},
   deploiement:{icon:"🌍",desc:"Déploiement SaaS",features:["Clients white-label","Revenus MRR/ARR","Onboarding auto","Dashboard revendeurs"]},
   api:{icon:"◇",desc:"API Xyra",features:["Clés API sécurisées","Webhooks temps réel","Documentation complète","Logs & monitoring"]},
+  // Modules à la carte
+  notifications:{icon:"🔔",desc:"Notifications avancées",features:["Push temps réel","WhatsApp auto","Email auto","Configuration complète"]},
+  signature:{icon:"✦",desc:"Contrats & Signatures",features:["E-signature légale","10+ modèles","Archivage sécurisé","Avenants auto"]},
+  formation:{icon:"⊿",desc:"Formation équipe",features:["Modules vidéo","Certifications","Protocoles métier","Quiz & scores"]},
+  facturation:{icon:"🧾",desc:"Facturation électronique",features:["Factur-X conforme","Chorus Pro","E-reporting TVA","DGFiP automatique"]},
+  evenements:{icon:"◆",desc:"Événements & Networking",features:["Créer événements","QR inscriptions","Visio Jitsi","Gestion invités"]},
+  wallet_membres:{icon:"◈",desc:"Wallets membres",features:["Soldes temps réel","Cartes virtuelles","Multi-devises","Abonnements auto"]},
+  scoring:{icon:"★",desc:"Réputation & NPS",features:["Avis Google","Réponses IA","Score NPS","Widget site web"]},
+  annuaire:{icon:"◱",desc:"Réseau & Annuaire mondial",features:["18+ pays","Deals membres","Messagerie","IA Match business"]},
+  club_affaires:{icon:"◈",desc:"Club d'affaires privé",features:["Réseau VIP","Deals -10%","Événements exclusifs","IA Match"]},
+  wallet_membres:{icon:"◈",desc:"Wallets membres",features:["Soldes temps réel","Cartes virtuelles","Multi-devises","Renouvellements"]},
+  investissement:{icon:"◐",desc:"Investissement IA",features:["Recommandations Claude","ROI estimé","Plan d'action","Scénarios"]},
+};
+
+
+// ─── PAGE BIENTÔT DISPONIBLE ─────────────────────────────────
+const PageBientot=({titre,icon,desc,features=[]})=>{
+  return <div style={{padding:40,textAlign:"center",maxWidth:600,margin:"0 auto"}}>
+    <div style={{fontSize:64,marginBottom:16}}>{icon}</div>
+    <div style={{fontSize:24,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:8}}>{titre}</div>
+    <div style={{fontSize:14,color:C.muted,marginBottom:24,lineHeight:1.7}}>{desc}</div>
+    <div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:16,padding:24,marginBottom:24}}>
+      <div style={{fontSize:11,color:C.gold,fontWeight:700,letterSpacing:"0.1em",marginBottom:16}}>CE QUI ARRIVE BIENTÔT</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,textAlign:"left"}}>
+        {features.map((f,i)=><div key={i} style={{background:C.card,borderRadius:8,padding:"10px 12px",fontSize:12,color:C.text,display:"flex",alignItems:"center",gap:8}}>
+          <span style={{color:C.gold}}>✦</span>{f}
+        </div>)}
+      </div>
+    </div>
+    <div style={{background:C.card2,borderRadius:12,padding:20,border:`1px solid ${C.border}`}}>
+      <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:8}}>🔔 Être notifié en avant-première</div>
+      <div style={{fontSize:11,color:C.muted,marginBottom:12}}>Vous recevrez un WhatsApp dès que ce module est disponible</div>
+      <div style={{background:`${C.green}22`,border:`1px solid ${C.green}44`,borderRadius:8,padding:"10px 16px",fontSize:12,color:C.green,fontWeight:600}}>✅ Vous serez notifié automatiquement</div>
+    </div>
+  </div>;
+};
+
+const SOON_MODULES={
+  gestion_projet:{titre:"Gestion de projet",icon:"📊",desc:"Gérez vos projets avec un Kanban visuel, des tâches assignées et un suivi d'avancement en temps réel.",features:["Kanban par projet","Tâches & sous-tâches","Deadlines & rappels","Assignation équipe","Commentaires","Suivi avancement %","Gantt chart","Templates projets"]},
+  marketing:{titre:"Marketing & Campagnes",icon:"📣",desc:"Lancez des campagnes email et WhatsApp en masse, suivez vos performances et automatisez votre acquisition.",features:["Campagnes email masse","Templates WhatsApp","Suivi ouvertures/clics","Segmentation clients","A/B Testing","Landing pages","Réseaux sociaux","Rapports automatiques"]},
+  organisation:{titre:"Organisation & Wiki",icon:"📝",desc:"Centralisez vos notes, procédures et bases de connaissances en un seul endroit accessible à toute l'équipe.",features:["Wiki d'entreprise","Notes partagées","To-do list équipe","Procédures internes","Base de connaissances","Recherche intelligente","Dossiers & tags","Historique versions"]},
+  booking:{titre:"Booking public",icon:"🗓",desc:"Partagez un lien de réservation que vos clients utilisent pour prendre rendez-vous directement dans votre planning.",features:["Lien booking personnalisé","Synchro planning auto","Confirmation WhatsApp","Paiement en avance","QR Code","Page booking branded","Rappels automatiques","Multi-services"]},
+  app_mobile:{titre:"Application mobile",icon:"📱",desc:"Gérez votre activité depuis votre smartphone — iOS et Android — avec toutes les fonctionnalités du dashboard.",features:["iOS & Android natif","Notifications push","Géolocalisation équipe","Photo & scan QR","Mode hors-ligne","Signature mobile","Paiements mobile","Tableau de bord"]},
+  iban_bancaire:{titre:"IBAN bancaire réel",icon:"🏦",desc:"Obtenez un vrai IBAN à votre nom pour recevoir des virements SEPA comme une vraie banque professionnelle.",features:["IBAN FR à votre nom","Virements SEPA entrants","Carte Visa physique","Relevés bancaires","Multi-comptes","Domiciliation bancaire","API bancaire","SWIFT/BIC"]},
+  avance_factures:{titre:"Avance sur factures",icon:"💰",desc:"Obtenez une avance sur vos factures impayées pour financer votre croissance sans attendre les paiements.",features:["Avance jusqu'à 90%","Validation en 24h","Taux compétitifs","Sans garantie","Remboursement auto","Suivi en temps réel","Multi-devises","Partenaires bancaires"]},
+  academie:{titre:"Académie Xyra",icon:"🎓",desc:"Apprenez à maîtriser Xyra avec des formations vidéo, des tutoriels et des certifications officielles.",features:["Formations vidéo HD","Tutoriels pas à pas","Certification Xyra","Quiz & exercices","Communauté apprenants","Nouvelles fonctions","Support formateur","Accès illimité"]},
+  traduction:{titre:"Traduction automatique",icon:"🌍",desc:"Utilisez Xyra dans votre langue — français, anglais, arabe, wolof — et communiquez avec vos clients en local.",features:["Interface multilingue","Devis en 10 langues","Français / Anglais","Arabe / Wolof","Traduction IA","Détection auto langue","Emails multilingues","Support régional"]},
+  centre_appels:{titre:"Centre d'appels IA",icon:"📞",desc:"Un agent vocal IA appelle automatiquement vos prospects, qualifie les leads et planifie les RDV dans votre agenda.",features:["Agent vocal IA (Vapi)","Qualification automatique","Prise de RDV auto","Résumé CRM auto","Multi-langues","Scripts personnalisés","Statistiques appels","Intégration SIRENE"]},
 };
 
 const UpgradeWall=({page,plan,onUpgrade})=>{
   const preview=MODULE_PREVIEWS[page]||{icon:"📦",desc:page,features:["Fonctionnalités avancées","Analyses IA","Automatisations","Rapports détaillés"]};
-  const plans=[{id:"business",nom:"Business Pro",prix:"99€/mois",color:C.gold,icon:"✦",desc:"Tout Starter + accès complet"},{id:"enterprise",nom:"Enterprise",prix:"150€/mois",color:C.purple,icon:"◈",desc:"Business Pro + WhatsApp Bot + Support dédié"}];
-  return <div style={{padding:24}}>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:16,maxWidth:800,margin:"0 auto"}}>
-      {/* Gauche — aperçu du module */}
-      <div>
-        <div style={{background:`${C.gold}08`,border:`1px solid ${C.gold}22`,borderRadius:16,padding:24,marginBottom:12,position:"relative",overflow:"hidden"}}>
-          <div style={{position:"absolute",top:0,right:0,bottom:0,left:0,backdropFilter:"blur(2px)",background:"#06060E88",zIndex:1,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column"}}>
-            <div style={{fontSize:40,marginBottom:8}}>🔒</div>
-            <div style={{fontSize:14,fontWeight:700,color:C.text,textAlign:"center"}}>Module verrouillé</div>
-            <div style={{fontSize:11,color:C.muted,marginTop:4}}>Passez à Business Pro pour accéder</div>
-          </div>
-          {/* Aperçu flou derrière */}
-          <div style={{fontSize:30,marginBottom:8}}>{preview.icon}</div>
-          <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:4}}>{preview.desc}</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-            {preview.features.map((f,i)=><div key={i} style={{background:C.card2,borderRadius:6,padding:"6px 10px",fontSize:11,color:C.muted}}>✓ {f}</div>)}
-          </div>
-        </div>
-        <div style={{background:C.card2,borderRadius:10,padding:12,border:`1px solid ${C.border}`,fontSize:11}}>
-          <div style={{color:C.muted,marginBottom:4}}>Votre plan actuel</div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <Pill color={PLANS[plan]?.color||C.muted}>{PLANS[plan]?.icon} {PLANS[plan]?.nom||plan} — {PLANS[plan]?.prix}</Pill>
-            <span style={{color:C.muted,fontSize:10}}>{plan==="starter"?"Accès wallet & paiements":"Accès limité"}</span>
-          </div>
-        </div>
-      </div>
-      {/* Droite — plans disponibles */}
-      <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        <div style={{fontSize:14,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>Débloquez ce module</div>
-        {plans.map((p,i)=><div key={i} style={{background:C.card,border:`1px solid ${p.color}44`,borderRadius:12,padding:16}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <div><div style={{fontSize:13,fontWeight:700,color:p.color}}>{p.icon} {p.nom}</div><div style={{fontSize:10,color:C.muted}}>{p.desc}</div></div>
-            <div style={{fontSize:18,fontWeight:700,color:p.color}}>{p.prix}</div>
-          </div>
-          <div style={{fontSize:11,color:C.muted,marginBottom:10}}>{p.id==="business"?"✓ CRM · Devis · Wallet membres · Annuaire mondial · RH · Prospection · Analytics":"✓ Tout Business Pro + Bot WhatsApp · White-label SaaS · Support dédié 24h"}</div>
-          <Btn onClick={()=>onUpgrade&&onUpgrade(p.id)} color={p.color} style={{fontSize:12,padding:"8px 0"}}>⚡ Passer à {p.nom}</Btn>
+  const plans=[
+    {id:"business",nom:"Business Pro",prix:"99€",prixMois:"/mois",color:C.gold,icon:"✦",desc:"Accès complet à tous les modules",features:["CRM & Pipeline","Devis & Signatures","Trésorerie 90j","Équipe & RH","Prospection Auto","Analytique & CA"]},
+    {id:"enterprise",nom:"Enterprise",prix:"150€",prixMois:"/mois",color:C.purple,icon:"◈",desc:"Business Pro + Bot WhatsApp + Support dédié",features:["Tout Business Pro","Bot WhatsApp IA","White-label SaaS","Support 24h dédié","API complète","Déploiement SaaS"]},
+  ];
+  const modulePrice=MODULE_PRICES[page];
+  return <div style={{padding:24,maxWidth:900,margin:"0 auto"}}>
+    {/* Header */}
+    <div style={{textAlign:"center",marginBottom:24}}>
+      <div style={{fontSize:48,marginBottom:8}}>{preview.icon||"🔒"}</div>
+      <div style={{fontSize:22,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>{preview.desc}</div>
+      {modulePrice&&<div style={{display:"inline-flex",alignItems:"center",gap:8,background:`${C.gold}15`,border:`1px solid ${C.gold}44`,borderRadius:20,padding:"6px 16px",marginBottom:8}}>
+        <span style={{fontSize:11,color:C.muted}}>Module à la carte :</span>
+        <span style={{fontSize:16,fontWeight:700,color:C.gold}}>{modulePrice}€/mois</span>
+      </div>}
+      <div style={{fontSize:12,color:C.muted}}>Votre plan actuel : <b style={{color:PLANS[plan]?.color}}>{PLANS[plan]?.icon} {PLANS[plan]?.nom} — {PLANS[plan]?.prix}</b></div>
+    </div>
+
+    {/* Features du module */}
+    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:20,marginBottom:20}}>
+      <div style={{fontSize:11,color:C.muted,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:12}}>Ce que vous débloquez</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:8}}>
+        {preview.features.map((f,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.text,display:"flex",alignItems:"center",gap:8,border:`1px solid ${C.border}`}}>
+          <span style={{color:C.gold,fontSize:14}}>✦</span>{f}
         </div>)}
-        <div style={{background:`${C.green}08`,border:`1px solid ${C.green}22`,borderRadius:8,padding:12,fontSize:11,color:C.muted,textAlign:"center"}}>
-          💬 Questions ? <span style={{color:C.gold,cursor:"pointer"}}>Contactez Xyra →</span>
-        </div>
       </div>
+    </div>
+
+    {/* Options de déblocage */}
+    <div style={{display:"grid",gridTemplateColumns:`${modulePrice?"1fr ":""}1fr 1fr`,gap:12,marginBottom:16}}>
+      {/* Option 1 : Module seul */}
+      {modulePrice&&<div style={{background:C.card,border:`2px solid ${C.gold}66`,borderRadius:16,padding:20,textAlign:"center"}}>
+        <div style={{fontSize:11,color:C.gold,fontWeight:700,letterSpacing:"0.1em",marginBottom:8}}>MODULE SEUL</div>
+        <div style={{fontSize:32,fontWeight:700,color:C.gold,marginBottom:2}}>{modulePrice}€</div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:16}}>/mois · Sans engagement</div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:12}}>Ajoutez uniquement ce module à votre plan actuel</div>
+        <button onClick={()=>onUpgrade&&onUpgrade("module_"+page)} style={{background:`linear-gradient(135deg,${C.gold},#a07c45)`,color:"#000",border:"none",borderRadius:8,padding:"10px 0",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit",width:"100%"}}>+ Ajouter ce module</button>
+      </div>}
+      {/* Option 2 : Business Pro */}
+      <div style={{background:C.card,border:`2px solid ${C.gold}44`,borderRadius:16,padding:20,textAlign:"center",position:"relative"}}>
+        <div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",background:C.gold,color:"#000",borderRadius:20,padding:"3px 12px",fontSize:10,fontWeight:700,whiteSpace:"nowrap"}}>⭐ RECOMMANDÉ</div>
+        <div style={{fontSize:11,color:C.gold,fontWeight:700,letterSpacing:"0.1em",marginBottom:8}}>BUSINESS PRO</div>
+        <div style={{fontSize:32,fontWeight:700,color:C.gold,marginBottom:2}}>129€</div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:16}}>/mois · Tous les modules inclus</div>
+        <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12,textAlign:"left"}}>
+          {["CRM · Devis · Facturation","Équipe & RH · Planning","Analytique · Trésorerie","Prospection · Clients","Stock · Services · Deals"].map((f,i)=><div key={i} style={{fontSize:11,color:C.muted}}><span style={{color:C.gold}}>✓</span> {f}</div>)}
+        </div>
+        <button onClick={()=>onUpgrade&&onUpgrade("business")} style={{background:`linear-gradient(135deg,${C.gold},#a07c45)`,color:"#000",border:"none",borderRadius:8,padding:"10px 0",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit",width:"100%"}}>⚡ Passer à Business Pro</button>
+      </div>
+      {/* Option 3 : Enterprise */}
+      <div style={{background:C.card,border:`2px solid ${C.purple}44`,borderRadius:16,padding:20,textAlign:"center"}}>
+        <div style={{fontSize:11,color:C.purple,fontWeight:700,letterSpacing:"0.1em",marginBottom:8}}>ENTERPRISE</div>
+        <div style={{fontSize:32,fontWeight:700,color:C.purple,marginBottom:2}}>249€</div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:16}}>/mois · Tout inclus</div>
+        <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12,textAlign:"left"}}>
+          {["Tout Business Pro","Bot WhatsApp IA","API complète","Déploiement SaaS","Support 24h dédié"].map((f,i)=><div key={i} style={{fontSize:11,color:C.muted}}><span style={{color:C.purple}}>✓</span> {f}</div>)}
+        </div>
+        <button onClick={()=>onUpgrade&&onUpgrade("enterprise")} style={{background:`linear-gradient(135deg,${C.purple},#6B3FCC)`,color:"#fff",border:"none",borderRadius:8,padding:"10px 0",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit",width:"100%"}}>◈ Passer à Enterprise</button>
+      </div>
+    </div>
+
+    <div style={{textAlign:"center",fontSize:12,color:C.muted}}>
+      💬 Des questions ? <span style={{color:C.gold,cursor:"pointer"}} onClick={()=>window.open("https://wa.me/33765189527")}>Contactez-nous sur WhatsApp →</span>
     </div>
   </div>;
 };
@@ -584,7 +699,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
       <Card><STitle>🔥 Priorités du jour (IA)</STitle>
-        {[{icon:"🔴",txt:"2 devis en attente de validation",act:"devis"},{icon:"🟠",txt:"Sofia Riad attend depuis 2h",act:"chat"},{icon:"🟡",txt:"Stock produits vitres critique",act:"stock"},{icon:"🟢",txt:"Nouvelle revue Google à répondre",act:"scoring"}].map((p,i)=><div key={i} onClick={()=>setPage(p.act)} style={{display:"flex",gap:8,padding:"7px 8px",borderRadius:6,marginBottom:5,cursor:"pointer",background:C.card2,border:`1px solid ${C.border}`}}>
+        {[{icon:"🔴",txt:`2 ${T.missions||"missions"} en attente de validation`,act:"devis"},{icon:"🟠",txt:`${T.client||"Client"} VIP attend depuis 2h`,act:"chat"},{icon:"🟡",txt:`${T.stock||"Stock"} critique`,act:"stock"},{icon:"🟢",txt:"Nouvelle revue Google à répondre",act:"scoring"}].map((p,i)=><div key={i} onClick={()=>setPage(p.act)} style={{display:"flex",gap:8,padding:"7px 8px",borderRadius:6,marginBottom:5,cursor:"pointer",background:C.card2,border:`1px solid ${C.border}`}}>
           <span>{p.icon}</span><span style={{fontSize:11,flex:1}}>{p.txt}</span><span style={{fontSize:10,color:C.gold,fontWeight:600}}>→</span>
         </div>)}
       </Card>
@@ -609,7 +724,8 @@ const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
 
 // ─── PAGE OVERVIEW ────────────────────────────────────────────
 const PageOverview=({plan,profil})=>{
-  const kpis=[{l:"CA ce mois",v:"24 380 €",c:C.green,t:"↗ +12%"},{l:"Marge nette",v:"61%",c:C.teal,t:"↗ +4pts"},{l:"Missions",v:"14",c:C.blue,t:"Ce mois"},{l:"Devis signés",v:"8",c:C.gold,t:"/ 12 envoyés"},{l:"NPS moyen",v:"★ 4.6",c:C.gold,t:"23 avis"},{l:"Clients actifs",v:"5",c:C.purple,t:"dont 2 VIP"},{l:"Commissions",v:"8 525 €",c:C.orange,t:"À payer"},{l:"Score Xyra",v:"74/100",c:C.gold,t:"🟡 Bon"}];
+  const T=profil?.termes||PROFIL_DEFAUT.termes;
+  const kpis=[{l:"CA ce mois",v:"24 380 €",c:C.green,t:"↗ +12%"},{l:"Marge nette",v:"61%",c:C.teal,t:"↗ +4pts"},{l:T.missions||"Missions",v:"14",c:C.blue,t:"Ce mois"},{l:"Devis signés",v:"8",c:C.gold,t:"/ 12 envoyés"},{l:"NPS moyen",v:"★ 4.6",c:C.gold,t:"23 avis"},{l:"Clients actifs",v:"5",c:C.purple,t:"dont 2 VIP"},{l:"Commissions",v:"8 525 €",c:C.orange,t:"À payer"},{l:"Score Xyra",v:"74/100",c:C.gold,t:"🟡 Bon"}];
   return <div style={{padding:20}}>
     <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◈ Vue d'ensemble</div>
     <div style={{fontSize:11,color:C.muted,marginBottom:16}}>KPIs · Santé business · Alertes critiques · Actions rapides</div>
@@ -1321,8 +1437,8 @@ const PageClients=({plan,showToast})=>{
 
   return <div style={{padding:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◬ Clients</div>
-        <div style={{fontSize:11,color:C.muted}}>Fiches · Solvabilité · Upsell · Tunnel · Échanges · {clients.length} clients</div></div>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◬ {profil?.termes?.clients||"Clients"}</div>
+        <div style={{fontSize:11,color:C.muted}}>Fiches · Solvabilité · Upsell · Tunnel · Échanges · {clients.length} {profil?.termes?.clients||"clients"}</div></div>
       <Btn onClick={()=>setShowAdd(s=>!s)}>+ Nouveau client</Btn>
     </div>
 
@@ -1933,7 +2049,15 @@ const PageClubAffaires=({plan,showToast})=>{
     {id:4,nom:"Groupe Prestige SARL",metier:"Syndic",ville:"Paris",pays:"🇫🇷",plan:"Enterprise",score:94},
     {id:5,nom:"Fatoumata Diop",metier:"Finance Afrique",ville:"Dakar",pays:"🇸🇳",plan:"Business Pro",score:89},
   ];
-  const tabs=[{id:"accueil",label:"🏠 Club"},{id:"deals",label:"🤝 Deals membres"},{id:"networking",label:"🌐 Networking"},{id:"avantages",label:"💎 Avantages"},{id:"stats",label:"📊 Stats club"}];
+  const[selectedMembre,setSelectedMembre]=useState(null);
+  const MEMBRES_PROFILS=[
+    {id:1,nom:"Isabelle Moreau",initiales:"IM",metier:"Gestion Airbnb",ville:"Paris",pays:"🇫🇷",plan:"Starter",score:72,couleur:"#4B7BFF",bio:"Gestionnaire de 8 appartements Airbnb sur Paris. Spécialisée dans le tourisme haut de gamme.",services:["Gestion locative","Conciergerie","Ménage"],ca:9600,deals:2,contact:"+33 6 12 34 56 78",email:"i.moreau@mail.fr",reseaux:{linkedin:"isabelle-moreau",instagram:"@isa.airbnb"},stats:{missions:18,noteMoy:4.8,anciennete:"2 ans"}},
+    {id:2,nom:"Marc Dupont",initiales:"MD",metier:"Immobilier",ville:"Lyon",pays:"🇫🇷",plan:"Business Pro",score:88,couleur:"#9B5FFF",bio:"Investisseur immobilier avec un portefeuille de 15 biens résidentiels. Expert en valorisation de patrimoine.",services:["Vente","Location","Gestion locative","Investissement"],ca:38400,deals:5,contact:"+33 6 98 76 54 32",email:"m.dupont@corp.fr",reseaux:{linkedin:"marc-dupont-immo"},stats:{missions:42,noteMoy:4.7,anciennete:"3 ans"}},
+    {id:3,nom:"Sofia Al-Rashid",initiales:"SA",metier:"Aviation d'affaires",ville:"Dubaï",pays:"🇦🇪",plan:"Enterprise",score:98,couleur:"#C9A84C",bio:"Directrice d'une flotte de jets privés desservant l'Europe et le Moyen-Orient. Cliente VIP Xyra depuis l'origine.",services:["Location jet privé","Conciergerie VIP","Transferts"],ca:110400,deals:8,contact:"+971 50 123 45 67",email:"sofia@vip.ae",reseaux:{linkedin:"sofia-al-rashid",instagram:"@sofia.aviation"},stats:{missions:46,noteMoy:4.9,anciennete:"2 ans"}},
+    {id:4,nom:"Groupe Prestige SARL",initiales:"GP",metier:"Syndic & Gestion",ville:"Paris",pays:"🇫🇷",plan:"Enterprise",score:94,couleur:"#2EC9B0",bio:"Syndic professionnel gérant plus de 200 résidences en Île-de-France. Partenaire stratégique Xyra.",services:["Syndic copropriété","Gestion immeuble","Maintenance"],ca:264000,deals:14,contact:"+33 1 44 55 66 77",email:"contact@prestige.fr",reseaux:{linkedin:"groupe-prestige"},stats:{missions:156,noteMoy:4.6,anciennete:"3 ans"}},
+    {id:5,nom:"Fatoumata Diop",initiales:"FD",metier:"Finance Afrique",ville:"Dakar",pays:"🇸🇳",plan:"Business Pro",score:89,couleur:"#FF5F9E",bio:"Consultante en finance d'entreprise couvrant l'Afrique de l'Ouest. Développe le réseau Xyra en Afrique francophone.",services:["Conseil financier","Investissement","Formation"],ca:81600,deals:4,contact:"+221 77 123 45 67",email:"fatou.d@dakar.sn",reseaux:{linkedin:"fatoumata-diop",instagram:"@fatou.finance"},stats:{missions:38,noteMoy:4.9,anciennete:"1 an"}},
+  ];
+  const tabs=[{id:"accueil",label:"🏠 Club"},{id:"membres",label:"👥 Profils membres"},{id:"deals",label:"🤝 Deals membres"},{id:"networking",label:"🌐 Networking"},{id:"avantages",label:"💎 Avantages"},{id:"stats",label:"📊 Stats club"}];
   if(!hasAccess(plan,"annuaire"))return <div style={{padding:20}}><UpgradeWall page="annuaire" plan={plan}/></div>;
   return <div style={{padding:20}}>
     <div style={{background:`linear-gradient(135deg,${C.card},#0A0A1A)`,border:`1px solid ${C.gold}44`,borderRadius:16,padding:20,marginBottom:14}}>
@@ -2005,6 +2129,100 @@ const PageClubAffaires=({plan,showToast})=>{
         </div>
       </Card>
     </div>}
+    {onglet==="membres"&&<div>
+      {selectedMembre?<div>
+        <BtnGhost onClick={()=>setSelectedMembre(null)} style={{marginBottom:16}}>← Retour aux membres</BtnGhost>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          {/* Profil principal */}
+          <Card style={{borderColor:`${selectedMembre.couleur}44`}}>
+            <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:20}}>
+              <div style={{width:72,height:72,borderRadius:"50%",background:`${selectedMembre.couleur}22`,border:`3px solid ${selectedMembre.couleur}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,fontWeight:700,color:selectedMembre.couleur}}>{selectedMembre.initiales}</div>
+              <div>
+                <div style={{fontSize:18,fontWeight:700,color:C.text}}>{selectedMembre.nom}</div>
+                <div style={{fontSize:12,color:C.muted}}>{selectedMembre.metier}</div>
+                <div style={{fontSize:11,color:C.muted}}>{selectedMembre.pays} {selectedMembre.ville}</div>
+                <Pill color={selectedMembre.plan==="Enterprise"?C.purple:selectedMembre.plan==="Business Pro"?C.gold:C.blue}>{selectedMembre.plan}</Pill>
+              </div>
+            </div>
+            <div style={{background:`${selectedMembre.couleur}11`,borderRadius:10,padding:14,marginBottom:16,fontSize:12,color:C.text,lineHeight:1.7,fontStyle:"italic"}}>"{selectedMembre.bio}"</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
+              {[["📱",selectedMembre.contact],["📧",selectedMembre.email],["🏢",selectedMembre.metier],["📍",`${selectedMembre.pays} ${selectedMembre.ville}`]].map(([icon,val],i)=>(
+                <div key={i} style={{display:"flex",gap:10,fontSize:12,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}>
+                  <span>{icon}</span><span style={{color:C.muted}}>{val}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:8}}>SERVICES PROPOSÉS</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {selectedMembre.services.map((s,i)=><Pill key={i} color={selectedMembre.couleur}>{s}</Pill>)}
+              </div>
+            </div>
+            {selectedMembre.reseaux&&<div>
+              <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:8}}>RÉSEAUX SOCIAUX</div>
+              <div style={{display:"flex",gap:8}}>
+                {selectedMembre.reseaux.linkedin&&<BtnGhost onClick={()=>showToast("🔗 LinkedIn ouvert")} style={{fontSize:11}}>💼 LinkedIn</BtnGhost>}
+                {selectedMembre.reseaux.instagram&&<BtnGhost onClick={()=>showToast("📸 Instagram ouvert")} style={{fontSize:11}}>📸 Instagram</BtnGhost>}
+              </div>
+            </div>}
+          </Card>
+          {/* Stats et actions */}
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <KPI label="CA généré" val={fmt(selectedMembre.ca)} color={C.gold}/>
+              <KPI label="Score réseau" val={selectedMembre.score+"/100"} color={selectedMembre.couleur}/>
+              <KPI label="Missions" val={selectedMembre.stats.missions} color={C.blue}/>
+              <KPI label="Note moy." val={"★ "+selectedMembre.stats.noteMoy} color={C.teal}/>
+            </div>
+            <Card>
+              <STitle>⚡ Actions</STitle>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                <Btn onClick={()=>showToast("💬 WhatsApp ouvert")} style={{background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 Contacter sur WhatsApp</Btn>
+                <Btn onClick={()=>showToast("🤝 Proposition de deal envoyée")} style={{background:`${C.gold}22`,color:C.gold,border:`1px solid ${C.gold}44`}}>🤝 Proposer un deal</Btn>
+                <BtnGhost onClick={()=>showToast("📧 Email envoyé")}>📧 Envoyer un email</BtnGhost>
+                <BtnGhost onClick={()=>showToast("⭐ Recommandation envoyée")}>⭐ Recommander</BtnGhost>
+              </div>
+            </Card>
+            <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
+              <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 IA Match — Claude</div>
+              <div style={{fontSize:11,color:C.text,lineHeight:1.7}}>
+                Synergies potentielles avec {selectedMembre.nom.split(" ")[0]} : collaboration sur {selectedMembre.services[0]}. CA estimé : {fmt(Math.round(selectedMembre.ca*0.15))}. Score compatibilité : {Math.min(99,selectedMembre.score+3)}%.
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>:<div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div style={{fontSize:14,fontWeight:700,color:C.text}}>👥 Membres du Club Xyra</div>
+          <div style={{fontSize:11,color:C.muted}}>{MEMBRES_PROFILS.length} membres actifs</div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:12}}>
+          {MEMBRES_PROFILS.map((m,i)=><Card key={i} style={{cursor:"pointer",borderColor:`${m.couleur}33`}} onClick={()=>setSelectedMembre(m)}>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+              <div style={{width:52,height:52,borderRadius:"50%",background:`${m.couleur}22`,border:`2px solid ${m.couleur}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:700,color:m.couleur,flexShrink:0}}>{m.initiales}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{m.nom}</div>
+                <div style={{fontSize:10,color:C.muted}}>{m.pays} {m.ville}</div>
+                <Pill color={m.plan==="Enterprise"?C.purple:m.plan==="Business Pro"?C.gold:C.blue}>{m.plan}</Pill>
+              </div>
+            </div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:10,lineHeight:1.5}}>{m.bio.slice(0,80)}...</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+              {m.services.slice(0,3).map((s,j)=><span key={j} style={{fontSize:9,background:`${m.couleur}15`,color:m.couleur,border:`1px solid ${m.couleur}33`,borderRadius:4,padding:"2px 6px"}}>{s}</span>)}
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <span style={{fontSize:11,fontWeight:700,color:C.gold}}>{fmt(m.ca)} CA</span>
+              <span style={{fontSize:11,color:m.couleur,fontWeight:600}}>★ {m.score}/100</span>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+              <Btn onClick={e=>{e.stopPropagation();showToast(`💬 WhatsApp ${m.nom}`);}} style={{fontSize:10,padding:"6px 4px",background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 Contact</Btn>
+              <BtnGhost onClick={e=>{e.stopPropagation();setSelectedMembre(m);}} style={{fontSize:10,padding:"6px 4px"}}>Voir profil →</BtnGhost>
+            </div>
+          </Card>)}
+        </div>
+      </div>}
+    </div>}
+
     {onglet==="avantages"&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
       {[{icon:"💎",titre:"Remise -10% entre membres",desc:"Tous les services entre membres Club au tarif préférentiel",color:C.gold},{icon:"🤖",titre:"IA Match Business",desc:"Claude identifie les meilleures synergies du réseau chaque semaine",color:C.purple},{icon:"🌍",titre:"Annuaire privé mondial",desc:"Accès à l'annuaire complet avec coordonnées directes",color:C.blue},{icon:"📅",titre:"Événements VIP exclusifs",desc:"Invitations prioritaires soirées networking et forums",color:C.teal},{icon:"💳",titre:"Carte Membre Xyra",desc:"Carte virtuelle Club avec cashback 2% sur les achats réseau",color:C.green},{icon:"📊",titre:"Rapport business mensuel",desc:"Analyse IA personnalisée par Claude chaque 1er du mois",color:C.orange}].map((a,i)=><Card key={i} style={{borderColor:`${a.color}33`,textAlign:"center"}}>
         <div style={{fontSize:28,marginBottom:8}}>{a.icon}</div>
@@ -2968,7 +3186,7 @@ const PagePlanning=({plan,showToast,profil})=>{
   const vues=[{id:"jour",label:"Jour"},{id:"semaine",label:"Semaine"},{id:"mois",label:"Mois"},{id:"equipe",label:"Équipe"},{id:"carte",label:"Carte"}];
   return <div style={{padding:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>⊡ Planning & Agenda</div><div style={{fontSize:11,color:C.muted}}>5 vues · IA auto-planifier · Booking · Règles horaires</div></div>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>⊡ Planning & {profil?.termes?.rdv||"Agenda"}</div><div style={{fontSize:11,color:C.muted}}>5 vues · IA auto-planifier · Booking · Règles horaires</div></div>
       <div style={{display:"flex",gap:8}}><Btn onClick={()=>showToast("🤖 IA a optimisé le planning !")}>🤖 Auto-planifier</Btn><BtnGhost onClick={()=>showToast("✅ Mission ajoutée")}>+ Mission</BtnGhost></div>
     </div>
     <div style={{marginBottom:16}}><Tabs tabs={vues} active={vue} onChange={setVue}/></div>
@@ -5391,6 +5609,8 @@ export default function Xyra() {
 
   const pageMap={
     accueil:<PageAccueil notifs={notifs} setNotifs={setNotifs} profil={profil} setPage={setPage}/>,
+    // Pages bientôt disponibles
+    ...Object.fromEntries(Object.entries(SOON_MODULES).map(([k,v])=>[k,<PageBientot key={k} {...v}/>])),
     wallet:<PageWallet plan={plan} showToast={showToast} profil={profil}/>,
     cartes:<PageCartes showToast={showToast}/>,
     overview:<PageOverview plan={plan} profil={profil}/>,
@@ -5426,6 +5646,7 @@ export default function Xyra() {
 
   if(sbLoading)return <div style={{minHeight:"100vh",background:"#06060E",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
     <div style={{fontSize:28,fontWeight:700,color:"#C9A84C",fontFamily:"Georgia,serif",letterSpacing:"0.15em"}}>XYRA</div>
+    <div style={{fontSize:11,color:"#5A5A7A",letterSpacing:"0.1em",marginBottom:4}}>Le système de gestion pour toute entreprise</div>
     <div style={{fontSize:12,color:"#5A5A7A",letterSpacing:"0.2em",marginBottom:8}}>Chargement de vos données...</div>
     <div style={{width:200,height:3,background:"#1E1E36",borderRadius:2,overflow:"hidden"}}>
       <div style={{width:"70%",height:"100%",background:"#C9A84C",borderRadius:2}}/>
@@ -5455,11 +5676,21 @@ export default function Xyra() {
               const locked=!hasAccess(plan,item.id);
               const badge=item.badge?badges[item.badge]:0;
               return (
-                <button key={item.id} onClick={()=>setPage(item.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 13px",cursor:"pointer",color:active?C.gold:locked?"#6A6A8A":"#C0C0D8",background:active?`${C.gold}0E`:"transparent",border:"none",borderLeft:`2px solid ${active?C.gold:"transparent"}`,width:"100%",textAlign:"left",fontFamily:"inherit",fontSize:12,fontWeight:active?600:400}}>
-                  <span style={{fontSize:14,flexShrink:0}}>{locked?"🔒":item.icon}</span>
-                  <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.label}</span>
-                  {badge>0&&<span style={{background:C.red,color:"#fff",borderRadius:20,padding:"0 5px",fontSize:9,fontWeight:700,flexShrink:0}}>{badge}</span>}
-                </button>
+                {item.soon
+                ? <button key={item.id} onClick={()=>setPage(item.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 13px",cursor:"pointer",color:"#5A5A7A",background:"transparent",border:"none",borderLeft:"2px solid transparent",width:"100%",textAlign:"left",fontFamily:"inherit",fontSize:12,opacity:0.6}}>
+                    <span style={{fontSize:14,flexShrink:0}}>⏳</span>
+                    <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.label}</span>
+                    <span style={{fontSize:8,background:"#1E1E36",color:"#5A5A7A",borderRadius:4,padding:"1px 5px",flexShrink:0}}>BIENTÔT</span>
+                  </button>
+                : <button key={item.id} onClick={()=>setPage(item.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 13px",cursor:locked?"pointer":"pointer",color:active?C.gold:locked?"#7A7A9A":"#C0C0D8",background:active?`${C.gold}0E`:locked?`${C.card2}`:"transparent",border:"none",borderLeft:`2px solid ${active?C.gold:locked?"#3A3A5A66":"transparent"}`,width:"100%",textAlign:"left",fontFamily:"inherit",fontSize:12,fontWeight:active?600:400}}>
+                    <span style={{fontSize:14,flexShrink:0}}>{locked?"🔒":item.icon}</span>
+                    <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.label}</span>
+                    {locked
+                      ?<span style={{fontSize:8,background:`${C.gold}22`,color:C.gold,borderRadius:4,padding:"1px 5px",flexShrink:0,border:`1px solid ${C.gold}44`}}>{MODULE_PRICES[item.id]?MODULE_PRICES[item.id]+"€":"PRO"}</span>
+                      :badge>0&&<span style={{background:C.red,color:"#fff",borderRadius:20,padding:"0 5px",fontSize:9,fontWeight:700,flexShrink:0}}>{badge}</span>
+                    }
+                  </button>
+              }
               );
             })}
           </div>)}
@@ -5467,8 +5698,9 @@ export default function Xyra() {
 
         {/* Plan switcher */}
         <div style={{padding:"8px 12px",borderTop:`1px solid ${C.border}`}}>
-          <select value={plan} onChange={e=>setPlan(e.target.value)} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 8px",color:C.gold,fontSize:11,width:"100%",fontFamily:"inherit"}}>
-            {Object.values(PLANS).map(p=><option key={p.id} value={p.id}>{p.icon} {p.nom}</option>)}
+          <div style={{fontSize:9,color:C.muted,marginBottom:4,letterSpacing:"0.1em"}}>SIMULER UN FORFAIT</div>
+          <select value={plan} onChange={e=>setPlan(e.target.value)} style={{background:C.card2,border:`1px solid ${C.gold}44`,borderRadius:6,padding:"5px 8px",color:C.gold,fontSize:11,width:"100%",fontFamily:"inherit"}}>
+            {Object.values(PLANS).map(p=><option key={p.id} value={p.id}>{p.icon} {p.nom} {p.prix!=="—"?"— "+p.prix:""}</option>)}
           </select>
         </div>
 
