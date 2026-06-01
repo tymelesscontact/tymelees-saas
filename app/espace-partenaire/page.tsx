@@ -1,5 +1,11 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const sb = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+);
 
 const C = {
   dark:"#06060E", card:"#0C0C1A", card2:"#121222",
@@ -8,70 +14,94 @@ const C = {
   blue:"#4B7BFF", purple:"#9B5FFF", orange:"#FF8C3A",
 };
 
-const PARTENAIRE = {
-  nom: "Thomas Beaumont",
-  prenom: "Thomas",
-  role: "Apporteur d'affaires",
-  avatar: "T",
-  couleur: C.blue,
-  email: "thomas@xyra.io",
-  tel: "+33 6 12 34 56 78",
-  commission: 20,
-  ca: 12400,
-  commissionsDues: 2480,
-  commissionsPaye: 4800,
-  lienParrainage: "https://tymelees-saas-yzel.vercel.app/inscription?ref=THOMAS-AA",
-  lienClub: "https://tymelees-saas-yzel.vercel.app/inscription?ref=THOMAS-CLUB&type=club",
-};
-
-const LEADS = [
-  { id: "L001", nom: "Hôtel Prestige Paris", contact: "Claire Bernard", ca: 8000, statut: "gagné", date: "10/04", commission: 1600 },
-  { id: "L002", nom: "AirParis Management", contact: "Kevin Mour", ca: 3600, statut: "en_cours", date: "08/04", commission: 720 },
-  { id: "L003", nom: "Cabinet Lebrun", contact: "Me Lebrun", ca: 960, statut: "perdu", date: "05/04", commission: 0 },
-  { id: "L004", nom: "SCI Châtillon", contact: "M. Dupont", ca: 2400, statut: "nouveau", date: "14/04", commission: 480 },
-];
-
-const INVITATIONS = [
-  { id: "INV001", nom: "Marie Leclerc", email: "marie@restaurant.fr", type: "client", date: "12/04", statut: "inscrit" },
-  { id: "INV002", nom: "Groupe Atlas", email: "contact@atlas.ma", type: "club", date: "10/04", statut: "en_attente" },
-  { id: "INV003", nom: "Jean-Paul Roux", email: "jp.roux@gmail.com", type: "partenaire", date: "08/04", statut: "inscrit" },
-];
-
-const PAIEMENTS = [
-  { date: "01/04", montant: 2480, methode: "Virement SEPA", statut: "payé", ref: "COM-001" },
-  { date: "01/03", montant: 1200, methode: "Virement SEPA", statut: "payé", ref: "COM-002" },
-];
-
 export default function EspacePartenaire() {
   const [page, setPage] = useState("dashboard");
-  const [leads, setLeads] = useState(LEADS);
-  const [invitations, setInvitations] = useState(INVITATIONS);
+  const [user, setUser] = useState<any>(null);
+  const [partenaire, setPartenaire] = useState<any>(null);
+  const [leads, setLeads] = useState<any[]>([]);
+  const [invitations, setInvitations] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [showLeadForm, setShowLeadForm] = useState(false);
   const [showInviteForm, setShowInviteForm] = useState(false);
-  const [leadForm, setLeadForm] = useState({ nom: "", contact: "", email: "", tel: "", ca: "", notes: "" });
+  const [leadForm, setLeadForm] = useState({ nom: "", contact: "", email: "", tel: "", ca_estime: "", notes: "" });
   const [inviteForm, setInviteForm] = useState({ nom: "", email: "", type: "client", message: "" });
   const [copied, setCopied] = useState<string | null>(null);
   const [toast, setToast] = useState<string | null>(null);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
 
+  useEffect(() => {
+    const init = async () => {
+      const { data: { user } } = await sb.auth.getUser();
+      if (!user) { window.location.href = "/login"; return; }
+      setUser(user);
+
+      const [p, l, inv] = await Promise.all([
+        sb.from("partenaires").select("*").eq("user_id", user.id).single(),
+        sb.from("leads_partenaires").select("*").eq("partenaire_id", user.id).order("created_at", { ascending: false }),
+        sb.from("invitations").select("*").eq("partenaire_id", user.id).order("created_at", { ascending: false }),
+      ]);
+
+      if (p.data) setPartenaire(p.data);
+      if (l.data) setLeads(l.data);
+      if (inv.data) setInvitations(inv.data);
+      setLoading(false);
+    };
+    init();
+  }, []);
+
+  const submitLead = async () => {
+    if (!leadForm.nom) return showToast("⚠️ Remplissez le nom");
+    const ca = Number(leadForm.ca_estime) || 0;
+    const commission = Math.round(ca * (partenaire?.commission || 20) / 100);
+    const { data, error } = await sb.from("leads_partenaires").insert({
+      partenaire_id: user.id,
+      nom_partenaire: partenaire?.nom || user.email,
+      nom: leadForm.nom,
+      contact: leadForm.contact,
+      email: leadForm.email,
+      tel: leadForm.tel,
+      ca_estime: ca,
+      commission,
+      notes: leadForm.notes,
+      statut: "nouveau",
+    }).select().single();
+    if (!error && data) {
+      setLeads(ls => [data, ...ls]);
+      setShowLeadForm(false);
+      setLeadForm({ nom: "", contact: "", email: "", tel: "", ca_estime: "", notes: "" });
+      showToast("✅ Lead soumis ! Curtiss va le traiter rapidement.");
+    }
+  };
+
+  const sendInvitation = async () => {
+    if (!inviteForm.nom || !inviteForm.email) return showToast("⚠️ Remplissez nom et email");
+    const { data, error } = await sb.from("invitations").insert({
+      partenaire_id: user.id,
+      nom_partenaire: partenaire?.nom || user.email,
+      nom: inviteForm.nom,
+      email: inviteForm.email,
+      type: inviteForm.type,
+      message: inviteForm.message,
+      statut: "en_attente",
+    }).select().single();
+    if (!error && data) {
+      setInvitations(inv => [data, ...inv]);
+      setShowInviteForm(false);
+      setInviteForm({ nom: "", email: "", type: "client", message: "" });
+      showToast(`✅ Invitation envoyée à ${inviteForm.nom} !`);
+    }
+  };
+
   const copyLink = (type: string) => {
-    const link = type === "client" ? PARTENAIRE.lienParrainage : PARTENAIRE.lienClub;
+    const base = `${window.location.origin}/inscription`;
+    const ref = partenaire?.code_parrainage || user?.id?.slice(0, 8).toUpperCase();
+    const link = type === "client" ? `${base}?ref=${ref}` : type === "club" ? `${base}?ref=${ref}&type=club` : `${base}?ref=${ref}&type=partenaire`;
     navigator.clipboard?.writeText(link);
     setCopied(type);
     setTimeout(() => setCopied(null), 2000);
     showToast("🔗 Lien copié !");
   };
-
-  const NAV = [
-    { id: "dashboard", icon: "🏠", label: "Tableau de bord" },
-    { id: "leads", icon: "🎯", label: "Mes leads" },
-    { id: "commissions", icon: "💰", label: "Mes commissions" },
-    { id: "invitations", icon: "✉️", label: "Invitations" },
-    { id: "documents", icon: "📋", label: "Documents" },
-    { id: "outils", icon: "🛠", label: "Outils de vente" },
-    { id: "profil", icon: "👤", label: "Mon profil" },
-  ];
 
   const Card = ({ children, style = {} }: any) => (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18, ...style }}>{children}</div>
@@ -85,14 +115,34 @@ export default function EspacePartenaire() {
     <button onClick={onClick} style={{ background: color, color: color === C.gold ? "#000" : "#fff", border: "none", borderRadius: 7, padding: "8px 16px", cursor: "pointer", fontWeight: 600, fontSize: 13, fontFamily: "inherit", ...style }}>{children}</button>
   );
 
+  const NAV = [
+    { id: "dashboard", icon: "🏠", label: "Tableau de bord" },
+    { id: "leads", icon: "🎯", label: "Mes leads" },
+    { id: "commissions", icon: "💰", label: "Mes commissions" },
+    { id: "invitations", icon: "✉️", label: "Invitations" },
+    { id: "documents", icon: "📋", label: "Documents" },
+    { id: "outils", icon: "🛠", label: "Outils de vente" },
+    { id: "profil", icon: "👤", label: "Mon profil" },
+  ];
+
   const statutColor: Record<string, string> = { gagné: C.green, en_cours: C.gold, perdu: C.muted, nouveau: C.blue, inscrit: C.green, en_attente: C.orange };
+
+  const totalCA = leads.reduce((a, l) => a + (l.ca_estime || 0), 0);
+  const totalCommission = leads.reduce((a, l) => a + (l.commission || 0), 0);
+
+  if (loading) return (
+    <div style={{ minHeight: "100vh", background: C.dark, display: "flex", alignItems: "center", justifyContent: "center", flexDirection: "column", gap: 16 }}>
+      <div style={{ fontSize: 24, fontWeight: 700, color: C.gold, fontFamily: "Georgia,serif" }}>XYRA</div>
+      <div style={{ fontSize: 12, color: C.muted }}>Chargement...</div>
+    </div>
+  );
 
   return (
     <div style={{ display: "flex", height: "100vh", background: C.dark, color: C.text, fontFamily: "'Segoe UI', sans-serif", overflow: "hidden" }}>
       {/* Sidebar */}
       <div style={{ width: 220, background: C.card, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "16px 14px", borderBottom: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 18, fontWeight: 700, color: C.gold, fontFamily: "Georgia, serif", letterSpacing: "0.1em" }}>XYRA</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: C.gold, fontFamily: "Georgia, serif" }}>XYRA</div>
           <div style={{ fontSize: 9, color: C.muted, letterSpacing: "0.2em", marginTop: 2 }}>ESPACE PARTENAIRE</div>
         </div>
         <div style={{ flex: 1, padding: "8px 0" }}>
@@ -103,71 +153,52 @@ export default function EspacePartenaire() {
           ))}
         </div>
         <div style={{ padding: "12px 14px", borderTop: `1px solid ${C.border}` }}>
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <div style={{ width: 32, height: 32, borderRadius: "50%", background: `${PARTENAIRE.couleur}22`, border: `2px solid ${PARTENAIRE.couleur}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13, fontWeight: 700, color: PARTENAIRE.couleur }}>{PARTENAIRE.avatar}</div>
-            <div>
-              <div style={{ fontSize: 11, fontWeight: 600 }}>{PARTENAIRE.prenom}</div>
-              <div style={{ fontSize: 9, color: C.muted }}>{PARTENAIRE.commission}% commission</div>
-            </div>
-          </div>
+          <div style={{ fontSize: 11, fontWeight: 600 }}>{partenaire?.nom || user?.email}</div>
+          <div style={{ fontSize: 9, color: C.muted }}>{partenaire?.commission || 20}% commission</div>
         </div>
       </div>
 
       {/* Main */}
       <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
 
-        {/* DASHBOARD */}
         {page === "dashboard" && <div>
           <div style={{ background: `linear-gradient(135deg, ${C.card}, #0A0A1A)`, border: `1px solid ${C.gold}33`, borderRadius: 16, padding: 24, marginBottom: 16 }}>
             <div style={{ fontSize: 9, color: C.gold, letterSpacing: "0.2em", marginBottom: 6 }}>XYRA · ESPACE PARTENAIRE</div>
-            <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 4 }}>Bonjour {PARTENAIRE.prenom} 👋</div>
-            <div style={{ fontSize: 11, color: C.muted, marginBottom: 16 }}>Partenaire Xyra · {PARTENAIRE.commission}% de commission</div>
+            <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 4 }}>Bonjour {partenaire?.prenom || partenaire?.nom || "👋"}</div>
+            <div style={{ fontSize: 11, color: C.muted, marginBottom: 16 }}>{partenaire?.commission || 20}% de commission sur chaque deal</div>
             <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              <div style={{ borderLeft: `2px solid ${C.green}`, paddingLeft: 12 }}><div style={{ fontSize: 9, color: C.muted }}>CA total apporté</div><div style={{ fontSize: 20, fontWeight: 700, color: C.green }}>{PARTENAIRE.ca.toLocaleString("fr")} €</div></div>
-              <div style={{ borderLeft: `2px solid ${C.orange}`, paddingLeft: 12 }}><div style={{ fontSize: 9, color: C.muted }}>Commissions dues</div><div style={{ fontSize: 20, fontWeight: 700, color: C.orange }}>{PARTENAIRE.commissionsDues.toLocaleString("fr")} €</div></div>
-              <div style={{ borderLeft: `2px solid ${C.blue}`, paddingLeft: 12 }}><div style={{ fontSize: 9, color: C.muted }}>Leads actifs</div><div style={{ fontSize: 20, fontWeight: 700, color: C.blue }}>{leads.filter(l => l.statut !== "perdu").length}</div></div>
-              <div style={{ borderLeft: `2px solid ${C.purple}`, paddingLeft: 12 }}><div style={{ fontSize: 9, color: C.muted }}>Invitations</div><div style={{ fontSize: 20, fontWeight: 700, color: C.purple }}>{invitations.length}</div></div>
+              {[["CA total apporté", totalCA.toLocaleString("fr") + " €", C.green], ["Commissions", totalCommission.toLocaleString("fr") + " €", C.orange], ["Leads actifs", leads.filter(l => l.statut !== "perdu").length, C.blue], ["Invitations", invitations.length, C.purple]].map(([l, v, c]: any, i) => (
+                <div key={i} style={{ borderLeft: `2px solid ${c}`, paddingLeft: 12 }}>
+                  <div style={{ fontSize: 9, color: C.muted }}>{l}</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: c }}>{v}</div>
+                </div>
+              ))}
             </div>
           </div>
 
-          {/* Alerte commission */}
-          {PARTENAIRE.commissionsDues > 0 && (
-            <div style={{ background: `${C.orange}11`, border: `1px solid ${C.orange}33`, borderRadius: 10, padding: 14, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.orange }}>💰 Commission en attente</div>
-                <div style={{ fontSize: 11, color: C.muted }}>{PARTENAIRE.commissionsDues.toLocaleString("fr")}€ seront virés prochainement</div>
-              </div>
-              <Btn onClick={() => setPage("commissions")} color={C.orange} style={{ color: "#000", fontSize: 11 }}>Voir détails</Btn>
-            </div>
-          )}
-
-          {/* KPIs rapides */}
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
-            {[["Taux conversion", Math.round(leads.filter(l => l.statut === "gagné").length / leads.length * 100) + "%", C.green], ["Leads gagnés", leads.filter(l => l.statut === "gagné").length + "/" + leads.length, C.gold], ["Commission totale", (PARTENAIRE.commissionsDues + PARTENAIRE.commissionsPaye).toLocaleString("fr") + " €", C.blue]].map(([l, v, c], i) => (
-              <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14, textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: C.muted, textTransform: "uppercase", marginBottom: 6 }}>{l}</div>
-                <div style={{ fontSize: 20, fontWeight: 700, color: c as string }}>{v}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Derniers leads */}
           <Card>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>🎯 Derniers leads</div>
-            {leads.slice(0, 3).map((l, i) => (
+            {leads.length === 0 ? (
+              <div style={{ textAlign: "center", padding: 24, color: C.muted }}>
+                <div style={{ fontSize: 28, marginBottom: 8 }}>🎯</div>
+                <div>Aucun lead soumis — commencez à prospecter !</div>
+                <Btn onClick={() => setPage("leads")} style={{ marginTop: 12, fontSize: 11 }}>+ Soumettre un lead</Btn>
+              </div>
+            ) : leads.slice(0, 4).map((l, i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}22` }}>
-                <div><div style={{ fontSize: 12, fontWeight: 600 }}>{l.nom}</div><div style={{ fontSize: 10, color: C.muted }}>{l.contact} · {l.date}</div></div>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600 }}>{l.nom}</div>
+                  <div style={{ fontSize: 10, color: C.muted }}>{l.contact} · {new Date(l.created_at).toLocaleDateString("fr")}</div>
+                </div>
                 <div style={{ textAlign: "right" }}>
                   <Pill color={statutColor[l.statut] || C.muted}>{l.statut}</Pill>
-                  <div style={{ fontSize: 11, color: C.gold, marginTop: 2 }}>{l.ca > 0 ? l.ca.toLocaleString("fr") + " €" : "—"}</div>
+                  {l.commission > 0 && <div style={{ fontSize: 11, color: C.gold, marginTop: 2 }}>{l.commission.toLocaleString("fr")} €</div>}
                 </div>
               </div>
             ))}
-            <button onClick={() => setPage("leads")} style={{ marginTop: 10, background: "transparent", color: C.gold, border: "none", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>Voir tous les leads →</button>
           </Card>
         </div>}
 
-        {/* LEADS */}
         {page === "leads" && <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
             <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif" }}>🎯 Mes leads</div>
@@ -178,264 +209,193 @@ export default function EspacePartenaire() {
             <Card style={{ marginBottom: 16, borderColor: `${C.gold}44` }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Nouveau lead</div>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-                {[["Nom de l'entreprise *", "nom"], ["Contact principal *", "contact"], ["Email", "email"], ["Téléphone", "tel"], ["CA estimé (€)", "ca"]].map(([label, key]) => (
+                {[["Nom de l'entreprise *", "nom"], ["Contact principal", "contact"], ["Email", "email"], ["Téléphone", "tel"], ["CA estimé (€)", "ca_estime"]].map(([label, key]) => (
                   <div key={key}>
                     <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>{label}</label>
-                    <input value={(leadForm as any)[key]} onChange={e => setLeadForm((f: any) => ({ ...f, [key]: e.target.value }))} placeholder={label} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%", boxSizing: "border-box" as any }} />
+                    <input value={(leadForm as any)[key]} onChange={e => setLeadForm((f: any) => ({ ...f, [key]: e.target.value }))} placeholder={label as string} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%", boxSizing: "border-box" as any }} />
                   </div>
                 ))}
                 <div style={{ gridColumn: "span 2" }}>
                   <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>Notes</label>
-                  <input value={leadForm.notes} onChange={e => setLeadForm(f => ({ ...f, notes: e.target.value }))} placeholder="Contexte, besoins du prospect..." style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%", boxSizing: "border-box" as any }} />
+                  <input value={leadForm.notes} onChange={e => setLeadForm(f => ({ ...f, notes: e.target.value }))} placeholder="Contexte, besoins..." style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%", boxSizing: "border-box" as any }} />
                 </div>
               </div>
+              {leadForm.ca_estime && <div style={{ background: `${C.gold}11`, border: `1px solid ${C.gold}33`, borderRadius: 8, padding: 10, marginBottom: 10, fontSize: 11 }}>
+                Votre commission estimée : <strong style={{ color: C.gold }}>{Math.round(Number(leadForm.ca_estime) * (partenaire?.commission || 20) / 100).toLocaleString("fr")} €</strong>
+              </div>}
               <div style={{ display: "flex", gap: 8 }}>
-                <Btn onClick={() => {
-                  if (!leadForm.nom) return showToast("⚠️ Remplissez le nom");
-                  const ca = Number(leadForm.ca) || 0;
-                  setLeads(ls => [...ls, { id: "L00" + (ls.length + 1), nom: leadForm.nom, contact: leadForm.contact, email: leadForm.email, tel: leadForm.tel, ca, statut: "nouveau", date: new Date().toLocaleDateString("fr"), commission: Math.round(ca * PARTENAIRE.commission / 100) }] as any);
-                  setShowLeadForm(false);
-                  setLeadForm({ nom: "", contact: "", email: "", tel: "", ca: "", notes: "" });
-                  showToast("✅ Lead soumis ! Curtiss va le traiter rapidement.");
-                }}>✅ Soumettre le lead</Btn>
+                <Btn onClick={submitLead}>✅ Soumettre</Btn>
                 <button onClick={() => setShowLeadForm(false)} style={{ background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 14px", cursor: "pointer", fontFamily: "inherit" }}>Annuler</button>
               </div>
             </Card>
           )}
 
-          <Card>
+          {leads.length === 0 ? (
+            <Card><div style={{ textAlign: "center", padding: 40, color: C.muted }}>Aucun lead soumis</div></Card>
+          ) : <Card>
             <table style={{ width: "100%", borderCollapse: "collapse" }}>
-              <thead>
-                <tr>
-                  {["Entreprise", "Contact", "CA estimé", "Commission", "Date", "Statut"].map(h => (
-                    <th key={h} style={{ textAlign: "left", padding: "8px 10px", fontSize: 10, color: C.muted, fontWeight: 600, textTransform: "uppercase", borderBottom: `1px solid ${C.border}` }}>{h}</th>
-                  ))}
+              <thead><tr>{["Entreprise", "Contact", "CA estimé", "Commission", "Statut"].map(h => <th key={h} style={{ textAlign: "left", padding: "8px 10px", fontSize: 10, color: C.muted, fontWeight: 600, textTransform: "uppercase", borderBottom: `1px solid ${C.border}` }}>{h}</th>)}</tr></thead>
+              <tbody>{leads.map((l, i) => (
+                <tr key={i}>
+                  <td style={{ padding: "9px 10px", fontSize: 12, borderBottom: `1px solid ${C.border}22`, fontWeight: 700 }}>{l.nom}</td>
+                  <td style={{ padding: "9px 10px", fontSize: 11, borderBottom: `1px solid ${C.border}22`, color: C.muted }}>{l.contact || "—"}</td>
+                  <td style={{ padding: "9px 10px", fontSize: 12, borderBottom: `1px solid ${C.border}22`, color: C.green, fontWeight: 600 }}>{l.ca_estime > 0 ? l.ca_estime.toLocaleString("fr") + " €" : "—"}</td>
+                  <td style={{ padding: "9px 10px", fontSize: 12, borderBottom: `1px solid ${C.border}22`, color: C.gold, fontWeight: 700 }}>{l.commission > 0 ? l.commission.toLocaleString("fr") + " €" : "—"}</td>
+                  <td style={{ padding: "9px 10px", borderBottom: `1px solid ${C.border}22` }}><Pill color={statutColor[l.statut] || C.muted}>{l.statut}</Pill></td>
                 </tr>
-              </thead>
-              <tbody>
-                {leads.map((l, i) => (
-                  <tr key={i}>
-                    <td style={{ padding: "9px 10px", fontSize: 12, borderBottom: `1px solid ${C.border}22`, fontWeight: 700 }}>{l.nom}</td>
-                    <td style={{ padding: "9px 10px", fontSize: 11, borderBottom: `1px solid ${C.border}22`, color: C.muted }}>{l.contact}</td>
-                    <td style={{ padding: "9px 10px", fontSize: 12, borderBottom: `1px solid ${C.border}22`, color: C.green, fontWeight: 600 }}>{l.ca > 0 ? l.ca.toLocaleString("fr") + " €" : "À définir"}</td>
-                    <td style={{ padding: "9px 10px", fontSize: 12, borderBottom: `1px solid ${C.border}22`, color: C.gold, fontWeight: 700 }}>{l.commission > 0 ? l.commission.toLocaleString("fr") + " €" : "—"}</td>
-                    <td style={{ padding: "9px 10px", fontSize: 10, borderBottom: `1px solid ${C.border}22`, color: C.muted }}>{l.date}</td>
-                    <td style={{ padding: "9px 10px", borderBottom: `1px solid ${C.border}22` }}><Pill color={statutColor[l.statut] || C.muted}>{l.statut}</Pill></td>
-                  </tr>
-                ))}
-              </tbody>
+              ))}</tbody>
             </table>
-          </Card>
+          </Card>}
         </div>}
 
-        {/* COMMISSIONS */}
         {page === "commissions" && <div>
           <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>💰 Mes commissions</div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 10, marginBottom: 16 }}>
-            {[["Dues", PARTENAIRE.commissionsDues.toLocaleString("fr") + " €", C.orange], ["Payées", PARTENAIRE.commissionsPaye.toLocaleString("fr") + " €", C.green], ["Taux", PARTENAIRE.commission + "%", C.gold]].map(([l, v, c], i) => (
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 16 }}>
+            {[["Total estimé", totalCommission.toLocaleString("fr") + " €", C.gold], ["Leads gagnés", leads.filter(l => l.statut === "gagné").length, C.green], ["Taux commission", (partenaire?.commission || 20) + "%", C.blue]].map(([l, v, c]: any, i) => (
               <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14, textAlign: "center" }}>
                 <div style={{ fontSize: 9, color: C.muted, textTransform: "uppercase", marginBottom: 6 }}>{l}</div>
-                <div style={{ fontSize: 24, fontWeight: 700, color: c as string }}>{v}</div>
+                <div style={{ fontSize: 24, fontWeight: 700, color: c }}>{v}</div>
               </div>
             ))}
           </div>
-
-          {PARTENAIRE.commissionsDues > 0 && (
-            <div style={{ background: `${C.orange}11`, border: `1px solid ${C.orange}33`, borderRadius: 12, padding: 16, marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: C.orange, marginBottom: 4 }}>💰 {PARTENAIRE.commissionsDues.toLocaleString("fr")}€ en attente de paiement</div>
-              <div style={{ fontSize: 11, color: C.muted }}>Virement sous 30 jours après encaissement client · Xyra vous notifie par WhatsApp</div>
-            </div>
-          )}
-
           <Card>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Historique des paiements</div>
-            {PAIEMENTS.map((p, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${C.border}22` }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 700 }}>{p.date} · {p.methode}</div>
-                  <div style={{ fontSize: 10, color: C.muted }}>{p.ref}</div>
-                </div>
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 16, fontWeight: 700, color: C.green }}>{p.montant.toLocaleString("fr")} €</div>
-                  <Pill color={C.green}>✓ {p.statut}</Pill>
-                </div>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Détail par lead</div>
+            {leads.filter(l => l.commission > 0).length === 0 ? (
+              <div style={{ textAlign: "center", padding: 24, color: C.muted }}>Aucune commission générée pour l'instant</div>
+            ) : leads.filter(l => l.commission > 0).map((l, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}22` }}>
+                <div><div style={{ fontSize: 12, fontWeight: 600 }}>{l.nom}</div><div style={{ fontSize: 10, color: C.muted }}>{l.statut}</div></div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: C.gold }}>{l.commission.toLocaleString("fr")} €</div>
               </div>
             ))}
           </Card>
         </div>}
 
-        {/* INVITATIONS */}
         {page === "invitations" && <div>
           <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 8 }}>✉️ Mes invitations</div>
           <div style={{ fontSize: 11, color: C.muted, marginBottom: 20 }}>Invitez des personnes à rejoindre Xyra ou le Club d'affaires</div>
 
-          {/* Liens de parrainage */}
           <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: 12, marginBottom: 20 }}>
             {[
-              { type: "client", titre: "🏢 Inviter un client Xyra", desc: "Ils s'inscrivent avec 14 jours gratuits", couleur: C.blue, lien: PARTENAIRE.lienParrainage },
-              { type: "club", titre: "⬡ Inviter au Club d'affaires", desc: "Rejoindre le réseau privé Xyra", couleur: C.gold, lien: PARTENAIRE.lienClub },
-              { type: "partenaire", titre: "🤝 Inviter un partenaire AA", desc: "Devenir apporteur d'affaires Xyra", couleur: C.green, lien: PARTENAIRE.lienParrainage + "&type=partenaire" },
+              { type: "client", titre: "🏢 Client Xyra", desc: "14 jours gratuits", couleur: C.blue },
+              { type: "club", titre: "⬡ Club d'affaires", desc: "Réseau privé Xyra", couleur: C.gold },
+              { type: "partenaire", titre: "🤝 Partenaire AA", desc: "Devenir apporteur", couleur: C.green },
             ].map((item, i) => (
               <div key={i} style={{ background: C.card, border: `2px solid ${item.couleur}33`, borderRadius: 14, padding: 18, textAlign: "center" }}>
                 <div style={{ fontSize: 15, fontWeight: 700, color: item.couleur, marginBottom: 6 }}>{item.titre}</div>
                 <div style={{ fontSize: 11, color: C.muted, marginBottom: 16 }}>{item.desc}</div>
-                <div style={{ background: C.card2, borderRadius: 8, padding: "8px 10px", fontSize: 10, color: C.muted, fontFamily: "monospace", marginBottom: 12, wordBreak: "break-all" }}>
-                  {item.lien.slice(0, 45)}...
-                </div>
                 <div style={{ display: "flex", gap: 6 }}>
-                  <button onClick={() => copyLink(item.type)} style={{ flex: 1, background: item.couleur, color: "#000", border: "none", borderRadius: 6, padding: "8px 0", cursor: "pointer", fontWeight: 700, fontSize: 12, fontFamily: "inherit" }}>
-                    {copied === item.type ? "✓ Copié !" : "📋 Copier le lien"}
+                  <button onClick={() => copyLink(item.type)} style={{ flex: 1, background: item.couleur, color: "#000", border: "none", borderRadius: 6, padding: "8px 0", cursor: "pointer", fontWeight: 700, fontSize: 11, fontFamily: "inherit" }}>
+                    {copied === item.type ? "✓ Copié !" : "📋 Copier lien"}
                   </button>
-                  <button onClick={() => { window.open(`https://wa.me/?text=${encodeURIComponent("Rejoins Xyra avec mon lien : " + item.lien)}`); }} style={{ background: `${C.green}22`, color: C.green, border: `1px solid ${C.green}44`, borderRadius: 6, padding: "8px 10px", cursor: "pointer", fontWeight: 600, fontSize: 12, fontFamily: "inherit" }}>
-                    💬 WA
-                  </button>
+                  <button onClick={() => { const ref = partenaire?.code_parrainage || user?.id?.slice(0, 8).toUpperCase(); window.open(`https://wa.me/?text=${encodeURIComponent("Rejoins Xyra avec mon lien : " + window.location.origin + "/inscription?ref=" + ref)}`); }} style={{ background: `${C.green}22`, color: C.green, border: `1px solid ${C.green}44`, borderRadius: 6, padding: "8px 8px", cursor: "pointer", fontSize: 11, fontFamily: "inherit" }}>💬</button>
                 </div>
               </div>
             ))}
           </div>
 
-          {/* Formulaire invitation directe */}
           <Card style={{ marginBottom: 16 }}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}>
-              <div style={{ fontSize: 13, fontWeight: 700 }}>📧 Envoyer une invitation directe</div>
+              <div style={{ fontSize: 13, fontWeight: 700 }}>📧 Invitation directe</div>
               <Btn onClick={() => setShowInviteForm(s => !s)} style={{ fontSize: 11, padding: "6px 12px" }}>+ Inviter</Btn>
             </div>
-            {showInviteForm && (
-              <div>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-                  {[["Nom *", "nom"], ["Email *", "email"]].map(([label, key]) => (
-                    <div key={key}>
-                      <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>{label}</label>
-                      <input value={(inviteForm as any)[key]} onChange={e => setInviteForm((f: any) => ({ ...f, [key]: e.target.value }))} placeholder={label} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%", boxSizing: "border-box" as any }} />
-                    </div>
-                  ))}
-                  <div>
-                    <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>Type d'invitation</label>
-                    <select value={inviteForm.type} onChange={e => setInviteForm(f => ({ ...f, type: e.target.value }))} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%" }}>
-                      <option value="client">Client Xyra</option>
-                      <option value="club">Club d'affaires</option>
-                      <option value="partenaire">Partenaire AA</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>Message personnalisé</label>
-                    <input value={inviteForm.message} onChange={e => setInviteForm(f => ({ ...f, message: e.target.value }))} placeholder="Message optionnel..." style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%", boxSizing: "border-box" as any }} />
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 8 }}>
-                  <Btn onClick={() => {
-                    if (!inviteForm.nom || !inviteForm.email) return showToast("⚠️ Remplissez nom et email");
-                    setInvitations(inv => [...inv, { id: "INV00" + (inv.length + 1), nom: inviteForm.nom, email: inviteForm.email, type: inviteForm.type, date: new Date().toLocaleDateString("fr"), statut: "en_attente" }]);
-                    setShowInviteForm(false);
-                    setInviteForm({ nom: "", email: "", type: "client", message: "" });
-                    showToast(`✅ Invitation envoyée à ${inviteForm.nom} !`);
-                  }}>📧 Envoyer l'invitation</Btn>
-                  <button onClick={() => setShowInviteForm(false)} style={{ background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 14px", cursor: "pointer", fontFamily: "inherit" }}>Annuler</button>
-                </div>
-              </div>
-            )}
-          </Card>
-
-          {/* Liste invitations */}
-          <Card>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Historique des invitations ({invitations.length})</div>
-            {invitations.map((inv, i) => (
-              <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "10px 0", borderBottom: `1px solid ${C.border}22` }}>
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 700 }}>{inv.nom}</div>
-                  <div style={{ fontSize: 10, color: C.muted }}>{inv.email} · {inv.date}</div>
-                  <Pill color={inv.type === "client" ? C.blue : inv.type === "club" ? C.gold : C.green}>{inv.type}</Pill>
-                </div>
-                <Pill color={statutColor[inv.statut] || C.muted}>{inv.statut === "inscrit" ? "✓ Inscrit" : "⏳ En attente"}</Pill>
-              </div>
-            ))}
-          </Card>
-        </div>}
-
-        {/* DOCUMENTS */}
-        {page === "documents" && <div>
-          <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>📋 Mes documents</div>
-          {[{ nom: "Contrat AA signé", type: "Contrat", date: "01/03/2024", statut: "signé" }, { nom: "RIB bancaire", type: "RIB", date: "01/03/2024", statut: "valide" }, { nom: "Relevé commissions Avril 2026", type: "Relevé", date: "30/04/2026", statut: "disponible" }, { nom: "Relevé commissions Mars 2026", type: "Relevé", date: "31/03/2026", statut: "disponible" }].map((d, i) => (
-            <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: 16, marginBottom: 10, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700 }}>{d.nom}</div>
-                <div style={{ fontSize: 11, color: C.muted }}>{d.type} · {d.date}</div>
-              </div>
-              <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                <Pill color={d.statut === "signé" || d.statut === "valide" || d.statut === "disponible" ? C.green : C.muted}>✓ {d.statut}</Pill>
-                <Btn onClick={() => showToast(`📥 ${d.nom} téléchargé`)} style={{ fontSize: 11, padding: "6px 12px" }}>📥 Télécharger</Btn>
-              </div>
-            </div>
-          ))}
-        </div>}
-
-        {/* OUTILS */}
-        {page === "outils" && <div>
-          <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>🛠 Outils de vente</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12, marginBottom: 16 }}>
-            {[
-              { icon: "📊", titre: "Présentation Xyra", desc: "Deck complet à envoyer à vos prospects", action: "Télécharger PDF" },
-              { icon: "📱", titre: "Script WhatsApp", desc: "Message type pour aborder un prospect", action: "Copier le script" },
-              { icon: "📧", titre: "Template email prospection", desc: "Email accrocheur testé et optimisé", action: "Copier le template" },
-              { icon: "🎯", titre: "Argumentaire de vente", desc: "Les 5 arguments qui convertissent", action: "Voir l'argumentaire" },
-              { icon: "💰", titre: "Calculateur de commission", desc: "Estimez votre gain selon le CA apporté", action: "Calculer" },
-              { icon: "🏆", titre: "Témoignages clients", desc: "Avis et cas clients à partager", action: "Voir les témoignages" },
-            ].map((o, i) => (
-              <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16 }}>
-                <div style={{ fontSize: 24, marginBottom: 8 }}>{o.icon}</div>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>{o.titre}</div>
-                <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>{o.desc}</div>
-                <Btn onClick={() => showToast(`✅ ${o.action}`)} style={{ fontSize: 11, padding: "6px 12px" }}>{o.action}</Btn>
-              </div>
-            ))}
-          </div>
-          {/* Script WhatsApp exemple */}
-          <Card style={{ background: `${C.green}08`, borderColor: `${C.green}33` }}>
-            <div style={{ fontSize: 11, color: C.green, fontWeight: 700, marginBottom: 8 }}>💬 Script WhatsApp — À copier/coller</div>
-            <div style={{ background: C.card, borderRadius: 8, padding: 14, fontSize: 12, color: C.text, lineHeight: 1.8, fontStyle: "italic" }}>
-              "Bonjour [Prénom], je vous contacte car je travaille avec Xyra, un outil de gestion tout-en-un utilisé par des entrepreneurs comme vous. Il permet de gérer vos devis, factures, équipe, paiements et bien plus — depuis un seul endroit. 14 jours gratuits sans CB. Je vous envoie le lien si ça vous intéresse ?"
-            </div>
-            <Btn onClick={() => { navigator.clipboard?.writeText("Bonjour [Prénom], je vous contacte car je travaille avec Xyra..."); showToast("✅ Script copié !"); }} style={{ marginTop: 10, fontSize: 11 }}>📋 Copier ce script</Btn>
-          </Card>
-        </div>}
-
-        {/* PROFIL */}
-        {page === "profil" && <div>
-          <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>👤 Mon profil</div>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
-            <Card>
-              <div style={{ textAlign: "center", marginBottom: 16 }}>
-                <div style={{ width: 72, height: 72, borderRadius: "50%", background: `${PARTENAIRE.couleur}22`, border: `3px solid ${PARTENAIRE.couleur}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 700, color: PARTENAIRE.couleur, margin: "0 auto 12px" }}>{PARTENAIRE.avatar}</div>
-                <div style={{ fontSize: 18, fontWeight: 700 }}>{PARTENAIRE.nom}</div>
-                <div style={{ fontSize: 12, color: C.muted }}>{PARTENAIRE.role}</div>
-              </div>
-              {[["📧 Email", PARTENAIRE.email], ["📱 Téléphone", PARTENAIRE.tel], ["💰 Taux commission", PARTENAIRE.commission + "%"], ["🤝 Partenaire depuis", "01/03/2024"]].map(([k, v], i) => (
-                <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "7px 0", borderBottom: `1px solid ${C.border}22`, fontSize: 12 }}>
-                  <span style={{ color: C.muted }}>{k}</span><span style={{ fontWeight: 600 }}>{v}</span>
-                </div>
-              ))}
-            </Card>
-            <Card>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>📊 Mes performances</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 8 }}>
-                {[["CA total", PARTENAIRE.ca.toLocaleString("fr") + " €", C.gold], ["Leads soumis", leads.length.toString(), C.blue], ["Taux conversion", Math.round(leads.filter(l => l.statut === "gagné").length / leads.length * 100) + "%", C.green], ["Invitations", invitations.length.toString(), C.purple]].map(([l, v, c], i) => (
-                  <div key={i} style={{ background: C.card2, borderRadius: 8, padding: 12, textAlign: "center" }}>
-                    <div style={{ fontSize: 9, color: C.muted, marginBottom: 4 }}>{l}</div>
-                    <div style={{ fontSize: 18, fontWeight: 700, color: c as string }}>{v}</div>
+            {showInviteForm && <div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                {[["Nom *", "nom"], ["Email *", "email"]].map(([label, key]) => (
+                  <div key={key}>
+                    <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>{label}</label>
+                    <input value={(inviteForm as any)[key]} onChange={e => setInviteForm((f: any) => ({ ...f, [key]: e.target.value }))} placeholder={label as string} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%", boxSizing: "border-box" as any }} />
                   </div>
                 ))}
+                <div>
+                  <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>Type</label>
+                  <select value={inviteForm.type} onChange={e => setInviteForm(f => ({ ...f, type: e.target.value }))} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%" }}>
+                    <option value="client">Client Xyra</option>
+                    <option value="club">Club d'affaires</option>
+                    <option value="partenaire">Partenaire AA</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>Message</label>
+                  <input value={inviteForm.message} onChange={e => setInviteForm(f => ({ ...f, message: e.target.value }))} placeholder="Message optionnel..." style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%", boxSizing: "border-box" as any }} />
+                </div>
               </div>
-            </Card>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn onClick={sendInvitation}>📧 Envoyer</Btn>
+                <button onClick={() => setShowInviteForm(false)} style={{ background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 14px", cursor: "pointer", fontFamily: "inherit" }}>Annuler</button>
+              </div>
+            </div>}
+          </Card>
+
+          <Card>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Historique ({invitations.length})</div>
+            {invitations.length === 0 ? <div style={{ textAlign: "center", padding: 24, color: C.muted }}>Aucune invitation envoyée</div> :
+              invitations.map((inv, i) => (
+                <div key={i} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}22` }}>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700 }}>{inv.nom}</div>
+                    <div style={{ fontSize: 10, color: C.muted }}>{inv.email} · {new Date(inv.created_at).toLocaleDateString("fr")}</div>
+                    <Pill color={inv.type === "client" ? C.blue : inv.type === "club" ? C.gold : C.green}>{inv.type}</Pill>
+                  </div>
+                  <Pill color={inv.statut === "inscrit" ? C.green : C.orange}>{inv.statut === "inscrit" ? "✓ Inscrit" : "⏳ En attente"}</Pill>
+                </div>
+              ))
+            }
+          </Card>
+        </div>}
+
+        {page === "documents" && <div>
+          <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>📋 Mes documents</div>
+          <Card>
+            <div style={{ textAlign: "center", padding: 40, color: C.muted }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>📄</div>
+              <div>Vos contrats et documents sont disponibles ici</div>
+              <div style={{ fontSize: 11, marginTop: 8 }}>Contact : <a href="https://wa.me/33765189527" style={{ color: C.gold }}>WhatsApp Xyra</a></div>
+            </div>
+          </Card>
+        </div>}
+
+        {page === "outils" && <div>
+          <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>🛠 Outils de vente</div>
+          <Card style={{ background: `${C.green}08`, borderColor: `${C.green}33`, marginBottom: 12 }}>
+            <div style={{ fontSize: 11, color: C.green, fontWeight: 700, marginBottom: 8 }}>💬 Script WhatsApp — À copier</div>
+            <div style={{ background: C.card, borderRadius: 8, padding: 14, fontSize: 12, color: C.text, lineHeight: 1.8, fontStyle: "italic" }}>
+              "Bonjour [Prénom], je vous contacte car je travaille avec Xyra, un outil de gestion tout-en-un pour entrepreneurs. Il gère vos devis, factures, équipe, paiements — depuis un seul endroit. 14 jours gratuits. Je vous envoie le lien ?"
+            </div>
+            <Btn onClick={() => { navigator.clipboard?.writeText("Bonjour [Prénom], je vous contacte car je travaille avec Xyra..."); showToast("✅ Copié !"); }} style={{ marginTop: 10, fontSize: 11 }}>📋 Copier</Btn>
+          </Card>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+            {[["📊", "Présentation Xyra", "Deck à envoyer à vos prospects"], ["💰", "Calculateur commission", "Estimez votre gain"], ["📧", "Template email", "Email optimisé pour prospecter"], ["🏆", "Témoignages clients", "Avis à partager"]].map(([icon, titre, desc], i) => (
+              <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14 }}>
+                <div style={{ fontSize: 24, marginBottom: 6 }}>{icon}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, marginBottom: 4 }}>{titre}</div>
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 10 }}>{desc}</div>
+                <Btn onClick={() => showToast("✅ Disponible bientôt !")} style={{ fontSize: 10, padding: "5px 10px" }}>Accéder</Btn>
+              </div>
+            ))}
           </div>
+        </div>}
+
+        {page === "profil" && <div>
+          <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>👤 Mon profil</div>
+          <Card>
+            <div style={{ textAlign: "center", marginBottom: 16 }}>
+              <div style={{ width: 72, height: 72, borderRadius: "50%", background: `${C.gold}22`, border: `3px solid ${C.gold}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 700, color: C.gold, margin: "0 auto 12px" }}>
+                {partenaire?.nom?.[0] || user?.email?.[0]?.toUpperCase()}
+              </div>
+              <div style={{ fontSize: 18, fontWeight: 700 }}>{partenaire?.nom || "Partenaire"}</div>
+              <div style={{ fontSize: 12, color: C.muted }}>{partenaire?.role || "Apporteur d'affaires"}</div>
+            </div>
+            {[["📧", user?.email], ["💰", (partenaire?.commission || 20) + "% de commission"], ["🤝", "Partenaire depuis " + (partenaire?.created_at ? new Date(partenaire.created_at).toLocaleDateString("fr") : "—")], ["🎯", leads.length + " leads soumis"]].map(([k, v], i) => (
+              <div key={i} style={{ display: "flex", gap: 10, padding: "7px 0", borderBottom: `1px solid ${C.border}22`, fontSize: 12 }}>
+                <span>{k}</span><span style={{ color: C.muted }}>{v}</span>
+              </div>
+            ))}
+          </Card>
         </div>}
       </div>
 
-      {/* Toast */}
-      {toast && (
-        <div style={{ position: "fixed", bottom: 24, right: 24, background: C.card, border: `1px solid ${C.gold}44`, borderRadius: 10, padding: "12px 20px", fontSize: 13, color: C.text, zIndex: 9999, display: "flex", gap: 8, alignItems: "center" }}>
-          🔔 {toast}
-        </div>
-      )}
+      {toast && <div style={{ position: "fixed", bottom: 24, right: 24, background: C.card, border: `1px solid ${C.gold}44`, borderRadius: 10, padding: "12px 20px", fontSize: 13, color: C.text, zIndex: 9999 }}>🔔 {toast}</div>}
     </div>
   );
 }
