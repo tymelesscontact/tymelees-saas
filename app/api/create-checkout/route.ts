@@ -1,39 +1,44 @@
-import { NextRequest, NextResponse } from "next/server";
-import Stripe from "stripe";
+import { NextRequest, NextResponse } from 'next/server';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
-  apiVersion: "2026-04-22.dahlia",
-});
+export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const { amount, plan, societe, email, metier, pays, taille } = await req.json();
+    const { default: Stripe } = await import('stripe');
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' });
+
+    const { plan, email, societe } = await req.json();
+
+    const PLANS: Record<string, { name: string; amount: number }> = {
+      starter:   { name: 'Xyra Starter',      amount: 5900  },
+      business:  { name: 'Xyra Business Pro', amount: 12900 },
+      enterprise:{ name: 'Xyra Enterprise',   amount: 24900 },
+    };
+
+    const planData = PLANS[plan];
+    if (!planData) return NextResponse.json({ error: 'Plan invalide' }, { status: 400 });
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ["card"],
-      mode: "subscription",
-      line_items: [
-        {
-          price_data: {
-            currency: "eur",
-            product_data: {
-              name: `Tymeless OS — Plan ${plan}`,
-              description: `${metier} · ${pays} · ${taille}`,
-            },
-            unit_amount: amount * 100,
-            recurring: { interval: "month" },
-          },
-          quantity: 1,
-        },
-      ],
+      payment_method_types: ['card'],
+      mode: 'subscription',
       customer_email: email,
-      metadata: { societe, plan, metier, pays, taille },
-    success_url: `${process.env.NEXT_PUBLIC_SITE_URL}/dashboard/client?plan=${plan.toLowerCase().replace(/ /g,"_")}&societe=${encodeURIComponent(societe)}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_SITE_URL}/inscription?cancelled=true`,
+      metadata: { societe, plan },
+      line_items: [{
+        price_data: {
+          currency: 'eur',
+          product_data: { name: planData.name, description: `Abonnement mensuel Xyra — ${societe}` },
+          unit_amount: planData.amount,
+          recurring: { interval: 'month' },
+        },
+        quantity: 1,
+      }],
+      success_url: `https://tymelees-saas-yzel.vercel.app/dashboard?payment=success&plan=${plan}`,
+      cancel_url: `https://tymelees-saas-yzel.vercel.app/inscription?payment=cancelled`,
     });
 
     return NextResponse.json({ url: session.url });
   } catch (error: any) {
+    console.error('Stripe error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
