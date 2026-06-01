@@ -680,6 +680,7 @@ const PageCartes=({showToast})=>{
 // ─── PAGE ACCUEIL ─────────────────────────────────────────────
 const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
   const nonLus=notifs.filter(n=>!n.lu).length;
+  const T=profil?.termes||PROFIL_DEFAUT.termes;
   const[aiMsg]=useState("2 devis en attente — priorité du jour. CA hebdo +12%. Thomas en mission, Abou disponible. Penser à relancer Isabelle Moreau pour le renouvellement contrat mensuel.");
   return <div style={{padding:20}}>
     <div style={{background:`linear-gradient(135deg,${C.card},#0A1A14)`,border:`1px solid ${C.gold}33`,borderRadius:16,padding:24,marginBottom:16}}>
