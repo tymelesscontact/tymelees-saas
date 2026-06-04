@@ -5591,6 +5591,19 @@ export default function Xyra() {
         if(m.data?.length)setMissions(m.data);
         if(s.data?.length)setStock(s.data);
         if(dl.data?.length)setDeals(dl.data);
+        // Charger le profil métier depuis le tenant
+        const{data:{user}}=await sb.auth.getUser();
+        if(user){
+          const{data:tenant}=await sb.from('tenants').select('metier').eq('user_id',user.id).single();
+          if(tenant?.metier){
+            const metierKey=Object.keys(PROFILS_SECTEURS).find(k=>{
+              const p=PROFILS_SECTEURS[k];
+              return p.label.toLowerCase().includes(tenant.metier.toLowerCase())||
+                     tenant.metier.toLowerCase().includes(p.label.toLowerCase().replace(/[^a-z]/g,''));
+            });
+            if(metierKey)setProfil(PROFILS_SECTEURS[metierKey]);
+          }
+        }
       }catch(e){console.error('Supabase:',e);}
       finally{setSbLoading(false);}
     };
