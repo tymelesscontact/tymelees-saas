@@ -1,5 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { useSupabase } from "@/hooks/useSupabase";
+import { useSupabase } from "@/hooks/useSupabase";
 
 const C = {
   dark:"#06060E", card:"#0C0C1A", card2:"#121222",
@@ -3357,7 +3359,7 @@ const PageStock=({plan,showToast,profil})=>{
       <STitle>Nouvel article</STitle>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
         {[["Nom de l'article","art"],["Fournisseur","four"],["Localisation","localisation"],["Prix unitaire (€)","prixU"],["Quantité initiale","qte"],["Stock minimum","min"],["Stock maximum","max"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={addForm[k]} onChange={e=>setAddForm(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Catégorie</label><Sel value={addForm.cat} onChange={e=>setAddForm(f=>({...f,cat:e.target.value}))} style={{width:"100%"}}>{["Nettoyage","Rapatriement","Jet/Yacht","Protection","Consommables","Autre"].map(c=><option key={c}>{c}</option>)}</Sel></div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Catégorie</label><Sel value={addForm.cat} onChange={e=>setAddForm(f=>({...f,cat:e.target.value}))} style={{width:"100%"}}>{(profil?.stockCategories||["Nettoyage","Rapatriement","Jet/Yacht","Protection","Consommables","Autre"]).map(c=><option key={c}>{c}</option>)}</Sel></div>
         <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Unité</label><Inp value={addForm.u} onChange={e=>setAddForm(f=>({...f,u:e.target.value}))} placeholder="pcs / L / kg..."/></div>
       </div>
       <div style={{display:"flex",gap:8}}>
@@ -5565,37 +5567,22 @@ export default function Xyra() {
   const[stock,setStock]=useState([]);
   const[deals,setDeals]=useState([]);
 
-  useState(()=>{
-    const loadData=async()=>{
-      try{
-        const {createClient}=await import('@supabase/supabase-js');
-        const sb=createClient(
-          process.env.NEXT_PUBLIC_SUPABASE_URL,
-          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-        );
-        const[c,d,p,part,eq,m,s,dl]=await Promise.all([
-          sb.from('clients').select('*').order('created_at',{ascending:false}),
-          sb.from('devis').select('*').order('created_at',{ascending:false}),
-          sb.from('paiements').select('*').order('date_transaction',{ascending:false}),
-          sb.from('partenaires').select('*'),
-          sb.from('equipe').select('*'),
-          sb.from('missions').select('*').order('date_mission',{ascending:true}),
-          sb.from('stock').select('*'),
-          sb.from('deals').select('*').order('created_at',{ascending:false}),
-        ]);
-        if(c.data?.length)setClients(c.data);
-        if(d.data?.length)setDevis(d.data);
-        if(p.data?.length)setPaiements(p.data);
-        if(part.data?.length)setPartenaires(part.data);
-        if(eq.data?.length)setEquipe(eq.data);
-        if(m.data?.length)setMissions(m.data);
-        if(s.data?.length)setStock(s.data);
-        if(dl.data?.length)setDeals(dl.data);
-      }catch(e){console.error('Supabase:',e);}
-      finally{setSbLoading(false);}
-    };
-    loadData();
-  },[]);
+  // ─── SUPABASE HOOK ───────────────────────────────────────────
+  const sb=useSupabase();
+  useEffect(()=>{
+    if(!sb.loading){
+      if(sb.clients.length)setClients(sb.clients);
+      if(sb.devis.length)setDevis(sb.devis);
+      if(sb.paiements.length)setPaiements(sb.paiements);
+      if(sb.partenaires.length)setPartenaires(sb.partenaires);
+      if(sb.equipe.length)setEquipe(sb.equipe);
+      if(sb.missions.length)setMissions(sb.missions);
+      if(sb.stock.length)setStock(sb.stock);
+      if(sb.deals.length)setDeals(sb.deals);
+      if(sb.notifications.length)setNotifications(sb.notifications);
+      setSbLoading(false);
+    }
+  },[sb.loading]);
 
   const[notifs,setNotifs]=useState(INIT_NOTIFS);
   const[toast,setToast]=useState(null);
