@@ -88,3 +88,18 @@ export const getAllTenants = async () => {
 export const subscribeNotifications = (callback: (notif: any) => void) => {
   return supabase.channel('notifications').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'notifications' }, (payload) => callback(payload.new)).subscribe()
 }
+export const getContrats = async () => {
+  const { data } = await supabase.from('contrats').select('*').order('created_at', { ascending: false })
+  return data || []
+}
+
+export const getAvis = async () => {
+  const { data } = await supabase.from('avis').select('*').order('created_at', { ascending: false })
+  return data || []
+}
+
+export const addNotification = async (notification: any) => {
+  const user = await getUser()
+  const { data } = await supabase.from('notifications').insert([{ ...notification, tenant_id: user?.id }]).select()
+  return data?.[0]
+}

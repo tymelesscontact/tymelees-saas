@@ -1,7 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { useSupabase } from "@/hooks/useSupabase";
-import { useSupabase } from "@/hooks/useSupabase";
 
 const C = {
   dark:"#06060E", card:"#0C0C1A", card2:"#121222",
