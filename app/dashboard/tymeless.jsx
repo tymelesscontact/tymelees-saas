@@ -45,7 +45,7 @@ const PAGE_ACCESS = {
   annuaire:       ["business","enterprise","owner"],
   wallet_membres: ["business","enterprise","owner"],
   evenements:     ["business","enterprise","owner"],
-  scoring:        ["business","enterprise","owner"],
+  scoring:        ["starter","business","enterprise","owner"],
   equipe:         ["business","enterprise","owner"],
   planning:       ["business","enterprise","owner"],
   prospection:    ["owner"],
