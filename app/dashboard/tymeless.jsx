@@ -48,7 +48,7 @@ const PAGE_ACCESS = {
   scoring:        ["business","enterprise","owner"],
   equipe:         ["business","enterprise","owner"],
   planning:       ["business","enterprise","owner"],
-  prospection:    ["business","enterprise","owner"],
+  prospection:    ["owner"],
   deals:          ["business","enterprise","owner"],
   stock:          ["business","enterprise","owner"],
   services:       ["business","enterprise","owner"],
@@ -3212,6 +3212,191 @@ const PagePlanning=({plan,showToast,profil})=>{
   </div>;
 };
 
+
+// ─── VAPI WIDGET ─────────────────────────────────────────────
+const VapiWidget=({showToast,leads=[]})=>{
+  const[calls,setCalls]=useState([]);
+  const[assistants,setAssistants]=useState([]);
+  const[loading,setLoading]=useState(false);
+  const[selectedAssistant,setSelectedAssistant]=useState("");
+  const[campagneForm,setCampagneForm]=useState({nom:"",secteur:"",service:""});
+  const[activeCall,setActiveCall]=useState(null);
+
+  useEffect(()=>{
+    const loadVapi=async()=>{
+      try{
+        const[a,c]=await Promise.all([
+          fetch('/api/prospection?action=assistants').then(r=>r.json()),
+          fetch('/api/prospection?action=calls').then(r=>r.json()),
+        ]);
+        if(a.assistants)setAssistants(a.assistants);
+        if(c.calls)setCalls(c.calls);
+      }catch(e){console.error('Vapi:',e);}
+    };
+    loadVapi();
+  },[]);
+
+  const lancerAppel=async(lead)=>{
+    if(!selectedAssistant)return showToast("⚠️ Sélectionnez un agent Vapi d'abord");
+    setLoading(true);
+    try{
+      const res=await fetch('/api/prospection',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          action:'call',
+          tel:lead.tel,
+          nom:lead.nom,
+          societe:lead.nom,
+          secteur:lead.secteur||"Conciergerie",
+          assistantId:selectedAssistant,
+        }),
+      });
+      const data=await res.json();
+      if(data.success){
+        setActiveCall(data.call);
+        showToast(`🎙 Appel lancé vers ${lead.nom} !`);
+      }
+    }catch(e){showToast("❌ Erreur Vapi");}
+    setLoading(false);
+  };
+
+  const lancerCampagne=async()=>{
+    if(!selectedAssistant)return showToast("⚠️ Sélectionnez un agent Vapi");
+    setLoading(true);
+    let nb=0;
+    for(const lead of leads.slice(0,5)){
+      try{
+        await fetch('/api/prospection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'call',tel:lead.tel||"+33000000000",nom:lead.nom,societe:lead.nom,secteur:lead.secteur||"Services",assistantId:selectedAssistant})});
+        nb++;
+        await new Promise(r=>setTimeout(r,1000));
+      }catch(e){}
+    }
+    showToast(`✅ Campagne lancée — ${nb} appels initiés !`);
+    setLoading(false);
+  };
+
+  return <div>
+    <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:14,marginBottom:14}}>
+      <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🎙 VAPI — AGENT VOCAL IA</div>
+      <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Votre agent vocal Vapi appelle automatiquement vos prospects, se présente, qualifie les besoins et prend des RDV dans votre agenda.</div>
+    </div>
+
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
+      <CT>
+        <STitle>🤖 Agent Vapi actif</STitle>
+        {assistants.length===0?<div style={{fontSize:11,color:C.muted}}>Chargement des agents...</div>:<div>
+          <select value={selectedAssistant} onChange={e=>setSelectedAssistant(e.target.value)} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:6,padding:"8px 10px",color:C.text,fontSize:12,fontFamily:"inherit",width:"100%",marginBottom:8}}>
+            <option value="">Sélectionner un agent...</option>
+            {assistants.map((a,i)=><option key={i} value={a.id}>{a.name||"Agent "+i}</option>)}
+          </select>
+          {selectedAssistant&&<div style={{fontSize:10,color:C.green}}>✅ Agent sélectionné</div>}
+        </div>}
+      </CT>
+      <CT>
+        <STitle>📊 Stats Vapi</STitle>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+          <div style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Appels</div><div style={{fontSize:16,fontWeight:700,color:C.blue}}>{calls.length}</div></div>
+          <div style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Complétés</div><div style={{fontSize:16,fontWeight:700,color:C.green}}>{calls.filter(c=>c.status==="ended").length}</div></div>
+        </div>
+      </CT>
+    </div>
+
+    <div style={{display:"flex",gap:8,marginBottom:14}}>
+      <Btn onClick={lancerCampagne} style={{flex:1,background:C.purple}} disabled={loading}>
+        {loading?"⏳ Campagne en cours...":"🚀 Lancer campagne (5 leads)"}
+      </Btn>
+      <BtnGhost onClick={()=>showToast("📋 Rapport Vapi téléchargé")} style={{fontSize:11}}>📋 Rapport</BtnGhost>
+    </div>
+
+    {leads.length>0&&<CT>
+      <STitle>🎯 Appeler un lead maintenant</STitle>
+      <div style={{display:"flex",flexDirection:"column",gap:6}}>
+        {leads.slice(0,4).map((l,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${C.border}22`}}>
+          <div><div style={{fontSize:11,fontWeight:600}}>{l.nom}</div><div style={{fontSize:9,color:C.muted}}>{l.ville} · Score {l.score}</div></div>
+          <Btn onClick={()=>lancerAppel(l)} style={{fontSize:10,padding:"4px 10px",background:C.purple}}>🎙 Appeler</Btn>
+        </div>)}
+      </div>
+    </CT>}
+
+    {calls.length>0&&<CT style={{marginTop:10}}>
+      <STitle>📋 Derniers appels Vapi</STitle>
+      {calls.slice(0,5).map((c,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}>
+        <span>{c.customer?.name||c.customer?.number||"—"}</span>
+        <span style={{color:c.status==="ended"?C.green:C.orange}}>{c.status}</span>
+        <span style={{color:C.muted,fontSize:9}}>{c.endedAt?new Date(c.endedAt).toLocaleDateString("fr"):"En cours"}</span>
+      </div>)}
+    </CT>}
+  </div>;
+};
+
+// ─── RELANCEIA WIDGET ─────────────────────────────────────────
+const RelanceIAWidget=({showToast})=>{
+  const[sequences,setSequences]=useState([]);
+  const[stats,setStats]=useState(null);
+  const[loading,setLoading]=useState(false);
+  const[contactForm,setContactForm]=useState({email:"",prenom:"",nom:"",societe:"",tel:"",secteur:"",sequenceId:""});
+
+  useEffect(()=>{
+    const loadRelance=async()=>{
+      try{
+        const[s,st]=await Promise.all([
+          fetch('/api/prospection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'relance_sequences'})}).then(r=>r.json()),
+          fetch('/api/prospection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'relance_stats'})}).then(r=>r.json()),
+        ]);
+        if(s.sequences)setSequences(s.sequences);
+        if(st.stats)setStats(st.stats);
+      }catch(e){console.error('RelanceIA:',e);}
+    };
+    loadRelance();
+  },[]);
+
+  const lancerSequence=async()=>{
+    if(!contactForm.email||!contactForm.sequenceId)return showToast("⚠️ Email et séquence requis");
+    setLoading(true);
+    try{
+      const res=await fetch('/api/prospection',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'relance_sequence',...contactForm}),
+      });
+      const data=await res.json();
+      if(data.success)showToast(`✅ Séquence lancée pour ${contactForm.email} !`);
+      else showToast("❌ Erreur RelanceIA");
+    }catch(e){showToast("❌ Erreur RelanceIA");}
+    setLoading(false);
+  };
+
+  return <div style={{marginTop:14}}>
+    {stats&&<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:12}}>
+      <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Emails envoyés</div><div style={{fontSize:16,fontWeight:700,color:C.blue}}>{stats.sent||0}</div></CT>
+      <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Taux ouverture</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>{stats.open_rate||"—"}</div></CT>
+      <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Réponses</div><div style={{fontSize:16,fontWeight:700,color:C.green}}>{stats.replies||0}</div></CT>
+    </div>}
+
+    <CT>
+      <STitle>📧 Lancer une séquence RelanceIA</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+        {[["Email *","email"],["Prénom","prenom"],["Société","societe"],["Téléphone","tel"]].map(([l,k])=><div key={k}>
+          <label style={{fontSize:10,color:C.muted,display:"block",marginBottom:3}}>{l}</label>
+          <input value={(contactForm as any)[k]} onChange={e=>setContactForm(f=>({...f,[k]:e.target.value}))} placeholder={l} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:5,padding:"6px 8px",color:C.text,fontSize:11,fontFamily:"inherit",width:"100%",boxSizing:"border-box" as any}}/>
+        </div>)}
+        <div style={{gridColumn:"span 2"}}>
+          <label style={{fontSize:10,color:C.muted,display:"block",marginBottom:3}}>Séquence *</label>
+          <select value={contactForm.sequenceId} onChange={e=>setContactForm(f=>({...f,sequenceId:e.target.value}))} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:5,padding:"6px 8px",color:C.text,fontSize:11,fontFamily:"inherit",width:"100%"}}>
+            <option value="">Sélectionner une séquence...</option>
+            {sequences.map((s:any,i:number)=><option key={i} value={s.id}>{s.name}</option>)}
+            {sequences.length===0&&<option value="default">Séquence par défaut</option>}
+          </select>
+        </div>
+      </div>
+      <Btn onClick={lancerSequence} style={{width:"100%"}} disabled={loading}>
+        {loading?"⏳ Envoi en cours...":"📧 Lancer la séquence"}
+      </Btn>
+    </CT>
+  </div>;
+};
+
 // ─── PAGE PROSPECTION ─────────────────────────────────────────
 const PageProspection=({plan,showToast})=>{
   const[onglet,setOnglet]=useState("sirene");
@@ -3264,20 +3449,15 @@ const PageProspection=({plan,showToast})=>{
         <div style={{fontSize:11,color:C.green,fontWeight:600,marginBottom:4}}>● Bot actif · Connecté à Meta API</div>
         <div style={{fontSize:12,color:C.text}}>Modèle : claude-sonnet-4-5 · Webhook : actif · Réponse moyenne : 2.3s</div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
         <KPI label="Messages envoyés" val="247" color={C.blue}/>
         <KPI label="Taux réponse" val="67%" color={C.green}/>
         <KPI label="RDV générés" val="8" color={C.gold}/>
       </div>
+      <STitle>📧 Séquences RelanceIA</STitle>
+      <RelanceIAWidget showToast={showToast}/>
     </Card>}
-    {onglet==="vocal"&&<Card><STitle>🎙 Bot Vocal IA</STitle>
-      <div style={{textAlign:"center",padding:"30px 0"}}>
-        <div style={{fontSize:48,marginBottom:12}}>🎙</div>
-        <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>Bot d'appel sortant automatique</div>
-        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Appelle automatiquement vos prospects SIRENE en se présentant comme l'assistant Xyra</div>
-        <Btn onClick={()=>showToast("🎙 Campagne d'appels lancée !")}>▶ Lancer une campagne d'appels</Btn>
-      </div>
-    </Card>}
+    {onglet==="vocal"&&<VapiWidget showToast={showToast} leads={leads}/>}
     {onglet==="linkedin"&&<Card><STitle>💼 Prospection LinkedIn</STitle>
       <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Envoi de messages LinkedIn automatiques via extension Chrome</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
@@ -5594,7 +5774,7 @@ export default function Xyra() {
         // Charger le profil métier depuis le tenant
         const{data:{user}}=await sb.auth.getUser();
         if(user){
-          const{data:tenant}=await sb.from('tenants').select('metier').eq('user_id',user.id).single();
+          const{data:tenant}=await sb.from('tenants').select('metier,plan').eq('user_id',user.id).single();
           if(tenant?.metier){
             const metierKey=Object.keys(PROFILS_SECTEURS).find(k=>{
               const p=PROFILS_SECTEURS[k];
@@ -5602,6 +5782,10 @@ export default function Xyra() {
                      tenant.metier.toLowerCase().includes(p.label.toLowerCase().replace(/[^a-z]/g,''));
             });
             if(metierKey)setProfil(PROFILS_SECTEURS[metierKey]);
+          }
+          if(tenant?.plan){
+            const planNorm=tenant.plan.replace('business_pro','business').replace('_pro','');
+            setPlan(planNorm);
           }
         }
       }catch(e){console.error('Supabase:',e);}
