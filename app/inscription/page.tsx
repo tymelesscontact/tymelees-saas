@@ -27,9 +27,9 @@ const METIERS_CATEGORIES = [
 ];
 
 const PLANS = [
-  { name: "Starter", emoji: "🌱", price: 49, desc: "3 modules · Idéal pour démarrer", features: ["3 modules au choix","Wallet & Flutterwave","1 utilisateur","Support WhatsApp"], highlight: false },
-  { name: "Business Pro", emoji: "🚀", price: 99, desc: "8 modules · Pour les équipes", features: ["8 modules au choix","Wallet + Cartes virtuelles","5 utilisateurs","IA & Analytics","Support prioritaire"], highlight: true },
-  { name: "Enterprise", emoji: "💎", price: 150, desc: "Tout inclus · Grandes structures", features: ["Tous les modules","Utilisateurs illimités","Prospection IA complète","Support dédié 7j/7"], highlight: false },
+  { name: "Starter", emoji: "🌱", price: 59, desc: "3 modules · Idéal pour démarrer", features: ["3 modules au choix","Wallet & Flutterwave","1 utilisateur","Support WhatsApp"], highlight: false },
+  { name: "Business Pro", emoji: "🚀", price: 129, desc: "8 modules · Pour les équipes", features: ["8 modules au choix","Wallet + Cartes virtuelles","5 utilisateurs","IA & Analytics","Support prioritaire"], highlight: true },
+  { name: "Enterprise", emoji: "💎", price: 249, desc: "Tout inclus · Grandes structures", features: ["Tous les modules","Utilisateurs illimités","Prospection IA complète","Support dédié 7j/7"], highlight: false },
 ];
 
 const TAILLES = [
@@ -64,7 +64,7 @@ export default function Inscription() {
   const flwConfig = {
     public_key: process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY!,
     tx_ref: `XYRA-${Date.now()}`,
-    amount: form.planPrice || 49,
+    amount: form.planPrice || 59,
     currency: "EUR",
     payment_options: "mobilemoney,card",
     customer: {
@@ -81,10 +81,8 @@ export default function Inscription() {
 
   const handleFlutterPayment = useFlutterwave(flwConfig as any);
 
-  // ── Créer compte auth + tenant après paiement ──────────────
   const createAccount = async (txRef: string, txId: string) => {
     try {
-      // 1. Créer le compte auth Supabase
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
@@ -100,7 +98,6 @@ export default function Inscription() {
 
       const userId = authData.user?.id;
 
-      // 2. Créer le tenant dans la table tenants
       await supabase.from("tenants").insert([{
         user_id: userId,
         societe: form.societe,
@@ -115,7 +112,6 @@ export default function Inscription() {
         trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
       }]);
 
-      // 3. Sauvegarder aussi dans inscriptions (pour l'historique)
       await supabase.from("inscriptions").insert([{
         societe: form.societe,
         email: form.email,
@@ -131,7 +127,6 @@ export default function Inscription() {
         created_at: new Date().toISOString(),
       }]);
 
-      // Envoyer emails automatiques
       await fetch('/api/send-email', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -173,11 +168,9 @@ export default function Inscription() {
   const handleStripe = async () => {
     setLoading(true);
     try {
-      // D'abord créer le compte
       const result = await createAccount(`STRIPE-${Date.now()}`, "pending");
       if (!result.success) { setLoading(false); return; }
 
-      // Puis rediriger vers Stripe
       const res = await fetch("/api/create-checkout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -212,7 +205,6 @@ export default function Inscription() {
   const stepTitles = ["Entreprise", "Métier", "Plan", "Paiement"];
   const currentMetiers = METIERS_CATEGORIES.find(c => c.cat === selectedCat)?.metiers || [];
 
-  // ── SUCCÈS ──────────────────────────────────────────────────
   if (success) {
     return (
       <div style={{ fontFamily: "'Cormorant Garamond',Georgia,serif", background: "#0a0a0a", color: "#f0ead6", minHeight: "100vh", display: "flex", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24 }}>
@@ -272,7 +264,6 @@ export default function Inscription() {
         @media(max-width:640px) { .taille-grid{grid-template-columns:repeat(2,1fr)!important;} .plans-grid{grid-template-columns:1fr!important;} .step2-grid{grid-template-columns:1fr!important;} }
       `}</style>
 
-      {/* HEADER */}
       <div style={{ borderBottom: "1px solid rgba(201,169,110,0.1)", padding: "18px 40px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
         <a href="/" style={{ fontSize: 20, fontWeight: 300, letterSpacing: "0.12em", color: "#c9a96e", textDecoration: "none", fontFamily: "Georgia,serif" }}>XYRA</a>
         <span style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "rgba(240,234,214,0.4)" }}>
@@ -281,8 +272,6 @@ export default function Inscription() {
       </div>
 
       <div style={{ maxWidth: 760, margin: "0 auto", padding: "52px 24px 80px" }}>
-
-        {/* PROGRESS */}
         <div style={{ display: "flex", alignItems: "center", marginBottom: 48 }}>
           {stepTitles.map((title, i) => {
             const n = i + 1;
@@ -302,7 +291,6 @@ export default function Inscription() {
           })}
         </div>
 
-        {/* ÉTAPE 1 */}
         {step === 1 && (
           <div className="fade">
             <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#c9a96e", marginBottom: 10 }}>Étape 1 sur 4</p>
@@ -338,7 +326,6 @@ export default function Inscription() {
           </div>
         )}
 
-        {/* ÉTAPE 2 */}
         {step === 2 && (
           <div className="fade">
             <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#c9a96e", marginBottom: 10 }}>Étape 2 sur 4</p>
@@ -379,7 +366,6 @@ export default function Inscription() {
           </div>
         )}
 
-        {/* ÉTAPE 3 */}
         {step === 3 && (
           <div className="fade">
             <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#c9a96e", marginBottom: 10 }}>Étape 3 sur 4</p>
@@ -407,7 +393,6 @@ export default function Inscription() {
           </div>
         )}
 
-        {/* ÉTAPE 4 */}
         {step === 4 && (
           <div className="fade">
             <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#c9a96e", marginBottom: 10 }}>Étape 4 sur 4</p>
@@ -452,7 +437,6 @@ export default function Inscription() {
           </div>
         )}
 
-        {/* NAVIGATION */}
         <div style={{ display: "flex", gap: 12, marginTop: 36 }}>
           {step > 1 && <button className="btn-back" onClick={() => setStep(s => s - 1)}>← Retour</button>}
           {step < 4 ? (
