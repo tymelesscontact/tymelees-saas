@@ -52,7 +52,7 @@ const PAGE_ACCESS = {
   deals:          ["business","enterprise","owner"],
   stock:          ["business","enterprise","owner"],
   services:       ["business","enterprise","owner"],
-  notifications:  ["business","enterprise","owner"],
+  notifications:  ["starter","business","enterprise","owner"],
   signature:      ["business","enterprise","owner"],
   formation:      ["business","enterprise","owner"],
   // Enterprise (249€)
