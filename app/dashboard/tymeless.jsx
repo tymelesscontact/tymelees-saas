@@ -3379,7 +3379,7 @@ const RelanceIAWidget=({showToast})=>{
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
         {[["Email *","email"],["Prénom","prenom"],["Société","societe"],["Téléphone","tel"]].map(([l,k])=><div key={k}>
           <label style={{fontSize:10,color:C.muted,display:"block",marginBottom:3}}>{l}</label>
-          <input value={(contactForm as any)[k]} onChange={e=>setContactForm(f=>({...f,[k]:e.target.value}))} placeholder={l} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:5,padding:"6px 8px",color:C.text,fontSize:11,fontFamily:"inherit",width:"100%",boxSizing:"border-box" as any}}/>
+          <input value={contactForm[k]} onChange={e=>setContactForm(f=>({...f,[k]:e.target.value}))} placeholder={l} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:5,padding:"6px 8px",color:C.text,fontSize:11,fontFamily:"inherit",width:"100%",boxSizing:"border-box"}}/>
         </div>)}
         <div style={{gridColumn:"span 2"}}>
           <label style={{fontSize:10,color:C.muted,display:"block",marginBottom:3}}>Séquence *</label>
