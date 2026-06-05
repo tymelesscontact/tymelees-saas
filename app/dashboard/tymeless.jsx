@@ -3385,7 +3385,7 @@ const RelanceIAWidget=({showToast})=>{
           <label style={{fontSize:10,color:C.muted,display:"block",marginBottom:3}}>Séquence *</label>
           <select value={contactForm.sequenceId} onChange={e=>setContactForm(f=>({...f,sequenceId:e.target.value}))} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:5,padding:"6px 8px",color:C.text,fontSize:11,fontFamily:"inherit",width:"100%"}}>
             <option value="">Sélectionner une séquence...</option>
-            {sequences.map((s:any,i:number)=><option key={i} value={s.id}>{s.name}</option>)}
+            {sequences.map((s,i)=><option key={i} value={s.id}>{s.name}</option>)}
             {sequences.length===0&&<option value="default">Séquence par défaut</option>}
           </select>
         </div>
