@@ -7,7 +7,7 @@ const WA_BASE = `https://wa.me/${WA_NUMBER}`;
 
 const PLANS = [
   {
-    name: "Starter", price: "49",
+    name: "Starter", price: "59",
     desc: "Pour démarrer votre activité avec les outils essentiels.",
     color: "#c9a96e", highlight: false,
     features: ["3 modules au choix", "Wallet & Flutterwave inclus", "1 utilisateur", "Support WhatsApp"],
@@ -15,7 +15,7 @@ const PLANS = [
     cta: "Commencer gratuitement",
   },
   {
-    name: "Business Pro", price: "99",
+    name: "Business Pro", price: "129",
     desc: "Le plan complet pour les entreprises en croissance.",
     color: "#d4af6a", highlight: true,
     features: ["8 modules au choix", "Wallet + Cartes virtuelles", "Jusqu\u0027à 5 utilisateurs", "IA & Analytics inclus", "Support prioritaire"],
@@ -23,7 +23,7 @@ const PLANS = [
     cta: "Démarrer l\u0027essai",
   },
   {
-    name: "Enterprise", price: "150",
+    name: "Enterprise", price: "249",
     desc: "Pour les grandes structures et franchises multi-sites.",
     color: "#e8d5a3", highlight: false,
     features: ["Tous les modules", "Cartes VIP illimitées", "Utilisateurs illimités", "Prospection IA complète", "Support dédié 7j/7", "Configuration sur mesure"],
@@ -88,7 +88,7 @@ const COMPARE = [
   { feature: "Prospection IA automatique", us: "✓ Claude AI", b: "✗", c: "Limité", d: "✗" },
   { feature: "Cartes virtuelles équipe", us: "✓", b: "✗", c: "✗", d: "✗" },
   { feature: "Rapport WhatsApp auto", us: "✓", b: "✗", c: "✗", d: "✗" },
-  { feature: "Prix d\u0027entrée", us: "49 €/mois", b: "~15 €", c: "+800 €/mois", d: "Gratuit" },
+  { feature: "Prix d\u0027entrée", us: "59 €/mois", b: "~15 €", c: "+800 €/mois", d: "Gratuit" },
 ];
 
 const FAQS = [
@@ -135,7 +135,7 @@ export default function XyraLanding() {
   const stat1 = useCountUp(47, 1800, statsVisible);
   const stat2 = useCountUp(98, 1600, statsVisible);
   const stat3 = useCountUp(12, 1400, statsVisible);
-  const stat4 = useCountUp(49, 1200, statsVisible);
+  const stat4 = useCountUp(59, 1200, statsVisible);
 
   useEffect(() => {
     const observer = new IntersectionObserver(
