@@ -1158,12 +1158,20 @@ const TabFournisseurs=({showToast})=>{
 // ─── PAGE NOTE DE FRAIS ────────────────────────────────────────
 const PageNoteFrais=({plan,showToast})=>{
   const[onglet,setOnglet]=useState("saisie");
-  const[notes,setNotes]=useState([
-    {id:1,date:"2026-06-01",employe:"Thomas Martin",categorie:"Transport",marchand:"Uber",montant:34.50,tva:3.45,statut:"validé",justificatif:true,compteCpt:"625100",projet:"Client Dupont"},
-    {id:2,date:"2026-06-03",employe:"Fatou Diallo",categorie:"Repas",marchand:"Brasserie du Centre",montant:28.90,tva:2.89,statut:"en_attente",justificatif:true,compteCpt:"625700",projet:"Interne"},
-    {id:3,date:"2026-06-05",employe:"Abou Diallo",categorie:"Hébergement",marchand:"Ibis Hôtel Paris",montant:129.00,tva:12.90,statut:"en_attente",justificatif:true,compteCpt:"625600",projet:"Mission Dakar"},
-    {id:4,date:"2026-06-06",employe:"Thomas Martin",categorie:"Fournitures",marchand:"Bureau Vallée",montant:45.20,tva:7.53,statut:"refusé",justificatif:false,compteCpt:"606400",projet:"Interne"},
-  ]);
+  const[notes,setNotes]=useState([]);
+  const[loadingNotes,setLoadingNotes]=useState(true);
+
+  useEffect(()=>{
+    const load=async()=>{
+      try{
+        const res=await fetch('/api/notefrais?action=list');
+        const data=await res.json();
+        if(data.notes)setNotes(data.notes);
+      }catch(e){console.error('Notes frais:',e);}
+      setLoadingNotes(false);
+    };
+    load();
+  },[]);
   const[form,setForm]=useState({employe:"",date:"",categorie:"Transport",marchand:"",montant:"",tva:"",projet:"",notes:"",justificatif:false});
   const[scanning,setScanning]=useState(false);
   const[budget,setBudget]=useState({Transport:500,Repas:300,Hébergement:800,Fournitures:200,Télécom:150,Formation:1000,Autre:200});
@@ -1200,40 +1208,50 @@ const PageNoteFrais=({plan,showToast})=>{
     showToast("🤖 Lea a lu votre ticket — formulaire pré-rempli !");
   };
 
-  const soumettre=()=>{
+  const soumettre=async()=>{
     if(!form.employe||!form.montant||!form.date)return showToast("⚠️ Remplissez les champs obligatoires");
     const plafond=plafonds[form.categorie];
-    if(plafond&&parseFloat(form.montant)>plafond)showToast(`⚠️ Plafond légal dépassé — ${form.categorie} : ${plafond}€ max`);
-    const nouvelle={
-      id:Date.now(),
-      date:form.date,
-      employe:form.employe,
-      categorie:form.categorie,
-      marchand:form.marchand,
-      montant:parseFloat(form.montant)||0,
-      tva:parseFloat(form.tva)||0,
-      statut:"en_attente",
-      justificatif:form.justificatif,
-      compteCpt:comptes[form.categorie],
-      projet:form.projet,
-    };
-    setNotes(n=>[nouvelle,...n]);
-    setForm({employe:"",date:"",categorie:"Transport",marchand:"",montant:"",tva:"",projet:"",notes:"",justificatif:false});
-    showToast("✅ Note soumise — en attente de validation");
+    if(plafond&&parseFloat(form.montant)>plafond)showToast("⚠️ Plafond légal dépassé — "+form.categorie+" : "+plafond+"€ max");
+    try{
+      const res=await fetch('/api/notefrais',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          action:'create',
+          employe:form.employe,
+          date:form.date,
+          categorie:form.categorie,
+          marchand:form.marchand,
+          montant:parseFloat(form.montant)||0,
+          tva:parseFloat(form.tva)||0,
+          justificatif:form.justificatif,
+          compte_cpt:comptes[form.categorie],
+          projet:form.projet,
+        }),
+      });
+      const data=await res.json();
+      if(data.note){
+        setNotes(n=>[{...data.note,compteCpt:data.note.compte_cpt},...n]);
+        setForm({employe:"",date:"",categorie:"Transport",marchand:"",montant:"",tva:"",projet:"",notes:"",justificatif:false});
+        showToast("✅ Note soumise — en attente de validation");
+      }else{showToast("❌ Erreur lors de la soumission");}
+    }catch(e){showToast("❌ Erreur connexion");}
   };
 
-  const valider=(id)=>{
-    setNotes(n=>n.map(x=>x.id===id?{...x,statut:"validé"}:x));
-    showToast("✅ Note validée — écriture comptable créée automatiquement");
+  const updateStatut=async(id,statut,msg)=>{
+    try{
+      await fetch('/api/notefrais',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'update',id,statut}),
+      });
+      setNotes(n=>n.map(x=>x.id===id?{...x,statut}:x));
+      showToast(msg);
+    }catch(e){showToast("❌ Erreur");}
   };
-  const refuser=(id)=>{
-    setNotes(n=>n.map(x=>x.id===id?{...x,statut:"refusé"}:x));
-    showToast("❌ Note refusée");
-  };
-  const rembourser=(id)=>{
-    setNotes(n=>n.map(x=>x.id===id?{...x,statut:"remboursé"}:x));
-    showToast("💸 Remboursement effectué via Wallet Xyra");
-  };
+  const valider=(id)=>updateStatut(id,"validé","✅ Note validée — écriture comptable créée !");
+  const refuser=(id)=>updateStatut(id,"refusé","❌ Note refusée");
+  const rembourser=(id)=>updateStatut(id,"remboursé","💸 Remboursement effectué via Wallet Xyra");
 
   const exportFEC=()=>{
     const header="Date|Compte|Libelle|Montant|TVA";
