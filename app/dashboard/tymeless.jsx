@@ -1236,12 +1236,12 @@ const PageNoteFrais=({plan,showToast})=>{
   };
 
   const exportFEC=()=>{
+    const header="Date|Compte|Libelle|Montant|TVA";
     const lines=notes.filter(n=>n.statut==="validé").map(n=>
-      `${n.date.replace(/-/g,"")}|${n.compteCpt}|${n.marchand}|${n.montant}|${n.tva}`
-    ).join("
-");
-    const blob=new Blob([`Date|Compte|Libellé|Montant|TVA
-${lines}`],{type:"text/csv"});
+      n.date.replace(/-/g,"")+"|"+n.compteCpt+"|"+n.marchand+"|"+String(n.montant)+"|"+String(n.tva)
+    );
+    const csv=[header].concat(lines).join("\n");
+    const blob=new Blob([csv],{type:"text/csv"});
     const url=URL.createObjectURL(blob);
     const a=document.createElement("a");
     a.href=url;a.download="export_fec_xyra.csv";a.click();
