@@ -3770,7 +3770,7 @@ const PageLea=({showToast,leads,profil})=>{
 
 
 // ─── PAGE PROSPECTION ─────────────────────────────────────────
-const PageProspection=({plan,showToast})=>{
+const PageProspection=({plan,showToast,profil=null})=>{
   const[onglet,setOnglet]=useState("sirene");
   const[query,setQuery]=useState("");
   const[leads,setLeads]=useState([{nom:"Syndic Lebrun SARL",secteur:"Syndic",ville:"Créteil",tel:"01 45 67 89 01",email:"contact@lebrun.fr",score:88},{nom:"Cabinet Moreau Gestion",secteur:"Gestion immo",ville:"Ivry-sur-Seine",tel:"01 56 78 90 12",email:"info@moreau-gestion.fr",score:74},{nom:"Résidences du Val",secteur:"Bailleur social",ville:"Villejuif",tel:"01 67 89 01 23",email:"rh@residences-val.fr",score:91},{nom:"SCI Châtillon",secteur:"SCI / Investisseurs",ville:"Châtillon",tel:"01 78 90 12 34",email:"sci@chatillon.fr",score:67}]);
@@ -6199,7 +6199,7 @@ export default function Xyra() {
     scoring:<PageScoring plan={plan} showToast={showToast}/>,
     equipe:<PageEquipe plan={plan} showToast={showToast}/>,
     planning:<PagePlanning plan={plan} showToast={showToast} profil={profil}/>,
-    prospection:<PageProspection plan={plan} showToast={showToast}/>,
+    prospection:<PageProspection plan={plan} showToast={showToast} profil={profil}/>,
     deals:<PageDeals plan={plan} showToast={showToast}/>,
     stock:<PageStock plan={plan} showToast={showToast} profil={profil}/>,
     services:<PageServices plan={plan} showToast={showToast} profil={profil}/>,
