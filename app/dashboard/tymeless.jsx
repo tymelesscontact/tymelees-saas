@@ -3222,7 +3222,7 @@ const VapiWidget=({showToast,leads=[],profil,tenant})=>{
   const[loading,setLoading]=useState(false);
   const[activeCall,setActiveCall]=useState(null);
   const[onglet,setOnglet]=useState("appel");
-  const[prospectForm,setProspectForm]=useState({nom:"",tel:"",societe:"",secteur:profil?.label||"Services",service:""});
+  const[prospectForm,setProspectForm]=useState({nom:"",tel:"",societe:"",secteur:"Services",service:""});
   const[campagneActive,setCampagneActive]=useState(false);
   const[campagneProgress,setCampagneProgress]=useState(0);
 
@@ -3546,7 +3546,7 @@ const RelanceIAWidget=({showToast})=>{
 
 
 // ─── PAGE LEA — DASHBOARD AGENT VOCAL ────────────────────────
-const PageLea=({showToast,leads=[],profil})=>{
+const PageLea=({showToast,leads=[],profil=null})=>{
   const ASSISTANT_ID="715e757d-93e7-423a-a6f1-18a77bb19e94";
   const PHONE_ID="+12526754837";
 
@@ -3563,25 +3563,21 @@ const PageLea=({showToast,leads=[],profil})=>{
   // Charger données depuis Supabase
   const loadData=async()=>{
     try{
-      const {createClient}=await import('@supabase/supabase-js');
-      const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-      const[c,r]=await Promise.all([
-        sb.from('vapi_calls').select('*').order('started_at',{ascending:false}).limit(50),
-        sb.from('vapi_relances').select('*').order('prochaine_relance',{ascending:true}).limit(20),
-      ]);
-      if(c.data){
-        setCalls(c.data);
-        const termines=c.data.filter(x=>x.status==='ended');
+      const res=await fetch('/api/prospection?action=calls');
+      const data=await res.json();
+      if(data.calls&&Array.isArray(data.calls)){
+        const list=data.calls;
+        setCalls(list);
+        const termines=list.filter(x=>x.status==='ended');
         setStats({
-          total:c.data.length,
+          total:list.length,
           termines:termines.length,
-          rdv:c.data.filter(x=>x.rdv_detecte).length,
-          interesses:c.data.filter(x=>x.statut==='intéressé'||x.statut==='rdv_fixé').length,
+          rdv:list.filter(x=>x.endedReason==='customer-ended').length,
+          interesses:termines.filter(x=>(x.duration||0)>60).length,
           duree_moy:termines.length>0?Math.round(termines.reduce((a,x)=>a+(x.duration||0),0)/termines.length):0,
-          score_moy:termines.length>0?Math.round(termines.reduce((a,x)=>a+(x.score||0),0)/termines.length):0,
+          score_moy:termines.length>0?Math.round(termines.reduce((a,x)=>a+(x.duration||0)*0.3,0)/termines.length):0,
         });
       }
-      if(r.data)setRelances(r.data);
     }catch(e){console.error('Lea:',e);}
   };
 
