@@ -3546,52 +3546,31 @@ const RelanceIAWidget=({showToast})=>{
 
 
 // ─── PAGE LEA — DASHBOARD AGENT VOCAL ────────────────────────
-const PageLea=({showToast,leads=[],profil=null})=>{
+const PageLea=({showToast,leads,profil})=>{
   const ASSISTANT_ID="715e757d-93e7-423a-a6f1-18a77bb19e94";
   const PHONE_ID="+12526754837";
-
   const[calls,setCalls]=useState([]);
-  const[relances,setRelances]=useState([]);
   const[loading,setLoading]=useState(false);
+  const[activeCall,setActiveCall]=useState(null);
   const[onglet,setOnglet]=useState("appel");
   const[campagneActive,setCampagneActive]=useState(false);
   const[campagneProgress,setCampagneProgress]=useState(0);
-  const[activeCall,setActiveCall]=useState(null);
-  const[prospectForm,setProspectForm]=useState({nom:"",tel:"",societe:"",secteur:profil?.label||"Services",service:""});
-  const[stats,setStats]=useState({total:0,termines:0,rdv:0,interesses:0,duree_moy:0,score_moy:0});
-
-  // Charger données depuis Supabase
-  const loadData=async()=>{
-    try{
-      const res=await fetch('/api/prospection?action=calls');
-      const data=await res.json();
-      if(data.calls&&Array.isArray(data.calls)){
-        const list=data.calls;
-        setCalls(list);
-        const termines=list.filter(x=>x.status==='ended');
-        setStats({
-          total:list.length,
-          termines:termines.length,
-          rdv:list.filter(x=>x.endedReason==='customer-ended').length,
-          interesses:termines.filter(x=>(x.duration||0)>60).length,
-          duree_moy:termines.length>0?Math.round(termines.reduce((a,x)=>a+(x.duration||0),0)/termines.length):0,
-          score_moy:termines.length>0?Math.round(termines.reduce((a,x)=>a+(x.duration||0)*0.3,0)/termines.length):0,
-        });
-      }
-    }catch(e){console.error('Lea:',e);}
-  };
+  const[nom,setNom]=useState("");
+  const[tel,setTel]=useState("");
+  const[societe,setSociete]=useState("");
+  const[service,setService]=useState("");
+  const leadsValides=(leads||[]).filter(l=>l&&l.tel);
 
   useEffect(()=>{
-    loadData();
-    const interval=setInterval(loadData,15000);
-    return()=>clearInterval(interval);
+    fetch('/api/prospection?action=calls')
+      .then(r=>r.json())
+      .then(d=>{if(d&&d.calls&&Array.isArray(d.calls))setCalls(d.calls);})
+      .catch(e=>console.error(e));
   },[]);
 
-  // Lancer un appel
   const lancerAppel=async()=>{
-    if(!prospectForm.tel)return showToast("⚠️ Entrez le numéro de téléphone");
-    if(!prospectForm.nom)return showToast("⚠️ Entrez le nom du prospect");
-    if(!prospectForm.tel.startsWith('+'))return showToast("⚠️ Format international requis (+33...)");
+    if(!tel)return showToast("⚠️ Entrez le numéro");
+    if(!nom)return showToast("⚠️ Entrez le nom");
     setLoading(true);
     try{
       const res=await fetch('/api/prospection',{
@@ -3599,11 +3578,8 @@ const PageLea=({showToast,leads=[],profil=null})=>{
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
           action:'call',
-          tel:prospectForm.tel,
-          nom:prospectForm.nom,
-          societe:prospectForm.societe||prospectForm.nom,
-          secteur:prospectForm.secteur,
-          service:prospectForm.service,
+          tel,nom,societe:societe||nom,
+          service,secteur:profil?.label||"Services",
           phoneNumberId:PHONE_ID,
           assistantId:ASSISTANT_ID,
         }),
@@ -3611,19 +3587,17 @@ const PageLea=({showToast,leads=[],profil=null})=>{
       const data=await res.json();
       if(data.success){
         setActiveCall(data.call);
-        showToast(`🎙 Lea appelle ${prospectForm.nom} !`);
-        setProspectForm(f=>({...f,nom:'',tel:'',societe:'',service:''}));
-        setTimeout(loadData,5000);
+        showToast("🎙 Lea appelle "+nom+" !");
+        setNom("");setTel("");setSociete("");setService("");
       }else{
-        showToast("❌ Erreur : "+(data.error||"Vérifiez la config Vapi"));
+        showToast("❌ "+(data.error||"Erreur Vapi"));
       }
-    }catch(e){showToast("❌ Erreur connexion Vapi");}
+    }catch(e){showToast("❌ Erreur connexion");}
     setLoading(false);
   };
 
-  // Appeler un lead SIRENE
   const appellerLead=async(lead)=>{
-    if(!lead.tel)return showToast("⚠️ Ce lead n'a pas de numéro");
+    if(!lead.tel)return showToast("⚠️ Pas de numéro");
     setLoading(true);
     try{
       const res=await fetch('/api/prospection',{
@@ -3631,8 +3605,7 @@ const PageLea=({showToast,leads=[],profil=null})=>{
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
           action:'call',
-          tel:lead.tel,
-          nom:lead.nom,
+          tel:lead.tel,nom:lead.nom,
           societe:lead.nom,
           secteur:lead.secteur||profil?.label||"Services",
           service:profil?.services?.[0]||"",
@@ -3641,88 +3614,48 @@ const PageLea=({showToast,leads=[],profil=null})=>{
         }),
       });
       const data=await res.json();
-      if(data.success)showToast(`🎙 Lea appelle ${lead.nom} !`);
-      else showToast("❌ "+(data.error||"Erreur Vapi"));
-    }catch(e){showToast("❌ Erreur connexion");}
+      if(data.success)showToast("🎙 Lea appelle "+lead.nom+" !");
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur");}
     setLoading(false);
   };
 
-  // Campagne automatique
   const lancerCampagne=async()=>{
-    const leadsValides=leads.filter(l=>l.tel);
-    if(leadsValides.length===0)return showToast("⚠️ Aucun lead avec numéro — faites d'abord une recherche SIRENE");
+    if(leadsValides.length===0)return showToast("⚠️ Aucun lead avec numéro");
     setCampagneActive(true);
-    setCampagneProgress(0);
     let nb=0;
-    const batch=leadsValides.slice(0,10);
-    for(const lead of batch){
+    for(const lead of leadsValides.slice(0,10)){
       try{
-        await fetch('/api/prospection',{
-          method:'POST',
-          headers:{'Content-Type':'application/json'},
-          body:JSON.stringify({
-            action:'call',
-            tel:lead.tel,
-            nom:lead.nom,
-            societe:lead.nom,
-            secteur:lead.secteur||profil?.label||"Services",
-            service:profil?.services?.[0]||"",
-            phoneNumberId:PHONE_ID,
-            assistantId:ASSISTANT_ID,
-          }),
-        });
+        await fetch('/api/prospection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'call',tel:lead.tel,nom:lead.nom,societe:lead.nom,secteur:lead.secteur||"Services",service:"",phoneNumberId:PHONE_ID,assistantId:ASSISTANT_ID})});
         nb++;
-        setCampagneProgress(Math.round((nb/batch.length)*100));
+        setCampagneProgress(Math.round((nb/Math.min(10,leadsValides.length))*100));
         await new Promise(r=>setTimeout(r,2000));
       }catch(e){}
     }
     setCampagneActive(false);
-    showToast(`✅ Campagne terminée — ${nb} appels lancés par Lea !`);
-    setTimeout(loadData,3000);
+    setCampagneProgress(0);
+    showToast("✅ Campagne terminée — "+nb+" appels lancés !");
   };
 
-  // Relancer un prospect
-  const relancer=async(relance)=>{
-    await fetch('/api/prospection',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        action:'call',
-        tel:relance.prospect_number,
-        nom:relance.prospect_name,
-        societe:relance.prospect_name,
-        secteur:profil?.label||"Services",
-        service:profil?.services?.[0]||"",
-        phoneNumberId:PHONE_ID,
-        assistantId:ASSISTANT_ID,
-      }),
-    });
-    showToast(`🔄 Lea relance ${relance.prospect_name} !`);
-    setTimeout(loadData,3000);
-  };
+  const tabs=[{id:"appel",label:"📞 Appel direct"},{id:"leads",label:"🎯 Leads"},{id:"campagne",label:"🚀 Campagne"},{id:"historique",label:"📋 Historique"}];
 
-  const statutColor={rdv_fixé:C.green,intéressé:C.teal,pas_intéressé:C.red,à_relancer:C.orange};
-  const statutLabel={rdv_fixé:"📅 RDV fixé",intéressé:"✅ Intéressé",pas_intéressé:"❌ Pas intéressé",à_relancer:"🔄 À relancer"};
-  const tabs=[{id:"appel",label:"📞 Appel direct"},{id:"leads",label:"🎯 Leads SIRENE"},{id:"campagne",label:"🚀 Campagne"},{id:"relances",label:"🔄 Relances"},{id:"historique",label:"📋 Historique"},{id:"analytics",label:"📊 Analytics"}];
-
-  return <div>
-    {/* Header Lea */}
-    <div style={{background:`linear-gradient(135deg,${C.purple}22,${C.card})`,border:`1px solid ${C.purple}44`,borderRadius:16,padding:20,marginBottom:16,display:"flex",alignItems:"center",gap:16}}>
-      <div style={{width:64,height:64,borderRadius:"50%",background:`${C.purple}33`,border:`3px solid ${C.purple}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,flexShrink:0}}>🎙</div>
+  return <div style={{padding:4}}>
+    {/* Header */}
+    <div style={{background:`linear-gradient(135deg,${C.purple}22,${C.card})`,border:`1px solid ${C.purple}44`,borderRadius:14,padding:18,marginBottom:14,display:"flex",alignItems:"center",gap:14}}>
+      <div style={{width:56,height:56,borderRadius:"50%",background:`${C.purple}33`,border:`2px solid ${C.purple}`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:26,flexShrink:0}}>🎙</div>
       <div style={{flex:1}}>
-        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>Lea — Agent Vocal IA</div>
-        <div style={{fontSize:11,color:C.muted,marginBottom:8}}>Propulsé par Vapi · Multilingue · Appels sortants & entrants & relances</div>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <div style={{fontSize:10,background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`,borderRadius:20,padding:"3px 10px"}}>● Agent actif</div>
-          <div style={{fontSize:10,background:`${C.blue}22`,color:C.blue,border:`1px solid ${C.blue}44`,borderRadius:20,padding:"3px 10px"}}>📞 {PHONE_ID}</div>
-          <div style={{fontSize:10,background:`${C.gold}22`,color:C.gold,border:`1px solid ${C.gold}44`,borderRadius:20,padding:"3px 10px"}}>🌍 Multilingue auto</div>
-          <div style={{fontSize:10,background:`${C.purple}22`,color:C.purple,border:`1px solid ${C.purple}44`,borderRadius:20,padding:"3px 10px"}}>🤖 IA Anthropic</div>
+        <div style={{fontSize:16,fontWeight:700,color:C.text}}>Lea — Agent Vocal IA</div>
+        <div style={{fontSize:11,color:C.muted}}>Vapi · Multilingue · Sortant & Entrant & Relances</div>
+        <div style={{display:"flex",gap:6,marginTop:6,flexWrap:"wrap"}}>
+          <span style={{fontSize:10,background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`,borderRadius:20,padding:"2px 8px"}}>● Actif</span>
+          <span style={{fontSize:10,background:`${C.blue}22`,color:C.blue,border:`1px solid ${C.blue}44`,borderRadius:20,padding:"2px 8px"}}>📞 {PHONE_ID}</span>
+          <span style={{fontSize:10,background:`${C.gold}22`,color:C.gold,border:`1px solid ${C.gold}44`,borderRadius:20,padding:"2px 8px"}}>🌍 Multilingue auto</span>
         </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,flexShrink:0}}>
-        {[[stats.total,"Appels",C.blue],[stats.rdv,"RDV fixés",C.green],[stats.interesses,"Intéressés",C.teal],[stats.score_moy+"%","Score moy.",C.gold]].map(([v,l,c],i)=>(
-          <div key={i} style={{background:C.card2,borderRadius:8,padding:"8px 12px",textAlign:"center",border:`1px solid ${c}33`}}>
-            <div style={{fontSize:16,fontWeight:700,color:c}}>{v}</div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+        {[[calls.length,"Appels",C.blue],[calls.filter(c=>c.status==="ended").length,"Complétés",C.green]].map(([v,l,c],i)=>(
+          <div key={i} style={{background:C.card2,borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
+            <div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div>
             <div style={{fontSize:9,color:C.muted}}>{l}</div>
           </div>
         ))}
@@ -3730,239 +3663,111 @@ const PageLea=({showToast,leads=[],profil=null})=>{
     </div>
 
     {/* Appel en cours */}
-    {activeCall&&<div style={{background:`${C.green}11`,border:`1px solid ${C.green}44`,borderRadius:10,padding:14,marginBottom:14,display:"flex",alignItems:"center",gap:12}}>
-      <div style={{width:12,height:12,borderRadius:"50%",background:C.green,animation:"pulse 1s infinite"}}/>
-      <div style={{flex:1}}>
-        <div style={{fontSize:12,fontWeight:700,color:C.green}}>🎙 Lea est en appel maintenant</div>
-        <div style={{fontSize:10,color:C.muted}}>ID: {activeCall.id?.slice(0,16)}...</div>
-      </div>
-      <BtnGhost onClick={()=>setActiveCall(null)} style={{fontSize:10}}>✕</BtnGhost>
+    {activeCall&&<div style={{background:`${C.green}11`,border:`1px solid ${C.green}44`,borderRadius:8,padding:12,marginBottom:12,display:"flex",alignItems:"center",gap:10}}>
+      <div style={{width:10,height:10,borderRadius:"50%",background:C.green}}/>
+      <span style={{fontSize:12,color:C.green,fontWeight:600}}>🎙 Lea est en appel maintenant</span>
+      <BtnGhost onClick={()=>setActiveCall(null)} style={{marginLeft:"auto",fontSize:10}}>✕</BtnGhost>
     </div>}
 
     {/* Tabs */}
-    <div style={{display:"flex",gap:4,marginBottom:16,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
-      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{flex:1,minWidth:80,background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.purple:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"6px 4px",cursor:"pointer",fontSize:10,fontFamily:"inherit",fontWeight:onglet===t.id?700:400}}>{t.label}</button>)}
+    <div style={{display:"flex",gap:4,marginBottom:14,background:C.card2,borderRadius:8,padding:4}}>
+      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{flex:1,background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.purple:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"7px 4px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?700:400}}>{t.label}</button>)}
     </div>
 
-    {/* ── APPEL DIRECT ── */}
-    {onglet==="appel"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+    {/* APPEL DIRECT */}
+    {onglet==="appel"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
       <CT>
-        <STitle>📞 Lancer un appel avec Lea</STitle>
+        <STitle>📞 Lancer un appel</STitle>
         <div style={{display:"flex",flexDirection:"column",gap:10,marginBottom:12}}>
-          <div>
-            <label style={{fontSize:10,color:C.muted,display:"block",marginBottom:3}}>Nom du prospect *</label>
-            <Inp value={prospectForm.nom} onChange={e=>setProspectForm(f=>({...f,nom:e.target.value}))} placeholder="Ex: M. Dupont"/>
-          </div>
-          <div>
-            <label style={{fontSize:10,color:C.muted,display:"block",marginBottom:3}}>Téléphone * (format international)</label>
-            <Inp value={prospectForm.tel} onChange={e=>setProspectForm(f=>({...f,tel:e.target.value}))} placeholder="+33612345678"/>
-          </div>
-          <div>
-            <label style={{fontSize:10,color:C.muted,display:"block",marginBottom:3}}>Société</label>
-            <Inp value={prospectForm.societe} onChange={e=>setProspectForm(f=>({...f,societe:e.target.value}))} placeholder="Nom de la société"/>
-          </div>
-          <div>
-            <label style={{fontSize:10,color:C.muted,display:"block",marginBottom:3}}>Service à présenter</label>
-            <Inp value={prospectForm.service} onChange={e=>setProspectForm(f=>({...f,service:e.target.value}))} placeholder="Ex: Nettoyage bureaux"/>
-          </div>
+          <div><label style={{fontSize:10,color:C.muted,display:"block",marginBottom:3}}>Nom *</label><Inp value={nom} onChange={e=>setNom(e.target.value)} placeholder="M. Dupont"/></div>
+          <div><label style={{fontSize:10,color:C.muted,display:"block",marginBottom:3}}>Téléphone * (+33...)</label><Inp value={tel} onChange={e=>setTel(e.target.value)} placeholder="+33612345678"/></div>
+          <div><label style={{fontSize:10,color:C.muted,display:"block",marginBottom:3}}>Société</label><Inp value={societe} onChange={e=>setSociete(e.target.value)} placeholder="Nom de la société"/></div>
+          <div><label style={{fontSize:10,color:C.muted,display:"block",marginBottom:3}}>Service à présenter</label><Inp value={service} onChange={e=>setService(e.target.value)} placeholder="Ex: Nettoyage bureaux"/></div>
         </div>
-        <button onClick={lancerAppel} disabled={loading||!prospectForm.tel||!prospectForm.nom} style={{width:"100%",background:loading?C.muted:`linear-gradient(135deg,${C.purple},#6B3FCC)`,color:"#fff",border:"none",borderRadius:8,padding:"14px",cursor:loading?"not-allowed":"pointer",fontWeight:700,fontSize:14,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:10}}>
+        <button onClick={lancerAppel} disabled={loading||!tel||!nom} style={{width:"100%",background:loading||!tel||!nom?C.muted:`linear-gradient(135deg,${C.purple},#6B3FCC)`,color:"#fff",border:"none",borderRadius:8,padding:"13px",cursor:loading?"not-allowed":"pointer",fontWeight:700,fontSize:14,fontFamily:"inherit"}}>
           {loading?"⏳ Lea appelle...":"🎙 Lea appelle maintenant"}
         </button>
-        <div style={{marginTop:10,fontSize:10,color:C.muted,textAlign:"center"}}>
-          Lea se présente au nom de votre société · Détecte la langue automatiquement
-        </div>
       </CT>
-      <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        <CT style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
-          <STitle>🤖 Ce que fait Lea</STitle>
-          {["Se présente en votre nom","Qualifie les besoins","Présente votre offre","Gère les objections","Fixe un RDV concret","Parle dans la langue du prospect","Ne révèle jamais qu'elle est une IA"].map((f,i)=>(
-            <div key={i} style={{display:"flex",gap:8,fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}>
-              <span style={{color:C.purple}}>✦</span><span>{f}</span>
-            </div>
-          ))}
-        </CT>
-        <CT>
-          <STitle>📊 Derniers appels</STitle>
-          {calls.slice(0,4).map((c,i)=>(
-            <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}>
-              <span style={{fontWeight:600}}>{c.prospect_name||c.prospect_number||"—"}</span>
-              <span style={{color:statutColor[c.statut]||C.muted,fontSize:10}}>{statutLabel[c.statut]||c.status}</span>
-            </div>
-          ))}
-          {calls.length===0&&<div style={{color:C.muted,fontSize:11,textAlign:"center",padding:10}}>Aucun appel pour le moment</div>}
-        </CT>
-      </div>
-    </div>}
-
-    {/* ── LEADS SIRENE ── */}
-    {onglet==="leads"&&<div>
-      {leads.length===0?<div style={{textAlign:"center",padding:40,color:C.muted}}>
-        <div style={{fontSize:40,marginBottom:8}}>🎯</div>
-        <div style={{fontSize:13,fontWeight:700,marginBottom:4}}>Aucun lead disponible</div>
-        <div style={{fontSize:11}}>Faites d'abord une recherche SIRENE dans l'onglet "Leads"</div>
-      </div>:<div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <div style={{fontSize:11,color:C.muted}}>{leads.length} leads · {leads.filter(l=>l.tel).length} avec téléphone</div>
-          <Btn onClick={()=>setOnglet("campagne")} style={{fontSize:11,background:C.purple}}>🚀 Lancer campagne</Btn>
-        </div>
-        {leads.map((l,i)=>(
-          <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:C.card2,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${l.tel?C.border:C.red+"33"}`}}>
-            <div>
-              <div style={{fontSize:12,fontWeight:700}}>{l.nom}</div>
-              <div style={{fontSize:10,color:C.muted}}>{l.secteur} · {l.ville}</div>
-              <div style={{fontSize:10,color:l.tel?C.green:C.red,marginTop:2}}>{l.tel||"⚠️ Pas de numéro"}</div>
-            </div>
-            <div style={{display:"flex",gap:6,alignItems:"center"}}>
-              <div style={{fontSize:10,background:`${l.score>=80?C.green:C.gold}22`,color:l.score>=80?C.green:C.gold,border:`1px solid ${l.score>=80?C.green:C.gold}44`,borderRadius:20,padding:"2px 8px"}}>★ {l.score}</div>
-              <button onClick={()=>appellerLead(l)} disabled={loading||!l.tel} style={{background:l.tel?C.purple:"#333",color:"#fff",border:"none",borderRadius:6,padding:"6px 12px",cursor:l.tel?"pointer":"not-allowed",fontSize:11,fontFamily:"inherit",fontWeight:600,opacity:loading?0.5:1}}>🎙 Appeler</button>
-            </div>
+      <CT style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
+        <STitle>🤖 Ce que fait Lea</STitle>
+        {["Se présente en votre nom","Qualifie les besoins du prospect","Présente votre offre","Gère les objections","Fixe un RDV concret","Détecte la langue automatiquement","Ne révèle jamais être une IA","Relance si pas de réponse"].map((f,i)=>(
+          <div key={i} style={{display:"flex",gap:8,fontSize:11,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}>
+            <span style={{color:C.purple}}>✦</span><span style={{color:C.text}}>{f}</span>
           </div>
         ))}
-      </div>}
-    </div>}
-
-    {/* ── CAMPAGNE ── */}
-    {onglet==="campagne"&&<div>
-      <CT style={{marginBottom:12}}>
-        <STitle>🚀 Campagne d'appels automatique</STitle>
-        <div style={{fontSize:11,color:C.muted,lineHeight:1.8,marginBottom:14}}>
-          Lea appelle automatiquement jusqu'à <b style={{color:C.text}}>10 prospects</b> en séquence. Elle se présente en votre nom, qualifie, et fixe des RDV. 2 secondes entre chaque appel.
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
-          <CT style={{textAlign:"center",borderColor:`${C.blue}33`}}><div style={{fontSize:9,color:C.muted}}>Leads dispo</div><div style={{fontSize:22,fontWeight:700,color:C.blue}}>{leads.length}</div></CT>
-          <CT style={{textAlign:"center",borderColor:`${C.green}33`}}><div style={{fontSize:9,color:C.muted}}>Avec tél</div><div style={{fontSize:22,fontWeight:700,color:C.green}}>{leads.filter(l=>l.tel).length}</div></CT>
-          <CT style={{textAlign:"center",borderColor:`${C.gold}33`}}><div style={{fontSize:9,color:C.muted}}>Max campagne</div><div style={{fontSize:22,fontWeight:700,color:C.gold}}>10</div></CT>
-        </div>
-        {campagneActive&&<div style={{marginBottom:14}}>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:6}}>
-            <span style={{color:C.purple,fontWeight:600}}>🎙 Campagne en cours...</span>
-            <span style={{color:C.muted}}>{campagneProgress}%</span>
-          </div>
-          <div style={{height:10,background:C.border,borderRadius:5,overflow:"hidden"}}>
-            <div style={{height:"100%",width:campagneProgress+"%",background:`linear-gradient(90deg,${C.purple},#9B5FFF)`,borderRadius:5,transition:"width .5s"}}/>
-          </div>
-        </div>}
-        <button onClick={lancerCampagne} disabled={campagneActive||leads.filter(l=>l.tel).length===0} style={{width:"100%",background:campagneActive?C.muted:`linear-gradient(135deg,${C.purple},#6B3FCC)`,color:"#fff",border:"none",borderRadius:8,padding:"14px",cursor:campagneActive||leads.filter(l=>l.tel).length===0?"not-allowed":"pointer",fontWeight:700,fontSize:14,fontFamily:"inherit"}}>
-          {campagneActive?`⏳ Campagne en cours — ${campagneProgress}%`:`🚀 Lancer campagne (${Math.min(10,leads.filter(l=>l.tel).length)} appels)`}
-        </button>
       </CT>
-      {leads.filter(l=>l.tel).length===0&&<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:12,fontSize:11,color:C.orange}}>
-        ⚠️ Aucun lead avec numéro. Allez dans l'onglet SIRENE, faites une recherche et les leads apparaîtront ici.
-      </div>}
     </div>}
 
-    {/* ── RELANCES ── */}
-    {onglet==="relances"&&<div>
-      <div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:10,padding:14,marginBottom:14}}>
-        <div style={{fontSize:10,color:C.orange,fontWeight:600,marginBottom:4}}>🔄 RELANCES AUTOMATIQUES</div>
-        <div style={{fontSize:11,color:C.text,lineHeight:1.7}}>Quand Lea n'arrive pas à joindre un prospect, elle planifie automatiquement une relance 2h après puis le lendemain.</div>
-      </div>
-      {relances.length===0?<div style={{textAlign:"center",padding:30,color:C.muted}}>
-        <div style={{fontSize:32,marginBottom:8}}>✅</div>
-        <div>Aucune relance planifiée pour le moment</div>
-      </div>:relances.map((r,i)=>(
-        <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:C.card2,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${C.orange}33`}}>
+    {/* LEADS */}
+    {onglet==="leads"&&<div>
+      {leadsValides.length===0?<div style={{textAlign:"center",padding:40,color:C.muted}}>
+        <div style={{fontSize:36,marginBottom:8}}>🎯</div>
+        <div style={{fontWeight:600,marginBottom:4}}>Aucun lead avec numéro</div>
+        <div style={{fontSize:11}}>Faites une recherche SIRENE dans l'onglet ci-dessus</div>
+      </div>:(leads||[]).map((l,i)=>(
+        <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:C.card2,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${l.tel?C.border:C.red+"33"}`}}>
           <div>
-            <div style={{fontSize:12,fontWeight:700}}>{r.prospect_name}</div>
-            <div style={{fontSize:10,color:C.muted}}>{r.prospect_number}</div>
-            <div style={{fontSize:10,color:C.orange}}>Tentative {r.tentatives} · Relance : {r.prochaine_relance?new Date(r.prochaine_relance).toLocaleString("fr"):"—"}</div>
+            <div style={{fontSize:12,fontWeight:700}}>{l.nom}</div>
+            <div style={{fontSize:10,color:C.muted}}>{l.secteur} · {l.ville}</div>
+            <div style={{fontSize:10,color:l.tel?C.green:C.red}}>{l.tel||"⚠️ Pas de numéro"}</div>
           </div>
-          <div style={{display:"flex",gap:6}}>
-            <Btn onClick={()=>relancer(r)} style={{fontSize:10,padding:"5px 10px",background:C.orange}}>🔄 Relancer</Btn>
-            <BtnGhost onClick={()=>showToast("✅ Relance annulée")} style={{fontSize:10}}>✕</BtnGhost>
-          </div>
+          <button onClick={()=>appellerLead(l)} disabled={loading||!l.tel} style={{background:l.tel?C.purple:"#333",color:"#fff",border:"none",borderRadius:6,padding:"7px 14px",cursor:l.tel?"pointer":"not-allowed",fontSize:11,fontFamily:"inherit",fontWeight:600}}>🎙 Appeler</button>
         </div>
       ))}
     </div>}
 
-    {/* ── HISTORIQUE ── */}
+    {/* CAMPAGNE */}
+    {onglet==="campagne"&&<CT>
+      <STitle>🚀 Campagne automatique</STitle>
+      <div style={{fontSize:11,color:C.muted,lineHeight:1.8,marginBottom:14}}>
+        Lea appelle automatiquement jusqu'à <b style={{color:C.text}}>10 leads</b> en séquence. 2 secondes entre chaque appel.
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:14}}>
+        <div style={{background:C.card,borderRadius:8,padding:12,textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:C.blue}}>{(leads||[]).length}</div><div style={{fontSize:9,color:C.muted}}>Leads total</div></div>
+        <div style={{background:C.card,borderRadius:8,padding:12,textAlign:"center"}}><div style={{fontSize:20,fontWeight:700,color:C.green}}>{leadsValides.length}</div><div style={{fontSize:9,color:C.muted}}>Avec téléphone</div></div>
+      </div>
+      {campagneActive&&<div style={{marginBottom:12}}>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}>
+          <span style={{color:C.purple,fontWeight:600}}>🎙 Campagne en cours...</span>
+          <span>{campagneProgress}%</span>
+        </div>
+        <div style={{height:8,background:C.border,borderRadius:4,overflow:"hidden"}}>
+          <div style={{height:"100%",width:campagneProgress+"%",background:C.purple,borderRadius:4,transition:"width .5s"}}/>
+        </div>
+      </div>}
+      <button onClick={lancerCampagne} disabled={campagneActive||leadsValides.length===0} style={{width:"100%",background:campagneActive||leadsValides.length===0?C.muted:`linear-gradient(135deg,${C.purple},#6B3FCC)`,color:"#fff",border:"none",borderRadius:8,padding:"13px",cursor:"pointer",fontWeight:700,fontSize:14,fontFamily:"inherit"}}>
+        {campagneActive?`⏳ ${campagneProgress}%`:`🚀 Lancer (${Math.min(10,leadsValides.length)} appels)`}
+      </button>
+    </CT>}
+
+    {/* HISTORIQUE */}
     {onglet==="historique"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
-        <KPI label="Total appels" val={stats.total} color={C.blue}/>
-        <KPI label="Complétés" val={stats.termines} color={C.green}/>
-        <KPI label="RDV fixés" val={stats.rdv} color={C.gold}/>
-        <KPI label="Durée moy." val={stats.duree_moy+"s"} color={C.purple}/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:12}}>
+        <CT style={{textAlign:"center"}}><div style={{fontSize:22,fontWeight:700,color:C.blue}}>{calls.length}</div><div style={{fontSize:9,color:C.muted}}>Total</div></CT>
+        <CT style={{textAlign:"center"}}><div style={{fontSize:22,fontWeight:700,color:C.green}}>{calls.filter(c=>c.status==="ended").length}</div><div style={{fontSize:9,color:C.muted}}>Complétés</div></CT>
+        <CT style={{textAlign:"center"}}><div style={{fontSize:22,fontWeight:700,color:C.gold}}>{calls.length>0?Math.round(calls.filter(c=>c.duration).reduce((a,c)=>a+(c.duration||0),0)/Math.max(1,calls.filter(c=>c.duration).length))+"s":"—"}</div><div style={{fontSize:9,color:C.muted}}>Durée moy.</div></CT>
       </div>
       {calls.length===0?<div style={{textAlign:"center",padding:40,color:C.muted}}>
         <div style={{fontSize:32,marginBottom:8}}>📋</div>
-        <div>Aucun appel pour le moment. Lancez votre premier appel !</div>
+        <div>Aucun appel pour le moment</div>
       </div>:<Card>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Prospect</TH><TH>Numéro</TH><TH>Date</TH><TH>Durée</TH><TH>Score</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
-          <tbody>{calls.map((c,i)=>(
+          <thead><tr><TH>Prospect</TH><TH>Numéro</TH><TH>Date</TH><TH>Durée</TH><TH>Statut</TH></tr></thead>
+          <tbody>{calls.slice(0,20).map((c,i)=>(
             <tr key={i}>
-              <Td style={{fontWeight:600}}>{c.prospect_name||"—"}</Td>
-              <Td style={{fontSize:10,color:C.muted,fontFamily:"monospace"}}>{c.prospect_number||"—"}</Td>
-              <Td style={{fontSize:10,color:C.muted}}>{c.started_at?new Date(c.started_at).toLocaleString("fr"):"—"}</Td>
+              <Td style={{fontWeight:600}}>{c.customer?.name||"—"}</Td>
+              <Td style={{fontSize:10,color:C.muted}}>{c.customer?.number||"—"}</Td>
+              <Td style={{fontSize:10,color:C.muted}}>{c.createdAt?new Date(c.createdAt).toLocaleString("fr"):"—"}</Td>
               <Td style={{color:C.blue}}>{c.duration?c.duration+"s":"—"}</Td>
-              <Td>
-                {c.score?<div style={{display:"flex",alignItems:"center",gap:4}}>
-                  <div style={{width:30,height:4,background:C.border,borderRadius:2,overflow:"hidden"}}>
-                    <div style={{height:"100%",width:c.score+"%",background:c.score>=70?C.green:c.score>=40?C.gold:C.red}}/>
-                  </div>
-                  <span style={{fontSize:10,color:c.score>=70?C.green:c.score>=40?C.gold:C.red}}>{c.score}</span>
-                </div>:"—"}
-              </Td>
-              <Td><Pill color={statutColor[c.statut]||C.muted}>{statutLabel[c.statut]||c.status||"—"}</Pill></Td>
-              <Td><div style={{display:"flex",gap:4}}>
-                {c.transcript&&<BtnGhost onClick={()=>showToast("📋 Transcription : "+c.transcript.slice(0,100)+"...")} style={{fontSize:9,padding:"3px 6px"}}>📋</BtnGhost>}
-                {(c.statut==="à_relancer"||!c.statut)&&<Btn onClick={()=>relancer({prospect_number:c.prospect_number,prospect_name:c.prospect_name})} style={{fontSize:9,padding:"3px 6px",background:C.orange}}>🔄</Btn>}
-              </div></Td>
+              <Td><Pill color={c.status==="ended"?C.green:c.status==="in-progress"?C.gold:C.muted}>{c.status==="ended"?"✓ Terminé":c.status==="in-progress"?"● En cours":c.status||"—"}</Pill></Td>
             </tr>
           ))}</tbody>
         </table>
       </Card>}
     </div>}
-
-    {/* ── ANALYTICS ── */}
-    {onglet==="analytics"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-        <Card>
-          <STitle>📊 Performance Lea</STitle>
-          {[
-            ["Taux de décrochage",calls.length>0?Math.round((calls.filter(c=>c.duration>10).length/calls.length)*100)+"%":"—",C.green],
-            ["Taux conversion RDV",calls.length>0?Math.round((stats.rdv/calls.length)*100)+"%":"—",C.gold],
-            ["Score moyen",stats.score_moy+"/100",C.purple],
-            ["Durée moy. appel",stats.duree_moy+"s",C.blue],
-            ["Intéressés",stats.interesses+" prospects",C.teal],
-          ].map(([l,v,c],i)=>(
-            <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
-              <span style={{color:C.muted}}>{l}</span>
-              <span style={{color:c,fontWeight:700}}>{v}</span>
-            </div>
-          ))}
-        </Card>
-        <Card>
-          <STitle>🎯 Répartition des résultats</STitle>
-          {[
-            ["📅 RDV fixés",calls.filter(c=>c.statut==="rdv_fixé").length,C.green],
-            ["✅ Intéressés",calls.filter(c=>c.statut==="intéressé").length,C.teal],
-            ["🔄 À relancer",calls.filter(c=>c.statut==="à_relancer").length,C.orange],
-            ["❌ Pas intéressés",calls.filter(c=>c.statut==="pas_intéressé").length,C.red],
-          ].map(([l,v,c],i)=>(
-            <div key={i} style={{marginBottom:10}}>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}>
-                <span>{l}</span>
-                <span style={{color:c,fontWeight:700}}>{v}</span>
-              </div>
-              <SM val={v} max={Math.max(1,calls.length)} color={c}/>
-            </div>
-          ))}
-        </Card>
-      </div>
-      <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
-        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:8}}>🤖 Recommandations IA</div>
-        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>
-          {stats.total===0?"Lancez votre premier appel pour obtenir des recommandations personnalisées.":
-          stats.rdv/Math.max(1,stats.total)>0.3?"🟢 Excellent taux de RDV ! Lea performe très bien. Augmentez le volume de campagne.":
-          stats.duree_moy<30?"⚠️ Les appels sont courts. Vérifiez que les numéros sont corrects et que le script est bien configuré dans Vapi.":
-          "📈 Taux de conversion correct. Essayez d'appeler entre 10h-12h et 14h-17h pour améliorer le taux de décrochage."}
-        </div>
-      </Card>
-    </div>}
   </div>;
 };
+
 
 // ─── PAGE PROSPECTION ─────────────────────────────────────────
 const PageProspection=({plan,showToast})=>{
