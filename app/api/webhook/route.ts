@@ -76,6 +76,10 @@ IMPORTANT : Le tag [DEVIS_READY|...] doit TOUJOURS être présent dans ta répon
 
 ---
 
+## NOTES DE FRAIS PAR PHOTO
+Si un employé envoie une photo de ticket/facture avec le mot "note de frais" ou "ticket", confirme :
+"✅ Ticket reçu ! Note de frais créée automatiquement dans Xyra — en attente de validation."
+
 ## RÈGLES GÉNÉRALES
 - Utiliser "nous" pour parler de Tymeless, jamais "je"
 - Phrases courtes — max 5-6 lignes par message
@@ -112,14 +116,93 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json()
   const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]
-  if (!message || message.type !== 'text') {
+  if (!message) return NextResponse.json({ status: 'ok' })
+
+  const userPhone = message.from
+
+  // ── GESTION IMAGES (tickets de caisse) ──────────────────────
+  if (message.type === 'image' && userPhone !== OWNER_PHONE) {
+    const mediaId = message.image?.id
+    if (mediaId) {
+      try {
+        // 1. Récupérer l'URL de l'image
+        const mediaRes = await fetch(`https://graph.facebook.com/v22.0/${mediaId}`, {
+          headers: { 'Authorization': `Bearer ${WHATSAPP_TOKEN}` }
+        })
+        const mediaData = await mediaRes.json()
+
+        // 2. Télécharger l'image
+        const imgRes = await fetch(mediaData.url, {
+          headers: { 'Authorization': `Bearer ${WHATSAPP_TOKEN}` }
+        })
+        const base64 = Buffer.from(await imgRes.arrayBuffer()).toString('base64')
+        const mediaType = imgRes.headers.get('content-type') || 'image/jpeg'
+
+        // 3. Envoyer à Claude Vision
+        const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'x-api-key': ANTHROPIC_API_KEY!,
+            'anthropic-version': '2023-06-01'
+          },
+          body: JSON.stringify({
+            model: 'claude-sonnet-4-20250514',
+            max_tokens: 500,
+            messages: [{
+              role: 'user',
+              content: [
+                { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+                { type: 'text', text: 'Analyse ce ticket de caisse ou facture. Réponds UNIQUEMENT en JSON sans texte avant ou après : {"marchand":"...","date":"YYYY-MM-DD","montant_ttc":0,"tva":0,"categorie":"Transport ou Repas ou Hébergement ou Fournitures ou Télécom ou Formation ou Autre"}' }
+              ]
+            }]
+          })
+        })
+
+        const claudeData = await claudeRes.json()
+        const text = claudeData.content?.[0]?.text || '{}'
+        const ticket = JSON.parse(text.replace(/```json|```/g, '').trim())
+
+        if (ticket.montant_ttc) {
+          const comptes: Record<string, string> = {
+            Transport: '625100', Repas: '625700', Hébergement: '625600',
+            Fournitures: '606400', Télécom: '626000', Formation: '628100', Autre: '625800'
+          }
+          await supabase.from('notes_frais').insert({
+            employe: userPhone,
+            date: ticket.date || new Date().toISOString().slice(0, 10),
+            categorie: ticket.categorie || 'Autre',
+            marchand: ticket.marchand || '—',
+            montant: ticket.montant_ttc,
+            tva: ticket.tva || 0,
+            statut: 'en_attente',
+            justificatif: true,
+            compte_cpt: comptes[ticket.categorie] || '625800',
+          })
+          await sendWhatsApp(userPhone,
+            `✅ Ticket analysé par Lea !\n\n` +
+            `📋 ${ticket.marchand || '—'}\n` +
+            `💰 ${ticket.montant_ttc}€ (TVA : ${ticket.tva || 0}€)\n` +
+            `🗂 ${ticket.categorie}\n\n` +
+            `Note de frais créée dans Xyra — en attente de validation. 🙏`
+          )
+        } else {
+          await sendWhatsApp(userPhone, '⚠️ Ticket difficile à lire. Envoyez une photo plus nette stp.')
+        }
+      } catch (e) {
+        console.error('OCR error:', e)
+        await sendWhatsApp(userPhone, '⚠️ Erreur lors de la lecture du ticket. Réessayez.')
+      }
+    }
     return NextResponse.json({ status: 'ok' })
   }
 
-  const userMessage = message.text.body
-  const userPhone = message.from
+  // ── MESSAGES TEXTE UNIQUEMENT ────────────────────────────────
+  if (message.type !== 'text') return NextResponse.json({ status: 'ok' })
 
-  // ✅ Validation devis par Béné (OWNER)
+  const userMessage = message.text.body
+
+  // ✅ Validation devis par l'OWNER
   if (userPhone === OWNER_PHONE) {
     const ouiMatch = userMessage.match(/^OUI\s+(TYM-\d+)/i)
     const nonMatch = userMessage.match(/^NON\s+(TYM-\d+)/i)
@@ -156,13 +239,10 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ status: 'ok' })
     }
 
-    // Si le message owner ne correspond pas à OUI/NON → on sort sans répondre
     return NextResponse.json({ status: 'ok' })
   }
 
-  // ✅ Traitement client normal (tout ce qui suit ne s'exécute QUE pour les clients)
-
-  // Recherche ou création client
+  // ✅ Traitement client normal
   let client: any = null
   const { data: existing } = await supabase
     .from('conduit')
@@ -181,7 +261,6 @@ export async function POST(req: NextRequest) {
     client = newClient
   }
 
-  // Construire l'historique de conversation
   let conversationHistory: { role: string; content: string }[] = []
   if (client?.historique) {
     try {
@@ -215,7 +294,6 @@ export async function POST(req: NextRequest) {
     const claudeData = await claudeRes.json()
     let reply = claudeData.content?.[0]?.text || "Désolé, je n'ai pas pu traiter votre message."
 
-    // Détecter confirmation devis
     const devisMatch = reply.match(/\[DEVIS_READY\|service=([^|]+)\|description=([^|]+)\|montant=([^|]+)\|recap=([^\]]+)\]/)
     if (devisMatch) {
       const service = devisMatch[1]
@@ -236,7 +314,6 @@ export async function POST(req: NextRequest) {
         description: description,
         montant: parseFloat(montant.toString().replace(/[^0-9.]/g, '')) || 0,
         statut: 'en_attente',
-        
       })
 
       await sendWhatsApp(

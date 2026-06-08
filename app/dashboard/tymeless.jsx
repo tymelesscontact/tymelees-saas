@@ -1193,19 +1193,41 @@ const PageNoteFrais=({plan,showToast})=>{
     {id:"politique",label:"⚙️ Politique"},
   ];
 
-  // OCR simulation via IA
-  const scanTicket=async()=>{
+  // OCR réel via Claude Vision
+  const fileInputRef=useRef(null);
+
+  const scanTicket=()=>{
+    if(fileInputRef.current)fileInputRef.current.click();
+  };
+
+  const handleFile=async(e)=>{
+    const file=e.target.files?.[0];
+    if(!file)return;
     setScanning(true);
-    await new Promise(r=>setTimeout(r,2000));
-    setForm(f=>({...f,
-      marchand:"Uber France",
-      montant:"34.50",
-      tva:"3.45",
-      categorie:"Transport",
-      date:new Date().toISOString().slice(0,10),
-    }));
+    try{
+      const fd=new FormData();
+      fd.append('image',file);
+      const res=await fetch('/api/ocr',{method:'POST',body:fd});
+      const data=await res.json();
+      if(data.success&&data.data){
+        const d=data.data;
+        setForm(f=>({...f,
+          marchand:d.marchand||f.marchand,
+          montant:d.montant_ttc?String(d.montant_ttc):f.montant,
+          tva:d.tva?String(d.tva):f.tva,
+          categorie:d.categorie||f.categorie,
+          date:d.date||new Date().toISOString().slice(0,10),
+          justificatif:true,
+        }));
+        showToast("🤖 Lea a lu votre ticket ! Score de confiance : "+(d.confiance||"—")+"%");
+      }else{
+        showToast("⚠️ Ticket illisible — remplissez manuellement");
+      }
+    }catch(err){
+      showToast("❌ Erreur OCR — vérifiez la connexion");
+    }
     setScanning(false);
-    showToast("🤖 Lea a lu votre ticket — formulaire pré-rempli !");
+    e.target.value="";
   };
 
   const soumettre=async()=>{
@@ -1320,15 +1342,16 @@ const PageNoteFrais=({plan,showToast})=>{
         <STitle>➕ Nouvelle note de frais</STitle>
 
         {/* Scan ticket */}
+        <input ref={fileInputRef} type="file" accept="image/*,application/pdf" style={{display:"none"}} onChange={handleFile}/>
         <div style={{background:`${C.purple}11`,border:`2px dashed ${C.purple}44`,borderRadius:10,padding:16,marginBottom:14,textAlign:"center",cursor:"pointer"}} onClick={scanTicket}>
           {scanning?<div>
             <div style={{fontSize:24,marginBottom:6}}>🔍</div>
             <div style={{fontSize:12,color:C.purple,fontWeight:600}}>Lea analyse votre ticket...</div>
-            <div style={{fontSize:10,color:C.muted,marginTop:4}}>OCR + IA en cours</div>
+            <div style={{fontSize:10,color:C.muted,marginTop:4}}>Claude Vision · OCR + IA en cours</div>
           </div>:<div>
             <div style={{fontSize:28,marginBottom:6}}>📸</div>
             <div style={{fontSize:12,color:C.purple,fontWeight:600}}>Scanner un ticket</div>
-            <div style={{fontSize:10,color:C.muted,marginTop:4}}>Photo ou PDF · Lea remplit automatiquement</div>
+            <div style={{fontSize:10,color:C.muted,marginTop:4}}>Photo ou PDF · Lea lit et remplit automatiquement</div>
           </div>}
         </div>
 
