@@ -11,12 +11,10 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const secret = req.headers.get('x-swan-secret');
     
-    // Vérification du secret Swan
     if (secret !== process.env.SWAN_WEBHOOK_SECRET) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    // Enregistrer l'événement dans Supabase
     await supabase.from('swan_events').insert({
       type: body.type,
       payload: body,
@@ -30,6 +28,6 @@ export async function POST(req: NextRequest) {
   }
 }
 
-export async function GET() {
-  return NextResponse.json({ status: 'Swan webhook active' });
+export async function GET(req: NextRequest) {
+  return new NextResponse('OK', { status: 200 });
 }
