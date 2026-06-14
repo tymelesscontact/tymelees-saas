@@ -7,26 +7,33 @@ export async function POST(req: NextRequest) {
     const { default: Stripe } = await import('stripe');
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' });
 
-    const { plan, email, societe } = await req.json();
+    const body = await req.json();
+    console.log('Body reçu:', body); // Pour débugger
+    
+    const plan = body.plan || 'starter';
+    const email = body.email || '';
+    const societe = body.societe || '';
 
     const PLANS: Record<string, { name: string; amount: number }> = {
-      starter:   { name: 'Xyra Starter',      amount: 5900  },
-      business:  { name: 'Xyra Business Pro', amount: 12900 },
-      enterprise:{ name: 'Xyra Enterprise',   amount: 24900 },
+      starter:    { name: 'Xyra Starter',      amount: 5900  },
+      business:   { name: 'Xyra Business Pro', amount: 12900 },
+      enterprise: { name: 'Xyra Enterprise',   amount: 24900 },
     };
 
-    const planData = PLANS[plan];
-    if (!planData) return NextResponse.json({ error: 'Plan invalide' }, { status: 400 });
+    const planData = PLANS[plan] || PLANS.starter;
 
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'subscription',
-      customer_email: email,
+      customer_email: email || undefined,
       metadata: { societe, plan },
       line_items: [{
         price_data: {
           currency: 'eur',
-          product_data: { name: planData.name, description: `Abonnement mensuel Xyra — ${societe}` },
+          product_data: { 
+            name: planData.name, 
+            description: `Abonnement mensuel Xyra — ${societe}` 
+          },
           unit_amount: planData.amount,
           recurring: { interval: 'month' },
         },
