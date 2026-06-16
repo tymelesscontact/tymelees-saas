@@ -855,15 +855,70 @@ const PageDevis=({plan,showToast,profil})=>{
   const supprimerLigne=(i)=>setLignes(ls=>ls.filter((_,j)=>j!==i));
   const updateLigne=(i,k,v)=>setLignes(ls=>ls.map((l,j)=>j===i?{...l,[k]:v}:l));
 
-  const creerDevis=()=>{
+  const creerDevis=(statut="brouillon")=>{
     if(!form.client)return showToast("⚠️ Remplissez le nom du client");
     const id=`TYM-${String(50+devis.length).padStart(4,"0")}`;
-    const nd={id,client:form.client,email:form.email,tel:form.tel,service:form.objet||MODELES.find(m=>m.id===modeleId)?.label,montant:Math.round(totalTTC),statut:"brouillon",date:new Date().toLocaleDateString("fr"),lignes:[...lignes],remise:form.remise,note:form.note,vu:false};
+    const nd={id,client:form.client,email:form.email,tel:form.tel,service:form.objet||MODELES.find(m=>m.id===modeleId)?.label,montant:Math.round(totalTTC),statut,date:new Date().toLocaleDateString("fr"),lignes:[...lignes],remise:form.remise,note:form.note,vu:false};
     setDevis(d=>[nd,...d]);
+    return nd;
+  };
+
+  const resetForm=()=>{
     setForm({client:"",email:"",tel:"",adresse:"",objet:"",validite:"30",remise:0,note:""});
     setLignes(MODELES[0].lignes.map(l=>({...l})));
-    showToast(`✅ Devis ${id} créé !`);
     setOnglet("liste");
+  };
+
+  const apercuPDF=()=>{
+    if(!form.client)return showToast("⚠️ Remplissez le nom du client");
+    const win=window.open("","_blank");
+    if(!win)return showToast("⚠️ Autorisez les pop-ups pour voir l'aperçu");
+    const lignesHtml=lignes.map(l=>`<tr><td style="padding:8px 0;border-bottom:1px solid #1E1E3633;">${l.desc}</td><td style="padding:8px 0;text-align:center;border-bottom:1px solid #1E1E3633;">${l.qte}</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #1E1E3633;">${l.pu}€</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #1E1E3633;">${(l.qte*l.pu).toFixed(2)}€</td></tr>`).join("");
+    win.document.write(`<!DOCTYPE html><html><head><title>Devis — ${form.client}</title><style>
+      body{font-family:'Segoe UI',sans-serif;background:#fff;color:#111;padding:40px;max-width:700px;margin:0 auto;}
+      h1{font-size:22px;color:#C9A84C;font-family:Georgia,serif;letter-spacing:.1em;}
+      table{width:100%;border-collapse:collapse;font-size:13px;margin-top:20px;}
+      th{text-align:left;padding-bottom:8px;color:#888;border-bottom:2px solid #ddd;}
+      .total{text-align:right;margin-top:20px;font-size:20px;font-weight:700;color:#C9A84C;}
+      .btn{background:#C9A84C;color:#000;border:none;padding:10px 24px;border-radius:6px;font-weight:700;cursor:pointer;margin-top:30px;}
+      @media print{.btn{display:none;}}
+    </style></head><body>
+      <h1>XYRA</h1>
+      <p style="color:#888;font-size:11px;">Devis pour ${form.client}${form.email?" · "+form.email:""}${form.tel?" · "+form.tel:""}</p>
+      <h2 style="margin-top:20px;">${form.objet||MODELES.find(m=>m.id===modeleId)?.label||"Devis"}</h2>
+      <table><tr><th>Description</th><th>Qté</th><th style="text-align:right;">PU</th><th style="text-align:right;">Total</th></tr>${lignesHtml}</table>
+      <div class="total">Total TTC : ${totalTTC.toFixed(2)}€</div>
+      ${form.note?`<p style="margin-top:16px;color:#666;font-size:12px;">${form.note}</p>`:""}
+      <button class="btn" onclick="window.print()">🖨 Imprimer / Enregistrer en PDF</button>
+    </body></html>`);
+    win.document.close();
+  };
+
+  const creerEtEnvoyer=async()=>{
+    if(!form.client)return showToast("⚠️ Remplissez le nom du client");
+    if(!form.email&&!form.tel)return showToast("⚠️ Ajoutez un email ou un téléphone pour envoyer le devis");
+    const nd=creerDevis("envoyé");
+    if(!nd)return;
+    showToast("📤 Envoi en cours...");
+    try{
+      const res=await fetch('/api/devis/notify',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({id:nd.id,client:nd.client,email:nd.email,tel:nd.tel,service:nd.service,montant:nd.montant,lignes:nd.lignes,note:nd.note}),
+      });
+      const data=await res.json();
+      if(data.success){
+        const sent=[];
+        if(data.results?.email)sent.push("email");
+        if(data.results?.whatsapp)sent.push("WhatsApp");
+        showToast(sent.length?`✅ Devis ${nd.id} envoyé par ${sent.join(" et ")} !`:"⚠️ Devis créé mais l'envoi a échoué — vérifiez la config");
+      }else{
+        showToast("⚠️ Devis créé mais l'envoi a échoué");
+      }
+    }catch(e){
+      showToast("⚠️ Devis créé mais erreur de connexion lors de l'envoi");
+    }
+    resetForm();
   };
 
   const filtred=filtreStatut==="tous"?devis:devis.filter(d=>d.statut===filtreStatut);
@@ -971,9 +1026,9 @@ const PageDevis=({plan,showToast,profil})=>{
           <div style={{marginTop:8}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Note / conditions</label><Inp value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="Conditions de paiement, délais..."/></div>
         </Card>
         <div style={{display:"flex",gap:8}}>
-          <Btn onClick={creerDevis} style={{flex:1}}>✅ Créer le devis</Btn>
-          <BtnGhost onClick={()=>showToast("👁 Aperçu PDF généré")} style={{flex:1}}>👁 Aperçu PDF</BtnGhost>
-          <BtnGhost onClick={()=>{creerDevis();showToast("📱 Envoyé par WhatsApp et Email !");}} style={{flex:1}}>📤 Créer & Envoyer</BtnGhost>
+          <Btn onClick={()=>{const nd=creerDevis("brouillon");if(nd){showToast(`✅ Devis ${nd.id} créé en brouillon`);resetForm();}}} style={{flex:1}}>✅ Créer le devis</Btn>
+          <BtnGhost onClick={apercuPDF} style={{flex:1}}>👁 Aperçu PDF</BtnGhost>
+          <BtnGhost onClick={creerEtEnvoyer} style={{flex:1}}>📤 Créer & Envoyer</BtnGhost>
         </div>
       </div>
       {/* Récap */}
