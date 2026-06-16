@@ -495,26 +495,77 @@ const PageWallet=({plan,showToast,profil})=>{
   const[showPay,setShowPay]=useState(false);
   const[showEnc,setShowEnc]=useState(false);
   const[payForm,setPayForm]=useState({nom:"",montant:"",devise:"EUR",methode:"carte",ref:""});
+  const[loadingWallet,setLoadingWallet]=useState(true);
+  const[soldeReel,setSoldeReel]=useState(0);
+
+  const loadWallet=async()=>{
+    try{
+      const res=await fetch('/api/wallet?action=list');
+      const data=await res.json();
+      if(data.transactions){
+        setHisto(data.transactions.map(t=>({id:t.id,type:t.type,libelle:t.libelle,montant:Number(t.montant),devise:t.devise,methode:t.methode,date:new Date(t.created_at).toLocaleString("fr"),statut:t.statut,ref:t.ref,com:Number(t.commission||0)})));
+        setSoldeReel(data.solde||0);
+      }
+    }catch(e){console.error("Wallet:",e);}
+    setLoadingWallet(false);
+  };
+
+  useEffect(()=>{loadWallet();},[]);
   const[alerteSeuil,setAlerteSeuil]=useState(500);
   const[walletProjet,setWalletProjet]=useState([{nom:"Projet Expansion",solde:4200,cible:10000,couleur:C.green},{nom:"Fonds de réserve",solde:8000,cible:8000,couleur:C.blue},{nom:"Investissement Q2",solde:1200,cible:5000,couleur:C.purple}]);
-  const solde=18420;
+  const solde=soldeReel;
   const soldeConv=conv(solde,"EUR",devise);
   const dvSel=DEVISES.find(d=>d.code===devise);
   const tabs=[{id:"solde",label:"💳 Solde"},{id:"historique",label:"📋 Historique"},{id:"payer",label:"⚡ Payer"},{id:"encaisser",label:"💰 Encaisser"},{id:"commissions",label:"👥 Commissions"},{id:"remboursements",label:"↩ Remboursements"},{id:"fournisseurs",label:"🏭 Fournisseurs"},{id:"convertisseur",label:"⇄ Convertir"},{id:"iban",label:"🌍 IBAN Mondial"},{id:"wallets_projets",label:"📂 Wallets Projets"},{id:"sante",label:"❤ Santé"},{id:"alertes",label:"🔔 Alertes"},{id:"stats",label:"📊 Stats"},{id:"virements",label:"🏦 Virements"}];
 
-  const handlePayer=(form)=>{
-    const nouvel={id:`PAY-${Date.now()}`,type:"sortie",libelle:form.nom,montant:Number(form.montant),devise:form.devise,methode:form.methode,date:new Date().toLocaleDateString("fr"),statut:"envoyé",ref:form.ref||`PAY-${Date.now()}`,com:0};
-    setHisto(h=>[nouvel,...h]);
-    setShowPay(false);
-    setPayForm({nom:"",montant:"",devise:"EUR",methode:"carte",ref:""});
-    showToast("✅ Paiement effectué !");
+  const handlePayer=async(form)=>{
+    if(!form.nom||!form.montant)return showToast("⚠️ Remplissez bénéficiaire et montant");
+    showToast("⏳ Enregistrement du virement...");
+    try{
+      const res=await fetch('/api/wallet',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'payer',nom:form.nom,montant:form.montant,devise:form.devise,methode:form.methode,ref:form.ref,type:'sortie'}),
+      });
+      const data=await res.json();
+      if(data.success){
+        setShowPay(false);
+        setPayForm({nom:"",montant:"",devise:"EUR",methode:"carte",ref:""});
+        showToast("✅ Virement enregistré — à exécuter manuellement, marquez-le \"viré\" une fois fait");
+        loadWallet();
+      }else{showToast("❌ "+(data.error||"Erreur"));}
+    }catch(e){showToast("❌ Erreur de connexion");}
   };
 
-  const handleEncaisser=(form)=>{
-    const nouvel={id:`PAY-${Date.now()}`,type:"entree",libelle:form.nom,montant:Number(form.montant),devise:form.devise,methode:form.methode,date:new Date().toLocaleDateString("fr"),statut:"confirmé",ref:form.ref||`TYM-${Date.now()}`,com:Number(form.montant)*0.05};
-    setHisto(h=>[nouvel,...h]);
-    setShowEnc(false);
-    showToast("✅ Paiement encaissé !");
+  const handleEncaisser=async(form)=>{
+    if(!form.nom||!form.montant)return showToast("⚠️ Remplissez nom et montant");
+    showToast("⏳ Création du lien de paiement...");
+    try{
+      const res=await fetch('/api/wallet',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'encaisser',nom:form.nom,montant:form.montant,devise:form.devise,methode:form.methode,ref:form.ref,email:form.email,tel:form.tel}),
+      });
+      const data=await res.json();
+      if(data.success){
+        setShowEnc(false);
+        setPayForm({nom:"",montant:"",devise:"EUR",methode:"carte",ref:""});
+        if(data.paymentUrl){
+          showToast("✅ Lien de paiement créé et envoyé !");
+        }else{
+          showToast("✅ Encaissement enregistré (lien Stripe indisponible)");
+        }
+        loadWallet();
+      }else{showToast("❌ "+(data.error||"Erreur"));}
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const marquerVire=async(id)=>{
+    try{
+      await fetch('/api/wallet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'marquer_vire',id})});
+      showToast("✅ Marqué comme viré");
+      loadWallet();
+    }catch(e){showToast("❌ Erreur");}
   };
 
   return <div style={{padding:20}}>
@@ -544,8 +595,10 @@ const PageWallet=({plan,showToast,profil})=>{
       <div style={{background:solde<alerteSeuil?`${C.red}11`:`${C.green}08`,border:`1px solid ${solde<alerteSeuil?C.red:C.green}33`,borderRadius:10,padding:12,fontSize:12,color:solde<alerteSeuil?C.red:C.green}}>{solde<alerteSeuil?`⚠️ Alerte : solde < seuil (${fmt(alerteSeuil)})`:`✅ Solde en bonne santé (seuil: ${fmt(alerteSeuil)})`}</div>
     </>}
     {onglet==="historique"&&<Card><STitle>📋 Historique des transactions</STitle>
+      {loadingWallet&&<div style={{fontSize:11,color:C.muted,marginBottom:8}}>Chargement...</div>}
+      {!loadingWallet&&histo.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:20}}>Aucune transaction pour le moment</div>}
       <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Date</TH><TH>Libellé</TH><TH>Montant</TH><TH>Méthode</TH><TH>Statut</TH><TH>Commission 5%</TH></tr></thead>
+        <thead><tr><TH>Date</TH><TH>Libellé</TH><TH>Montant</TH><TH>Méthode</TH><TH>Statut</TH><TH>Commission 5%</TH><TH>Action</TH></tr></thead>
         <tbody>{histo.map((h,i)=><tr key={i}>
           <Td style={{color:C.muted,fontSize:10}}>{h.date}</Td>
           <Td style={{fontWeight:600}}>{h.libelle}</Td>
@@ -553,6 +606,7 @@ const PageWallet=({plan,showToast,profil})=>{
           <Td><Pill color={C.blue}>{h.methode}</Pill></Td>
           <Td><St s={h.statut}/></Td>
           <Td style={{color:C.gold}}>{h.com>0?`+${fmt(h.com,h.devise)}`:"—"}</Td>
+          <Td>{h.statut==="à_virer"&&<Btn onClick={()=>marquerVire(h.id)} style={{padding:"3px 8px",fontSize:10}}>✅ Marquer viré</Btn>}</Td>
         </tr>)}</tbody>
       </table>
     </Card>}
@@ -577,6 +631,11 @@ const PageWallet=({plan,showToast,profil})=>{
         </div>
         <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Méthode d'encaissement</label><Sel value={payForm.methode} onChange={e=>setPayForm(f=>({...f,methode:e.target.value}))} style={{width:"100%"}}>{METHODES_PAY.map(m=><option key={m.id} value={m.id}>{m.icon} {m.nom} — {m.zone}</option>)}</Sel></div>
         <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Référence devis</label><Inp value={payForm.ref} onChange={e=>setPayForm(f=>({...f,ref:e.target.value}))} placeholder="Ex: TYM-0044"/></div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Email client</label><Inp value={payForm.email||""} onChange={e=>setPayForm(f=>({...f,email:e.target.value}))} placeholder="client@email.com"/></div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Téléphone client</label><Inp value={payForm.tel||""} onChange={e=>setPayForm(f=>({...f,tel:e.target.value}))} placeholder="+33612345678"/></div>
+        </div>
+        <div style={{fontSize:10,color:C.muted}}>Renseignez email et/ou téléphone pour envoyer le lien de paiement automatiquement</div>
         {payForm.montant&&<div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:8,padding:10,fontSize:11,color:C.green}}>Commission Xyra 5% : {fmt(Number(payForm.montant)*0.05,payForm.devise)}</div>}
         <Btn onClick={()=>handleEncaisser(payForm)} style={{background:C.green,color:"#000",marginTop:4}}>💰 Encaisser</Btn>
       </div>
@@ -590,7 +649,12 @@ const PageWallet=({plan,showToast,profil})=>{
           <Td><Pill color={C.blue}>{c.role}</Pill></Td>
           <Td style={{color:C.orange,fontWeight:700}}>{fmt(c.montant,c.devise)}</Td>
           <Td>{c.methode}</Td>
-          <Td><Btn onClick={()=>{setComm(cs=>cs.filter((_,j)=>j!==i));showToast(`✅ Commission ${c.nom} envoyée !`);}} style={{padding:"4px 10px",fontSize:11}}>Payer</Btn></Td>
+          <Td><Btn onClick={async()=>{
+            const res=await fetch('/api/wallet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'payer',nom:c.nom,montant:c.montant,devise:c.devise,methode:c.methode,type:'commission',destinataire_email:c.email,destinataire_tel:c.tel})});
+            const data=await res.json();
+            if(data.success){setComm(cs=>cs.filter((_,j)=>j!==i));showToast(`✅ Commission ${c.nom} enregistrée — à virer`);loadWallet();}
+            else showToast("❌ Erreur");
+          }} style={{padding:"4px 10px",fontSize:11}}>Payer</Btn></Td>
         </tr>)}</tbody>
       </table>
       <div style={{marginTop:12,padding:"10px 14px",background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,fontSize:12,color:C.orange}}>Total à payer : {fmt(comm.reduce((a,c)=>a+c.montant,0))}</div>
@@ -598,13 +662,23 @@ const PageWallet=({plan,showToast,profil})=>{
     {onglet==="remboursements"&&<Card><STitle>↩ Remboursements en attente</STitle>
       {remb.map((r,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div><div style={{fontSize:12,fontWeight:600}}>{r.nom}</div><div style={{fontSize:11,color:C.muted}}>{r.motif}</div><div style={{fontSize:10,color:C.muted}}>{r.methode}</div></div>
-        <div style={{textAlign:"right"}}><div style={{fontSize:16,fontWeight:700,color:C.red}}>{fmt(r.montant,r.devise)}</div><Btn onClick={()=>{setRemb(rs=>rs.filter((_,j)=>j!==i));showToast(`✅ Remboursement ${r.nom} effectué !`);}} style={{padding:"4px 10px",fontSize:11,marginTop:6}}>Rembourser</Btn></div>
+        <div style={{textAlign:"right"}}><div style={{fontSize:16,fontWeight:700,color:C.red}}>{fmt(r.montant,r.devise)}</div><Btn onClick={async()=>{
+            const res=await fetch('/api/wallet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'payer',nom:r.nom,montant:r.montant,devise:r.devise,methode:r.methode,type:'remboursement',destinataire_tel:r.tel})});
+            const data=await res.json();
+            if(data.success){setRemb(rs=>rs.filter((_,j)=>j!==i));showToast(`✅ Remboursement ${r.nom} enregistré — à virer`);loadWallet();}
+            else showToast("❌ Erreur");
+          }} style={{padding:"4px 10px",fontSize:11,marginTop:6}}>Rembourser</Btn></div>
       </div>)}
     </Card>}
     {onglet==="fournisseurs"&&<Card><STitle>🏭 Paiements fournisseurs</STitle>
       {four.map((f,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
         <div><div style={{fontSize:12,fontWeight:600}}>{f.nom}</div><div style={{fontSize:11,color:C.muted}}>{f.service}</div><div style={{fontSize:10,color:C.muted}}>IBAN: {f.iban} · {f.methode}</div></div>
-        <div style={{textAlign:"right"}}><div style={{fontSize:16,fontWeight:700,color:C.purple}}>{fmt(f.montant,f.devise)}</div><Btn onClick={()=>{setFour(fs=>fs.filter((_,j)=>j!==i));showToast(`✅ Paiement ${f.nom} effectué !`);}} style={{padding:"4px 10px",fontSize:11,marginTop:6,background:C.purple}}>Payer</Btn></div>
+        <div style={{textAlign:"right"}}><div style={{fontSize:16,fontWeight:700,color:C.purple}}>{fmt(f.montant,f.devise)}</div><Btn onClick={async()=>{
+            const res=await fetch('/api/wallet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'payer',nom:f.nom,montant:f.montant,devise:f.devise,methode:f.methode,type:'fournisseur',destinataire_iban:f.iban})});
+            const data=await res.json();
+            if(data.success){setFour(fs=>fs.filter((_,j)=>j!==i));showToast(`✅ Paiement ${f.nom} enregistré — à virer`);loadWallet();}
+            else showToast("❌ Erreur");
+          }} style={{padding:"4px 10px",fontSize:11,marginTop:6,background:C.purple}}>Payer</Btn></div>
       </div>)}
     </Card>}
     {onglet==="convertisseur"&&<div style={{maxWidth:500}}><Convertisseur/></div>}

@@ -5,8 +5,7 @@ export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
     const { default: Stripe } = await import('stripe');
-    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' });
-
+    const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-05-27.dahlia' });
     const body = await req.text();
     const sig = req.headers.get('stripe-signature')!;
     const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
@@ -20,9 +19,33 @@ export async function POST(req: NextRequest) {
 
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as any;
+
+      // ── PAIEMENT WALLET (Encaisser) ──────────────────────────
+      if (session.metadata?.type === 'wallet_payment') {
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+
+        await sb.from('wallet_transactions')
+          .update({ statut: 'confirmé' })
+          .eq('id', session.metadata.transaction_id);
+
+        try {
+          const { Resend } = await import('resend');
+          const resend = new Resend(process.env.RESEND_API_KEY);
+          await resend.emails.send({
+            from: 'Xyra Alerts <onboarding@resend.dev>',
+            to: 'xyra.solution@gmail.com',
+            subject: `💰 Paiement Wallet reçu — ${(session.amount_total / 100).toFixed(2)}€`,
+            html: `<div style="font-family:sans-serif;padding:24px;"><h2>Paiement confirmé !</h2><p>Montant : <strong>${(session.amount_total / 100).toFixed(2)}€</strong></p></div>`,
+          });
+        } catch (e) { console.error('Email error:', e); }
+
+        return NextResponse.json({ received: true });
+      }
+
+      // ── ABONNEMENT XYRA ───────────────────────────────────────
       const { email, societe, plan } = session.metadata || {};
 
-      // Supabase
       const { createClient } = await import('@supabase/supabase-js');
       const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
       await sb.from('tenants').update({
@@ -31,7 +54,6 @@ export async function POST(req: NextRequest) {
         stripe_subscription_id: session.subscription,
       }).eq('email', email);
 
-      // Resend
       const { Resend } = await import('resend');
       const resend = new Resend(process.env.RESEND_API_KEY);
 
@@ -51,7 +73,7 @@ export async function POST(req: NextRequest) {
               <p style="color:#A0A0C0;font-size:14px;">Votre abonnement <strong style="color:#C9A84C;">${planNom} — ${planPrix}/mois</strong> est actif.</p>
             </div>
             <div style="text-align:center;margin:24px 0;">
-              <a href="https://tymelees-saas-yzel.vercel.app/dashboard" style="background:linear-gradient(135deg,#C9A84C,#a07c45);color:#000;padding:14px 32px;text-decoration:none;font-weight:700;font-size:14px;display:inline-block;border-radius:8px;">
+              <a href="https://xyraio.fr/dashboard" style="background:linear-gradient(135deg,#C9A84C,#a07c45);color:#000;padding:14px 32px;text-decoration:none;font-weight:700;font-size:14px;display:inline-block;border-radius:8px;">
                 Accéder à mon dashboard →
               </a>
             </div>
@@ -62,7 +84,6 @@ export async function POST(req: NextRequest) {
         `
       });
 
-      // Notification owner
       await resend.emails.send({
         from: 'Xyra Alerts <onboarding@resend.dev>',
         to: 'xyra.solution@gmail.com',
@@ -79,7 +100,7 @@ export async function POST(req: NextRequest) {
               <div><span style="color:#5A5A7A;">Plan :</span> <strong style="color:#C9A84C;">${planNom}</strong></div>
             </div>
             <div style="text-align:center;margin-top:16px;">
-              <a href="https://tymelees-saas-yzel.vercel.app/dashboard" style="background:#C9A84C;color:#000;padding:10px 20px;text-decoration:none;font-weight:700;border-radius:6px;display:inline-block;">
+              <a href="https://xyraio.fr/dashboard" style="background:#C9A84C;color:#000;padding:10px 20px;text-decoration:none;font-weight:700;border-radius:6px;display:inline-block;">
                 Voir dans le dashboard →
               </a>
             </div>
