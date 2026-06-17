@@ -428,21 +428,48 @@ const Convertisseur=()=>{
 };
 
 const IbanMondial=({showToast})=>{
-  const[ibans,setIbans]=useState([
-    {pays:"🇫🇷 France (SEPA)",iban:"FR76 3000 4000 0100 0012 3456 789",banque:"BNP Paribas",bic:"BNPAFRPP",pour:"Virements SEPA Europe"},
-    {pays:"🇸🇳 Sénégal",iban:"SN28 SN08 0100 1535 1000 1234 56",banque:"Ecobank Sénégal",bic:"ECOC SN DA",pour:"Transferts CFA / Wave"},
-    {pays:"🇦🇪 Dubaï",iban:"AE07 0331 2345 6789 0123 456",banque:"Emirates NBD",bic:"EBILAEAD",pour:"Clients Moyen-Orient"},
-  ]);
+  const[ibans,setIbans]=useState([]);
+  const[loadingIbans,setLoadingIbans]=useState(true);
   const[cid,setCid]=useState(null);
   const[showForm,setShowForm]=useState(false);
   const[form,setForm]=useState({pays:"",iban:"",banque:"",bic:"",pour:""});
+  const[sb,setSb]=useState(null);
 
-  const handleAdd=()=>{
+  useEffect(()=>{
+    const init=async()=>{
+      try{
+        const{createClient}=await import('@supabase/supabase-js');
+        const client=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+        setSb(client);
+        const{data,error}=await client.from('wallet_ibans').select('*').order('created_at',{ascending:true});
+        if(!error&&data)setIbans(data);
+      }catch(e){console.error('IBAN load:',e);}
+      setLoadingIbans(false);
+    };
+    init();
+  },[]);
+
+  const handleAdd=async()=>{
     if(!form.pays||!form.iban)return;
-    setIbans(ib=>[...ib,{...form}]);
-    setForm({pays:"",iban:"",banque:"",bic:"",pour:""});
-    setShowForm(false);
-    showToast&&showToast("✅ IBAN ajouté !");
+    if(!sb)return showToast&&showToast("❌ Connexion Supabase indisponible");
+    try{
+      const{data,error}=await sb.from('wallet_ibans').insert([{pays:form.pays,iban:form.iban,banque:form.banque,bic:form.bic,pour:form.pour}]).select();
+      if(error)throw error;
+      if(data&&data[0])setIbans(ib=>[...ib,data[0]]);
+      setForm({pays:"",iban:"",banque:"",bic:"",pour:""});
+      setShowForm(false);
+      showToast&&showToast("✅ IBAN ajouté et sauvegardé !");
+    }catch(e){showToast&&showToast("❌ Erreur lors de l'ajout — vérifie que la table wallet_ibans existe");}
+  };
+
+  const handleDelete=async(id)=>{
+    if(!sb)return;
+    try{
+      const{error}=await sb.from('wallet_ibans').delete().eq('id',id);
+      if(error)throw error;
+      setIbans(ib=>ib.filter(x=>x.id!==id));
+      showToast&&showToast("✅ IBAN supprimé");
+    }catch(e){showToast&&showToast("❌ Erreur lors de la suppression");}
   };
 
   return <CT>
@@ -466,12 +493,15 @@ const IbanMondial=({showToast})=>{
       </div>
     </div>}
 
-    {ibans.map((ib,i)=><div key={i} style={{background:C.card,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${C.border}`}}>
+    {loadingIbans&&<div style={{fontSize:11,color:C.muted,marginBottom:8}}>Chargement...</div>}
+    {!loadingIbans&&ibans.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>Aucun IBAN enregistré — ajoutez-en un pour le communiquer à vos clients internationaux.</div>}
+
+    {ibans.map((ib,i)=><div key={ib.id} style={{background:C.card,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${C.border}`}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
         <div style={{fontSize:12,fontWeight:700,color:C.text}}>{ib.pays}</div>
         <div style={{display:"flex",gap:6,alignItems:"center"}}>
           <div style={{fontSize:10,color:C.muted}}>{ib.banque}</div>
-          <BtnGhost onClick={()=>setIbans(is=>is.filter((_,j)=>j!==i))} style={{fontSize:9,padding:"2px 6px",color:C.red}}>✕</BtnGhost>
+          <BtnGhost onClick={()=>handleDelete(ib.id)} style={{fontSize:9,padding:"2px 6px",color:C.red}}>✕</BtnGhost>
         </div>
       </div>
       <div style={{fontFamily:"'Courier New',monospace",fontSize:13,color:C.gold,marginBottom:4}}>{ib.iban}</div>
@@ -481,6 +511,10 @@ const IbanMondial=({showToast})=>{
         <BtnGhost onClick={()=>{navigator.clipboard?.writeText(`${ib.iban}\nBIC: ${ib.bic}`);showToast&&showToast("📋 IBAN + BIC copiés !");}} style={{fontSize:10,padding:"4px 10px"}}>📋 IBAN + BIC</BtnGhost>
       </div>
     </div>)}
+
+    <div style={{marginTop:10,background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:10,fontSize:11,color:C.orange}}>
+      ⚠️ Ces IBAN sont des informations de référence que tu communiques à tes clients. Tant que Swan n'est pas validé, les virements reçus arrivent sur tes comptes bancaires existants — pas automatiquement dans le wallet Xyra.
+    </div>
   </CT>;
 };
 
@@ -497,6 +531,19 @@ const PageWallet=({plan,showToast,profil})=>{
   const[payForm,setPayForm]=useState({nom:"",montant:"",devise:"EUR",methode:"carte",ref:""});
   const[loadingWallet,setLoadingWallet]=useState(true);
   const[soldeReel,setSoldeReel]=useState(0);
+  const[payUnified,setPayUnified]=useState({type:"",contact:"",montant:"",motif:"",methode:"sepa"});
+
+  const TYPES_PAYER=[
+    {id:"remboursement",label:"↩ Remboursement",color:C.red,desc:"Rembourser un client"},
+    {id:"commission",label:"👥 Commission",color:C.orange,desc:"Payer une commission partenaire"},
+    {id:"fournisseur",label:"🏭 Facture fournisseur",color:C.purple,desc:"Payer un fournisseur"},
+    {id:"sortie",label:"🏦 Virement libre",color:C.blue,desc:"Virement à un membre de l'équipe"},
+  ];
+  const EQUIPE_CONTACTS=[
+    {nom:"Thomas Beaumont",email:"thomas@xyra.io",tel:"+33 6 12 34 56 78"},
+    {nom:"Abou Diallo",email:"abou@xyra.io",tel:"+33 6 98 76 54 32"},
+    {nom:"Fatou Sarr",email:"fatou@xyra.io",tel:"+33 6 55 44 33 22"},
+  ];
 
   const loadWallet=async()=>{
     try{
@@ -511,12 +558,66 @@ const PageWallet=({plan,showToast,profil})=>{
   };
 
   useEffect(()=>{loadWallet();},[]);
+  const[virementForm,setVirementForm]=useState({iban:"",bic:"",nom:"",montant:"",devise:"EUR",motif:""});
+
+  const handleVirementSepa=async()=>{
+    if(!virementForm.iban||!virementForm.nom||!virementForm.montant)return showToast("⚠️ Renseignez IBAN, nom et montant");
+    showToast("⏳ Enregistrement du virement...");
+    try{
+      const res=await fetch('/api/wallet',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({action:'payer',nom:virementForm.nom,montant:virementForm.montant,devise:virementForm.devise,methode:"Virement SEPA",ref:virementForm.motif,type:'sortie',destinataire_iban:virementForm.iban}),
+      });
+      const data=await res.json();
+      if(data.success){
+        setVirementForm({iban:"",bic:"",nom:"",montant:"",devise:"EUR",motif:""});
+        showToast("✅ Virement SEPA enregistré — marquez \"viré\" une fois exécuté");
+        loadWallet();
+      }else{showToast("❌ "+(data.error||"Erreur"));}
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const[alerteSeuil,setAlerteSeuil]=useState(500);
   const[walletProjet,setWalletProjet]=useState([{nom:"Projet Expansion",solde:4200,cible:10000,couleur:C.green},{nom:"Fonds de réserve",solde:8000,cible:8000,couleur:C.blue},{nom:"Investissement Q2",solde:1200,cible:5000,couleur:C.purple}]);
   const solde=soldeReel;
   const soldeConv=conv(solde,"EUR",devise);
   const dvSel=DEVISES.find(d=>d.code===devise);
   const tabs=[{id:"solde",label:"💳 Solde"},{id:"historique",label:"📋 Historique"},{id:"payer",label:"⚡ Payer"},{id:"encaisser",label:"💰 Encaisser"},{id:"commissions",label:"👥 Commissions"},{id:"remboursements",label:"↩ Remboursements"},{id:"fournisseurs",label:"🏭 Fournisseurs"},{id:"convertisseur",label:"⇄ Convertir"},{id:"iban",label:"🌍 IBAN Mondial"},{id:"wallets_projets",label:"📂 Wallets Projets"},{id:"sante",label:"❤ Santé"},{id:"alertes",label:"🔔 Alertes"},{id:"stats",label:"📊 Stats"},{id:"virements",label:"🏦 Virements"}];
+
+  const getContactsByType=(type)=>{
+    if(type==="remboursement")return remb.map(r=>({nom:r.nom,tel:r.tel,email:r.email}));
+    if(type==="commission")return comm.map(c=>({nom:c.nom,tel:c.tel,email:c.email}));
+    if(type==="fournisseur")return four.map(f=>({nom:f.nom,iban:f.iban}));
+    if(type==="sortie")return EQUIPE_CONTACTS;
+    return [];
+  };
+
+  const handlePayerUnifie=async()=>{
+    const{type,contact,montant,motif,methode}=payUnified;
+    if(!type)return showToast("⚠️ Choisis un type de transaction");
+    if(!contact)return showToast("⚠️ Choisis un contact");
+    if(!montant)return showToast("⚠️ Indique un montant");
+    const contactObj=getContactsByType(type).find(c=>c.nom===contact);
+    if(!contactObj)return showToast("⚠️ Contact introuvable");
+    showToast("⏳ Enregistrement de la transaction...");
+    try{
+      const body={action:'payer',nom:contactObj.nom,montant,devise:"EUR",methode:methode||"sepa",ref:motif,type};
+      if(contactObj.email)body.destinataire_email=contactObj.email;
+      if(contactObj.tel)body.destinataire_tel=contactObj.tel;
+      if(contactObj.iban)body.destinataire_iban=contactObj.iban;
+      const res=await fetch('/api/wallet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+      const data=await res.json();
+      if(data.success){
+        if(type==="commission")setComm(cs=>cs.filter(c=>c.nom!==contactObj.nom));
+        if(type==="remboursement")setRemb(rs=>rs.filter(r=>r.nom!==contactObj.nom));
+        if(type==="fournisseur")setFour(fs=>fs.filter(f=>f.nom!==contactObj.nom));
+        setShowPay(false);
+        setPayUnified({type:"",contact:"",montant:"",motif:"",methode:"sepa"});
+        showToast(`✅ Transaction enregistrée pour ${contactObj.nom} — à virer`);
+        loadWallet();
+      }else{showToast("❌ "+(data.error||"Erreur"));}
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
 
   const handlePayer=async(form)=>{
     if(!form.nom||!form.montant)return showToast("⚠️ Remplissez bénéficiaire et montant");
@@ -569,6 +670,44 @@ const PageWallet=({plan,showToast,profil})=>{
   };
 
   return <div style={{padding:20}}>
+    {showPay&&<div style={{position:"fixed",inset:0,background:"#000000AA",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}}>
+      <Card style={{width:480,maxWidth:"90vw",maxHeight:"85vh",overflowY:"auto"}}>
+        <div style={{fontSize:14,fontWeight:700,marginBottom:4}}>⚡ Nouveau paiement</div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Choisis le type, le contact et le montant</div>
+        <div style={{marginBottom:12}}>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:6}}>Type de transaction *</label>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {TYPES_PAYER.map(t=><button key={t.id} onClick={()=>setPayUnified(p=>({...p,type:t.id,contact:""}))} style={{background:payUnified.type===t.id?`${t.color}22`:C.card2,border:`1px solid ${payUnified.type===t.id?t.color:C.border}`,borderRadius:8,padding:"10px 8px",cursor:"pointer",textAlign:"left",fontFamily:"inherit"}}>
+              <div style={{fontSize:12,fontWeight:700,color:payUnified.type===t.id?t.color:C.text}}>{t.label}</div>
+              <div style={{fontSize:9,color:C.muted,marginTop:2}}>{t.desc}</div>
+            </button>)}
+          </div>
+        </div>
+        {payUnified.type&&<div style={{marginBottom:12}}>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Contact *</label>
+          <Sel value={payUnified.contact} onChange={e=>setPayUnified(p=>({...p,contact:e.target.value}))} style={{width:"100%"}}>
+            <option value="">— Sélectionner —</option>
+            {getContactsByType(payUnified.type).map((c,i)=><option key={i} value={c.nom}>{c.nom}</option>)}
+          </Sel>
+          {getContactsByType(payUnified.type).length===0&&<div style={{fontSize:10,color:C.orange,marginTop:4}}>Aucun contact disponible dans cette catégorie pour le moment</div>}
+        </div>}
+        {payUnified.type&&<>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
+            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Montant (€) *</label><Inp value={payUnified.montant} onChange={e=>setPayUnified(p=>({...p,montant:e.target.value}))} placeholder="0.00"/></div>
+            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Méthode</label><Sel value={payUnified.methode} onChange={e=>setPayUnified(p=>({...p,methode:e.target.value}))} style={{width:"100%"}}>{METHODES_PAY.map(m=><option key={m.id} value={m.id}>{m.icon} {m.nom}</option>)}</Sel></div>
+          </div>
+          <div style={{marginBottom:14}}>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Motif</label>
+            <Inp value={payUnified.motif} onChange={e=>setPayUnified(p=>({...p,motif:e.target.value}))} placeholder="Ex: Remboursement service annulé"/>
+          </div>
+        </>}
+        <div style={{display:"flex",gap:8}}>
+          <Btn onClick={handlePayerUnifie} style={{flex:1}}>✅ Créer la transaction</Btn>
+          <BtnGhost onClick={()=>{setShowPay(false);setPayUnified({type:"",contact:"",montant:"",motif:"",methode:"sepa"});}}>Annuler</BtnGhost>
+        </div>
+      </Card>
+    </div>}
+
     <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
     {onglet==="solde"&&<>
       <div style={{background:`linear-gradient(135deg,${C.card},#0A1A14)`,border:`1px solid ${C.teal}44`,borderRadius:16,padding:24,marginBottom:16}}>
@@ -584,7 +723,7 @@ const PageWallet=({plan,showToast,profil})=>{
           <div style={{borderLeft:`2px solid ${C.orange}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>En attente</div><div style={{fontSize:18,fontWeight:700,color:C.orange}}>{fmt(conv(5645,"EUR",devise),devise)}</div></div>
           <div style={{borderLeft:`2px solid ${C.gold}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Score santé</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>76/100</div></div>
         </div>
-        <div style={{display:"flex",gap:8}}><Btn onClick={()=>setShowPay(true)}>⚡ Payer</Btn><Btn onClick={()=>setShowEnc(true)} style={{background:C.green,color:"#000"}}>📲 Encaisser</Btn></div>
+        <div style={{display:"flex",gap:8}}><Btn onClick={()=>setShowPay(true)}>⚡ Payer</Btn><Btn onClick={()=>setOnglet("encaisser")} style={{background:C.green,color:"#000"}}>📲 Encaisser</Btn></div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
         <KPI label="Transactions" val={histo.length} color={C.blue}/>
@@ -708,20 +847,23 @@ const PageWallet=({plan,showToast,profil})=>{
     {onglet==="stats"&&<Card><STitle>📊 Statistiques Wallet</STitle>
       <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
         <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Total encaissé</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>{fmt(histo.filter(h=>h.type==="entree").reduce((a,h)=>a+h.montant,0))}</div></CT>
-        <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Total décaissé</div><div style={{fontSize:18,fontWeight:700,color:C.red}}>{fmt(histo.filter(h=>h.type==="sortie").reduce((a,h)=>a+h.montant,0))}</div></CT>
+        <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Total décaissé</div><div style={{fontSize:18,fontWeight:700,color:C.red}}>{fmt(histo.filter(h=>h.type!=="entree").reduce((a,h)=>a+h.montant,0))}</div></CT>
         <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Commissions perçues (5%)</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(histo.reduce((a,h)=>a+h.com,0))}</div></CT>
         <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Transactions</div><div style={{fontSize:18,fontWeight:700,color:C.blue}}>{histo.length}</div></CT>
       </div>
     </Card>}
     {onglet==="virements"&&<Card><STitle>🏦 Virements bancaires SEPA</STitle>
-      <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Envoyez des virements SEPA directement depuis votre wallet Xyra.</div>
+      <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Le virement est enregistré dans Xyra puis à exécuter toi-même depuis ta banque (Swan automatisera cette étape une fois validé).</div>
       <div style={{display:"flex",flexDirection:"column",gap:10,maxWidth:480}}>
-        <Inp placeholder="IBAN bénéficiaire (FR76...)"/>
-        <Inp placeholder="BIC/SWIFT"/>
-        <Inp placeholder="Nom du bénéficiaire"/>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><Inp placeholder="Montant (€)"/><Sel style={{width:"100%"}}>{DEVISES.filter(d=>["EUR","GBP","CHF"].includes(d.code)).map(d=><option key={d.code}>{d.flag} {d.code}</option>)}</Sel></div>
-        <Inp placeholder="Motif du virement"/>
-        <Btn>🏦 Initier le virement SEPA</Btn>
+        <Inp value={virementForm.iban} onChange={e=>setVirementForm(f=>({...f,iban:e.target.value}))} placeholder="IBAN bénéficiaire (FR76...)"/>
+        <Inp value={virementForm.bic} onChange={e=>setVirementForm(f=>({...f,bic:e.target.value}))} placeholder="BIC/SWIFT"/>
+        <Inp value={virementForm.nom} onChange={e=>setVirementForm(f=>({...f,nom:e.target.value}))} placeholder="Nom du bénéficiaire"/>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <Inp value={virementForm.montant} onChange={e=>setVirementForm(f=>({...f,montant:e.target.value}))} placeholder="Montant (€)"/>
+          <Sel value={virementForm.devise} onChange={e=>setVirementForm(f=>({...f,devise:e.target.value}))} style={{width:"100%"}}>{DEVISES.filter(d=>["EUR","GBP","CHF"].includes(d.code)).map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel>
+        </div>
+        <Inp value={virementForm.motif} onChange={e=>setVirementForm(f=>({...f,motif:e.target.value}))} placeholder="Motif du virement"/>
+        <Btn onClick={handleVirementSepa}>🏦 Initier le virement SEPA</Btn>
       </div>
     </Card>}
   </div>;
@@ -6344,7 +6486,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
       </Card>
       <Card>
         <STitle>📊 Infos du compte</STitle>
-        {[["Plan actuel",PLANS[plan]?.nom+" — "+PLANS[plan]?.prix],["Membre depuis","01/03/2024"],["Dernière connexion","Aujourd'hui 09:00"],["Rôle","Fondateur & Owner"],["Dashboard URL","tymelees-saas-yzel.vercel.app"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600,color:i===0?C.gold:C.text}}>{v}</span></div>)}
+        {[["Plan actuel",PLANS[plan]?.nom+" — "+PLANS[plan]?.prix],["Membre depuis","01/03/2024"],["Dernière connexion","Aujourd'hui 09:00"],["Rôle","Fondateur & Owner"],["Dashboard URL","xyraio.fr"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600,color:i===0?C.gold:C.text}}>{v}</span></div>)}
         <div style={{marginTop:12,background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:8,padding:10,fontSize:11,color:C.green}}>✅ Compte Owner — Accès complet à toutes les fonctionnalités</div>
       </Card>
     </div>}
