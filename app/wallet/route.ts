@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
 
     try {
       const { default: Stripe } = await import('stripe');
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2025-04-22.dahlia' as any });
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-05-27.dahlia' });
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
@@ -115,7 +115,7 @@ export async function POST(req: NextRequest) {
         const { Resend } = await import('resend');
         const resend = new Resend(process.env.RESEND_API_KEY);
         await resend.emails.send({
-          from: 'Xyra <onboarding@resend.dev>',
+          from: 'Xyra <notifications@xyraio.fr>',
           to: email,
           subject: `Lien de paiement — ${montant}${devise === 'USD' ? '$' : '€'}`,
           html: `<div style="font-family:sans-serif;padding:24px;"><p>Bonjour ${nom},</p><p>Voici votre lien de paiement sécurisé :</p><p><a href="${paymentUrl}" style="background:#C9A84C;color:#000;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">Payer ${montant}${devise === 'USD' ? '$' : '€'}</a></p></div>`,

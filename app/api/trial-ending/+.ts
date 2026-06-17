@@ -102,7 +102,7 @@ export async function POST(req: NextRequest) {
       `;
 
       await resend.emails.send({
-        from: 'Xyra <onboarding@resend.dev>',
+        from: 'Xyra <notifications@xyraio.fr>',
         to: tenant.email,
         subject,
         html,

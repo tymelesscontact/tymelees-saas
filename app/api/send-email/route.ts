@@ -10,7 +10,7 @@ export async function POST(req: NextRequest) {
     if (type === 'welcome') {
       // Email bienvenue au client
       await resend.emails.send({
-        from: 'Xyra <onboarding@resend.dev>',
+        from: 'Xyra <notifications@xyraio.fr>',
         to: email,
         subject: `🎉 Bienvenue sur Xyra, ${societe} !`,
         html: `
@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
 
       // Notification owner
       await resend.emails.send({
-        from: 'Xyra Alerts <onboarding@resend.dev>',
+        from: 'Xyra Alerts <notifications@xyraio.fr>',
         to: 'xyra.solution@gmail.com',
         subject: `🎉 Nouveau client — ${societe} — ${planPrice}€/mois`,
         html: `
