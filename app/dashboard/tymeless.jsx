@@ -1384,47 +1384,157 @@ const PageInvestissement=({plan,showToast})=>{
 
 // ─── TAB CHARGES ──────────────────────────────────────────────
 const TabCharges=({showToast})=>{
-  const[charges,setCharges]=useState(CHARGES);
-  const total=charges.reduce((a,c)=>a+c.mois,0);
+  const[charges,setCharges]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[showForm,setShowForm]=useState(false);
+  const[form,setForm]=useState({categorie:"",libelle:"",montant:"",frequence:"mensuelle"});
+  const[editId,setEditId]=useState(null);
+
+  const load=async()=>{
+    try{
+      const res=await fetch('/api/charges');
+      const data=await res.json();
+      if(data.charges)setCharges(data.charges);
+    }catch(e){console.error("Charges:",e);}
+    setLoading(false);
+  };
+  useEffect(()=>{load();},[]);
+
+  const total=charges.reduce((a,c)=>a+Number(c.montant||0),0);
+
+  const sauvegarder=async()=>{
+    if(!form.categorie||!form.montant)return showToast("⚠️ Catégorie et montant requis");
+    try{
+      const res=await fetch('/api/charges',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:editId?'modifier':'creer',id:editId,...form})});
+      const data=await res.json();
+      if(data.success){
+        showToast(editId?"✅ Charge modifiée":"✅ Charge ajoutée");
+        setForm({categorie:"",libelle:"",montant:"",frequence:"mensuelle"});setEditId(null);setShowForm(false);
+        load();
+      }else showToast("❌ Erreur");
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const supprimer=async(id)=>{
+    try{
+      await fetch('/api/charges',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer',id})});
+      showToast("✅ Charge supprimée");load();
+    }catch(e){showToast("❌ Erreur");}
+  };
+
   return <div>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
       <STitle>📊 Charges mensuelles</STitle>
-      <Pill color={C.red}>{fmt(total)} / mois</Pill>
+      <div style={{display:"flex",gap:8,alignItems:"center"}}>
+        <Pill color={C.red}>{fmt(total)} / mois</Pill>
+        <Btn onClick={()=>{setShowForm(s=>!s);setEditId(null);setForm({categorie:"",libelle:"",montant:"",frequence:"mensuelle"});}} style={{fontSize:11,padding:"5px 12px"}}>+ Ajouter</Btn>
+      </div>
     </div>
-    <table style={{width:"100%",borderCollapse:"collapse"}}>
-      <thead><tr><TH>Catégorie</TH><TH>Montant/mois</TH><TH>% du CA</TH><TH>Action</TH></tr></thead>
-      <tbody>{charges.map((c,i)=><tr key={i}>
-        <Td style={{fontWeight:600}}>{c.cat}</Td>
-        <Td style={{color:C.red,fontWeight:700}}>{fmt(c.mois)}</Td>
-        <Td><div style={{display:"flex",alignItems:"center",gap:6}}><SM val={c.mois} max={total} color={C.red}/><span style={{fontSize:10,color:C.muted}}>{Math.round(c.mois/total*100)}%</span></div></Td>
-        <Td><BtnGhost onClick={()=>showToast("✅ Charge mise à jour")} style={{fontSize:10,padding:"3px 8px"}}>✏️</BtnGhost></Td>
+    {showForm&&<div style={{background:C.card2,borderRadius:8,padding:12,marginBottom:12,border:`1px solid ${C.gold}33`}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+        <Inp value={form.categorie} onChange={e=>setForm(f=>({...f,categorie:e.target.value}))} placeholder="Catégorie (ex: Loyer, Assurance)"/>
+        <Inp value={form.montant} onChange={e=>setForm(f=>({...f,montant:e.target.value}))} placeholder="Montant (€)"/>
+        <Inp value={form.libelle} onChange={e=>setForm(f=>({...f,libelle:e.target.value}))} placeholder="Détail (optionnel)" style={{gridColumn:"span 2"}}/>
+      </div>
+      <div style={{display:"flex",gap:8}}><Btn onClick={sauvegarder}>✅ Enregistrer</Btn><BtnGhost onClick={()=>setShowForm(false)}>Annuler</BtnGhost></div>
+    </div>}
+    {loading&&<div style={{fontSize:11,color:C.muted}}>Chargement...</div>}
+    {!loading&&charges.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>Aucune charge enregistrée — ajoute tes charges récurrentes pour suivre tes coûts réels.</div>}
+    {charges.length>0&&<table style={{width:"100%",borderCollapse:"collapse"}}>
+      <thead><tr><TH>Catégorie</TH><TH>Montant/mois</TH><TH>% du total</TH><TH>Action</TH></tr></thead>
+      <tbody>{charges.map((c,i)=><tr key={c.id}>
+        <Td style={{fontWeight:600}}>{c.categorie}{c.libelle?` — ${c.libelle}`:""}</Td>
+        <Td style={{color:C.red,fontWeight:700}}>{fmt(c.montant)}</Td>
+        <Td><div style={{display:"flex",alignItems:"center",gap:6}}><SM val={c.montant} max={total} color={C.red}/><span style={{fontSize:10,color:C.muted}}>{total>0?Math.round(c.montant/total*100):0}%</span></div></Td>
+        <Td><div style={{display:"flex",gap:4}}>
+          <BtnGhost onClick={()=>{setEditId(c.id);setForm({categorie:c.categorie,libelle:c.libelle||"",montant:c.montant,frequence:c.frequence});setShowForm(true);}} style={{fontSize:10,padding:"3px 8px"}}>✏️</BtnGhost>
+          <BtnGhost onClick={()=>supprimer(c.id)} style={{fontSize:10,padding:"3px 8px",color:C.red}}>✕</BtnGhost>
+        </div></Td>
       </tr>)}</tbody>
-    </table>
+    </table>}
   </div>;
 };
 
 // ─── TAB FOURNISSEURS ─────────────────────────────────────────
 const TabFournisseurs=({showToast})=>{
-  const fours=[{nom:"CleanPro",cat:"Fournitures nettoyage",contact:"0800 123 456",iban:"FR76 1234...",last:"420€ · 09/04",delai:"J+3"},{nom:"TextilePro",cat:"Textile premium",contact:"01 44 55 66 77",iban:"FR76 5678...",last:"380€ · 07/04",delai:"J+5"},{nom:"MedSupply",cat:"Matériel médical",contact:"01 77 88 99 00",iban:"FR76 9012...",last:"520€ · 05/04",delai:"J+7"},{nom:"YachtCare",cat:"Entretien yacht",contact:"+377 99 88 77",iban:"MC58 0000...",last:"290€ · 03/04",delai:"J+10"},{nom:"LuxEquip",cat:"Équipements jet",contact:"+33 1 55 66 77 88",iban:"FR76 3456...",last:"840€ · 01/04",delai:"J+14"}];
+  const[fours,setFours]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[showForm,setShowForm]=useState(false);
+  const[form,setForm]=useState({nom:"",categorie:"",contact:"",iban:"",delai_livraison:""});
+  const[showCmd,setShowCmd]=useState(null);
+  const[montantCmd,setMontantCmd]=useState("");
+
+  const load=async()=>{
+    try{
+      const res=await fetch('/api/fournisseurs');
+      const data=await res.json();
+      if(data.fournisseurs)setFours(data.fournisseurs);
+    }catch(e){console.error("Fournisseurs:",e);}
+    setLoading(false);
+  };
+  useEffect(()=>{load();},[]);
+
+  const ajouter=async()=>{
+    if(!form.nom)return showToast("⚠️ Nom requis");
+    try{
+      const res=await fetch('/api/fournisseurs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer',...form})});
+      const data=await res.json();
+      if(data.success){showToast("✅ Fournisseur ajouté");setForm({nom:"",categorie:"",contact:"",iban:"",delai_livraison:""});setShowForm(false);load();}
+      else showToast("❌ Erreur");
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const supprimer=async(id)=>{
+    try{await fetch('/api/fournisseurs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer',id})});showToast("✅ Supprimé");load();}
+    catch(e){showToast("❌ Erreur");}
+  };
+
+  const commander=async(f)=>{
+    if(!montantCmd)return showToast("⚠️ Indique un montant");
+    try{
+      const res=await fetch('/api/fournisseurs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'commander',fournisseur_id:f.id,nom:f.nom,montant:montantCmd,iban:f.iban})});
+      const data=await res.json();
+      if(data.success){showToast(`✅ Commande enregistrée — à virer dans le Wallet`);setShowCmd(null);setMontantCmd("");}
+      else showToast("❌ Erreur");
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
   return <div>
-    <STitle>🏭 Fournisseurs Xyra</STitle>
-    <table style={{width:"100%",borderCollapse:"collapse"}}>
-      <thead><tr><TH>Fournisseur</TH><TH>Catégorie</TH><TH>Contact</TH><TH>Dernier paiement</TH><TH>Délai livraison</TH><TH>Action</TH></tr></thead>
-      <tbody>{fours.map((f,i)=><tr key={i}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+      <STitle>🏭 Fournisseurs</STitle>
+      <Btn onClick={()=>setShowForm(s=>!s)} style={{fontSize:11,padding:"5px 12px"}}>+ Ajouter</Btn>
+    </div>
+    {showForm&&<div style={{background:C.card2,borderRadius:8,padding:12,marginBottom:12,border:`1px solid ${C.gold}33`}}>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+        <Inp value={form.nom} onChange={e=>setForm(f=>({...f,nom:e.target.value}))} placeholder="Nom du fournisseur"/>
+        <Inp value={form.categorie} onChange={e=>setForm(f=>({...f,categorie:e.target.value}))} placeholder="Catégorie"/>
+        <Inp value={form.contact} onChange={e=>setForm(f=>({...f,contact:e.target.value}))} placeholder="Téléphone / email"/>
+        <Inp value={form.iban} onChange={e=>setForm(f=>({...f,iban:e.target.value}))} placeholder="IBAN (pour les virements)"/>
+        <Inp value={form.delai_livraison} onChange={e=>setForm(f=>({...f,delai_livraison:e.target.value}))} placeholder="Délai livraison (ex: J+5)" style={{gridColumn:"span 2"}}/>
+      </div>
+      <div style={{display:"flex",gap:8}}><Btn onClick={ajouter}>✅ Ajouter</Btn><BtnGhost onClick={()=>setShowForm(false)}>Annuler</BtnGhost></div>
+    </div>}
+    {loading&&<div style={{fontSize:11,color:C.muted}}>Chargement...</div>}
+    {!loading&&fours.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>Aucun fournisseur enregistré.</div>}
+    {fours.length>0&&<table style={{width:"100%",borderCollapse:"collapse"}}>
+      <thead><tr><TH>Fournisseur</TH><TH>Catégorie</TH><TH>Contact</TH><TH>Délai</TH><TH>Action</TH></tr></thead>
+      <tbody>{fours.map((f,i)=><tr key={f.id}>
         <Td style={{fontWeight:700}}>{f.nom}</Td>
-        <Td><Pill color={C.blue}>{f.cat}</Pill></Td>
-        <Td style={{color:C.muted,fontSize:11}}>{f.contact}</Td>
-        <Td style={{color:C.green,fontSize:11}}>{f.last}</Td>
-        <Td><Pill color={C.teal}>{f.delai}</Pill></Td>
-        <Td><div style={{display:"flex",gap:4}}>
-          <BtnGhost onClick={()=>showToast(`✅ Commande envoyée à ${f.nom}`)} style={{fontSize:10,padding:"3px 8px"}}>Commander</BtnGhost>
-          <BtnGhost onClick={()=>showToast(`📱 Appel ${f.nom}`)} style={{fontSize:10,padding:"3px 8px"}}>📞</BtnGhost>
+        <Td><Pill color={C.blue}>{f.categorie||"—"}</Pill></Td>
+        <Td style={{color:C.muted,fontSize:11}}>{f.contact||"—"}</Td>
+        <Td><Pill color={C.teal}>{f.delai_livraison||"—"}</Pill></Td>
+        <Td><div style={{display:"flex",gap:4,alignItems:"center"}}>
+          {showCmd===f.id?<>
+            <Inp value={montantCmd} onChange={e=>setMontantCmd(e.target.value)} placeholder="Montant €" style={{width:90,fontSize:10,padding:"4px 8px"}}/>
+            <BtnGhost onClick={()=>commander(f)} style={{fontSize:9,padding:"3px 8px"}}>✅</BtnGhost>
+            <BtnGhost onClick={()=>setShowCmd(null)} style={{fontSize:9,padding:"3px 8px"}}>✕</BtnGhost>
+          </>:<BtnGhost onClick={()=>setShowCmd(f.id)} style={{fontSize:10,padding:"3px 8px"}}>Commander</BtnGhost>}
+          <BtnGhost onClick={()=>supprimer(f.id)} style={{fontSize:10,padding:"3px 8px",color:C.red}}>✕</BtnGhost>
         </div></Td>
       </tr>)}</tbody>
-    </table>
+    </table>}
   </div>;
 };
-
 
 // ─── PAGE NOTE DE FRAIS ────────────────────────────────────────
 const PageNoteFrais=({plan,showToast})=>{
@@ -1917,65 +2027,161 @@ const PageNoteFrais=({plan,showToast})=>{
 // ─── PAGE COMPTA ──────────────────────────────────────────────
 const PageCompta=({plan,showToast})=>{
   const[onglet,setOnglet]=useState("journal");
+  const[wallet,setWallet]=useState([]);
+  const[factures,setFactures]=useState([]);
+  const[soldeReel,setSoldeReel]=useState(0);
+  const[tvaDeductible,setTvaDeductible]=useState(0);
+  const[loadingCompta,setLoadingCompta]=useState(true);
+
+  const loadCompta=async()=>{
+    try{
+      const[wRes,fRes]=await Promise.all([
+        fetch('/api/wallet?action=list').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/factures?action=list').then(r=>r.json()).catch(()=>({})),
+      ]);
+      if(wRes.transactions)setWallet(wRes.transactions);
+      if(wRes.solde!=null)setSoldeReel(wRes.solde);
+      if(fRes.factures)setFactures(fRes.factures);
+      try{
+        const{createClient}=await import('@supabase/supabase-js');
+        const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+        const{data}=await sb.from('notes_frais').select('tva').eq('statut','validé');
+        if(data)setTvaDeductible(data.reduce((a,n)=>a+Number(n.tva||0),0));
+      }catch(e){/* module Notes de Frais optionnel */}
+    }catch(e){console.error("Compta:",e);}
+    setLoadingCompta(false);
+  };
+  useEffect(()=>{loadCompta();},[]);
+
   const tabs=[{id:"journal",label:"📋 Journal"},{id:"bilan",label:"📊 Bilan"},{id:"tva",label:"💶 TVA"},{id:"charges",label:"💸 Charges"},{id:"fournisseurs",label:"🏭 Fournisseurs"},{id:"ia",label:"🤖 IA Fiscale"},{id:"export",label:"📤 Export"}];
   if(!hasAccess(plan,"compta"))return <div style={{padding:20}}><UpgradeWall page="Comptabilité" plan={plan}/></div>;
+
+  const journal=[
+    ...wallet.filter(w=>w.statut==="confirmé"||w.statut==="viré").map(w=>({date:w.created_at,libelle:w.libelle,montant:Number(w.montant),type:w.type==="entree"?"recette":"depense"})),
+    ...factures.filter(f=>f.statut==="payée").map(f=>({date:f.date_emission,libelle:`Facture ${f.numero} — ${f.client_nom}`,montant:Number(f.montant_ttc),type:"recette"})),
+  ].sort((a,b)=>new Date(b.date)-new Date(a.date));
+
+  const recettes=journal.filter(j=>j.type==="recette").reduce((a,j)=>a+j.montant,0);
+  const depenses=journal.filter(j=>j.type==="depense").reduce((a,j)=>a+j.montant,0);
+  const resultatNet=recettes-depenses;
+  const marge=recettes>0?Math.round((resultatNet/recettes)*100):0;
+
+  const creancesClients=factures.filter(f=>f.statut!=="payée"&&f.statut!=="annulée").reduce((a,f)=>a+Number(f.montant_ttc),0);
+  const dettesFournisseurs=wallet.filter(w=>w.type==="fournisseur"&&w.statut==="à_virer").reduce((a,w)=>a+Number(w.montant),0);
+  const commissionsDues=wallet.filter(w=>w.type==="commission"&&w.statut==="à_virer").reduce((a,w)=>a+Number(w.montant),0);
+
+  const tvaCollectee=factures.reduce((a,f)=>a+Number(f.montant_tva||0),0);
+  const tvaAReverser=Math.max(0,tvaCollectee-tvaDeductible);
+
+  const exportFEC=()=>{
+    const lignes=["JournalCode\tJournalLib\tEcritureNum\tEcritureDate\tCompteNum\tCompteLib\tCompAuxNum\tCompAuxLib\tPieceRef\tPieceDate\tEcritureLib\tDebit\tCredit\tEcritureLet\tDateLet\tValidDate\tMontantdevise\tIdevise"];
+    journal.forEach((j,i)=>{
+      const d=new Date(j.date);const dStr=isNaN(d)?"":`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+      const num=String(i+1).padStart(5,"0");
+      if(j.type==="recette"){
+        lignes.push(`VT\tVentes\t${num}\t${dStr}\t512000\tBanque\t\t\tPC${num}\t${dStr}\t${j.libelle}\t${j.montant.toFixed(2)}\t0.00\t\t\t${dStr}\t\t`);
+        lignes.push(`VT\tVentes\t${num}\t${dStr}\t706000\tPrestations de services\t\t\tPC${num}\t${dStr}\t${j.libelle}\t0.00\t${j.montant.toFixed(2)}\t\t\t${dStr}\t\t`);
+      }else{
+        lignes.push(`AC\tAchats\t${num}\t${dStr}\t625100\tServices extérieurs\t\t\tPC${num}\t${dStr}\t${j.libelle}\t${j.montant.toFixed(2)}\t0.00\t\t\t${dStr}\t\t`);
+        lignes.push(`AC\tAchats\t${num}\t${dStr}\t512000\tBanque\t\t\tPC${num}\t${dStr}\t${j.libelle}\t0.00\t${j.montant.toFixed(2)}\t\t\t${dStr}\t\t`);
+      }
+    });
+    const blob=new Blob([lignes.join("\n")],{type:"text/plain;charset=utf-8"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`FEC_Xyra_${new Date().getFullYear()}.txt`;a.click();
+    showToast("✅ FEC téléchargé");
+  };
+
+  const exportCSV=()=>{
+    const lignes=["Date,Libellé,Type,Montant"];
+    journal.forEach(j=>{lignes.push(`${j.date},"${j.libelle}",${j.type},${j.montant.toFixed(2)}`);});
+    const blob=new Blob([lignes.join("\n")],{type:"text/csv;charset=utf-8"});
+    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download=`Journal_Xyra_${new Date().getFullYear()}.csv`;a.click();
+    showToast("✅ CSV téléchargé");
+  };
+
+  const apercuBilanPDF=()=>{
+    const win=window.open("","_blank");
+    if(!win)return showToast("⚠️ Autorisez les pop-ups");
+    win.document.write(`<!DOCTYPE html><html><head><title>Bilan</title><style>body{font-family:sans-serif;padding:40px;max-width:700px;margin:0 auto;}h1{color:#C9A84C;font-family:Georgia,serif;}table{width:100%;border-collapse:collapse;margin-top:16px;}td{padding:8px 0;border-bottom:1px solid #eee;}.btn{background:#C9A84C;color:#000;border:none;padding:10px 24px;border-radius:6px;font-weight:700;cursor:pointer;margin-top:30px;}@media print{.btn{display:none;}}</style></head><body>
+      <h1>XYRA — Bilan</h1>
+      <h3>ACTIF</h3>
+      <table><tr><td>Trésorerie</td><td style="text-align:right;">${soldeReel.toFixed(2)}€</td></tr><tr><td>Créances clients</td><td style="text-align:right;">${creancesClients.toFixed(2)}€</td></tr><tr><td><b>TOTAL ACTIF</b></td><td style="text-align:right;"><b>${(soldeReel+creancesClients).toFixed(2)}€</b></td></tr></table>
+      <h3>PASSIF</h3>
+      <table><tr><td>Résultat net</td><td style="text-align:right;">${resultatNet.toFixed(2)}€</td></tr><tr><td>Dettes fournisseurs</td><td style="text-align:right;">${dettesFournisseurs.toFixed(2)}€</td></tr><tr><td>Commissions dues</td><td style="text-align:right;">${commissionsDues.toFixed(2)}€</td></tr><tr><td><b>TOTAL PASSIF</b></td><td style="text-align:right;"><b>${(resultatNet+dettesFournisseurs+commissionsDues).toFixed(2)}€</b></td></tr></table>
+      <button class="btn" onclick="window.print()">🖨 Imprimer / Enregistrer en PDF</button>
+    </body></html>`);
+    win.document.close();
+  };
+
   return <div style={{padding:20}}>
     <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◉ Comptabilité</div>
-    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Journal · Bilan · TVA · Charges · Fournisseurs · IA Fiscale</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Journal · Bilan · TVA · Charges · Fournisseurs · IA Fiscale — données réelles</div>
     <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
+    {loadingCompta&&<div style={{fontSize:11,color:C.muted,marginBottom:12}}>Chargement des données réelles...</div>}
     {onglet==="journal"&&<Card>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
-        <KPI label="Recettes" val="48 200 €" color={C.green}/>
-        <KPI label="Dépenses" val="29 780 €" color={C.red}/>
-        <KPI label="Résultat net" val="18 420 €" color={C.gold}/>
-        <KPI label="Marge" val="38%" color={C.teal}/>
+        <KPI label="Recettes" val={fmt(recettes)} color={C.green}/>
+        <KPI label="Dépenses" val={fmt(depenses)} color={C.red}/>
+        <KPI label="Résultat net" val={fmt(resultatNet)} color={C.gold}/>
+        <KPI label="Marge" val={marge+"%"} color={C.teal}/>
       </div>
+      {!loadingCompta&&journal.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>Aucune écriture pour le moment — les paiements confirmés et factures payées apparaîtront ici automatiquement.</div>}
       <table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr><TH>Date</TH><TH>Libellé</TH><TH>Débit</TH><TH>Crédit</TH><TH>Type</TH></tr></thead>
-        <tbody>{INIT_HISTO.slice(0,5).map((h,i)=><tr key={i}>
-          <Td style={{color:C.muted,fontSize:10}}>{h.date}</Td>
+        <tbody>{journal.slice(0,15).map((h,i)=><tr key={i}>
+          <Td style={{color:C.muted,fontSize:10}}>{new Date(h.date).toLocaleDateString("fr")}</Td>
           <Td style={{fontWeight:600}}>{h.libelle}</Td>
-          <Td style={{color:C.red}}>{h.type==="sortie"?fmt(h.montant,h.devise):"—"}</Td>
-          <Td style={{color:C.green}}>{h.type==="entree"?fmt(h.montant,h.devise):"—"}</Td>
-          <Td><Pill color={h.type==="entree"?C.green:C.red}>{h.type==="entree"?"Recette":"Dépense"}</Pill></Td>
+          <Td style={{color:C.red}}>{h.type==="depense"?fmt(h.montant):"—"}</Td>
+          <Td style={{color:C.green}}>{h.type==="recette"?fmt(h.montant):"—"}</Td>
+          <Td><Pill color={h.type==="recette"?C.green:C.red}>{h.type==="recette"?"Recette":"Dépense"}</Pill></Td>
         </tr>)}</tbody>
       </table>
     </Card>}
     {onglet==="bilan"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
       <Card><STitle>📈 ACTIF</STitle>
-        {[["Trésorerie",18420,C.green],["Créances clients",5645,C.blue],["Stock fournitures",2800,C.teal],["Immobilisations",0,C.muted]].map(([n,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div>)}
-        <div style={{marginTop:8,display:"flex",justifyContent:"space-between",fontWeight:700}}><span style={{color:C.gold}}>TOTAL ACTIF</span><span style={{color:C.gold}}>{fmt(26865)}</span></div>
+        {[["Trésorerie",soldeReel,C.green],["Créances clients",creancesClients,C.blue]].map(([n,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div>)}
+        <div style={{marginTop:8,display:"flex",justifyContent:"space-between",fontWeight:700}}><span style={{color:C.gold}}>TOTAL ACTIF</span><span style={{color:C.gold}}>{fmt(soldeReel+creancesClients)}</span></div>
       </Card>
       <Card><STitle>📉 PASSIF</STitle>
-        {[["Capital",10000,C.blue],["Résultat net",18420,C.green],["Dettes fournisseurs",1190,C.red],["Commissions dues",8525,C.orange]].map(([n,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div>)}
-        <div style={{marginTop:8,display:"flex",justifyContent:"space-between",fontWeight:700}}><span style={{color:C.gold}}>TOTAL PASSIF</span><span style={{color:C.gold}}>{fmt(38135)}</span></div>
+        {[["Résultat net",resultatNet,C.green],["Dettes fournisseurs",dettesFournisseurs,C.red],["Commissions dues",commissionsDues,C.orange]].map(([n,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div>)}
+        <div style={{marginTop:8,display:"flex",justifyContent:"space-between",fontWeight:700}}><span style={{color:C.gold}}>TOTAL PASSIF</span><span style={{color:C.gold}}>{fmt(resultatNet+dettesFournisseurs+commissionsDues)}</span></div>
       </Card>
+      <div style={{gridColumn:"span 2"}}><BtnGhost onClick={apercuBilanPDF}>👁 Aperçu / Imprimer le bilan</BtnGhost></div>
     </div>}
     {onglet==="tva"&&<Card><STitle>💶 TVA collectée / déductible</STitle>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        <KPI label="TVA collectée" val="9 640 €" color={C.red}/>
-        <KPI label="TVA déductible" val="4 820 €" color={C.green}/>
-        <KPI label="TVA à reverser" val="4 820 €" color={C.orange}/>
+        <KPI label="TVA collectée" val={fmt(tvaCollectee)} color={C.red}/>
+        <KPI label="TVA déductible" val={fmt(tvaDeductible)} color={C.green}/>
+        <KPI label="TVA à reverser" val={fmt(tvaAReverser)} color={C.orange}/>
       </div>
-      <div style={{marginTop:12,background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:12,fontSize:11,color:C.orange}}>⚠️ Déclaration TVA trimestrielle à effectuer avant le 30/04/2026</div>
+      <div style={{marginTop:12,fontSize:11,color:C.muted}}>TVA collectée calculée depuis tes vraies factures. TVA déductible calculée depuis les Notes de Frais validées.</div>
     </Card>}
     {onglet==="charges"&&<TabCharges showToast={showToast}/>}
     {onglet==="fournisseurs"&&<TabFournisseurs showToast={showToast}/>}
     {onglet==="ia"&&<Card><STitle>🤖 Conseils IA Fiscale — Claude</STitle>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {[{t:"Optimisation charges",c:"Vos charges de transport représentent 14% des charges totales. Envisagez un forfait kilométrique pour optimiser la déduction fiscale.",col:C.green},{t:"Amortissement équipements",c:"Vos équipements jet/yacht peuvent être amortis sur 5 ans. Cela réduirait votre résultat imposable de ~2 800€ cette année.",col:C.blue},{t:"TVA à l'encaissement",c:"Avec votre volume, la TVA à l'encaissement vous permettrait de ne déclarer que les paiements reçus, améliorant votre trésorerie.",col:C.gold}].map((a,i)=><div key={i} style={{background:`${a.col}11`,border:`1px solid ${a.col}33`,borderRadius:8,padding:12}}>
+        {[{t:"Marge actuelle",c:`Ta marge nette est de ${marge}% sur la période. ${marge<20?"C'est en dessous de la moyenne du secteur services (25-35%) — vérifie tes charges fixes.":"C'est une bonne marge pour ton secteur."}`,col:marge<20?C.orange:C.green},{t:"TVA à anticiper",c:`Tu as ${fmt(tvaAReverser)} de TVA à reverser sur la période. Mets cette somme de côté pour ta prochaine déclaration.`,col:C.gold},{t:"Créances en attente",c:creancesClients>0?`Tu as ${fmt(creancesClients)} de factures non encore payées. Pense à relancer les clients en retard depuis le module Facturation.`:"Aucune créance en attente, bien joué.",col:C.blue}].map((a,i)=><div key={i} style={{background:`${a.col}11`,border:`1px solid ${a.col}33`,borderRadius:8,padding:12}}>
           <div style={{fontSize:11,fontWeight:700,color:a.col,marginBottom:4}}>💡 {a.t}</div>
           <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>{a.c}</div>
         </div>)}
       </div>
     </Card>}
-    {onglet==="export"&&<Card><STitle>📤 Exports comptables</STitle>
+    {onglet==="export"&&<Card><STitle>📤 Exports comptables réels</STitle>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        {[["FEC","Fichier des Écritures Comptables",".txt"],["Bilan","Bilan comptable complet",".pdf"],["TVA","Déclaration CA3",".xml"],["Sage","Export Sage 50",".csv"],["QuickBooks","Export QuickBooks",".qbo"],["Expert-comptable","Pack complet",".zip"]].map(([n,d,ext],i)=><CT key={i} style={{cursor:"pointer"}} onClick={()=>showToast(`✅ Export ${n}${ext} téléchargé !`)}>
-          <div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:2}}>{n} <Pill color={C.blue}>{ext}</Pill></div>
-          <div style={{fontSize:10,color:C.muted}}>{d}</div>
-        </CT>)}
+        <CT style={{cursor:"pointer"}} onClick={exportFEC}>
+          <div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:2}}>FEC <Pill color={C.blue}>.txt</Pill></div>
+          <div style={{fontSize:10,color:C.muted}}>Fichier des Écritures Comptables — format légal</div>
+        </CT>
+        <CT style={{cursor:"pointer"}} onClick={exportCSV}>
+          <div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:2}}>Journal <Pill color={C.blue}>.csv</Pill></div>
+          <div style={{fontSize:10,color:C.muted}}>Toutes les écritures, format tableur</div>
+        </CT>
+        <CT style={{cursor:"pointer"}} onClick={apercuBilanPDF}>
+          <div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:2}}>Bilan <Pill color={C.blue}>.pdf</Pill></div>
+          <div style={{fontSize:10,color:C.muted}}>Bilan comptable complet</div>
+        </CT>
       </div>
+      <div style={{marginTop:12,fontSize:10,color:C.muted}}>Le FEC utilise une imputation comptable simplifiée (512000/706000/625100) — communique-le à ton expert-comptable pour vérification avant déclaration officielle.</div>
     </Card>}
   </div>;
 };
@@ -5529,55 +5735,121 @@ const PageSignatures=({plan,showToast})=>{
 // ─── PAGE FACTURATION ÉLECTRONIQUE ───────────────────────────
 const PageFacturation=({plan,showToast})=>{
   const[onglet,setOnglet]=useState("dashboard");
-  const[factures,setFactures]=useState([
-    {id:"FE-2026-001",client:"Sofia Al-Rashid",siren:"—",montantHT:2000,tva:400,ttc:2400,date:"13/04/2026",statut:"acceptée",format:"Factur-X",envoyéDGFiP:true,fichierXML:"FE-2026-001.xml",fichierPDF:"FE-2026-001.pdf"},
-    {id:"FE-2026-002",client:"Pierre Lefevre",siren:"123 456 789",montantHT:4000,tva:800,ttc:4800,date:"12/04/2026",statut:"émise",format:"Factur-X",envoyéDGFiP:true,fichierXML:"FE-2026-002.xml",fichierPDF:"FE-2026-002.pdf"},
-    {id:"FE-2026-003",client:"Groupe Prestige SARL",siren:"987 654 321",montantHT:1500,tva:300,ttc:1800,date:"10/04/2026",statut:"rejetée",format:"UBL",envoyéDGFiP:false,fichierXML:null,fichierPDF:"FE-2026-003.pdf"},
-    {id:"FE-2026-004",client:"Cabinet Delmas",siren:"456 789 123",montantHT:800,tva:160,ttc:960,date:"08/04/2026",statut:"reçue",format:"Factur-X",envoyéDGFiP:true,fichierXML:"FE-2026-004.xml",fichierPDF:"FE-2026-004.pdf"},
-  ]);
+  const[factures,setFactures]=useState([]);
+  const[loadingFact,setLoadingFact]=useState(true);
 
-  const CLIENTS_CONFORMITE=[
-    {nom:"Sofia Al-Rashid",siren:"—",type:"Particulier",prete:false,raison:"Particulier — non soumis à la facturation électronique B2B"},
-    {nom:"Groupe Prestige SARL",siren:"987 654 321",type:"Grande entreprise",prete:true,raison:"Déjà connectée à Chorus Pro"},
-    {nom:"Cabinet Delmas",siren:"456 789 123",type:"PME",prete:true,raison:"SIREN validé · PDP Pennylane"},
-    {nom:"Pierre Lefevre",siren:"123 456 789",type:"Micro-entreprise",prete:false,raison:"Obligatoire sept. 2027 — anticiper dès maintenant"},
-    {nom:"Jean-Marc Olivier",siren:"789 012 345",type:"Grande entreprise",prete:true,raison:"Chorus Pro actif depuis jan. 2026"},
-  ];
+  const loadFactures=async()=>{
+    try{
+      const res=await fetch('/api/factures?action=list');
+      const data=await res.json();
+      if(data.factures)setFactures(data.factures);
+    }catch(e){console.error("Factures:",e);}
+    setLoadingFact(false);
+  };
+  useEffect(()=>{loadFactures();},[]);
 
-  const[newFact,setNewFact]=useState({client:"",siren:"",montantHT:"",tva:"20",description:"",format:"Factur-X"});
-  const tvaMontant=newFact.montantHT?Math.round(Number(newFact.montantHT)*(Number(newFact.tva)/100)):0;
-  const ttc=newFact.montantHT?Number(newFact.montantHT)+tvaMontant:0;
+  const[newFact,setNewFact]=useState({client_nom:"",client_email:"",client_tel:"",siren:"",type_client:"entreprise",description:"",montant_ht:"",taux_tva:"20",format:"Factur-X"});
+  const tvaMontant=newFact.montant_ht?Math.round(Number(newFact.montant_ht)*Number(newFact.taux_tva))/100:0;
+  const ttc=newFact.montant_ht?Number(newFact.montant_ht)+tvaMontant:0;
 
   const tabs=[
     {id:"dashboard",label:"📊 Tableau de bord"},
     {id:"creer",label:"➕ Créer une facture"},
     {id:"historique",label:"📋 Historique"},
-    {id:"conformite",label:"✅ Conformité clients"},
-    {id:"ereporting",label:"📤 E-reporting TVA"},
+    {id:"ereporting",label:"📤 Conformité DGFiP"},
     {id:"guide",label:"📖 Guide réforme"},
   ];
 
-  const statutColor={acceptée:C.green,émise:C.blue,rejetée:C.red,reçue:C.teal};
-  const totalHT=factures.reduce((a,f)=>a+f.montantHT,0);
-  const totalTVA=factures.reduce((a,f)=>a+f.tva,0);
-  const envoyées=factures.filter(f=>f.envoyéDGFiP).length;
+  const statutColor={payée:C.green,"émise":C.blue,en_retard:C.red,brouillon:C.muted,annulée:C.muted};
+  const totalHT=factures.reduce((a,f)=>a+Number(f.montant_ht||0),0);
+  const totalTVA=factures.reduce((a,f)=>a+Number(f.montant_tva||0),0);
+  const payées=factures.filter(f=>f.statut==="payée").length;
+  const enRetard=factures.filter(f=>f.statut==="en_retard").length;
+
+  const apercuPDF=(f)=>{
+    const win=window.open("","_blank");
+    if(!win)return showToast("⚠️ Autorisez les pop-ups pour voir l'aperçu");
+    win.document.write(`<!DOCTYPE html><html><head><title>Facture ${f.numero}</title><style>
+      body{font-family:'Segoe UI',sans-serif;background:#fff;color:#111;padding:40px;max-width:700px;margin:0 auto;}
+      h1{font-size:22px;color:#C9A84C;font-family:Georgia,serif;letter-spacing:.1em;}
+      .meta{color:#888;font-size:11px;margin-top:8px;}
+      table{width:100%;border-collapse:collapse;font-size:13px;margin-top:24px;}
+      th{text-align:left;padding-bottom:8px;color:#888;border-bottom:2px solid #ddd;}
+      td{padding:10px 0;border-bottom:1px solid #eee;}
+      .total{text-align:right;margin-top:24px;font-size:20px;font-weight:700;color:#C9A84C;}
+      .btn{background:#C9A84C;color:#000;border:none;padding:10px 24px;border-radius:6px;font-weight:700;cursor:pointer;margin-top:30px;}
+      @media print{.btn{display:none;}}
+    </style></head><body>
+      <h1>XYRA</h1>
+      <div class="meta">Facture ${f.numero} · ${f.date_emission||""}</div>
+      <div class="meta">Facturé à : ${f.client_nom}${f.siren?" · SIREN "+f.siren:""}</div>
+      <table>
+        <tr><th>Description</th><th style="text-align:right;">Montant HT</th></tr>
+        <tr><td>${f.description||"Prestation de services"}</td><td style="text-align:right;">${Number(f.montant_ht).toFixed(2)}€</td></tr>
+        <tr><td>TVA (${f.taux_tva}%)</td><td style="text-align:right;">${Number(f.montant_tva).toFixed(2)}€</td></tr>
+      </table>
+      <div class="total">Total TTC : ${Number(f.montant_ttc).toFixed(2)}€</div>
+      <button class="btn" onclick="window.print()">🖨 Imprimer / Enregistrer en PDF</button>
+    </body></html>`);
+    win.document.close();
+  };
+
+  const creerFacture=async()=>{
+    if(!newFact.client_nom||!newFact.montant_ht)return showToast("⚠️ Remplissez client et montant");
+    showToast("⏳ Création de la facture...");
+    try{
+      const res=await fetch('/api/factures',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer',...newFact})});
+      const data=await res.json();
+      if(data.success){
+        showToast(`✅ Facture ${data.facture.numero} créée !`);
+        setNewFact({client_nom:"",client_email:"",client_tel:"",siren:"",type_client:"entreprise",description:"",montant_ht:"",taux_tva:"20",format:"Factur-X"});
+        setOnglet("historique");
+        loadFactures();
+      }else{showToast("❌ "+(data.error||"Erreur"));}
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const envoyerPaiement=async(id)=>{
+    showToast("⏳ Création du lien de paiement...");
+    try{
+      const res=await fetch('/api/factures',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_paiement',id})});
+      const data=await res.json();
+      if(data.success){showToast("✅ Lien de paiement envoyé au client !");loadFactures();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const marquerPayee=async(id)=>{
+    try{
+      await fetch('/api/factures',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'marquer_payee',id})});
+      showToast("✅ Facture marquée payée");
+      loadFactures();
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const relancer=async(id)=>{
+    showToast("⏳ Envoi de la relance...");
+    try{
+      const res=await fetch('/api/factures',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'relancer',id})});
+      const data=await res.json();
+      if(data.success)showToast(data.envoye?"✅ Relance envoyée !":"⚠️ Aucun email/téléphone client renseigné");
+      loadFactures();
+    }catch(e){showToast("❌ Erreur");}
+  };
 
   if(!hasAccess(plan,"compta"))return <div style={{padding:20}}><UpgradeWall page="compta" plan={plan}/></div>;
 
   return <div style={{padding:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
       <div>
-        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>🧾 Facturation Électronique</div>
-        <div style={{fontSize:11,color:C.muted}}>Réforme État français · Factur-X · Chorus Pro · DGFiP · E-reporting TVA</div>
+        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>🧾 Facturation</div>
+        <div style={{fontSize:11,color:C.muted}}>Factures réelles · Lien de paiement Stripe · Relances automatiques</div>
       </div>
-      <div style={{display:"flex",gap:8}}>
-        <div style={{background:`${C.green}15`,border:`1px solid ${C.green}33`,borderRadius:8,padding:"6px 12px",fontSize:10,color:C.green,fontWeight:600}}>● Connecté à Chorus Pro</div>
-        <Btn onClick={()=>setOnglet("creer")}>+ Nouvelle facture</Btn>
-      </div>
+      <Btn onClick={()=>setOnglet("creer")}>+ Nouvelle facture</Btn>
     </div>
 
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
-      {[["Factures émises",factures.length,C.blue],["Envoyées DGFiP",envoyées,C.green],["CA HT total",fmt(totalHT),C.gold],["TVA collectée",fmt(totalTVA),C.orange]].map(([l,v,c],i)=><CT key={i}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div></CT>)}
+      {[["Factures émises",factures.length,C.blue],["Payées",payées,C.green],["CA HT total",fmt(totalHT),C.gold],["En retard",enRetard,C.red]].map(([l,v,c],i)=><CT key={i}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div></CT>)}
     </div>
 
     <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
@@ -5586,177 +5858,121 @@ const PageFacturation=({plan,showToast})=>{
 
     {/* ── DASHBOARD ─────────────────────────── */}
     {onglet==="dashboard"&&<div>
-      <div style={{background:`linear-gradient(135deg,${C.card},#0A1A0A)`,border:`1px solid ${C.green}33`,borderRadius:14,padding:20,marginBottom:14}}>
-        <div style={{fontSize:10,color:C.green,fontWeight:600,letterSpacing:"0.1em",marginBottom:8}}>🇫🇷 RÉFORME FACTURATION ÉLECTRONIQUE — ÉTAT FRANÇAIS</div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12}}>
-          {[{phase:"Grandes entreprises",date:"Sept. 2026",statut:"⚡ Imminent",color:C.red},{phase:"PME / ETI",date:"Sept. 2027",statut:"📅 Préparer",color:C.orange},{phase:"Micro-entreprises",date:"Sept. 2027",statut:"📅 Préparer",color:C.gold}].map((p,i)=><div key={i} style={{background:`${p.color}11`,border:`1px solid ${p.color}33`,borderRadius:8,padding:12}}>
-            <div style={{fontSize:9,color:p.color,fontWeight:600,marginBottom:2}}>{p.statut}</div>
-            <div style={{fontSize:11,fontWeight:700}}>{p.phase}</div>
-            <div style={{fontSize:12,fontWeight:700,color:p.color,marginTop:4}}>{p.date}</div>
-          </div>)}
-        </div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        <Card>
-          <STitle>📊 Statut des dernières factures</STitle>
-          {factures.map((f,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`}}>
-            <div><div style={{fontSize:11,fontWeight:600}}>{f.id}</div><div style={{fontSize:10,color:C.muted}}>{f.client} · {f.date}</div></div>
-            <div style={{display:"flex",gap:6,alignItems:"center"}}>
-              <div style={{fontSize:11,fontWeight:700,color:C.gold}}>{fmt(f.ttc)}</div>
-              <Pill color={statutColor[f.statut]||C.muted}>{f.statut}</Pill>
-            </div>
-          </div>)}
-        </Card>
-        <Card>
-          <STitle>✅ Conformité réseau Xyra</STitle>
-          {CLIENTS_CONFORMITE.map((c,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${C.border}22`}}>
-            <div><div style={{fontSize:11,fontWeight:600}}>{c.nom}</div><div style={{fontSize:9,color:C.muted}}>{c.type}</div></div>
-            <Pill color={c.prete?C.green:C.orange}>{c.prete?"✓ Prêt":"À anticiper"}</Pill>
-          </div>)}
-        </Card>
-      </div>
+      {loadingFact&&<div style={{fontSize:11,color:C.muted,marginBottom:12}}>Chargement...</div>}
+      {!loadingFact&&factures.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:30}}>Aucune facture pour le moment — crée ta première facture.</div>}
+      {factures.length>0&&<Card>
+        <STitle>📊 Dernières factures</STitle>
+        {factures.slice(0,6).map((f,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`}}>
+          <div><div style={{fontSize:11,fontWeight:600}}>{f.numero}</div><div style={{fontSize:10,color:C.muted}}>{f.client_nom} · {f.date_emission}</div></div>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            <div style={{fontSize:11,fontWeight:700,color:C.gold}}>{fmt(f.montant_ttc)}</div>
+            <Pill color={statutColor[f.statut]||C.muted}>{f.statut}</Pill>
+          </div>
+        </div>)}
+      </Card>}
     </div>}
 
     {/* ── CRÉER FACTURE ─────────────────────── */}
     {onglet==="creer"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
       <Card>
-        <STitle>➕ Nouvelle facture électronique conforme</STitle>
+        <STitle>➕ Nouvelle facture</STitle>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Client *</label><Inp value={newFact.client} onChange={e=>setNewFact(f=>({...f,client:e.target.value}))} placeholder="Nom / raison sociale"/></div>
+            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Client *</label><Inp value={newFact.client_nom} onChange={e=>setNewFact(f=>({...f,client_nom:e.target.value}))} placeholder="Nom / raison sociale"/></div>
             <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>SIREN (si entreprise)</label><Inp value={newFact.siren} onChange={e=>setNewFact(f=>({...f,siren:e.target.value}))} placeholder="123 456 789"/></div>
           </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Email client</label><Inp value={newFact.client_email} onChange={e=>setNewFact(f=>({...f,client_email:e.target.value}))} placeholder="client@email.com"/></div>
+            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Téléphone client</label><Inp value={newFact.client_tel} onChange={e=>setNewFact(f=>({...f,client_tel:e.target.value}))} placeholder="+33612345678"/></div>
+          </div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Type de client</label>
+            <select value={newFact.type_client} onChange={e=>setNewFact(f=>({...f,type_client:e.target.value}))} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:7,padding:"8px 12px",color:C.text,fontSize:12,fontFamily:"inherit",width:"100%"}}>
+              <option value="particulier">Particulier</option><option value="entreprise">Entreprise</option><option value="administration">Administration publique</option>
+            </select>
+          </div>
           <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Description de la prestation *</label><Inp value={newFact.description} onChange={e=>setNewFact(f=>({...f,description:e.target.value}))} placeholder="Ex: Nettoyage Airbnb Montmartre — avril 2026"/></div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8}}>
-            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Montant HT (€) *</label><Inp value={newFact.montantHT} onChange={e=>setNewFact(f=>({...f,montantHT:e.target.value}))} placeholder="0.00"/></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Montant HT (€) *</label><Inp value={newFact.montant_ht} onChange={e=>setNewFact(f=>({...f,montant_ht:e.target.value}))} placeholder="0.00"/></div>
             <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>TVA (%)</label>
-              <select value={newFact.tva} onChange={e=>setNewFact(f=>({...f,tva:e.target.value}))} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:7,padding:"8px 12px",color:C.text,fontSize:12,fontFamily:"inherit",width:"100%"}}>
+              <select value={newFact.taux_tva} onChange={e=>setNewFact(f=>({...f,taux_tva:e.target.value}))} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:7,padding:"8px 12px",color:C.text,fontSize:12,fontFamily:"inherit",width:"100%"}}>
                 <option value="20">20% — Normal</option><option value="10">10% — Intermédiaire</option><option value="5.5">5.5% — Réduit</option><option value="0">0% — Exonéré</option>
               </select>
             </div>
-            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Format</label>
-              <select value={newFact.format} onChange={e=>setNewFact(f=>({...f,format:e.target.value}))} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:7,padding:"8px 12px",color:C.text,fontSize:12,fontFamily:"inherit",width:"100%"}}>
-                <option>Factur-X</option><option>UBL</option><option>CII</option>
-              </select>
-            </div>
           </div>
-          {newFact.montantHT&&<div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:8,padding:12}}>
+          {newFact.montant_ht&&<div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:8,padding:12}}>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,textAlign:"center"}}>
-              <div><div style={{fontSize:9,color:C.muted}}>HT</div><div style={{fontSize:16,fontWeight:700}}>{fmt(Number(newFact.montantHT))}</div></div>
-              <div><div style={{fontSize:9,color:C.muted}}>TVA {newFact.tva}%</div><div style={{fontSize:16,fontWeight:700,color:C.orange}}>{fmt(tvaMontant)}</div></div>
+              <div><div style={{fontSize:9,color:C.muted}}>HT</div><div style={{fontSize:16,fontWeight:700}}>{fmt(Number(newFact.montant_ht))}</div></div>
+              <div><div style={{fontSize:9,color:C.muted}}>TVA {newFact.taux_tva}%</div><div style={{fontSize:16,fontWeight:700,color:C.orange}}>{fmt(tvaMontant)}</div></div>
               <div><div style={{fontSize:9,color:C.gold}}>TTC</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(ttc)}</div></div>
             </div>
           </div>}
-          <div style={{display:"flex",gap:8}}>
-            <Btn onClick={()=>{
-              if(!newFact.client||!newFact.montantHT)return showToast("⚠️ Remplissez client et montant");
-              const nf={id:`FE-2026-00${factures.length+1}`,client:newFact.client,siren:newFact.siren||"—",montantHT:Number(newFact.montantHT),tva:tvaMontant,ttc,date:new Date().toLocaleDateString("fr"),statut:"émise",format:newFact.format,envoyéDGFiP:false,fichierXML:`FE-2026-00${factures.length+1}.xml`,fichierPDF:`FE-2026-00${factures.length+1}.pdf`};
-              setFactures(fs=>[nf,...fs]);setNewFact({client:"",siren:"",montantHT:"",tva:"20",description:"",format:"Factur-X"});
-              showToast("✅ Facture électronique créée ! Envoi DGFiP / Chorus Pro en cours...");setOnglet("historique");
-            }}>✅ Créer & Envoyer DGFiP</Btn>
-            <BtnGhost onClick={()=>showToast("📄 Aperçu PDF généré")}>👁 Aperçu PDF</BtnGhost>
-          </div>
+          <Btn onClick={creerFacture}>✅ Créer la facture</Btn>
         </div>
       </Card>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         <Card style={{background:`${C.blue}08`,borderColor:`${C.blue}33`}}>
-          <STitle>📋 Mentions obligatoires (vérification auto)</STitle>
-          {[["Numéro de facture séquentiel","✅ Auto-généré"],["Date d'émission","✅ Auto"],["SIREN émetteur Xyra","✅ 123 456 789"],["SIREN destinataire","✅ Si renseigné"],["Montant HT","✅ Saisi"],["Taux et montant TVA","✅ Calculé auto"],["Montant TTC","✅ Calculé auto"],["Format structuré Factur-X","✅ Sélectionné"],["Signature électronique","✅ Horodatage auto"]].map(([m,s],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}><span>{m}</span><span style={{color:C.green,fontWeight:600}}>{s}</span></div>)}
+          <STitle>📋 Mentions obligatoires</STitle>
+          {[["Numéro de facture séquentiel","✅ Auto-généré"],["Date d'émission","✅ Auto"],["Montant HT/TVA/TTC","✅ Calculé auto"],["Format structuré Factur-X","✅ Sélectionné par défaut"]].map(([m,s],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}><span>{m}</span><span style={{color:C.green,fontWeight:600}}>{s}</span></div>)}
         </Card>
         <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
-          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 IA — Conseils conformité</div>
-          <div style={{fontSize:11,color:C.text,lineHeight:1.7}}>Le format <b style={{color:C.gold}}>Factur-X</b> est recommandé — c'est un PDF enrichi d'un fichier XML qui satisfait toutes les exigences de la DGFiP. Il est lisible par les humains et les systèmes informatiques. Chorus Pro l'accepte nativement.</div>
+          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>💳 Encaissement</div>
+          <div style={{fontSize:11,color:C.text,lineHeight:1.7}}>Une fois créée, va dans l'historique pour <b style={{color:C.gold}}>envoyer le lien de paiement Stripe</b> au client par email et WhatsApp. La facture passe automatiquement en "payée" dès qu'il règle.</div>
         </Card>
       </div>
     </div>}
 
     {/* ── HISTORIQUE ────────────────────────── */}
     {onglet==="historique"&&<Card>
+      {loadingFact&&<div style={{fontSize:11,color:C.muted,marginBottom:8}}>Chargement...</div>}
+      {!loadingFact&&factures.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:20}}>Aucune facture pour le moment</div>}
       <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>N° Facture</TH><TH>Client</TH><TH>SIREN</TH><TH>Date</TH><TH>HT</TH><TH>TVA</TH><TH>TTC</TH><TH>Format</TH><TH>DGFiP</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+        <thead><tr><TH>N° Facture</TH><TH>Client</TH><TH>Date</TH><TH>HT</TH><TH>TVA</TH><TH>TTC</TH><TH>Statut</TH><TH>DGFiP</TH><TH>Actions</TH></tr></thead>
         <tbody>{factures.map((f,i)=><tr key={i}>
-          <Td style={{color:C.gold,fontWeight:700,fontSize:10}}>{f.id}</Td>
-          <Td style={{fontWeight:600}}>{f.client}</Td>
-          <Td style={{color:C.muted,fontSize:10,fontFamily:"monospace"}}>{f.siren}</Td>
-          <Td style={{color:C.muted,fontSize:10}}>{f.date}</Td>
-          <Td style={{color:C.text,fontWeight:600}}>{fmt(f.montantHT)}</Td>
-          <Td style={{color:C.orange}}>{fmt(f.tva)}</Td>
-          <Td style={{color:C.gold,fontWeight:700}}>{fmt(f.ttc)}</Td>
-          <Td><Pill color={C.blue}>{f.format}</Pill></Td>
-          <Td><Pill color={f.envoyéDGFiP?C.green:C.red}>{f.envoyéDGFiP?"✓ Envoyé":"✗ Non envoyé"}</Pill></Td>
+          <Td style={{color:C.gold,fontWeight:700,fontSize:10}}>{f.numero}</Td>
+          <Td style={{fontWeight:600}}>{f.client_nom}</Td>
+          <Td style={{color:C.muted,fontSize:10}}>{f.date_emission}</Td>
+          <Td style={{color:C.text,fontWeight:600}}>{fmt(f.montant_ht)}</Td>
+          <Td style={{color:C.orange}}>{fmt(f.montant_tva)}</Td>
+          <Td style={{color:C.gold,fontWeight:700}}>{fmt(f.montant_ttc)}</Td>
           <Td><Pill color={statutColor[f.statut]||C.muted}>{f.statut}</Pill></Td>
-          <Td><div style={{display:"flex",gap:4}}>
-            <Btn onClick={()=>showToast(`📄 ${f.fichierPDF} téléchargé`)} style={{fontSize:9,padding:"3px 6px"}}>PDF</Btn>
-            {f.fichierXML&&<BtnGhost onClick={()=>showToast(`📦 ${f.fichierXML} téléchargé`)} style={{fontSize:9,padding:"3px 6px"}}>XML</BtnGhost>}
-            {!f.envoyéDGFiP&&<Btn onClick={()=>{setFactures(fs=>fs.map((x,j)=>j===i?{...x,envoyéDGFiP:true,statut:"émise"}:x));showToast("✅ Envoyé à la DGFiP via Chorus Pro");}} style={{fontSize:9,padding:"3px 6px",background:C.teal}}>DGFiP</Btn>}
+          <Td><Pill color={f.statut_dgfip==="transmise"?C.green:f.statut_dgfip==="a_transmettre"?C.orange:C.muted}>{f.statut_dgfip==="non_applicable"?"N/A":f.statut_dgfip==="a_transmettre"?"À transmettre":"Transmise"}</Pill></Td>
+          <Td><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+            <BtnGhost onClick={()=>apercuPDF(f)} style={{fontSize:9,padding:"3px 6px"}}>👁 PDF</BtnGhost>
+            {f.statut!=="payée"&&<Btn onClick={()=>envoyerPaiement(f.id)} style={{fontSize:9,padding:"3px 6px",background:C.green}}>💳 Lien paiement</Btn>}
+            {f.statut!=="payée"&&<BtnGhost onClick={()=>marquerPayee(f.id)} style={{fontSize:9,padding:"3px 6px"}}>✅ Marquer payée</BtnGhost>}
+            {f.statut!=="payée"&&<BtnGhost onClick={()=>relancer(f.id)} style={{fontSize:9,padding:"3px 6px",color:C.orange}}>🔔 Relancer</BtnGhost>}
           </div></Td>
         </tr>)}</tbody>
       </table>
     </Card>}
 
-    {/* ── CONFORMITÉ ────────────────────────── */}
-    {onglet==="conformite"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
-        <KPI label="Clients prêts" val={CLIENTS_CONFORMITE.filter(c=>c.prete).length} color={C.green}/>
-        <KPI label="À anticiper" val={CLIENTS_CONFORMITE.filter(c=>!c.prete).length} color={C.orange}/>
-        <KPI label="Taux conformité" val={Math.round(CLIENTS_CONFORMITE.filter(c=>c.prete).length/CLIENTS_CONFORMITE.length*100)+"%"} color={C.teal}/>
-      </div>
-      <Card>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Client</TH><TH>SIREN</TH><TH>Type</TH><TH>Statut</TH><TH>Note</TH><TH>Action</TH></tr></thead>
-          <tbody>{CLIENTS_CONFORMITE.map((c,i)=><tr key={i}>
-            <Td style={{fontWeight:700}}>{c.nom}</Td>
-            <Td style={{fontFamily:"monospace",fontSize:10,color:C.muted}}>{c.siren}</Td>
-            <Td><Pill color={c.type==="Grande entreprise"?C.red:c.type==="PME"?C.orange:C.blue}>{c.type}</Pill></Td>
-            <Td><Pill color={c.prete?C.green:C.orange}>{c.prete?"✓ Conforme":"À préparer"}</Pill></Td>
-            <Td style={{fontSize:10,color:C.muted}}>{c.raison}</Td>
-            <Td>{!c.prete&&<Btn onClick={()=>showToast(`📧 Guide conformité envoyé à ${c.nom}`)} style={{fontSize:10,padding:"4px 8px"}}>Envoyer guide</Btn>}</Td>
-          </tr>)}</tbody>
-        </table>
-      </Card>
-    </div>}
-
-    {/* ── E-REPORTING TVA ───────────────────── */}
+    {/* ── CONFORMITÉ DGFIP ──────────────────── */}
     {onglet==="ereporting"&&<div>
       <div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:12,padding:16,marginBottom:14}}>
-        <div style={{fontSize:10,color:C.orange,fontWeight:600,marginBottom:6}}>📤 E-REPORTING TVA — TRANSMISSION AUTOMATIQUE DGFiP</div>
-        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Depuis la réforme, toutes les transactions B2B et B2C doivent être reportées automatiquement à la DGFiP. Xyra génère et transmet les données automatiquement via l'API Chorus Pro.</div>
+        <div style={{fontSize:10,color:C.orange,fontWeight:600,marginBottom:6}}>📤 STATUT RÉEL — TRANSMISSION DGFiP / CHORUS PRO</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>La transmission automatique à la DGFiP nécessite de passer par une plateforme accréditée (PDP) — ce n'est pas encore connecté. Les factures à des <b style={{color:C.gold}}>administrations publiques</b> sont marquées "à transmettre" ci-dessous en attendant un partenariat. Les factures B2B privées ne sont pas concernées par cette obligation avant 2026-2027.</div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-        <Card>
-          <STitle>📊 TVA collectée — Avril 2026</STitle>
-          {[["TVA 20% (normal)",fmt(factures.reduce((a,f)=>a+f.tva,0)),C.red],["TVA 10% (intermédiaire)","0 €",C.orange],["TVA 5.5% (réduit)","0 €",C.gold],["Total TVA à déclarer",fmt(factures.reduce((a,f)=>a+f.tva,0)),C.orange]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
-        </Card>
-        <Card>
-          <STitle>📅 Calendrier déclarations</STitle>
-          {[{periode:"T1 2026 (janv–mars)",echeance:"30/04/2026",statut:"transmis",montant:"4 820 €"},{periode:"T2 2026 (avr–juin)",echeance:"31/07/2026",statut:"en cours",montant:fmt(factures.reduce((a,f)=>a+f.tva,0))},{periode:"T3 2026 (juil–sept)",echeance:"31/10/2026",statut:"à venir",montant:"—"}].map((d,i)=><div key={i} style={{background:C.card2,borderRadius:7,padding:10,marginBottom:6,border:`1px solid ${C.border}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><span style={{fontSize:11,fontWeight:600}}>{d.periode}</span><Pill color={d.statut==="transmis"?C.green:d.statut==="en cours"?C.gold:C.muted}>{d.statut}</Pill></div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:10}}><span style={{color:C.muted}}>Échéance : {d.echeance}</span><span style={{color:C.orange,fontWeight:700}}>{d.montant}</span></div>
-          </div>)}
-        </Card>
-      </div>
-      <div style={{display:"flex",gap:8}}>
-        <Btn onClick={()=>showToast("✅ E-reporting TVA Q2 transmis à la DGFiP !")}>📤 Transmettre Q2 2026 à la DGFiP</Btn>
-        <BtnGhost onClick={()=>showToast("📄 Rapport TVA Q2 téléchargé")}>📄 Télécharger rapport</BtnGhost>
-        <BtnGhost onClick={()=>showToast("📧 Comptable notifié")}>📧 Notifier comptable</BtnGhost>
-      </div>
+      <Card>
+        <STitle>📋 Factures à transmettre</STitle>
+        {factures.filter(f=>f.statut_dgfip==="a_transmettre").length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>Aucune facture en attente de transmission.</div>}
+        {factures.filter(f=>f.statut_dgfip==="a_transmettre").map((f,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`}}>
+          <div><div style={{fontSize:11,fontWeight:600}}>{f.numero}</div><div style={{fontSize:10,color:C.muted}}>{f.client_nom}</div></div>
+          <Pill color={C.orange}>À transmettre</Pill>
+        </div>)}
+      </Card>
     </div>}
 
     {/* ── GUIDE ─────────────────────────────── */}
     {onglet==="guide"&&<div>
       <Card style={{marginBottom:12,background:`${C.blue}08`,borderColor:`${C.blue}33`}}>
-        <div style={{fontSize:10,color:C.blue,fontWeight:600,marginBottom:10,letterSpacing:"0.1em"}}>📖 GUIDE COMPLET — RÉFORME FACTURATION ÉLECTRONIQUE FRANCE 2026-2027</div>
+        <div style={{fontSize:10,color:C.blue,fontWeight:600,marginBottom:10,letterSpacing:"0.1em"}}>📖 GUIDE — RÉFORME FACTURATION ÉLECTRONIQUE FRANCE 2026-2027</div>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {[{titre:"Qu'est-ce que la facturation électronique ?",contenu:"Obligation légale d'émettre et recevoir les factures B2B en format structuré (pas un simple PDF). La facture doit contenir des données lisibles par machine (XML) pour transmission automatique à la DGFiP.",color:C.blue},{titre:"Quels formats sont acceptés ?",contenu:"• Factur-X : PDF enrichi + XML — recommandé car lisible humain ET machine\n• UBL (Universal Business Language) : format XML pur\n• CII (Cross Industry Invoice) : autre format XML\nXyra génère nativement Factur-X.",color:C.gold},{titre:"Qu'est-ce que Chorus Pro ?",contenu:"Portail public du gouvernement français pour l'échange de factures électroniques. Obligatoire pour les factures émises aux entités publiques (État, collectivités). Xyra s'y connecte automatiquement.",color:C.green},{titre:"Qu'est-ce que le e-reporting ?",contenu:"Transmission automatique à la DGFiP des données de transactions B2B et B2C. Cela remplace (à terme) la déclaration manuelle de TVA. Fréquence : mensuelle ou trimestrielle.",color:C.orange},{titre:"Calendrier d'application",contenu:"• Sept. 2026 : Grandes entreprises (CA > 250M€ ou +5000 salariés)\n• Sept. 2027 : PME, ETI, Micro-entreprises\nRecommandation : préparez-vous maintenant pour anticiper.",color:C.purple}].map((s,i)=><div key={i} style={{background:`${s.color}08`,border:`1px solid ${s.color}22`,borderRadius:8,padding:12}}>
+          {[{titre:"Qu'est-ce que la facturation électronique ?",contenu:"Obligation légale d'émettre et recevoir les factures B2B en format structuré (pas un simple PDF). La facture doit contenir des données lisibles par machine (XML) pour transmission automatique à la DGFiP.",color:C.blue},{titre:"Quels formats sont acceptés ?",contenu:"• Factur-X : PDF enrichi + XML — recommandé car lisible humain ET machine\\n• UBL (Universal Business Language) : format XML pur\\n• CII (Cross Industry Invoice) : autre format XML",color:C.gold},{titre:"Qu'est-ce que Chorus Pro ?",contenu:"Portail public du gouvernement français pour l'échange de factures électroniques. Concerne uniquement les factures émises à des entités publiques (État, collectivités) — pas le B2B privé.",color:C.green},{titre:"Calendrier d'application",contenu:"• Sept. 2026 : Grandes entreprises (CA > 250M€ ou +5000 salariés)\\n• Sept. 2027 : PME, ETI, Micro-entreprises\\nRecommandation : anticiper dès maintenant.",color:C.purple}].map((s,i)=><div key={i} style={{background:`${s.color}08`,border:`1px solid ${s.color}22`,borderRadius:8,padding:12}}>
             <div style={{fontSize:11,fontWeight:700,color:s.color,marginBottom:4}}>❓ {s.titre}</div>
             <div style={{fontSize:11,color:C.text,lineHeight:1.7,whiteSpace:"pre-line"}}>{s.contenu}</div>
           </div>)}
         </div>
       </Card>
-      <div style={{display:"flex",gap:8}}>
-        <Btn onClick={()=>showToast("📄 Guide PDF téléchargé")}>📄 Télécharger le guide PDF</Btn>
-        <BtnGhost onClick={()=>showToast("📧 Guide envoyé à vos clients")}>📧 Envoyer à vos clients</BtnGhost>
-      </div>
     </div>}
   </div>;
 };

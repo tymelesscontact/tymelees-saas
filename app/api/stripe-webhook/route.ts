@@ -33,7 +33,7 @@ export async function POST(req: NextRequest) {
           const { Resend } = await import('resend');
           const resend = new Resend(process.env.RESEND_API_KEY);
           await resend.emails.send({
-            from: 'Xyra Alerts <onboarding@resend.dev>',
+            from: 'Xyra Alerts <notifications@xyraio.fr>',
             to: 'xyra.solution@gmail.com',
             subject: `💰 Paiement Wallet reçu — ${(session.amount_total / 100).toFixed(2)}€`,
             html: `<div style="font-family:sans-serif;padding:24px;"><h2>Paiement confirmé !</h2><p>Montant : <strong>${(session.amount_total / 100).toFixed(2)}€</strong></p></div>`,
@@ -43,11 +43,51 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ received: true });
       }
 
+      // ── PAIEMENT FACTURE ──────────────────────────────────────
+      if (session.metadata?.type === 'facture_payment') {
+        const { createClient } = await import('@supabase/supabase-js');
+        const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+
+        const { data: facture } = await sb.from('factures')
+          .update({ statut: 'payée' })
+          .eq('id', session.metadata.facture_id)
+          .select()
+          .single();
+
+        // Notif owner
+        try {
+          const { Resend } = await import('resend');
+          const resend = new Resend(process.env.RESEND_API_KEY);
+          await resend.emails.send({
+            from: 'Xyra Alerts <notifications@xyraio.fr>',
+            to: 'xyra.solution@gmail.com',
+            subject: `💰 Facture ${facture?.numero || ''} payée — ${(session.amount_total / 100).toFixed(2)}€`,
+            html: `<div style="font-family:sans-serif;padding:24px;"><h2>Facture payée !</h2><p>Numéro : <strong>${facture?.numero || ''}</strong></p><p>Montant : <strong>${(session.amount_total / 100).toFixed(2)}€</strong></p></div>`,
+          });
+        } catch (e) { console.error('Email error:', e); }
+
+        // Reçu de paiement automatique au client
+        if (facture?.client_email) {
+          try {
+            const { Resend } = await import('resend');
+            const resend = new Resend(process.env.RESEND_API_KEY);
+            await resend.emails.send({
+              from: 'Xyra <notifications@xyraio.fr>',
+              to: facture.client_email,
+              subject: `✅ Paiement confirmé — Facture ${facture.numero}`,
+              html: `<div style="font-family:sans-serif;padding:24px;"><h2>Merci ! Paiement reçu ✅</h2><p>Bonjour ${facture.client_nom},</p><p>Nous confirmons la réception de votre paiement de <strong>${(session.amount_total / 100).toFixed(2)}€</strong> pour la facture <strong>${facture.numero}</strong>.</p><p>Cette facture est maintenant soldée. Merci pour votre confiance.</p></div>`,
+            });
+          } catch (e) { console.error('Email client error:', e); }
+        }
+
+        return NextResponse.json({ received: true });
+      }
+
       // ── ABONNEMENT XYRA ───────────────────────────────────────
       const { email, societe, plan } = session.metadata || {};
 
       const { createClient } = await import('@supabase/supabase-js');
-      const sb = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_ANON_KEY!);
+      const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
       await sb.from('tenants').update({
         statut: 'actif',
         stripe_customer_id: session.customer,
@@ -61,7 +101,7 @@ export async function POST(req: NextRequest) {
       const planNom = plan === 'starter' ? 'Starter' : plan === 'business' ? 'Business Pro' : 'Enterprise';
 
       await resend.emails.send({
-        from: 'Xyra <onboarding@resend.dev>',
+        from: 'Xyra <notifications@xyraio.fr>',
         to: email,
         subject: `✅ Paiement confirmé — Bienvenue sur Xyra ${planNom} !`,
         html: `
@@ -85,7 +125,7 @@ export async function POST(req: NextRequest) {
       });
 
       await resend.emails.send({
-        from: 'Xyra Alerts <onboarding@resend.dev>',
+        from: 'Xyra Alerts <notifications@xyraio.fr>',
         to: 'xyra.solution@gmail.com',
         subject: `💳 Paiement reçu — ${societe} — ${planPrix}/mois`,
         html: `
