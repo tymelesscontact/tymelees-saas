@@ -16,6 +16,11 @@ const sbAdmin = createClient(
 );
 
 async function sendWhatsApp(to: string, message: string) {
+  // Remplace les caractères spéciaux non supportés par l'API WhatsApp
+  const safeMessage = message.replace(/[\u0100-\uFFFF]/g, (c) => {
+    const map: Record<string, string> = { '•':'*', '→':'->', '←':'<-', '✅':'OK', '❌':'X', '⚠️':'!', '🤝':'', '📱':'', '💰':'', '📄':'' };
+    return map[c] ?? '';
+  });
   return fetch(`https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
     method: 'POST',
     headers: {
@@ -25,7 +30,7 @@ async function sendWhatsApp(to: string, message: string) {
     body: JSON.stringify({
       messaging_product: 'whatsapp',
       to: to.replace(/\D/g, ''),
-      text: { body: message },
+      text: { body: safeMessage },
     }),
   });
 }
