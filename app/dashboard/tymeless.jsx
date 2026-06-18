@@ -523,15 +523,12 @@ const PageWallet=({plan,showToast,profil})=>{
   const[onglet,setOnglet]=useState("solde");
   const[devise,setDevise]=useState("EUR");
   const[histo,setHisto]=useState(INIT_HISTO);
-  const[comm,setComm]=useState(INIT_COMM);
-  const[remb,setRemb]=useState(INIT_REMB);
-  const[four,setFour]=useState(INIT_FOUR);
   const[showPay,setShowPay]=useState(false);
   const[showEnc,setShowEnc]=useState(false);
   const[payForm,setPayForm]=useState({nom:"",montant:"",devise:"EUR",methode:"carte",ref:""});
   const[loadingWallet,setLoadingWallet]=useState(true);
   const[soldeReel,setSoldeReel]=useState(0);
-  const[payUnified,setPayUnified]=useState({type:"",contact:"",montant:"",motif:"",methode:"sepa"});
+  const[payUnified,setPayUnified]=useState({type:"",contact:"",contactEmail:"",contactTel:"",contactIban:"",montant:"",motif:"",methode:"sepa"});
 
   const TYPES_PAYER=[
     {id:"remboursement",label:"↩ Remboursement",color:C.red,desc:"Rembourser un client"},
@@ -550,7 +547,7 @@ const PageWallet=({plan,showToast,profil})=>{
       const res=await fetch('/api/wallet?action=list');
       const data=await res.json();
       if(data.transactions){
-        setHisto(data.transactions.map(t=>({id:t.id,type:t.type,libelle:t.libelle,montant:Number(t.montant),devise:t.devise,methode:t.methode,date:new Date(t.created_at).toLocaleString("fr"),statut:t.statut,ref:t.ref,com:Number(t.commission||0)})));
+        setHisto(data.transactions.map(t=>({id:t.id,type:t.type,libelle:t.libelle,montant:Number(t.montant),devise:t.devise,methode:t.methode,date:new Date(t.created_at).toLocaleString("fr"),rawDate:t.created_at,statut:t.statut,ref:t.ref,com:Number(t.commission||0)})));
         setSoldeReel(data.solde||0);
       }
     }catch(e){console.error("Wallet:",e);}
@@ -584,36 +581,33 @@ const PageWallet=({plan,showToast,profil})=>{
   const dvSel=DEVISES.find(d=>d.code===devise);
   const tabs=[{id:"solde",label:"💳 Solde"},{id:"historique",label:"📋 Historique"},{id:"payer",label:"⚡ Payer"},{id:"encaisser",label:"💰 Encaisser"},{id:"commissions",label:"👥 Commissions"},{id:"remboursements",label:"↩ Remboursements"},{id:"fournisseurs",label:"🏭 Fournisseurs"},{id:"convertisseur",label:"⇄ Convertir"},{id:"iban",label:"🌍 IBAN Mondial"},{id:"wallets_projets",label:"📂 Wallets Projets"},{id:"sante",label:"❤ Santé"},{id:"alertes",label:"🔔 Alertes"},{id:"stats",label:"📊 Stats"},{id:"virements",label:"🏦 Virements"}];
 
-  const getContactsByType=(type)=>{
-    if(type==="remboursement")return remb.map(r=>({nom:r.nom,tel:r.tel,email:r.email}));
-    if(type==="commission")return comm.map(c=>({nom:c.nom,tel:c.tel,email:c.email}));
-    if(type==="fournisseur")return four.map(f=>({nom:f.nom,iban:f.iban}));
-    if(type==="sortie")return EQUIPE_CONTACTS;
-    return [];
-  };
-
   const handlePayerUnifie=async()=>{
-    const{type,contact,montant,motif,methode}=payUnified;
+    const{type,contact,contactEmail,contactTel,contactIban,montant,motif,methode}=payUnified;
     if(!type)return showToast("⚠️ Choisis un type de transaction");
-    if(!contact)return showToast("⚠️ Choisis un contact");
+    if(type==="sortie"){
+      if(!contact)return showToast("⚠️ Choisis un contact");
+    }else{
+      if(!contact)return showToast("⚠️ Indique le nom du bénéficiaire");
+    }
     if(!montant)return showToast("⚠️ Indique un montant");
-    const contactObj=getContactsByType(type).find(c=>c.nom===contact);
-    if(!contactObj)return showToast("⚠️ Contact introuvable");
+    let nom=contact,email=contactEmail,tel=contactTel,iban=contactIban;
+    if(type==="sortie"){
+      const eq=EQUIPE_CONTACTS.find(c=>c.nom===contact);
+      if(!eq)return showToast("⚠️ Contact introuvable");
+      nom=eq.nom;email=eq.email;tel=eq.tel;
+    }
     showToast("⏳ Enregistrement de la transaction...");
     try{
-      const body={action:'payer',nom:contactObj.nom,montant,devise:"EUR",methode:methode||"sepa",ref:motif,type};
-      if(contactObj.email)body.destinataire_email=contactObj.email;
-      if(contactObj.tel)body.destinataire_tel=contactObj.tel;
-      if(contactObj.iban)body.destinataire_iban=contactObj.iban;
+      const body={action:'payer',nom,montant,devise:"EUR",methode:methode||"sepa",ref:motif,type};
+      if(email)body.destinataire_email=email;
+      if(tel)body.destinataire_tel=tel;
+      if(iban)body.destinataire_iban=iban;
       const res=await fetch('/api/wallet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
       const data=await res.json();
       if(data.success){
-        if(type==="commission")setComm(cs=>cs.filter(c=>c.nom!==contactObj.nom));
-        if(type==="remboursement")setRemb(rs=>rs.filter(r=>r.nom!==contactObj.nom));
-        if(type==="fournisseur")setFour(fs=>fs.filter(f=>f.nom!==contactObj.nom));
         setShowPay(false);
-        setPayUnified({type:"",contact:"",montant:"",motif:"",methode:"sepa"});
-        showToast(`✅ Transaction enregistrée pour ${contactObj.nom} — à virer`);
+        setPayUnified({type:"",contact:"",contactEmail:"",contactTel:"",contactIban:"",montant:"",motif:"",methode:"sepa"});
+        showToast(`✅ Transaction enregistrée pour ${nom} — à virer`);
         loadWallet();
       }else{showToast("❌ "+(data.error||"Erreur"));}
     }catch(e){showToast("❌ Erreur de connexion");}
@@ -683,13 +677,21 @@ const PageWallet=({plan,showToast,profil})=>{
             </button>)}
           </div>
         </div>
-        {payUnified.type&&<div style={{marginBottom:12}}>
+        {payUnified.type==="sortie"&&<div style={{marginBottom:12}}>
           <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Contact *</label>
           <Sel value={payUnified.contact} onChange={e=>setPayUnified(p=>({...p,contact:e.target.value}))} style={{width:"100%"}}>
             <option value="">— Sélectionner —</option>
-            {getContactsByType(payUnified.type).map((c,i)=><option key={i} value={c.nom}>{c.nom}</option>)}
+            {EQUIPE_CONTACTS.map((c,i)=><option key={i} value={c.nom}>{c.nom}</option>)}
           </Sel>
-          {getContactsByType(payUnified.type).length===0&&<div style={{fontSize:10,color:C.orange,marginTop:4}}>Aucun contact disponible dans cette catégorie pour le moment</div>}
+        </div>}
+        {payUnified.type&&payUnified.type!=="sortie"&&<div style={{marginBottom:12}}>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Bénéficiaire *</label>
+          <Inp value={payUnified.contact} onChange={e=>setPayUnified(p=>({...p,contact:e.target.value}))} placeholder="Nom du bénéficiaire" style={{marginBottom:8}}/>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            <Inp value={payUnified.contactEmail} onChange={e=>setPayUnified(p=>({...p,contactEmail:e.target.value}))} placeholder="Email (optionnel)"/>
+            <Inp value={payUnified.contactTel} onChange={e=>setPayUnified(p=>({...p,contactTel:e.target.value}))} placeholder="Téléphone (optionnel)"/>
+          </div>
+          {payUnified.type==="fournisseur"&&<Inp value={payUnified.contactIban} onChange={e=>setPayUnified(p=>({...p,contactIban:e.target.value}))} placeholder="IBAN (optionnel)" style={{marginTop:8}}/>}
         </div>}
         {payUnified.type&&<>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
@@ -718,18 +720,17 @@ const PageWallet=({plan,showToast,profil})=>{
         </div>
         {devise!=="EUR"&&<div style={{fontSize:11,color:C.muted,marginBottom:12}}>{fmt(solde,"EUR")} · Taux de référence</div>}
         <div style={{display:"flex",gap:20,flexWrap:"wrap",marginBottom:16}}>
-          <div style={{borderLeft:`2px solid ${C.green}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Encaissé ce mois</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>{fmt(conv(48200,"EUR",devise),devise)}</div></div>
-          <div style={{borderLeft:`2px solid ${C.red}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Décaissé ce mois</div><div style={{fontSize:18,fontWeight:700,color:C.red}}>{fmt(conv(29780,"EUR",devise),devise)}</div></div>
-          <div style={{borderLeft:`2px solid ${C.orange}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>En attente</div><div style={{fontSize:18,fontWeight:700,color:C.orange}}>{fmt(conv(5645,"EUR",devise),devise)}</div></div>
-          <div style={{borderLeft:`2px solid ${C.gold}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Score santé</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>76/100</div></div>
+          <div style={{borderLeft:`2px solid ${C.green}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Encaissé ce mois</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>{fmt(conv(histo.filter(h=>h.type==="entree"&&h.statut==="confirmé"&&new Date(h.rawDate).getMonth()===new Date().getMonth()&&new Date(h.rawDate).getFullYear()===new Date().getFullYear()).reduce((a,h)=>a+h.montant,0),"EUR",devise),devise)}</div></div>
+          <div style={{borderLeft:`2px solid ${C.red}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Décaissé ce mois</div><div style={{fontSize:18,fontWeight:700,color:C.red}}>{fmt(conv(histo.filter(h=>h.type!=="entree"&&h.statut==="viré"&&new Date(h.rawDate).getMonth()===new Date().getMonth()&&new Date(h.rawDate).getFullYear()===new Date().getFullYear()).reduce((a,h)=>a+h.montant,0),"EUR",devise),devise)}</div></div>
+          <div style={{borderLeft:`2px solid ${C.orange}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>En attente</div><div style={{fontSize:18,fontWeight:700,color:C.orange}}>{fmt(conv(histo.filter(h=>h.statut==="à_virer").reduce((a,h)=>a+h.montant,0),"EUR",devise),devise)}</div></div>
         </div>
         <div style={{display:"flex",gap:8}}><Btn onClick={()=>setShowPay(true)}>⚡ Payer</Btn><Btn onClick={()=>setOnglet("encaisser")} style={{background:C.green,color:"#000"}}>📲 Encaisser</Btn></div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
         <KPI label="Transactions" val={histo.length} color={C.blue}/>
-        <KPI label="Commissions dues" val={fmt(comm.reduce((a,c)=>a+c.montant,0))} color={C.orange}/>
-        <KPI label="Remboursements" val={fmt(remb.reduce((a,r)=>a+r.montant,0))} color={C.red}/>
-        <KPI label="Fournisseurs" val={fmt(four.reduce((a,f)=>a+f.montant,0))} color={C.purple}/>
+        <KPI label="Commissions dues" val={fmt(histo.filter(h=>h.type==="commission"&&h.statut==="à_virer").reduce((a,h)=>a+h.montant,0))} color={C.orange}/>
+        <KPI label="Remboursements" val={fmt(histo.filter(h=>h.type==="remboursement"&&h.statut==="à_virer").reduce((a,h)=>a+h.montant,0))} color={C.red}/>
+        <KPI label="Fournisseurs" val={fmt(histo.filter(h=>h.type==="fournisseur"&&h.statut==="à_virer").reduce((a,h)=>a+h.montant,0))} color={C.purple}/>
       </div>
       <div style={{background:solde<alerteSeuil?`${C.red}11`:`${C.green}08`,border:`1px solid ${solde<alerteSeuil?C.red:C.green}33`,borderRadius:10,padding:12,fontSize:12,color:solde<alerteSeuil?C.red:C.green}}>{solde<alerteSeuil?`⚠️ Alerte : solde < seuil (${fmt(alerteSeuil)})`:`✅ Solde en bonne santé (seuil: ${fmt(alerteSeuil)})`}</div>
     </>}
@@ -779,45 +780,32 @@ const PageWallet=({plan,showToast,profil})=>{
         <Btn onClick={()=>handleEncaisser(payForm)} style={{background:C.green,color:"#000",marginTop:4}}>💰 Encaisser</Btn>
       </div>
     </Card></div>}
-    {onglet==="commissions"&&<Card><STitle>👥 Commissions à payer</STitle>
+    {onglet==="commissions"&&<Card><STitle>👥 Commissions à virer</STitle>
+      {histo.filter(h=>h.type==="commission"&&h.statut==="à_virer").length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>Aucune commission en attente.</div>}
       <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>ID</TH><TH>Bénéficiaire</TH><TH>Rôle</TH><TH>Montant</TH><TH>Méthode</TH><TH>Action</TH></tr></thead>
-        <tbody>{comm.map((c,i)=><tr key={i}>
-          <Td style={{color:C.muted,fontSize:10}}>{c.id}</Td>
-          <Td style={{fontWeight:600}}>{c.nom}</Td>
-          <Td><Pill color={C.blue}>{c.role}</Pill></Td>
-          <Td style={{color:C.orange,fontWeight:700}}>{fmt(c.montant,c.devise)}</Td>
-          <Td>{c.methode}</Td>
-          <Td><Btn onClick={async()=>{
-            const res=await fetch('/api/wallet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'payer',nom:c.nom,montant:c.montant,devise:c.devise,methode:c.methode,type:'commission',destinataire_email:c.email,destinataire_tel:c.tel})});
-            const data=await res.json();
-            if(data.success){setComm(cs=>cs.filter((_,j)=>j!==i));showToast(`✅ Commission ${c.nom} enregistrée — à virer`);loadWallet();}
-            else showToast("❌ Erreur");
-          }} style={{padding:"4px 10px",fontSize:11}}>Payer</Btn></Td>
+        <thead><tr><TH>Date</TH><TH>Bénéficiaire</TH><TH>Montant</TH><TH>Méthode</TH><TH>Action</TH></tr></thead>
+        <tbody>{histo.filter(h=>h.type==="commission"&&h.statut==="à_virer").map((h,i)=><tr key={h.id}>
+          <Td style={{color:C.muted,fontSize:10}}>{h.date}</Td>
+          <Td style={{fontWeight:600}}>{h.libelle}</Td>
+          <Td style={{color:C.orange,fontWeight:700}}>{fmt(h.montant,h.devise)}</Td>
+          <Td>{h.methode}</Td>
+          <Td><Btn onClick={()=>marquerVire(h.id)} style={{padding:"4px 10px",fontSize:11}}>✅ Marquer viré</Btn></Td>
         </tr>)}</tbody>
       </table>
-      <div style={{marginTop:12,padding:"10px 14px",background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,fontSize:12,color:C.orange}}>Total à payer : {fmt(comm.reduce((a,c)=>a+c.montant,0))}</div>
+      <div style={{marginTop:12,padding:"10px 14px",background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,fontSize:12,color:C.orange}}>Total à virer : {fmt(histo.filter(h=>h.type==="commission"&&h.statut==="à_virer").reduce((a,h)=>a+h.montant,0))}</div>
     </Card>}
     {onglet==="remboursements"&&<Card><STitle>↩ Remboursements en attente</STitle>
-      {remb.map((r,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <div><div style={{fontSize:12,fontWeight:600}}>{r.nom}</div><div style={{fontSize:11,color:C.muted}}>{r.motif}</div><div style={{fontSize:10,color:C.muted}}>{r.methode}</div></div>
-        <div style={{textAlign:"right"}}><div style={{fontSize:16,fontWeight:700,color:C.red}}>{fmt(r.montant,r.devise)}</div><Btn onClick={async()=>{
-            const res=await fetch('/api/wallet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'payer',nom:r.nom,montant:r.montant,devise:r.devise,methode:r.methode,type:'remboursement',destinataire_tel:r.tel})});
-            const data=await res.json();
-            if(data.success){setRemb(rs=>rs.filter((_,j)=>j!==i));showToast(`✅ Remboursement ${r.nom} enregistré — à virer`);loadWallet();}
-            else showToast("❌ Erreur");
-          }} style={{padding:"4px 10px",fontSize:11,marginTop:6}}>Rembourser</Btn></div>
+      {histo.filter(h=>h.type==="remboursement"&&h.statut==="à_virer").length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>Aucun remboursement en attente.</div>}
+      {histo.filter(h=>h.type==="remboursement"&&h.statut==="à_virer").map((h,i)=><div key={h.id} style={{background:C.card2,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div><div style={{fontSize:12,fontWeight:600}}>{h.libelle}</div><div style={{fontSize:10,color:C.muted}}>{h.date} · {h.methode}</div></div>
+        <div style={{textAlign:"right"}}><div style={{fontSize:16,fontWeight:700,color:C.red}}>{fmt(h.montant,h.devise)}</div><Btn onClick={()=>marquerVire(h.id)} style={{padding:"4px 10px",fontSize:11,marginTop:6}}>✅ Marquer viré</Btn></div>
       </div>)}
     </Card>}
-    {onglet==="fournisseurs"&&<Card><STitle>🏭 Paiements fournisseurs</STitle>
-      {four.map((f,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
-        <div><div style={{fontSize:12,fontWeight:600}}>{f.nom}</div><div style={{fontSize:11,color:C.muted}}>{f.service}</div><div style={{fontSize:10,color:C.muted}}>IBAN: {f.iban} · {f.methode}</div></div>
-        <div style={{textAlign:"right"}}><div style={{fontSize:16,fontWeight:700,color:C.purple}}>{fmt(f.montant,f.devise)}</div><Btn onClick={async()=>{
-            const res=await fetch('/api/wallet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'payer',nom:f.nom,montant:f.montant,devise:f.devise,methode:f.methode,type:'fournisseur',destinataire_iban:f.iban})});
-            const data=await res.json();
-            if(data.success){setFour(fs=>fs.filter((_,j)=>j!==i));showToast(`✅ Paiement ${f.nom} enregistré — à virer`);loadWallet();}
-            else showToast("❌ Erreur");
-          }} style={{padding:"4px 10px",fontSize:11,marginTop:6,background:C.purple}}>Payer</Btn></div>
+    {onglet==="fournisseurs"&&<Card><STitle>🏭 Paiements fournisseurs en attente</STitle>
+      {histo.filter(h=>h.type==="fournisseur"&&h.statut==="à_virer").length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>Aucun paiement fournisseur en attente.</div>}
+      {histo.filter(h=>h.type==="fournisseur"&&h.statut==="à_virer").map((h,i)=><div key={h.id} style={{background:C.card2,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${C.border}`,display:"flex",alignItems:"center",justifyContent:"space-between"}}>
+        <div><div style={{fontSize:12,fontWeight:600}}>{h.libelle}</div><div style={{fontSize:10,color:C.muted}}>{h.date} · {h.methode}</div></div>
+        <div style={{textAlign:"right"}}><div style={{fontSize:16,fontWeight:700,color:C.purple}}>{fmt(h.montant,h.devise)}</div><Btn onClick={()=>marquerVire(h.id)} style={{padding:"4px 10px",fontSize:11,marginTop:6,background:C.purple}}>✅ Marquer viré</Btn></div>
       </div>)}
     </Card>}
     {onglet==="convertisseur"&&<div style={{maxWidth:500}}><Convertisseur/></div>}
@@ -976,24 +964,132 @@ const SolvabiliteWidget=({score,nom})=>{
 
 // ─── PAGE CRM ─────────────────────────────────────────────────
 const PageCRM=({plan,showToast,profil})=>{
-  const[leads,setLeads]=useState(CRM_LEADS);
+  const[leads,setLeads]=useState([]);
+  const[loadingLeads,setLoadingLeads]=useState(true);
   const[onglet,setOnglet]=useState("pipeline");
+  const[showAdd,setShowAdd]=useState(false);
+  const[addForm,setAddForm]=useState({nom:"",contact:"",email:"",tel:"",metier:"",ca_potentiel:"",source:""});
+  const[sel,setSel]=useState(null);
+  const[draftMsg,setDraftMsg]=useState("");
+  const[generating,setGenerating]=useState(false);
   const etapes=["Nouveau","Qualification","Proposition","Négociation","Gagné","Perdu"];
   const tabs=[{id:"pipeline",label:"📊 Pipeline"},{id:"leads",label:"🎯 Leads"},{id:"relances",label:"📧 Relances IA"},{id:"analytics",label:"📈 Analytics"}];
+
+  const loadAll=async()=>{
+    try{
+      const res=await fetch('/api/crm');
+      const data=await res.json();
+      if(data.leads)setLeads(data.leads);
+    }catch(e){console.error("CRM:",e);}
+    setLoadingLeads(false);
+  };
+  useEffect(()=>{loadAll();},[]);
+  useEffect(()=>{if(sel)setSel(s=>leads.find(l=>l.id===s.id)||null);},[leads]);
+
   if(!hasAccess(plan,"crm"))return <div style={{padding:20}}><UpgradeWall page="CRM" plan={plan}/></div>;
+
+  const ajouterLead=async()=>{
+    if(!addForm.nom)return showToast("⚠️ Le nom de l'entreprise est requis");
+    try{
+      const res=await fetch('/api/crm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer',...addForm})});
+      const data=await res.json();
+      if(data.success){
+        showToast(`✅ ${data.lead.nom} ajouté au pipeline`);
+        setAddForm({nom:"",contact:"",email:"",tel:"",metier:"",ca_potentiel:"",source:""});setShowAdd(false);
+        loadAll();
+      }else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const changerEtape=async(l,etape)=>{
+    try{
+      await fetch('/api/crm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'modifier',id:l.id,etape})});
+      loadAll();
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const changerScore=async(l,score)=>{
+    try{
+      await fetch('/api/crm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'modifier',id:l.id,score:Number(score)})});
+      loadAll();
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const supprimerLead=async(l)=>{
+    try{
+      await fetch('/api/crm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer',id:l.id})});
+      showToast(`🗑 ${l.nom} retiré du pipeline`);setSel(null);
+      loadAll();
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const genererMessageIA=async(l)=>{
+    setGenerating(true);setDraftMsg("");
+    try{
+      const res=await fetch('/api/crm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generer_message_ia',lead:l})});
+      const data=await res.json();
+      if(data.success)setDraftMsg(data.message);
+      else showToast("❌ "+(data.error||"Génération impossible"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setGenerating(false);
+  };
+
+  const envoyerRelance=async(l,canal)=>{
+    if(!draftMsg.trim())return showToast("⚠️ Le message est vide");
+    if(canal==="whatsapp"){
+      if(!l.tel)return showToast("⚠️ Aucun téléphone renseigné pour ce lead");
+      showToast("⏳ Envoi WhatsApp...");
+      try{
+        const res=await fetch('/api/crm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_whatsapp',id:l.id,tel:l.tel,message:draftMsg})});
+        const data=await res.json();
+        if(data.success){showToast(`✅ Relance envoyée à ${l.nom} par WhatsApp`);setDraftMsg("");loadAll();}
+        else showToast("❌ "+(data.error||"Erreur"));
+      }catch(e){showToast("❌ Erreur de connexion");}
+    }else{
+      if(!l.email)return showToast("⚠️ Aucun email renseigné pour ce lead");
+      showToast("⏳ Envoi email...");
+      try{
+        const res=await fetch('/api/crm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_email',id:l.id,email:l.email,subject:`Suivi — ${l.nom}`,message:draftMsg})});
+        const data=await res.json();
+        if(data.success){showToast(`✅ Relance envoyée à ${l.nom} par email`);setDraftMsg("");loadAll();}
+        else showToast("❌ "+(data.error||"Erreur"));
+      }catch(e){showToast("❌ Erreur de connexion");}
+    }
+  };
+
+  const aRelancer=leads.filter(l=>l.etape!=="Gagné"&&l.etape!=="Perdu");
+  const tauxConv=leads.length>0?Math.round(leads.filter(l=>l.etape==="Gagné").length/leads.filter(l=>l.etape!=="Nouveau").length*100)||0:0;
+
   return <div style={{padding:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◎ CRM</div><div style={{fontSize:11,color:C.muted}}>Pipeline · Leads · Relances IA · Analytics</div></div>
-      <Btn onClick={()=>showToast("✅ Lead ajouté !")}>+ Nouveau lead</Btn>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◎ CRM</div><div style={{fontSize:11,color:C.muted}}>Pipeline · Leads · Relances IA · Analytics · {leads.length} lead(s)</div></div>
+      <Btn onClick={()=>setShowAdd(s=>!s)}>+ Nouveau lead</Btn>
     </div>
+
+    {showAdd&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
+      <STitle>Nouveau lead</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+        {[["Entreprise *","nom"],["Contact","contact"],["Email","email"],["Téléphone","tel"],["Métier / secteur","metier"],["CA potentiel €","ca_potentiel"],["Source","source"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={addForm[k]} onChange={e=>setAddForm(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <Btn onClick={ajouterLead}>✅ Ajouter</Btn>
+        <BtnGhost onClick={()=>setShowAdd(false)}>Annuler</BtnGhost>
+      </div>
+    </Card>}
+
+    {loadingLeads&&<div style={{fontSize:11,color:C.muted,marginBottom:12}}>Chargement...</div>}
+
     <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
-    {onglet==="pipeline"&&<>
+
+    {!loadingLeads&&leads.length===0&&<Card style={{textAlign:"center",padding:30}}><div style={{fontSize:12,color:C.muted}}>Aucun lead pour le moment.</div><BtnGhost onClick={()=>setShowAdd(true)} style={{marginTop:10}}>+ Ajouter le premier lead</BtnGhost></Card>}
+
+    {onglet==="pipeline"&&leads.length>0&&<>
       <div style={{display:"grid",gridTemplateColumns:`repeat(${etapes.length},1fr)`,gap:8,marginBottom:16}}>
         {etapes.map(e=>{const ls=leads.filter(l=>l.etape===e);return <div key={e} style={{background:C.card2,borderRadius:10,padding:10,border:`1px solid ${C.border}`}}>
           <div style={{fontSize:9,color:C.muted,fontWeight:700,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{e} <span style={{color:ls.length>0?C.gold:C.muted}}>({ls.length})</span></div>
-          {ls.map(l=><div key={l.id} style={{background:C.card,borderRadius:7,padding:8,marginBottom:6,border:`1px solid ${C.border}`,cursor:"pointer"}} onClick={()=>{}}>
+          {ls.map(l=><div key={l.id} style={{background:C.card,borderRadius:7,padding:8,marginBottom:6,border:`1px solid ${C.border}`,cursor:"pointer"}} onClick={()=>{setSel(l);setOnglet("leads");}}>
             <div style={{fontSize:11,fontWeight:700,color:C.text,marginBottom:2}}>{l.nom}</div>
-            <div style={{fontSize:10,color:C.muted,marginBottom:4}}>{l.contact} · {l.metier}</div>
+            <div style={{fontSize:10,color:C.muted,marginBottom:4}}>{l.contact||"—"} · {l.metier||"—"}</div>
             <div style={{display:"flex",justifyContent:"space-between",fontSize:10}}>
               <Pill color={l.score>=80?C.green:l.score>=60?C.gold:C.orange}>★ {l.score}</Pill>
               <span style={{color:C.teal,fontWeight:600}}>{fmt(l.ca_potentiel)}</span>
@@ -1002,31 +1098,78 @@ const PageCRM=({plan,showToast,profil})=>{
         </div>;})}
       </div>
     </>}
-    {onglet==="leads"&&<Card><STitle>🎯 Tous les leads</STitle>
-      <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Entreprise</TH><TH>Contact</TH><TH>Métier</TH><TH>Étape</TH><TH>Score IA</TH><TH>CA potentiel</TH><TH>Dernière action</TH></tr></thead>
-        <tbody>{leads.map((l,i)=><tr key={i}>
-          <Td style={{fontWeight:600}}>{l.nom}</Td>
-          <Td style={{color:C.muted}}>{l.contact}</Td>
-          <Td><Pill color={C.blue}>{l.metier}</Pill></Td>
-          <Td><Pill color={l.etape==="Gagné"?C.green:l.etape==="Perdu"?C.red:C.gold}>{l.etape}</Pill></Td>
-          <Td><div style={{display:"flex",alignItems:"center",gap:6}}><SM val={l.score} max={100} color={l.score>=80?C.green:l.score>=60?C.gold:C.orange}/><span style={{color:l.score>=80?C.green:l.score>=60?C.gold:C.orange,fontWeight:700,fontSize:11}}>{l.score}</span></div></Td>
-          <Td style={{color:C.teal,fontWeight:700}}>{fmt(l.ca_potentiel)}</Td>
-          <Td style={{color:C.muted,fontSize:10}}>{l.derniere}</Td>
-        </tr>)}</tbody>
-      </table>
-    </Card>}
-    {onglet==="relances"&&<Card><STitle>📧 Relances automatiques IA</STitle>
-      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:16,marginBottom:12}}>
-        <div style={{fontSize:11,color:C.purple,fontWeight:600,marginBottom:8}}>🤖 Email IA généré — Hotel Prestige Paris</div>
-        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>"Bonjour Claire, suite à notre dernier échange concernant le nettoyage quotidien de vos 40 chambres, je souhaitais revenir vers vous avec une proposition optimisée. Notre équipe est disponible dès lundi..."</div>
-        <div style={{display:"flex",gap:8,marginTop:12}}><Btn style={{fontSize:11,padding:"6px 12px"}}>✉️ Envoyer</Btn><BtnGhost style={{fontSize:11}}>✏️ Modifier</BtnGhost></div>
-      </div>
-    </Card>}
-    {onglet==="analytics"&&<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-      <KPI label="Taux conversion" val="67%" color={C.green} sub="Qualification → Gagné"/>
-      <KPI label="CA pipeline" val={fmt(leads.reduce((a,l)=>a+l.ca_potentiel,0))} color={C.gold}/>
-      <KPI label="Deals gagnés" val={leads.filter(l=>l.etape==="Gagné").length} color={C.teal} sub="Ce mois"/>
+
+    {onglet==="leads"&&leads.length>0&&<div style={{display:"grid",gridTemplateColumns:sel?"1fr 1fr":"1fr",gap:12}}>
+      <Card>
+        <STitle>🎯 Tous les leads</STitle>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Entreprise</TH><TH>Contact</TH><TH>Métier</TH><TH>Étape</TH><TH>Score</TH><TH>CA potentiel</TH><TH>Mis à jour</TH></tr></thead>
+          <tbody>{leads.map(l=><tr key={l.id} style={{cursor:"pointer",background:sel?.id===l.id?`${C.gold}0D`:"transparent"}} onClick={()=>setSel(l)}>
+            <Td style={{fontWeight:600}}>{l.nom}</Td>
+            <Td style={{color:C.muted}}>{l.contact||"—"}</Td>
+            <Td>{l.metier?<Pill color={C.blue}>{l.metier}</Pill>:"—"}</Td>
+            <Td><Pill color={l.etape==="Gagné"?C.green:l.etape==="Perdu"?C.red:C.gold}>{l.etape}</Pill></Td>
+            <Td><div style={{display:"flex",alignItems:"center",gap:6}}><SM val={l.score} max={100} color={l.score>=80?C.green:l.score>=60?C.gold:C.orange}/><span style={{color:l.score>=80?C.green:l.score>=60?C.gold:C.orange,fontWeight:700,fontSize:11}}>{l.score}</span></div></Td>
+            <Td style={{color:C.teal,fontWeight:700}}>{fmt(l.ca_potentiel)}</Td>
+            <Td style={{color:C.muted,fontSize:10}}>{new Date(l.updated_at).toLocaleDateString("fr")}</Td>
+          </tr>)}</tbody>
+        </table>
+      </Card>
+      {sel&&<Card>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+          <div><div style={{fontSize:15,fontWeight:700}}>{sel.nom}</div><div style={{fontSize:11,color:C.muted}}>{sel.contact||"—"} · {sel.metier||"—"} · source : {sel.source||"—"}</div></div>
+          <BtnGhost onClick={()=>setSel(null)} style={{fontSize:10,padding:"4px 8px"}}>✕</BtnGhost>
+        </div>
+        {[["📧",sel.email||"—"],["📱",sel.tel||"—"],["💰 CA potentiel",fmt(sel.ca_potentiel)]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600}}>{v}</span></div>)}
+        <div style={{marginTop:10}}>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Étape</label>
+          <Sel value={sel.etape} onChange={e=>changerEtape(sel,e.target.value)} style={{width:"100%",marginBottom:8}}>
+            {etapes.map(e=><option key={e} value={e}>{e}</option>)}
+          </Sel>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Score de qualification ({sel.score}/100)</label>
+          <input type="range" min="0" max="100" value={sel.score} onChange={e=>changerScore(sel,e.target.value)} style={{width:"100%"}}/>
+        </div>
+        <div style={{marginTop:10}}>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Notes</label>
+          <textarea defaultValue={sel.notes||""} onBlur={e=>{fetch('/api/crm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'modifier',id:sel.id,notes:e.target.value})}).then(loadAll);}} placeholder="Notes internes..." style={{width:"100%",minHeight:60,background:C.card2,border:`1px solid ${C.border}`,borderRadius:6,padding:8,color:C.text,fontFamily:"inherit",fontSize:11}}/>
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:10}}>
+          <BtnGhost onClick={()=>{setOnglet("relances");}} style={{flex:1,fontSize:11,color:C.gold,borderColor:`${C.gold}44`}}>📧 Relance IA</BtnGhost>
+          <BtnGhost onClick={()=>supprimerLead(sel)} style={{flex:1,fontSize:11,color:C.red,borderColor:`${C.red}44`}}>🗑 Supprimer</BtnGhost>
+        </div>
+      </Card>}
+    </div>}
+
+    {onglet==="relances"&&<div>
+      {aRelancer.length===0&&<Card style={{textAlign:"center",padding:24}}><div style={{fontSize:12,color:C.muted}}>Aucun lead actif à relancer pour le moment.</div></Card>}
+      {aRelancer.length>0&&<div style={{display:"grid",gridTemplateColumns:"260px 1fr",gap:12}}>
+        <Card style={{padding:0,overflow:"hidden"}}>
+          <div style={{padding:"10px 14px",borderBottom:`1px solid ${C.border}`,fontSize:11,fontWeight:700,color:C.muted}}>LEADS ACTIFS</div>
+          {aRelancer.map(l=><div key={l.id} onClick={()=>{setSel(l);setDraftMsg("");}} style={{padding:"10px 14px",cursor:"pointer",background:sel?.id===l.id?`${C.gold}0D`:"transparent",borderBottom:`1px solid ${C.border}22`}}>
+            <div style={{fontSize:12,fontWeight:700}}>{l.nom}</div>
+            <div style={{fontSize:10,color:C.muted}}>{l.etape} · {fmt(l.ca_potentiel)}</div>
+          </div>)}
+        </Card>
+        {sel?<Card>
+          <STitle>🤖 Message de relance IA — {sel.nom}</STitle>
+          <div style={{fontSize:11,color:C.muted,marginBottom:10}}>Généré à partir des données réelles du lead (étape, secteur, notes).</div>
+          {!draftMsg&&<Btn onClick={()=>genererMessageIA(sel)} style={{marginBottom:10}}>{generating?"⏳ Génération...":"🤖 Générer le message"}</Btn>}
+          {draftMsg&&<>
+            <textarea value={draftMsg} onChange={e=>setDraftMsg(e.target.value)} style={{width:"100%",minHeight:140,background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,padding:10,color:C.text,fontFamily:"inherit",fontSize:12,lineHeight:1.6,marginBottom:10}}/>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              <Btn onClick={()=>envoyerRelance(sel,"whatsapp")} style={{fontSize:11}}>📱 Envoyer par WhatsApp</Btn>
+              <BtnGhost onClick={()=>envoyerRelance(sel,"email")} style={{fontSize:11}}>📧 Envoyer par email</BtnGhost>
+              <BtnGhost onClick={()=>genererMessageIA(sel)} style={{fontSize:11}}>{generating?"⏳...":"🔄 Régénérer"}</BtnGhost>
+            </div>
+          </>}
+        </Card>:<Card style={{textAlign:"center",padding:40}}><div style={{fontSize:32,marginBottom:8}}>👈</div><div style={{color:C.muted,fontSize:12}}>Sélectionne un lead pour générer sa relance</div></Card>}
+      </div>}
+    </div>}
+
+    {onglet==="analytics"&&leads.length>0&&<div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+      <KPI label="Taux conversion" val={tauxConv+"%"} color={C.green} sub="Qualifiés → Gagné"/>
+      <KPI label="CA pipeline" val={fmt(leads.reduce((a,l)=>a+Number(l.ca_potentiel||0),0))} color={C.gold}/>
+      <KPI label="Deals gagnés" val={leads.filter(l=>l.etape==="Gagné").length} color={C.teal}/>
     </div>}
   </div>;
 };
@@ -2365,45 +2508,81 @@ const PageAnalytique=({plan})=>{
 };
 
 // ─── PAGE CLIENTS ─────────────────────────────────────────────
-const PageClients=({plan,showToast})=>{
-  const[clients,setClients]=useState([
-    {id:1,nom:"Isabelle Moreau",email:"i.moreau@mail.fr",tel:"+33 6 12 34 56 78",pays:"🇫🇷",ville:"Paris",ca:960,statut:"actif",metier:"Gestion Airbnb",score:72,rdv:"17/04 14h",vip:false,couleur:C.blue,
-     missions:[{date:"15/04",service:"Nettoyage Airbnb",montant:180,statut:"terminé"},{date:"01/04",service:"Nettoyage Airbnb",montant:180,statut:"terminé"}],
-     docs:[{nom:"Devis TYM-0044",type:"Devis",statut:"en_attente"},{nom:"Contrat prestation",type:"Contrat",statut:"signé"}],
-     echanges:[{date:"15/04",type:"WhatsApp",msg:"Bonjour, quand peut venir votre équipe ?",sens:"reçu"},{date:"14/04",type:"Email",msg:"Confirmation RDV le 15/04",sens:"envoyé"}],
-     solvabilite:{score:72,revenus:"estimés 3 500€/mois",incidents:0,note:"Profil satisfaisant — paiements réguliers"},
-     tunnel:"client_regulier"},
-    {id:2,nom:"Marc Dupont",email:"m.dupont@corp.fr",tel:"+33 6 98 76 54 32",pays:"🇫🇷",ville:"Lyon",ca:3200,statut:"actif",metier:"Immobilier",score:68,rdv:null,vip:false,couleur:C.purple,
-     missions:[{date:"12/04",service:"Nettoyage bureaux",montant:580,statut:"terminé"}],
-     docs:[{nom:"Devis TYM-0043",type:"Devis",statut:"en_attente"}],
-     echanges:[{date:"14/04",type:"WhatsApp",msg:"Geste possible sur le prix ?",sens:"reçu"}],
-     solvabilite:{score:68,revenus:"estimés 4 500€/mois",incidents:1,note:"Profil moyen — 1 retard de paiement"},
-     tunnel:"negociation"},
-    {id:3,nom:"Sofia Al-Rashid",email:"sofia@vip.ae",tel:"+971 50 123 45 67",pays:"🇦🇪",ville:"Dubaï",ca:9200,statut:"VIP",metier:"Aviation d'affaires",score:98,rdv:"18/04 10h",vip:true,couleur:C.gold,
-     missions:[{date:"13/04",service:"Jet privé Paris-Dubai",montant:2400,statut:"terminé"},{date:"15/03",service:"Jet privé Nice-London",montant:2800,statut:"terminé"}],
-     docs:[{nom:"Devis TYM-0042",type:"Devis",statut:"validé"},{nom:"Contrat annuel",type:"Contrat",statut:"signé"}],
-     echanges:[{date:"13/04",type:"WhatsApp",msg:"Excellent service comme toujours ⭐",sens:"reçu"},{date:"13/04",type:"Email",msg:"Facture envoyée",sens:"envoyé"}],
-     solvabilite:{score:98,revenus:">50 000€/mois",incidents:0,note:"Excellent profil — client VIP haute valeur"},
-     tunnel:"vip_fidele"},
-    {id:4,nom:"Pierre Lefevre",email:"p.lefevre@fr",tel:"+33 6 55 44 33 22",pays:"🇫🇷",ville:"Paris",ca:5400,statut:"actif",metier:"Import/Export",score:85,rdv:null,vip:false,couleur:C.teal,
-     missions:[{date:"12/04",service:"Rapatriement",montant:4800,statut:"terminé"}],
-     docs:[{nom:"Devis TYM-0041",type:"Devis",statut:"validé"}],
-     echanges:[{date:"12/04",type:"Email",msg:"Merci pour votre accompagnement",sens:"reçu"}],
-     solvabilite:{score:85,revenus:"estimés 8 000€/mois",incidents:0,note:"Bon profil — fiable"},
-     tunnel:"client_satisfait"},
-  ]);
-
+const PageClients=({plan,showToast,profil,setPage})=>{
+  const[clients,setClients]=useState([]);
+  const[loadingClients,setLoadingClients]=useState(true);
   const[sel,setSel]=useState(null);
   const[onglet,setOnglet]=useState("liste");
   const[showAdd,setShowAdd]=useState(false);
   const[addForm,setAddForm]=useState({nom:"",email:"",tel:"",ville:"",metier:""});
 
-  const tabs=[{id:"liste",label:"👥 Clients"},{id:"solvabilite",label:"🎯 Solvabilité"},{id:"tunnel",label:"📈 Tunnel de vente"},{id:"upsell",label:"⚡ Upsell auto"},{id:"stats",label:"📊 Stats"}];
+  const loadAll=async()=>{
+    try{
+      const res=await fetch('/api/clients');
+      const data=await res.json();
+      if(data.clients)setClients(data.clients);
+    }catch(e){console.error("Clients:",e);}
+    setLoadingClients(false);
+  };
+  useEffect(()=>{loadAll();},[]);
+  useEffect(()=>{if(sel)setSel(s=>clients.find(c=>c.id===s.id)||null);},[clients]);
 
+  const enriched=clients;
+
+  const tabs=[{id:"liste",label:"👥 Clients"},{id:"solvabilite",label:"🎯 Solvabilité"},{id:"tunnel",label:"📈 Tunnel de vente"},{id:"upsell",label:"⚡ Upsell auto"},{id:"stats",label:"📊 Stats"}];
   const scoreColor=(s)=>s>=80?C.green:s>=60?C.gold:s>=40?C.orange:C.red;
   const scoreLabel=(s)=>s>=80?"Excellent":s>=60?"Bon":s>=40?"Moyen":"Risqué";
 
   if(!hasAccess(plan,"clients"))return <div style={{padding:20}}><UpgradeWall page="clients" plan={plan}/></div>;
+
+  const ajouterClient=async()=>{
+    if(!addForm.nom)return showToast("⚠️ Le nom est requis");
+    try{
+      const res=await fetch('/api/clients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer',...addForm})});
+      const data=await res.json();
+      if(data.success){
+        showToast(`✅ ${data.client.nom} ajouté !`);
+        setAddForm({nom:"",email:"",tel:"",ville:"",metier:""});setShowAdd(false);
+        loadAll();
+      }else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const toggleVip=async(c)=>{
+    try{
+      await fetch('/api/clients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'toggle_vip',id:c.id,vip:!c.vip})});
+      showToast(c.vip?"✅ Statut VIP retiré":"⭐ Statut VIP accordé !");
+      loadAll();
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const changerTunnel=async(c,tunnel)=>{
+    try{
+      await fetch('/api/clients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'modifier',id:c.id,tunnel})});
+      loadAll();
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const ouvrirWhatsApp=(tel)=>{
+    if(!tel)return showToast("⚠️ Aucun numéro renseigné");
+    window.open(`https://wa.me/${tel.replace(/\D/g,"")}`,"_blank");
+  };
+
+  const envoyerEmail=async(c,message,sujet)=>{
+    if(!c.email)return showToast("⚠️ Aucun email renseigné");
+    showToast("⏳ Envoi en cours...");
+    try{
+      const res=await fetch('/api/clients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_email',id:c.id,email:c.email,subject:sujet,message})});
+      const data=await res.json();
+      if(data.success){showToast(`✅ Email envoyé à ${c.nom}`);loadAll();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const creerDevisPour=(c)=>{
+    showToast(`📋 Sélectionne ${c.nom} dans le nouveau devis`);
+    setPage&&setPage("devis");
+  };
 
   return <div style={{padding:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
@@ -2418,16 +2597,18 @@ const PageClients=({plan,showToast})=>{
         {[["Nom","nom"],["Email","email"],["Téléphone","tel"],["Ville","ville"],["Métier","metier"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={addForm[k]} onChange={e=>setAddForm(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
       </div>
       <div style={{display:"flex",gap:8}}>
-        <Btn onClick={()=>{const nc={id:clients.length+1,nom:addForm.nom,email:addForm.email,tel:addForm.tel,pays:"🇫🇷",ville:addForm.ville,ca:0,statut:"actif",metier:addForm.metier,score:50,rdv:null,vip:false,couleur:C.blue,missions:[],docs:[],echanges:[],solvabilite:{score:50,revenus:"Non renseigné",incidents:0,note:"Nouveau client — à évaluer"},tunnel:"nouveau"};setClients(cs=>[nc,...cs]);setShowAdd(false);setAddForm({nom:"",email:"",tel:"",ville:"",metier:""});showToast(`✅ ${nc.nom} ajouté !`);}}>✅ Ajouter</Btn>
+        <Btn onClick={ajouterClient}>✅ Ajouter</Btn>
         <BtnGhost onClick={()=>setShowAdd(false)}>Annuler</BtnGhost>
       </div>
     </Card>}
 
+    {loadingClients&&<div style={{fontSize:11,color:C.muted,marginBottom:12}}>Chargement...</div>}
+
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
       <KPI label="Total clients" val={clients.length} color={C.blue}/>
       <KPI label="VIP" val={clients.filter(c=>c.vip).length} color={C.gold}/>
-      <KPI label="CA total" val={fmt(clients.reduce((a,c)=>a+c.ca,0))} color={C.green}/>
-      <KPI label="Score moyen" val={Math.round(clients.reduce((a,c)=>a+c.score,0)/clients.length)+"/100"} color={C.teal}/>
+      <KPI label="CA total" val={fmt(enriched.reduce((a,c)=>a+c.ca,0))} color={C.green}/>
+      <KPI label="Score moyen" val={clients.length?Math.round(enriched.reduce((a,c)=>a+c.score,0)/clients.length)+"/100":"—"} color={C.teal}/>
     </div>
 
     <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
@@ -2438,8 +2619,9 @@ const PageClients=({plan,showToast})=>{
     {onglet==="liste"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
       <Card>
         <STitle>👥 Liste clients</STitle>
-        {clients.map((c,i)=><div key={i} onClick={()=>setSel(sel?.id===c.id?null:c)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:`1px solid ${C.border}22`,cursor:"pointer",background:sel?.id===c.id?`${C.gold}08`:"transparent",borderRadius:4}}>
-          <div style={{width:36,height:36,borderRadius:"50%",background:c.couleur+"22",border:`2px solid ${c.couleur}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:c.couleur,flexShrink:0,position:"relative"}}>
+        {!loadingClients&&clients.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:20}}>Aucun client pour le moment.</div>}
+        {enriched.map((c,i)=><div key={c.id} onClick={()=>setSel(sel?.id===c.id?null:c)} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:`1px solid ${C.border}22`,cursor:"pointer",background:sel?.id===c.id?`${C.gold}08`:"transparent",borderRadius:4}}>
+          <div style={{width:36,height:36,borderRadius:"50%",background:C.blue+"22",border:`2px solid ${C.blue}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:C.blue,flexShrink:0,position:"relative"}}>
             {inits(c.nom)}
             {c.vip&&<div style={{position:"absolute",top:-3,right:-3,width:12,height:12,borderRadius:"50%",background:C.gold,display:"flex",alignItems:"center",justifyContent:"center",fontSize:7}}>★</div>}
           </div>
@@ -2448,35 +2630,34 @@ const PageClients=({plan,showToast})=>{
             <div style={{fontSize:10,color:C.muted}}>{c.pays} {c.ville} · {c.metier}</div>
           </div>
           <div style={{textAlign:"right"}}>
-            <Pill color={c.statut==="VIP"?C.gold:C.green}>{c.statut}</Pill>
+            <Pill color={c.vip?C.gold:C.green}>{c.vip?"VIP":"actif"}</Pill>
             <div style={{fontSize:11,color:C.green,fontWeight:700,marginTop:2}}>{fmt(c.ca)}</div>
           </div>
         </div>)}
       </Card>
       {sel?<div style={{display:"flex",flexDirection:"column",gap:10}}>
-        <Card style={{borderColor:`${sel.couleur}44`}}>
+        <Card style={{borderColor:`${C.blue}44`}}>
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
-            <div style={{width:50,height:50,borderRadius:"50%",background:sel.couleur+"22",border:`2px solid ${sel.couleur}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:700,color:sel.couleur}}>{inits(sel.nom)}</div>
+            <div style={{width:50,height:50,borderRadius:"50%",background:C.blue+"22",border:`2px solid ${C.blue}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:700,color:C.blue}}>{inits(sel.nom)}</div>
             <div><div style={{fontSize:16,fontWeight:700}}>{sel.nom}{sel.vip&&<span style={{color:C.gold}}> ★ VIP</span>}</div><div style={{fontSize:11,color:C.muted}}>{sel.pays} {sel.ville} · {sel.metier}</div></div>
           </div>
-          {[["📧",sel.email],["📱",sel.tel],["💰 CA total",fmt(sel.ca)],["🎯 Score solv.",`${sel.score}/100 — ${scoreLabel(sel.score)}`]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600}}>{v}</span></div>)}
+          {[["📧",sel.email||"—"],["📱",sel.tel||"—"],["💰 CA total",fmt(sel.ca)],["🎯 Score solv.",`${sel.score}/100 — ${scoreLabel(sel.score)}`]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600}}>{v}</span></div>)}
         </Card>
-        {/* Échanges */}
         <Card>
           <STitle>💬 Historique échanges</STitle>
-          {sel.echanges.map((e,i)=><div key={i} style={{background:C.card2,borderRadius:7,padding:8,marginBottom:6,border:`1px solid ${C.border}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><Pill color={e.type==="WhatsApp"?C.green:C.blue}>{e.type}</Pill><span style={{fontSize:9,color:C.muted}}>{e.date} · {e.sens==="reçu"?"← Reçu":"→ Envoyé"}</span></div>
-            <div style={{fontSize:11,color:C.text,fontStyle:"italic"}}>"{e.msg}"</div>
+          {(!sel.echanges||sel.echanges.length===0)&&<div style={{fontSize:11,color:C.muted,textAlign:"center",padding:10}}>Aucun échange enregistré encore.</div>}
+          {(sel.echanges||[]).map((e,i)=><div key={e.id||i} style={{background:C.card2,borderRadius:7,padding:8,marginBottom:6,border:`1px solid ${C.border}`}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}><Pill color={e.type==="WhatsApp"?C.green:C.blue}>{e.type}</Pill><span style={{fontSize:9,color:C.muted}}>{new Date(e.created_at).toLocaleDateString("fr")} · {e.sens==="reçu"?"← Reçu":"→ Envoyé"}</span></div>
+            <div style={{fontSize:11,color:C.text,fontStyle:"italic"}}>"{e.message}"</div>
           </div>)}
         </Card>
-        {/* Actions */}
         <Card>
           <STitle>⚡ Actions rapides</STitle>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-            <Btn onClick={()=>showToast("📱 WhatsApp ouvert")} style={{fontSize:11}}>📱 WhatsApp</Btn>
-            <Btn onClick={()=>showToast("✅ Devis créé depuis la fiche !")} style={{fontSize:11,background:C.blue}}>◧ Créer devis</Btn>
-            <BtnGhost onClick={()=>showToast("📧 Email envoyé")} style={{fontSize:11}}>📧 Email</BtnGhost>
-            <BtnGhost onClick={()=>{setClients(cs=>cs.map(c=>c.id===sel.id?{...c,vip:!c.vip}:c));setSel(s=>({...s,vip:!s.vip}));showToast(sel.vip?"✅ Statut VIP retiré":"⭐ Statut VIP accordé !");}} style={{fontSize:11,color:C.gold,borderColor:`${C.gold}44`}}>{sel.vip?"Retirer VIP":"⭐ Mettre VIP"}</BtnGhost>
+            <Btn onClick={()=>ouvrirWhatsApp(sel.tel)} style={{fontSize:11}}>📱 WhatsApp</Btn>
+            <Btn onClick={()=>creerDevisPour(sel)} style={{fontSize:11,background:C.blue}}>◧ Créer devis</Btn>
+            <BtnGhost onClick={()=>envoyerEmail(sel,"Je reviens vers vous concernant votre dossier.","Suivi de votre dossier")} style={{fontSize:11}}>📧 Email</BtnGhost>
+            <BtnGhost onClick={()=>toggleVip(sel)} style={{fontSize:11,color:C.gold,borderColor:`${C.gold}44`}}>{sel.vip?"Retirer VIP":"⭐ Mettre VIP"}</BtnGhost>
           </div>
         </Card>
       </div>:<Card style={{textAlign:"center",padding:40}}><div style={{fontSize:32,marginBottom:8}}>👆</div><div style={{color:C.muted,fontSize:12}}>Clique sur un client pour voir sa fiche</div></Card>}
@@ -2485,12 +2666,13 @@ const PageClients=({plan,showToast})=>{
     {/* ── SOLVABILITÉ ── */}
     {onglet==="solvabilite"&&<div>
       <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:12,padding:16,marginBottom:14}}>
-        <div style={{fontSize:10,color:C.blue,fontWeight:600,marginBottom:6}}>🎯 SCORE DE SOLVABILITÉ XYRA</div>
-        <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Le score de solvabilité vous indique si vous pouvez travailler sereinement avec un client. Il est calculé à partir des revenus estimés, l'historique de paiement et le profil général. <b style={{color:C.green}}>80-100 = Excellent</b> · <b style={{color:C.gold}}>60-79 = Bon</b> · <b style={{color:C.orange}}>40-59 = Moyen</b> · <b style={{color:C.red}}>0-39 = Risqué</b></div>
+        <div style={{fontSize:10,color:C.blue,fontWeight:600,marginBottom:6}}>🎯 SCORE DE SOLVABILITÉ XYRA — calculé depuis tes vraies factures</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Basé sur l'historique réel de paiement : base 50, +8 par facture payée, −15 par facture en retard. <b style={{color:C.green}}>80-100 = Excellent</b> · <b style={{color:C.gold}}>60-79 = Bon</b> · <b style={{color:C.orange}}>40-59 = Moyen</b> · <b style={{color:C.red}}>0-39 = Risqué</b></div>
       </div>
-      {clients.map((c,i)=><Card key={i} style={{marginBottom:10,borderColor:`${scoreColor(c.score)}33`}}>
+      {enriched.length===0&&<Card style={{textAlign:"center",padding:24}}><div style={{fontSize:12,color:C.muted}}>Aucun client pour le moment.</div></Card>}
+      {enriched.map((c,i)=><Card key={c.id} style={{marginBottom:10,borderColor:`${scoreColor(c.score)}33`}}>
         <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:10}}>
-          <div style={{width:40,height:40,borderRadius:"50%",background:c.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:c.couleur}}>{inits(c.nom)}</div>
+          <div style={{width:40,height:40,borderRadius:"50%",background:C.blue+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:14,fontWeight:700,color:C.blue}}>{inits(c.nom)}</div>
           <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{c.nom}</div><div style={{fontSize:10,color:C.muted}}>{c.metier}</div></div>
           <div style={{textAlign:"center",background:`${scoreColor(c.score)}22`,border:`2px solid ${scoreColor(c.score)}44`,borderRadius:10,padding:"8px 16px"}}>
             <div style={{fontSize:24,fontWeight:700,color:scoreColor(c.score)}}>{c.score}</div>
@@ -2499,11 +2681,10 @@ const PageClients=({plan,showToast})=>{
         </div>
         <SM val={c.score} max={100} color={scoreColor(c.score)}/>
         <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginTop:10}}>
-          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Revenus estimés</div><div style={{fontSize:11,fontWeight:700,color:C.text}}>{c.solvabilite.revenus}</div></CT>
-          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Incidents paiement</div><div style={{fontSize:11,fontWeight:700,color:c.solvabilite.incidents>0?C.red:C.green}}>{c.solvabilite.incidents}</div></CT>
+          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Factures payées</div><div style={{fontSize:11,fontWeight:700,color:C.text}}>{c.factures_payees}</div></CT>
+          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Incidents paiement</div><div style={{fontSize:11,fontWeight:700,color:c.factures_retard>0?C.red:C.green}}>{c.factures_retard}</div></CT>
           <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>CA réalisé</div><div style={{fontSize:11,fontWeight:700,color:C.gold}}>{fmt(c.ca)}</div></CT>
         </div>
-        <div style={{marginTop:8,background:`${scoreColor(c.score)}08`,border:`1px solid ${scoreColor(c.score)}22`,borderRadius:6,padding:8,fontSize:11,color:C.text}}>{c.solvabilite.note}</div>
         <div style={{marginTop:8,display:"flex",gap:6}}>
           <Pill color={c.score>=60?C.green:C.red}>{c.score>=80?"✅ Travailler sans conditions":c.score>=60?"✅ Travailler avec acompte":c.score>=40?"⚠️ Acompte 50% obligatoire":"❌ Déconseillé — risque élevé"}</Pill>
         </div>
@@ -2513,52 +2694,44 @@ const PageClients=({plan,showToast})=>{
     {/* ── TUNNEL DE VENTE ── */}
     {onglet==="tunnel"&&<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:14}}>
-        {[["🆕 Nouveau",clients.filter(c=>c.tunnel==="nouveau").length,C.blue],["💬 Négociation",clients.filter(c=>c.tunnel==="negociation").length,C.gold],["✅ Client régulier",clients.filter(c=>c.tunnel==="client_regulier"||c.tunnel==="client_satisfait").length,C.green],["⭐ VIP fidèle",clients.filter(c=>c.tunnel==="vip_fidele").length,C.purple]].map(([l,v,c],i)=><CT key={i} style={{textAlign:"center",borderColor:`${c}33`}}><div style={{fontSize:11,fontWeight:600,color:c,marginBottom:4}}>{l}</div><div style={{fontSize:22,fontWeight:700,color:c}}>{v}</div></CT>)}
+        {[["🆕 Nouveau",clients.filter(c=>c.tunnel==="nouveau"||!c.tunnel).length,C.blue],["💬 Négociation",clients.filter(c=>c.tunnel==="negociation").length,C.gold],["✅ Client régulier",clients.filter(c=>c.tunnel==="client_regulier").length,C.green],["⭐ VIP fidèle",clients.filter(c=>c.tunnel==="vip_fidele").length,C.purple]].map(([l,v,c],i)=><CT key={i} style={{textAlign:"center",borderColor:`${c}33`}}><div style={{fontSize:11,fontWeight:600,color:c,marginBottom:4}}>{l}</div><div style={{fontSize:22,fontWeight:700,color:c}}>{v}</div></CT>)}
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        <Card>
-          <STitle>🤖 Relances automatiques IA</STitle>
-          {clients.map((c,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${C.border}`}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}><span style={{fontSize:12,fontWeight:700}}>{c.nom}</span><Pill color={C.blue}>{c.tunnel.replace(/_/g," ")}</Pill></div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:6}}>
-              {c.tunnel==="nouveau"?"→ Envoi présentation Xyra + devis découverte":c.tunnel==="negociation"?"→ Proposition geste commercial / devis ajusté":c.tunnel==="client_regulier"?"→ Offre fidélité + upsell service supérieur":"→ Invitation événement VIP + offre exclusive"}
-            </div>
-            <Btn onClick={()=>showToast(`🤖 Relance IA envoyée à ${c.nom} via WhatsApp`)} style={{fontSize:10,padding:"5px 10px"}}>Lancer relance auto</Btn>
-          </div>)}
-        </Card>
-        <Card>
-          <STitle>📈 Stratégie d'upsell recommandée</STitle>
-          {clients.map((c,i)=><div key={i} style={{padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}>
-            <div style={{fontWeight:700,marginBottom:2}}>{c.nom}</div>
-            <div style={{color:C.muted,fontSize:10}}>CA actuel : <b style={{color:C.gold}}>{fmt(c.ca)}</b></div>
-            <div style={{color:C.teal,marginTop:2}}>
-              {c.ca<2000?"→ Proposer abonnement mensuel (économie 15%)":c.ca<6000?"→ Upsell vers service premium (jet/yacht)":"→ Contrat annuel exclusif + tarif préférentiel"}
-            </div>
-          </div>)}
-        </Card>
-      </div>
+      <Card>
+        <STitle>🤖 Relances automatiques</STitle>
+        {enriched.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>Aucun client pour le moment.</div>}
+        {enriched.map((c,i)=><div key={c.id} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${C.border}`}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+            <span style={{fontSize:12,fontWeight:700}}>{c.nom}</span>
+            <Sel value={c.tunnel||"nouveau"} onChange={e=>changerTunnel(c,e.target.value)} style={{fontSize:10}}>
+              <option value="nouveau">Nouveau</option><option value="negociation">Négociation</option><option value="client_regulier">Client régulier</option><option value="vip_fidele">VIP fidèle</option>
+            </Sel>
+          </div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:6}}>
+            {c.tunnel==="negociation"?"→ Proposition geste commercial / devis ajusté":c.tunnel==="client_regulier"?"→ Offre fidélité + upsell service supérieur":c.tunnel==="vip_fidele"?"→ Invitation événement VIP + offre exclusive":"→ Envoi présentation Xyra + devis découverte"}
+          </div>
+          <Btn onClick={()=>c.tel?(ouvrirWhatsApp(c.tel),showToast(`📱 WhatsApp ouvert pour ${c.nom}`)):envoyerEmail(c,"Je reviens vers vous suite à notre échange précédent.","Suivi")} style={{fontSize:10,padding:"5px 10px"}}>Lancer relance</Btn>
+        </div>)}
+      </Card>
     </div>}
 
     {/* ── UPSELL ── */}
     {onglet==="upsell"&&<div>
       <div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:12,padding:14,marginBottom:14}}>
-        <div style={{fontSize:10,color:C.gold,fontWeight:600,marginBottom:6}}>⚡ UPSELL AUTOMATIQUE — IA XYRA</div>
-        <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Claude analyse le profil de chaque client et génère automatiquement la meilleure proposition d'upsell au bon moment.</div>
+        <div style={{fontSize:10,color:C.gold,fontWeight:600,marginBottom:6}}>⚡ UPSELL — basé sur ton CA réel par client</div>
       </div>
-      {clients.map((c,i)=>{const upsellCA=Math.round(c.ca*0.4);return <Card key={i} style={{marginBottom:10,borderColor:`${C.gold}22`}}>
+      {enriched.length===0&&<Card style={{textAlign:"center",padding:24}}><div style={{fontSize:12,color:C.muted}}>Aucun client pour le moment.</div></Card>}
+      {enriched.map((c,i)=>{const upsellCA=Math.round(c.ca*0.4);const texte=c.vip?`${c.nom} est VIP. Proposez un contrat annuel exclusif avec 10% de remise. Valeur estimée : ${fmt(c.ca*1.5)}/an.`:c.ca>3000?`${c.nom} a déjà généré ${fmt(c.ca)} de CA. Bon moment pour proposer un abonnement mensuel avec remise.`:`${c.nom} est un profil récent ou avec peu d'historique. Commencez par un 2ème service complémentaire.`;return <Card key={c.id} style={{marginBottom:10,borderColor:`${C.gold}22`}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
           <div><div style={{fontSize:13,fontWeight:700}}>{c.nom}</div><div style={{fontSize:10,color:C.muted}}>{c.metier} · CA : {fmt(c.ca)}</div></div>
           <div style={{textAlign:"right"}}><div style={{fontSize:9,color:C.gold}}>Potentiel upsell</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>+{fmt(upsellCA)}</div></div>
         </div>
         <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}22`,borderRadius:8,padding:10,marginBottom:10}}>
-          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:3}}>🤖 Recommandation Claude</div>
-          <div style={{fontSize:11,color:C.text,lineHeight:1.6}}>
-            {c.vip?`${c.nom} est VIP. Proposez un contrat annuel exclusif avec 10% de remise et accès prioritaire à vos équipes. Valeur estimée : ${fmt(c.ca*1.5)}/an.`:c.ca>3000?`${c.nom} utilise régulièrement vos services. Parfait moment pour proposer un abonnement mensuel à ${fmt(Math.round(c.ca/3))}€/mois avec 15% de remise.`:`${c.nom} est un client récent. Commencez par proposer un 2ème service complémentaire pour augmenter la fréquence.`}
-          </div>
+          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:3}}>💡 Recommandation</div>
+          <div style={{fontSize:11,color:C.text,lineHeight:1.6}}>{texte}</div>
         </div>
         <div style={{display:"flex",gap:8}}>
-          <Btn onClick={()=>showToast(`📱 Proposition upsell envoyée à ${c.nom} !`)} style={{flex:1,fontSize:11}}>📱 Envoyer proposition</Btn>
-          <BtnGhost onClick={()=>showToast("✅ Devis upsell créé !")} style={{flex:1,fontSize:11}}>◧ Créer devis</BtnGhost>
+          <Btn onClick={()=>envoyerEmail(c,texte,"Une proposition pour vous")} style={{flex:1,fontSize:11}}>📧 Envoyer proposition</Btn>
+          <BtnGhost onClick={()=>creerDevisPour(c)} style={{flex:1,fontSize:11}}>◧ Créer devis</BtnGhost>
         </div>
       </Card>;})}
     </div>}
@@ -2567,41 +2740,41 @@ const PageClients=({plan,showToast})=>{
     {onglet==="stats"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
       <Card>
         <STitle>💰 CA par client</STitle>
-        {[...clients].sort((a,b)=>b.ca-a.ca).map((c,i)=><div key={i} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{fontWeight:600}}>{c.nom}</span><span style={{color:C.green,fontWeight:700}}>{fmt(c.ca)}</span></div><SM val={c.ca} max={Math.max(...clients.map(x=>x.ca))} color={c.couleur}/></div>)}
+        {enriched.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>Aucune donnée pour le moment.</div>}
+        {[...enriched].sort((a,b)=>b.ca-a.ca).map((c,i)=><div key={c.id} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{fontWeight:600}}>{c.nom}</span><span style={{color:C.green,fontWeight:700}}>{fmt(c.ca)}</span></div><SM val={c.ca} max={Math.max(...enriched.map(x=>x.ca),1)} color={C.blue}/></div>)}
       </Card>
       <Card>
         <STitle>🎯 Scores de solvabilité</STitle>
-        {[...clients].sort((a,b)=>b.score-a.score).map((c,i)=><div key={i} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{fontWeight:600}}>{c.nom}</span><span style={{color:scoreColor(c.score),fontWeight:700}}>{c.score}/100</span></div><SM val={c.score} max={100} color={scoreColor(c.score)}/></div>)}
+        {[...enriched].sort((a,b)=>b.score-a.score).map((c,i)=><div key={c.id} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{fontWeight:600}}>{c.nom}</span><span style={{color:scoreColor(c.score),fontWeight:700}}>{c.score}/100</span></div><SM val={c.score} max={100} color={scoreColor(c.score)}/></div>)}
       </Card>
     </div>}
   </div>;
 };
+
 // ─── PAGE PARTENAIRES ─────────────────────────────────────────
 const PagePartenaires=({plan,showToast})=>{
-  const[parts,setParts]=useState([
-    {id:"p1",nom:"Thomas Beaumont",role:"Apporteur d'affaires",comm:20,ca:12400,contrats:8,statut:"actif",dues:2480,paye:4800,rib:"FR76 3000 4000 0100 0012 3456 789",email:"thomas@xyra.io",tel:"+33 6 12 34 56 78",adresse:"12 rue de la Paix, Paris",embauche:"01/03/2024",couleur:C.blue,
-     leads:[{nom:"Hôtel Prestige Paris",statut:"gagné",ca:8000,date:"10/04"},{nom:"SCI Châtillon",statut:"en cours",ca:2400,date:"08/04"},{nom:"Cabinet Lebrun",statut:"perdu",ca:0,date:"05/04"}],
-     docs:[{nom:"Contrat AA signé",type:"Contrat",date:"01/03/2024",statut:"signé"},{nom:"RIB bancaire",type:"RIB",date:"01/03/2024",statut:"valide"},{nom:"DPAE",type:"RH",date:"01/03/2024",statut:"archivé"}],
-     msgs:[{msg:"Bonjour, j'ai un nouveau prospect intéressant pour vous 🚀",h:"09:14",moi:false},{msg:"Top ! Envoyez-moi les coordonnées",h:"09:20",moi:true}]},
-    {id:"p2",nom:"Leila Mansouri",role:"Agent immobilier",comm:15,ca:8700,contrats:5,statut:"actif",dues:1305,paye:2100,rib:"FR76 1027 8060 0001 0234 5678 901",email:"leila.m@mail.fr",tel:"+33 6 44 55 66 77",adresse:"45 av. Victor Hugo, Lyon",embauche:"15/02/2024",couleur:C.gold,
-     leads:[{nom:"Résidences du Val",statut:"gagné",ca:3600,date:"12/04"},{nom:"SCI Lumière",statut:"proposition",ca:1800,date:"09/04"}],
-     docs:[{nom:"Contrat AA signé",type:"Contrat",date:"15/02/2024",statut:"signé"},{nom:"RIB bancaire",type:"RIB",date:"15/02/2024",statut:"valide"},{nom:"Kbis agence",type:"Juridique",date:"15/02/2024",statut:"valide"}],
-     msgs:[{msg:"Bonjour Curtiss, 2 clients potentiels cette semaine !",h:"11:00",moi:false}]},
-    {id:"p3",nom:"Groupe Prestige SARL",role:"Syndic professionnel",comm:12,ca:22000,contrats:14,statut:"actif",dues:2640,paye:6200,rib:"FR76 3000 1234 0000 5678 9012 345",email:"contact@prestige.fr",tel:"+33 1 44 55 66 77",adresse:"75 rue de Rivoli, Paris 75001",embauche:"01/01/2024",couleur:C.purple,
-     leads:[{nom:"Résidence Les Pins",statut:"gagné",ca:12000,date:"01/04"},{nom:"Immeuble Haussmann",statut:"gagné",ca:8000,date:"15/03"},{nom:"Copropriété Sud",statut:"en cours",ca:4000,date:"14/04"}],
-     docs:[{nom:"Contrat partenariat signé",type:"Contrat",date:"01/01/2024",statut:"signé"},{nom:"RIB SARL",type:"RIB",date:"01/01/2024",statut:"valide"},{nom:"Kbis SARL",type:"Juridique",date:"01/01/2024",statut:"valide"},{nom:"Assurance RC Pro",type:"Assurance",date:"01/01/2024",statut:"valide"}],
-     msgs:[{msg:"Bonjour, facture commission janvier à valider svp",h:"08:45",moi:false}]},
-    {id:"p4",nom:"Fatoumata Diop",role:"Apporteuse Afrique",comm:25,ca:6800,contrats:4,statut:"actif",dues:1700,paye:800,rib:"SN28 SN08 0100 1535 1000 1234 56",email:"fatou.d@dakar.sn",tel:"+221 77 123 45 67",adresse:"Dakar, Sénégal",embauche:"01/06/2024",couleur:C.green,
-     leads:[{nom:"TechHub Dakar",statut:"en cours",ca:4800,date:"13/04"},{nom:"Atlas Finance",statut:"proposition",ca:2400,date:"10/04"}],
-     docs:[{nom:"Contrat AA international",type:"Contrat",date:"01/06/2024",statut:"signé"},{nom:"RIB Ecobank",type:"RIB",date:"01/06/2024",statut:"valide"}],
-     msgs:[{msg:"2 nouvelles sociétés intéressées depuis Dakar 🌍",h:"14:32",moi:false}]},
-  ]);
-
+  const[parts,setParts]=useState([]);
+  const[loadingParts,setLoadingParts]=useState(true);
   const[onglet,setOnglet]=useState("dashboard");
   const[sel,setSel]=useState(null);
   const[showOnboard,setShowOnboard]=useState(false);
   const[onboardForm,setOnboardForm]=useState({nom:"",role:"",comm:"15",email:"",tel:"",adresse:"",rib:""});
-  const[msgInputs,setMsgInputs]=useState({});
+  const[leadForms,setLeadForms]=useState({});
+  const[docForms,setDocForms]=useState({});
+  const[iaCache,setIaCache]=useState({});
+  const[iaLoading,setIaLoading]=useState({});
+  const[recuInputs,setRecuInputs]=useState({});
+
+  const loadAll=async()=>{
+    try{
+      const res=await fetch('/api/partenaires');
+      const data=await res.json();
+      if(data.partenaires)setParts(data.partenaires);
+    }catch(e){console.error("Partenaires:",e);}
+    setLoadingParts(false);
+  };
+  useEffect(()=>{loadAll();},[]);
+  useEffect(()=>{if(sel)setSel(s=>parts.find(p=>p.id===s.id)||null);},[parts]);
 
   const tabs=[
     {id:"dashboard",label:"📊 Tableau de bord"},
@@ -2624,19 +2797,141 @@ const PagePartenaires=({plan,showToast})=>{
   const totalPaye=parts.reduce((a,p)=>a+p.paye,0);
   const totalLeads=parts.reduce((a,p)=>a+p.leads.length,0);
   const totalGagnes=parts.reduce((a,p)=>a+p.leads.filter(l=>l.statut==="gagné").length,0);
+  const couleurs=[C.blue,C.gold,C.purple,C.green,C.teal,C.pink,C.orange];
+  const coul=(i)=>couleurs[i%couleurs.length];
+
+  const payerCommission=async(p)=>{
+    if(!p.dues||p.dues<=0)return showToast("✅ Aucune commission due pour ce partenaire");
+    showToast(`⏳ Enregistrement du virement pour ${p.nom}...`);
+    try{
+      const res=await fetch('/api/partenaires',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'payer_commission',id:p.id})});
+      const data=await res.json();
+      if(data.success){showToast(`✅ ${fmt(data.montant)} enregistré à virer pour ${p.nom}`);loadAll();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const activerPortail=async(p)=>{
+    if(!p.email)return showToast("⚠️ Email manquant pour ce partenaire");
+    showToast(`⏳ Création de l'accès portail pour ${p.nom}...`);
+    try{
+      const res=await fetch('/api/partenaires',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'inviter_portail',id:p.id})});
+      const data=await res.json();
+      if(data.success){showToast(`✅ Accès envoyé à ${p.nom} par email et WhatsApp`);loadAll();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const payerTout=async()=>{
+    const aPayer=parts.filter(p=>p.dues>0);
+    if(aPayer.length===0)return showToast("✅ Aucune commission due");
+    showToast(`⏳ Enregistrement de ${aPayer.length} virement(s)...`);
+    for(const p of aPayer){
+      try{await fetch('/api/partenaires',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'payer_commission',id:p.id})});}catch(e){}
+    }
+    showToast(`✅ Commissions enregistrées à virer — voir le Wallet`);
+    loadAll();
+  };
+
+  const ouvrirWhatsApp=(tel)=>{
+    if(!tel)return showToast("⚠️ Aucun numéro renseigné");
+    window.open(`https://wa.me/${tel.replace(/\D/g,"")}`,"_blank");
+  };
+
+  const envoyerEmailPartenaire=async(p,message,subject)=>{
+    if(!p.email)return showToast("⚠️ Aucun email renseigné");
+    showToast("⏳ Envoi en cours...");
+    try{
+      const res=await fetch('/api/partenaires',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_email',email:p.email,subject,message,partenaire_id:p.id})});
+      const data=await res.json();
+      if(data.success){showToast(`✅ Email envoyé à ${p.nom}`);loadAll();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const envoyerMessage=async(p,message,moi=true)=>{
+    try{
+      const res=await fetch('/api/partenaires',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_message',partenaire_id:p.id,message,tel:p.tel,moi})});
+      const data=await res.json();
+      if(data.success)loadAll();
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const ajouterLead=async(p)=>{
+    const f=leadForms[p.id]||{};
+    if(!f.nom)return showToast("⚠️ Nom du prospect requis");
+    try{
+      const res=await fetch('/api/partenaires',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter_lead',partenaire_id:p.id,nom:f.nom,ca:f.ca||0,statut:f.statut||"en cours"})});
+      const data=await res.json();
+      if(data.success){showToast(`✅ Lead ajouté pour ${p.nom}`);setLeadForms(s=>({...s,[p.id]:{nom:"",ca:"",statut:"en cours"}}));loadAll();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const modifierLeadStatut=async(lead,statut)=>{
+    try{
+      await fetch('/api/partenaires',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'modifier_lead',id:lead.id,statut})});
+      loadAll();
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const ajouterDocument=async(p)=>{
+    const f=docForms[p.id]||{};
+    if(!f.nom)return showToast("⚠️ Nom du document requis");
+    try{
+      const res=await fetch('/api/partenaires',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter_document',partenaire_id:p.id,nom:f.nom,type:f.type||"Autre",statut:"en_attente"})});
+      const data=await res.json();
+      if(data.success){showToast(`✅ Document ajouté pour ${p.nom}`);setDocForms(s=>({...s,[p.id]:{nom:"",type:""}}));loadAll();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const downloadBase64Pdf=(base64,filename)=>{
+    const bytes=atob(base64);
+    const arr=new Uint8Array(bytes.length);
+    for(let i=0;i<bytes.length;i++)arr[i]=bytes.charCodeAt(i);
+    const blob=new Blob([arr],{type:"application/pdf"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download=filename;a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const genererContratPdf=async(p)=>{
+    showToast(`⏳ Génération du contrat ${p.nom}...`);
+    try{
+      const res=await fetch('/api/partenaires',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generer_contrat_pdf',id:p.id})});
+      const data=await res.json();
+      if(data.success){downloadBase64Pdf(data.pdfBase64,data.filename);showToast(`✅ Contrat ${p.nom} téléchargé`);}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const analyserIA=async(p)=>{
+    if(iaLoading[p.id])return;
+    setIaLoading(s=>({...s,[p.id]:true}));
+    try{
+      const res=await fetch('/api/partenaires',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'analyse_ia',partenaire:p})});
+      const data=await res.json();
+      if(data.success)setIaCache(s=>({...s,[p.id]:data.analyse}));
+      else showToast("❌ "+(data.error||"Analyse indisponible"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setIaLoading(s=>({...s,[p.id]:false}));
+  };
 
   return <div style={{padding:20}}>
     {/* HEADER */}
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
       <div>
         <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>⬡ Partenaires & Apporteurs d'affaires</div>
-        <div style={{fontSize:11,color:C.muted}}>Commissions · Leads · Contrats · Performance · IA · {parts.length} partenaires actifs</div>
+        <div style={{fontSize:11,color:C.muted}}>Commissions · Leads · Contrats · Performance · IA · {parts.length} partenaires</div>
       </div>
       <div style={{display:"flex",gap:8}}>
         <BtnGhost onClick={()=>{setOnglet("onboarding");setShowOnboard(true);}}>+ Nouveau partenaire</BtnGhost>
-        <Btn onClick={()=>showToast("📊 Rapport partenaires envoyé !")}>📊 Rapport</Btn>
       </div>
     </div>
+
+    {loadingParts&&<div style={{fontSize:11,color:C.muted,marginBottom:12}}>Chargement...</div>}
 
     {/* KPIs */}
     <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
@@ -2648,17 +2943,19 @@ const PagePartenaires=({plan,showToast})=>{
       {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
     </div>
 
+    {!loadingParts&&parts.length===0&&onglet!=="onboarding"&&<Card style={{textAlign:"center",padding:30,marginBottom:14}}><div style={{fontSize:12,color:C.muted}}>Aucun partenaire enregistré pour le moment.</div><BtnGhost onClick={()=>setOnglet("onboarding")} style={{marginTop:10}}>+ Créer le premier partenaire</BtnGhost></Card>}
+
     {/* ── DASHBOARD ─────────────────────────────────────── */}
-    {onglet==="dashboard"&&<div>
+    {onglet==="dashboard"&&parts.length>0&&<div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
         <Card>
           <STitle>⬡ Vue d'ensemble partenaires</STitle>
-          {parts.map((p,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:`1px solid ${C.border}22`,cursor:"pointer"}} onClick={()=>{setSel(p);setOnglet("liste");}}>
-            <div style={{width:36,height:36,borderRadius:"50%",background:p.couleur+"22",border:`2px solid ${p.couleur}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:p.couleur,flexShrink:0}}>{p.nom[0]}</div>
+          {parts.map((p,i)=><div key={p.id} style={{display:"flex",alignItems:"center",gap:10,padding:"10px 0",borderBottom:`1px solid ${C.border}22`,cursor:"pointer"}} onClick={()=>{setSel(p);setOnglet("liste");}}>
+            <div style={{width:36,height:36,borderRadius:"50%",background:coul(i)+"22",border:`2px solid ${coul(i)}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:coul(i),flexShrink:0}}>{p.nom[0]}</div>
             <div style={{flex:1}}>
               <div style={{fontSize:12,fontWeight:700}}>{p.nom}</div>
               <div style={{fontSize:9,color:C.muted}}>{p.role} · {p.comm}%</div>
-              <div style={{marginTop:3,height:3,borderRadius:2,background:C.border}}><div style={{height:"100%",width:(p.ca/totalCA*100)+"%",background:p.couleur,borderRadius:2}}/></div>
+              <div style={{marginTop:3,height:3,borderRadius:2,background:C.border}}><div style={{height:"100%",width:(totalCA>0?p.ca/totalCA*100:0)+"%",background:coul(i),borderRadius:2}}/></div>
             </div>
             <div style={{textAlign:"right"}}>
               <div style={{fontSize:12,fontWeight:700,color:C.green}}>{fmt(p.ca)}</div>
@@ -2669,61 +2966,55 @@ const PagePartenaires=({plan,showToast})=>{
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           <Card>
             <STitle>💰 Commissions à payer</STitle>
-            {parts.filter(p=>p.dues>0).map((p,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`}}>
-              <div><div style={{fontSize:12,fontWeight:600}}>{p.nom}</div><div style={{fontSize:10,color:C.muted}}>{p.comm}% · Virement {p.rib.slice(0,12)}...</div></div>
+            {parts.filter(p=>p.dues>0).length===0&&<div style={{fontSize:11,color:C.muted,textAlign:"center",padding:12}}>Tout est réglé ✅</div>}
+            {parts.filter(p=>p.dues>0).map((p,i)=><div key={p.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`}}>
+              <div><div style={{fontSize:12,fontWeight:600}}>{p.nom}</div><div style={{fontSize:10,color:C.muted}}>{p.comm}% · {p.rib?p.rib.slice(0,12)+"...":"RIB non renseigné"}</div></div>
               <div style={{textAlign:"right"}}>
                 <div style={{fontSize:14,fontWeight:700,color:C.orange}}>{fmt(p.dues)}</div>
-                <Btn onClick={()=>{setParts(ps=>ps.map((x,j)=>j===i?{...x,dues:0,paye:x.paye+x.dues}:x));showToast(`✅ Commission ${p.nom} payée !`);}} style={{fontSize:9,padding:"3px 8px",marginTop:4}}>Payer</Btn>
+                <Btn onClick={()=>payerCommission(p)} style={{fontSize:9,padding:"3px 8px",marginTop:4}}>Payer</Btn>
               </div>
             </div>)}
           </Card>
-          <div style={{background:`${C.red}11`,border:`1px solid ${C.red}33`,borderRadius:10,padding:14}}>
-            <div style={{fontSize:10,color:C.red,fontWeight:600,marginBottom:8}}>🔔 Alertes du jour</div>
-            {[{t:"Commission Thomas en retard de 15 jours",c:C.red},{t:"Contrat Fatoumata Diop — renouvellement dans 30j",c:C.orange},{t:"Leila Mansouri — 2 leads sans suivi depuis 7j",c:C.orange}].map((a,i)=><div key={i} style={{fontSize:11,color:C.text,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}>⚠ {a.t}</div>)}
-          </div>
         </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        <KPI label="Meilleur CA" val={parts.sort((a,b)=>b.ca-a.ca)[0].nom.split(" ")[0]} color={C.gold} sub={fmt(Math.max(...parts.map(p=>p.ca)))}/>
-        <KPI label="Taux conversion moyen" val={Math.round(totalGagnes/totalLeads*100)+"%"} color={C.green}/>
-        <KPI label="Commission moy." val={Math.round(parts.reduce((a,p)=>a+p.comm,0)/parts.length)+"%"} color={C.blue}/>
+        <KPI label="Meilleur CA" val={[...parts].sort((a,b)=>b.ca-a.ca)[0]?.nom.split(" ")[0]||"—"} color={C.gold} sub={fmt(Math.max(...parts.map(p=>p.ca),0))}/>
+        <KPI label="Taux conversion moyen" val={totalLeads>0?Math.round(totalGagnes/totalLeads*100)+"%":"—"} color={C.green}/>
+        <KPI label="Commission moy." val={parts.length>0?Math.round(parts.reduce((a,p)=>a+Number(p.comm),0)/parts.length)+"%":"—"} color={C.blue}/>
       </div>
     </div>}
 
     {/* ── LISTE PARTENAIRES ─────────────────────────────── */}
-    {onglet==="liste"&&<div>
+    {onglet==="liste"&&parts.length>0&&<div>
       {sel?<div>
         <BtnGhost onClick={()=>setSel(null)} style={{marginBottom:14}}>← Retour à la liste</BtnGhost>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-          <Card style={{borderColor:`${sel.couleur}44`}}>
+          <Card>
             <div style={{display:"flex",alignItems:"center",gap:14,marginBottom:16}}>
-              <div style={{width:52,height:52,borderRadius:"50%",background:sel.couleur+"22",border:`2px solid ${sel.couleur}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,color:sel.couleur}}>{sel.nom[0]}</div>
-              <div><div style={{fontSize:16,fontWeight:700}}>{sel.nom}</div><div style={{fontSize:11,color:C.muted}}>{sel.role}</div><Pill color={sel.couleur}>{sel.comm}% commission</Pill></div>
+              <div style={{width:52,height:52,borderRadius:"50%",background:`${C.blue}22`,border:`2px solid ${C.blue}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,color:C.blue}}>{sel.nom[0]}</div>
+              <div><div style={{fontSize:16,fontWeight:700}}>{sel.nom}</div><div style={{fontSize:11,color:C.muted}}>{sel.role}</div><Pill color={C.blue}>{sel.comm}% commission</Pill></div>
             </div>
-            {[["📧 Email",sel.email],["📱 Téléphone",sel.tel],["🏠 Adresse",sel.adresse],["📅 Partenaire depuis",sel.embauche],["🏦 RIB",sel.rib],["💰 CA total apporté",fmt(sel.ca)],["💸 Commissions dues",fmt(sel.dues)],["✅ Commissions payées",fmt(sel.paye)],["📋 Contrats",sel.contrats+" contrats"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600,color:k.includes("dues")?C.orange:k.includes("payées")?C.green:C.text}}>{v}</span></div>)}
+            {[["📧 Email",sel.email||"—"],["📱 Téléphone",sel.tel||"—"],["🏠 Adresse",sel.adresse||"—"],["📅 Partenaire depuis",new Date(sel.created_at).toLocaleDateString("fr")],["🏦 RIB",sel.rib||"Non renseigné"],["💰 CA total apporté",fmt(sel.ca)],["💸 Commissions dues",fmt(sel.dues)],["✅ Commissions payées",fmt(sel.paye)],["📋 Contrats gagnés",sel.contrats+" contrat(s)"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600,color:k.includes("dues")?C.orange:k.includes("payées")?C.green:C.text}}>{v}</span></div>)}
           </Card>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <Card>
               <STitle>⚡ Actions rapides</STitle>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                <Btn onClick={()=>{setParts(ps=>ps.map(p=>p.id===sel.id?{...p,dues:0,paye:p.paye+p.dues}:p));setSel(s=>({...s,paye:s.paye+s.dues,dues:0}));showToast(`✅ Commission ${fmt(sel.dues)} payée à ${sel.nom} !`);}} style={{background:C.orange}}>💰 Payer {fmt(sel.dues)} commission</Btn>
-                <Btn onClick={()=>showToast(`📄 Contrat ${sel.nom} PDF généré`)} style={{background:C.blue}}>📄 Générer contrat PDF</Btn>
-                <BtnGhost onClick={()=>showToast(`📱 WhatsApp ${sel.nom}`)}>📱 WhatsApp</BtnGhost>
-                <BtnGhost onClick={()=>showToast(`📧 Email envoyé à ${sel.email}`)}>📧 Email</BtnGhost>
-                <BtnGhost onClick={()=>{setOnglet("messagerie");}} style={{color:C.gold,borderColor:`${C.gold}44`}}>💬 Messagerie interne</BtnGhost>
+                {sel.dues>0&&<Btn onClick={()=>payerCommission(sel)} style={{background:C.orange}}>💰 Payer {fmt(sel.dues)} commission</Btn>}
+                {!sel.accesPortail&&<Btn onClick={()=>activerPortail(sel)} style={{background:C.purple}}>🔑 Activer l'espace partenaire</Btn>}
+                <Btn onClick={()=>genererContratPdf(sel)} style={{background:C.blue}}>📄 Générer contrat PDF</Btn>
+                <BtnGhost onClick={()=>ouvrirWhatsApp(sel.tel)}>📱 WhatsApp</BtnGhost>
+                <BtnGhost onClick={()=>envoyerEmailPartenaire(sel,"Je reviens vers vous au sujet de notre partenariat.","Suivi de notre partenariat")}>📧 Email</BtnGhost>
+                <BtnGhost onClick={()=>setOnglet("messagerie")} style={{color:C.gold,borderColor:`${C.gold}44`}}>💬 Messagerie interne</BtnGhost>
               </div>
-            </Card>
-            <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
-              <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Analyse IA — Claude</div>
-              <div style={{fontSize:11,color:C.text,lineHeight:1.7}}>{sel.ca>10000?`${sel.nom.split(" ")[0]} est votre meilleur partenaire. CA apporté : ${fmt(sel.ca)}. Recommandation : augmentez sa commission à ${sel.comm+2}% pour le fidéliser et booster son engagement.`:`Potentiel de croissance identifié. ${sel.nom.split(" ")[0]} a apporté ${sel.leads.filter(l=>l.statut==="gagné").length} leads gagnés. Recommandation : proposez un objectif trimestriel de ${fmt(Math.round(sel.ca*1.3))} avec bonus de commission.`}</div>
             </Card>
           </div>
         </div>
       </div>:<Card>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead><tr><TH>Partenaire</TH><TH>Rôle</TH><TH>Commission</TH><TH>CA apporté</TH><TH>Leads</TH><TH>Comm. dues</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
-          <tbody>{parts.map((p,i)=><tr key={i} style={{cursor:"pointer"}} onClick={()=>setSel(p)}>
-            <Td><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:28,height:28,borderRadius:"50%",background:p.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:p.couleur}}>{p.nom[0]}</div><span style={{fontWeight:700}}>{p.nom}</span></div></Td>
+          <tbody>{parts.map((p,i)=><tr key={p.id} style={{cursor:"pointer"}} onClick={()=>setSel(p)}>
+            <Td><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:28,height:28,borderRadius:"50%",background:coul(i)+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:coul(i)}}>{p.nom[0]}</div><span style={{fontWeight:700}}>{p.nom}</span></div></Td>
             <Td style={{color:C.muted,fontSize:11}}>{p.role}</Td>
             <Td><Pill color={C.gold}>{p.comm}%</Pill></Td>
             <Td style={{color:C.green,fontWeight:700}}>{fmt(p.ca)}</Td>
@@ -2731,8 +3022,8 @@ const PagePartenaires=({plan,showToast})=>{
             <Td style={{color:p.dues>0?C.orange:C.muted,fontWeight:700}}>{p.dues>0?fmt(p.dues):"—"}</Td>
             <Td><St s={p.statut}/></Td>
             <Td onClick={e=>e.stopPropagation()}><div style={{display:"flex",gap:4}}>
-              <Btn onClick={()=>{setParts(ps=>ps.map((x,j)=>j===i?{...x,dues:0,paye:x.paye+x.dues}:x));showToast(`✅ ${fmt(p.dues)} payée à ${p.nom}`);}} style={{fontSize:9,padding:"4px 8px",background:C.orange}}>💰 Payer</Btn>
-              <BtnGhost onClick={()=>showToast(`📱 WhatsApp ${p.nom}`)} style={{fontSize:9,padding:"4px 8px"}}>WA</BtnGhost>
+              {p.dues>0&&<Btn onClick={()=>payerCommission(p)} style={{fontSize:9,padding:"4px 8px",background:C.orange}}>💰 Payer</Btn>}
+              <BtnGhost onClick={()=>ouvrirWhatsApp(p.tel)} style={{fontSize:9,padding:"4px 8px"}}>WA</BtnGhost>
             </div></Td>
           </tr>)}</tbody>
         </table>
@@ -2740,98 +3031,101 @@ const PagePartenaires=({plan,showToast})=>{
     </div>}
 
     {/* ── LEADS ─────────────────────────────────────────── */}
-    {onglet==="leads"&&<div>
+    {onglet==="leads"&&parts.length>0&&<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
         <KPI label="Total leads" val={totalLeads} color={C.blue}/>
         <KPI label="Gagnés" val={totalGagnes} color={C.green}/>
         <KPI label="En cours" val={parts.reduce((a,p)=>a+p.leads.filter(l=>l.statut==="en cours"||l.statut==="proposition").length,0)} color={C.gold}/>
-        <KPI label="Taux conversion" val={Math.round(totalGagnes/totalLeads*100)+"%"} color={C.teal}/>
+        <KPI label="Taux conversion" val={totalLeads>0?Math.round(totalGagnes/totalLeads*100)+"%":"—"} color={C.teal}/>
       </div>
-      {parts.map((p,i)=><Card key={i} style={{marginBottom:12}}>
+      {parts.map((p,i)=><Card key={p.id} style={{marginBottom:12}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-          <div style={{width:32,height:32,borderRadius:"50%",background:p.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:p.couleur}}>{p.nom[0]}</div>
+          <div style={{width:32,height:32,borderRadius:"50%",background:coul(i)+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:coul(i)}}>{p.nom[0]}</div>
           <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{p.nom}</div><div style={{fontSize:10,color:C.muted}}>{p.leads.length} leads · {p.leads.filter(l=>l.statut==="gagné").length} gagnés</div></div>
-          <Pill color={p.couleur}>{p.comm}%</Pill>
+          <Pill color={C.gold}>{p.comm}%</Pill>
         </div>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
+        {p.leads.length>0&&<table style={{width:"100%",borderCollapse:"collapse",marginBottom:10}}>
           <thead><tr><TH>Prospect</TH><TH>Date</TH><TH>Statut</TH><TH>CA potentiel</TH><TH>Commission</TH></tr></thead>
-          <tbody>{p.leads.map((l,j)=>{const sc=l.statut==="gagné"?C.green:l.statut==="perdu"?C.muted:l.statut==="proposition"?C.blue:C.gold;return <tr key={j}>
+          <tbody>{p.leads.map((l,j)=><tr key={l.id}>
             <Td style={{fontWeight:600}}>{l.nom}</Td>
-            <Td style={{color:C.muted,fontSize:10}}>{l.date}</Td>
-            <Td><Pill color={sc}>{l.statut}</Pill></Td>
+            <Td style={{color:C.muted,fontSize:10}}>{new Date(l.created_at).toLocaleDateString("fr")}</Td>
+            <Td><Sel value={l.statut} onChange={e=>modifierLeadStatut(l,e.target.value)} style={{fontSize:10}}>
+              <option value="en cours">En cours</option><option value="proposition">Proposition</option><option value="gagné">Gagné</option><option value="perdu">Perdu</option>
+            </Sel></Td>
             <Td style={{color:C.green,fontWeight:700}}>{l.ca>0?fmt(l.ca):"À définir"}</Td>
             <Td style={{color:C.gold,fontWeight:700}}>{l.ca>0?fmt(Math.round(l.ca*p.comm/100)):"—"}</Td>
-          </tr>;})}
-          </tbody>
-        </table>
-        <button onClick={()=>showToast(`✅ Lead ajouté pour ${p.nom}`)} style={{marginTop:8,background:"transparent",color:p.couleur,border:`1px solid ${p.couleur}44`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Ajouter un lead</button>
+          </tr>)}</tbody>
+        </table>}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap",alignItems:"flex-end"}}>
+          <Inp value={leadForms[p.id]?.nom||""} onChange={e=>setLeadForms(s=>({...s,[p.id]:{...s[p.id],nom:e.target.value}}))} placeholder="Nom du prospect" style={{flex:1,minWidth:140}}/>
+          <Inp value={leadForms[p.id]?.ca||""} onChange={e=>setLeadForms(s=>({...s,[p.id]:{...s[p.id],ca:e.target.value}}))} placeholder="CA potentiel €" style={{width:120}}/>
+          <button onClick={()=>ajouterLead(p)} style={{background:"transparent",color:coul(i),border:`1px solid ${coul(i)}44`,borderRadius:6,padding:"7px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Ajouter</button>
+        </div>
       </Card>)}
     </div>}
 
     {/* ── COMMISSIONS ───────────────────────────────────── */}
-    {onglet==="commissions"&&<div>
+    {onglet==="commissions"&&parts.length>0&&<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
         <KPI label="Total à payer" val={fmt(totalDues)} color={C.orange}/>
         <KPI label="Total payé (historique)" val={fmt(totalPaye)} color={C.green}/>
         <KPI label="Total cumulé" val={fmt(totalDues+totalPaye)} color={C.gold}/>
       </div>
       <Card style={{marginBottom:12}}>
-        <STitle>💰 Commissions dues — À payer maintenant</STitle>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <STitle>💰 Commissions dues — À enregistrer maintenant</STitle>
+        {parts.filter(p=>p.dues>0).length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>Aucune commission due pour le moment.</div>}
+        {parts.filter(p=>p.dues>0).length>0&&<table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead><tr><TH>Partenaire</TH><TH>Taux</TH><TH>CA apporté</TH><TH>Commission due</TH><TH>RIB</TH><TH>Actions</TH></tr></thead>
-          <tbody>{parts.filter(p=>p.dues>0).map((p,i)=><tr key={i}>
+          <tbody>{parts.filter(p=>p.dues>0).map(p=><tr key={p.id}>
             <Td style={{fontWeight:700}}>{p.nom}</Td>
             <Td><Pill color={C.gold}>{p.comm}%</Pill></Td>
             <Td style={{color:C.green,fontWeight:600}}>{fmt(p.ca)}</Td>
             <Td style={{color:C.orange,fontWeight:700,fontSize:14}}>{fmt(p.dues)}</Td>
-            <Td style={{fontSize:10,color:C.muted,fontFamily:"monospace"}}>{p.rib.slice(0,16)}...</Td>
+            <Td style={{fontSize:10,color:C.muted,fontFamily:"monospace"}}>{p.rib?p.rib.slice(0,16)+"...":"Non renseigné"}</Td>
             <Td><div style={{display:"flex",gap:4}}>
-              <Btn onClick={()=>{setParts(ps=>ps.map(x=>x.id===p.id?{...x,dues:0,paye:x.paye+x.dues}:x));showToast(`✅ Virement ${fmt(p.dues)} envoyé à ${p.nom} !`);}} style={{fontSize:10,padding:"5px 10px",background:C.orange}}>💸 Payer {fmt(p.dues)}</Btn>
-              <BtnGhost onClick={()=>showToast("📱 Rappel WA envoyé")} style={{fontSize:10,padding:"5px 8px"}}>📱</BtnGhost>
+              <Btn onClick={()=>payerCommission(p)} style={{fontSize:10,padding:"5px 10px",background:C.orange}}>💸 Enregistrer {fmt(p.dues)}</Btn>
+              <BtnGhost onClick={()=>ouvrirWhatsApp(p.tel)} style={{fontSize:10,padding:"5px 8px"}}>📱</BtnGhost>
             </div></Td>
           </tr>)}</tbody>
-        </table>
-        {totalDues>0&&<Btn onClick={()=>{setParts(ps=>ps.map(p=>({...p,paye:p.paye+p.dues,dues:0})));showToast(`✅ Toutes les commissions payées — ${fmt(totalDues)} virés !`);}} style={{marginTop:12,width:"100%",background:C.orange}}>💸 Tout payer — {fmt(totalDues)}</Btn>}
+        </table>}
+        {totalDues>0&&<Btn onClick={payerTout} style={{marginTop:12,width:"100%",background:C.orange}}>💸 Tout enregistrer — {fmt(totalDues)}</Btn>}
+        <div style={{marginTop:10,fontSize:10,color:C.muted}}>ℹ️ "Enregistrer" crée le virement dans ton Wallet (à virer). Le virement bancaire réel se confirme ensuite depuis le Wallet.</div>
       </Card>
       <Card>
-        <STitle>✅ Historique des commissions payées</STitle>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <STitle>✅ Commissions versées (historique réel)</STitle>
+        {parts.filter(p=>p.paye>0).length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:12}}>Aucun virement confirmé pour le moment.</div>}
+        {parts.filter(p=>p.paye>0).length>0&&<table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead><tr><TH>Partenaire</TH><TH>Montant payé</TH><TH>Statut</TH></tr></thead>
-          <tbody>{parts.map((p,i)=><tr key={i}>
+          <tbody>{parts.filter(p=>p.paye>0).map(p=><tr key={p.id}>
             <Td style={{fontWeight:600}}>{p.nom}</Td>
             <Td style={{color:C.green,fontWeight:700}}>{fmt(p.paye)}</Td>
-            <Td><Pill color={C.green}>✓ Payé</Pill></Td>
+            <Td><Pill color={C.green}>✓ Viré</Pill></Td>
           </tr>)}</tbody>
-        </table>
+        </table>}
       </Card>
     </div>}
 
     {/* ── CONTRATS ──────────────────────────────────────── */}
-    {onglet==="contrats"&&<div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <STitle>📋 Contrats partenaires</STitle>
-        <Btn onClick={()=>showToast("🤖 Contrat IA généré !")} style={{fontSize:11,padding:"7px 14px",background:C.purple}}>🤖 Générer contrat (IA)</Btn>
-      </div>
-      <Card style={{marginBottom:12}}>
+    {onglet==="contrats"&&parts.length>0&&<div>
+      <STitle>📋 Contrats partenaires</STitle>
+      <Card style={{marginTop:10,marginBottom:12}}>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Partenaire</TH><TH>Type</TH><TH>Commission</TH><TH>Début</TH><TH>Durée</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
-          <tbody>{parts.map((p,i)=><tr key={i}>
+          <thead><tr><TH>Partenaire</TH><TH>Type</TH><TH>Commission</TH><TH>Début</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+          <tbody>{parts.map(p=><tr key={p.id}>
             <Td style={{fontWeight:700}}>{p.nom}</Td>
             <Td><Pill color={C.blue}>{p.role}</Pill></Td>
             <Td style={{color:C.gold,fontWeight:700}}>{p.comm}%</Td>
-            <Td style={{color:C.muted,fontSize:10}}>{p.embauche}</Td>
-            <Td style={{color:C.muted,fontSize:10}}>Indéterminée</Td>
-            <Td><Pill color={C.green}>✓ Signé</Pill></Td>
+            <Td style={{color:C.muted,fontSize:10}}>{new Date(p.created_at).toLocaleDateString("fr")}</Td>
+            <Td><St s={p.statut}/></Td>
             <Td><div style={{display:"flex",gap:4}}>
-              <Btn onClick={()=>showToast(`📄 Contrat ${p.nom} PDF`)} style={{fontSize:9,padding:"4px 8px"}}>📄 PDF</Btn>
-              <BtnGhost onClick={()=>showToast(`📱 Envoyé à ${p.nom}`)} style={{fontSize:9,padding:"4px 8px"}}>WA</BtnGhost>
-              <BtnGhost onClick={()=>showToast("✏️ Avenant créé")} style={{fontSize:9,padding:"4px 8px"}}>Avenant</BtnGhost>
+              <Btn onClick={()=>genererContratPdf(p)} style={{fontSize:9,padding:"4px 8px"}}>📄 PDF</Btn>
+              <BtnGhost onClick={()=>ouvrirWhatsApp(p.tel)} style={{fontSize:9,padding:"4px 8px"}}>WA</BtnGhost>
             </div></Td>
           </tr>)}</tbody>
         </table>
       </Card>
       <Card style={{background:`${C.blue}08`,borderColor:`${C.blue}33`}}>
-        <STitle>📝 Modèle de contrat — Clauses standards</STitle>
+        <STitle>📝 Clauses standards — incluses dans chaque contrat généré</STitle>
         <div style={{display:"flex",flexDirection:"column",gap:6}}>
           {["Commission versée sous 30 jours après encaissement client","Taux de commission fixé contractuellement — révisable annuellement","Lead valide = prospect non connu de Xyra depuis + de 6 mois","Commission due uniquement si le deal est signé et encaissé","Résiliation par l'une ou l'autre partie avec préavis de 30 jours"].map((c,i)=><div key={i} style={{fontSize:11,color:C.text,padding:"6px 10px",background:C.card2,borderRadius:6}}>• {c}</div>)}
         </div>
@@ -2839,21 +3133,21 @@ const PagePartenaires=({plan,showToast})=>{
     </div>}
 
     {/* ── PERFORMANCE ───────────────────────────────────── */}
-    {onglet==="performance"&&<div>
+    {onglet==="performance"&&parts.length>0&&<div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12,marginBottom:12}}>
         <Card>
           <STitle>📈 Classement par CA apporté</STitle>
-          {[...parts].sort((a,b)=>b.ca-a.ca).map((p,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
-            <div style={{width:22,height:22,borderRadius:"50%",background:["#C9A84C","#C0C0C0","#CD7F32","#5A5A7A"][i]+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:["#C9A84C","#C0C0C0","#CD7F32","#5A5A7A"][i]}}>{i+1}</div>
+          {[...parts].sort((a,b)=>b.ca-a.ca).map((p,i)=><div key={p.id} style={{display:"flex",alignItems:"center",gap:10,marginBottom:10}}>
+            <div style={{width:22,height:22,borderRadius:"50%",background:["#C9A84C","#C0C0C0","#CD7F32","#5A5A7A"][i]+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:["#C9A84C","#C0C0C0","#CD7F32","#5A5A7A"][i]||C.muted}}>{i+1}</div>
             <div style={{flex:1}}>
               <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{fontWeight:600}}>{p.nom}</span><span style={{color:C.green,fontWeight:700}}>{fmt(p.ca)}</span></div>
-              <SM val={p.ca} max={Math.max(...parts.map(x=>x.ca))} color={p.couleur}/>
+              <SM val={p.ca} max={Math.max(...parts.map(x=>x.ca),1)} color={coul(i)}/>
             </div>
           </div>)}
         </Card>
         <Card>
           <STitle>🎯 Taux de conversion par partenaire</STitle>
-          {parts.map((p,i)=>{const tx=p.leads.length>0?Math.round(p.leads.filter(l=>l.statut==="gagné").length/p.leads.length*100):0;return <div key={i} style={{marginBottom:10}}>
+          {parts.map((p,i)=>{const tx=p.leads.length>0?Math.round(p.leads.filter(l=>l.statut==="gagné").length/p.leads.length*100):0;return <div key={p.id} style={{marginBottom:10}}>
             <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{fontWeight:600}}>{p.nom.split(" ")[0]}</span><span style={{color:tx>=50?C.green:tx>=25?C.gold:C.orange,fontWeight:700}}>{tx}%</span></div>
             <SM val={tx} max={100} color={tx>=50?C.green:tx>=25?C.gold:C.orange}/>
           </div>;})}
@@ -2862,11 +3156,11 @@ const PagePartenaires=({plan,showToast})=>{
       <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12}}>
         <Card>
           <STitle>💰 Commissions versées par partenaire</STitle>
-          {parts.map((p,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{fontWeight:600}}>{p.nom}</span><div style={{textAlign:"right"}}><div style={{color:C.green,fontWeight:700}}>{fmt(p.paye)} payé</div><div style={{color:C.orange,fontSize:10}}>{p.dues>0?`${fmt(p.dues)} dû`:"À jour"}</div></div></div>)}
+          {parts.map(p=><div key={p.id} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{fontWeight:600}}>{p.nom}</span><div style={{textAlign:"right"}}><div style={{color:C.green,fontWeight:700}}>{fmt(p.paye)} payé</div><div style={{color:C.orange,fontSize:10}}>{p.dues>0?`${fmt(p.dues)} dû`:"À jour"}</div></div></div>)}
         </Card>
         <Card>
           <STitle>📊 Leads par statut (global)</STitle>
-          {[["Gagné",C.green],["En cours",C.gold],["Proposition",C.blue],["Perdu",C.muted]].map(([s,c])=>{const n=parts.reduce((a,p)=>a+p.leads.filter(l=>l.statut===s.toLowerCase()).length,0);return <div key={s} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{s}</span><span style={{color:c,fontWeight:700}}>{n}</span></div><SM val={n} max={totalLeads} color={c}/></div>;})}
+          {[["Gagné",C.green,"gagné"],["En cours",C.gold,"en cours"],["Proposition",C.blue,"proposition"],["Perdu",C.muted,"perdu"]].map(([s,c,key])=>{const n=parts.reduce((a,p)=>a+p.leads.filter(l=>l.statut===key).length,0);return <div key={s} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{s}</span><span style={{color:c,fontWeight:700}}>{n}</span></div><SM val={n} max={Math.max(totalLeads,1)} color={c}/></div>;})}
         </Card>
       </div>
     </div>}
@@ -2876,61 +3170,62 @@ const PagePartenaires=({plan,showToast})=>{
       <Card>
         <STitle>🤝 Onboarding nouveau partenaire</STitle>
         <div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:8,padding:12,marginBottom:16,fontSize:11,color:C.text}}>
-          💡 Le partenaire recevra automatiquement son contrat par email + WhatsApp, et un accès au portail partenaire pour suivre ses leads et commissions.
+          💡 Le partenaire recevra automatiquement un message de bienvenue par email + WhatsApp (si le téléphone est renseigné).
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {[["Nom complet *","nom","text"],["Rôle / spécialité *","role","text"],["Email *","email","email"],["Téléphone (WhatsApp) *","tel","tel"],["Adresse","adresse","text"],["IBAN / RIB bancaire","rib","text"]].map(([ph,k,t])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{ph}</label><Inp value={onboardForm[k]||""} onChange={e=>setOnboardForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={{width:"100%"}}/></div>)}
+          {[["Nom complet *","nom","text"],["Rôle / spécialité","role","text"],["Email *","email","email"],["Téléphone (WhatsApp)","tel","tel"],["Adresse","adresse","text"],["IBAN / RIB bancaire","rib","text"]].map(([ph,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{ph}</label><Inp value={onboardForm[k]||""} onChange={e=>setOnboardForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={{width:"100%"}}/></div>)}
           <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Taux de commission (%) *</label>
-            <div style={{display:"flex",gap:8}}>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
               {[10,12,15,20,25].map(t=><button key={t} onClick={()=>setOnboardForm(f=>({...f,comm:String(t)}))} style={{background:onboardForm.comm===String(t)?C.gold:"transparent",color:onboardForm.comm===String(t)?"#000":C.muted,border:`1px solid ${onboardForm.comm===String(t)?C.gold:C.border}`,borderRadius:6,padding:"6px 12px",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:onboardForm.comm===String(t)?700:400}}>{t}%</button>)}
               <Inp value={onboardForm.comm} onChange={e=>setOnboardForm(f=>({...f,comm:e.target.value}))} placeholder="Autre %" style={{width:80}}/>
             </div>
           </div>
-          <div style={{background:`${C.blue}08`,border:`1px solid ${C.blue}22`,borderRadius:8,padding:12,fontSize:11,color:C.muted}}>
-            Commission choisie : <b style={{color:C.gold}}>{onboardForm.comm}%</b> · Basé sur le CA HT signé et encaissé · Paiement sous 30 jours
-          </div>
-          <Btn onClick={()=>{
+          <Btn onClick={async()=>{
             if(!onboardForm.nom||!onboardForm.email)return showToast("⚠️ Remplissez au moins le nom et l'email");
-            const colors=[C.teal,C.pink,C.orange];
-            const np={id:"p"+(parts.length+1),nom:onboardForm.nom,role:onboardForm.role||"Apporteur d'affaires",comm:Number(onboardForm.comm)||15,ca:0,contrats:0,statut:"actif",dues:0,paye:0,rib:onboardForm.rib||"À renseigner",email:onboardForm.email,tel:onboardForm.tel||"",adresse:onboardForm.adresse||"",embauche:new Date().toLocaleDateString("fr"),couleur:colors[parts.length%3],leads:[],docs:[{nom:"Contrat AA",type:"Contrat",date:new Date().toLocaleDateString("fr"),statut:"envoyé"}],msgs:[]};
-            setParts(ps=>[...ps,np]);
-            setOnboardForm({nom:"",role:"",comm:"15",email:"",tel:"",adresse:"",rib:""});
-            showToast(`✅ ${np.nom} ajouté ! Contrat + accès portail envoyés par email et WhatsApp.`);
-            setOnglet("liste");
-          }}>✅ Créer le partenaire & Envoyer les accès</Btn>
+            showToast("⏳ Création du partenaire...");
+            try{
+              const res=await fetch('/api/partenaires',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer',...onboardForm})});
+              const data=await res.json();
+              if(data.success){
+                setOnboardForm({nom:"",role:"",comm:"15",email:"",tel:"",adresse:"",rib:""});
+                showToast(`✅ ${data.partenaire.nom} ajouté ! Message de bienvenue envoyé.`);
+                setOnglet("liste");loadAll();
+              }else showToast("❌ "+(data.error||"Erreur"));
+            }catch(e){showToast("❌ Erreur de connexion");}
+          }}>✅ Créer le partenaire & Envoyer le message de bienvenue</Btn>
         </div>
       </Card>
     </div>}
 
     {/* ── MESSAGERIE ────────────────────────────────────── */}
-    {onglet==="messagerie"&&<div style={{display:"grid",gridTemplateColumns:"240px 1fr",gap:12,height:480}}>
+    {onglet==="messagerie"&&parts.length>0&&<div style={{display:"grid",gridTemplateColumns:"240px 1fr",gap:12,height:520}}>
       <Card style={{padding:0,overflow:"hidden"}}>
         <div style={{padding:"10px 14px",borderBottom:`1px solid ${C.border}`,fontSize:11,fontWeight:700,color:C.muted}}>PARTENAIRES</div>
         <div style={{overflowY:"auto",height:"calc(100% - 40px)"}}>
-          {parts.map((p,i)=>{
-            const nonLu=p.msgs.filter(m=>!m.moi).length;
-            return <div key={i} onClick={()=>setSel(p)} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",cursor:"pointer",background:sel?.id===p.id?`${C.gold}0D`:"transparent",borderBottom:`1px solid ${C.border}22`}}>
-              <div style={{width:30,height:30,borderRadius:"50%",background:p.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:p.couleur,flexShrink:0}}>{p.nom[0]}</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:11,fontWeight:700,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.nom}</div>
-                <div style={{fontSize:9,color:C.muted}}>{p.msgs.length>0?p.msgs[p.msgs.length-1].msg.slice(0,25)+"...":"Aucun message"}</div>
-              </div>
-              {nonLu>0&&<div style={{width:16,height:16,borderRadius:"50%",background:C.red,display:"flex",alignItems:"center",justifyContent:"center",fontSize:8,fontWeight:700,color:"#fff"}}>{nonLu}</div>}
-            </div>;
-          })}
+          {parts.map((p,i)=><div key={p.id} onClick={()=>setSel(p)} style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",cursor:"pointer",background:sel?.id===p.id?`${C.gold}0D`:"transparent",borderBottom:`1px solid ${C.border}22`}}>
+            <div style={{width:30,height:30,borderRadius:"50%",background:coul(i)+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:coul(i),flexShrink:0}}>{p.nom[0]}</div>
+            <div style={{flex:1,minWidth:0}}>
+              <div style={{fontSize:11,fontWeight:700,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{p.nom}</div>
+              <div style={{fontSize:9,color:C.muted}}>{p.msgs.length>0?p.msgs[p.msgs.length-1].message.slice(0,25)+"...":"Aucun message"}</div>
+            </div>
+          </div>)}
         </div>
       </Card>
-      <Card style={{padding:0,overflow:"hidden"}}>
-        {sel?<Chat
-          msgs={sel.msgs}
-          onSend={(msg)=>{
-            const newMsg={msg,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),moi:true};
-            setParts(ps=>ps.map(p=>p.id===sel.id?{...p,msgs:[...p.msgs,newMsg]}:p));
-            setSel(s=>({...s,msgs:[...s.msgs,newMsg]}));
-          }}
-          title={sel.nom}
-          subtitle={sel.role+" · "+sel.tel}
-        />:<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",color:C.muted}}>
+      <Card style={{padding:0,overflow:"hidden",display:"flex",flexDirection:"column"}}>
+        {sel?<>
+          <div style={{flex:1,overflow:"hidden"}}>
+            <Chat
+              msgs={sel.msgs.map(m=>({msg:m.message,moi:m.moi,av:m.moi?"Toi":sel.nom[0],h:new Date(m.created_at).toLocaleString("fr",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"})}))}
+              onSend={(msg)=>envoyerMessage(sel,msg,true)}
+              title={sel.nom}
+              subtitle={sel.role+(sel.tel?" · "+sel.tel:"")}
+            />
+          </div>
+          <div style={{padding:"8px 14px",borderTop:`1px solid ${C.border}`,display:"flex",gap:8,background:C.card2}}>
+            <Inp value={recuInputs[sel.id]||""} onChange={e=>setRecuInputs(s=>({...s,[sel.id]:e.target.value}))} placeholder="Logger une réponse reçue (WhatsApp)..." style={{flex:1,fontSize:11}}/>
+            <BtnGhost onClick={()=>{const v=recuInputs[sel.id];if(v&&v.trim()){envoyerMessage(sel,v.trim(),false);setRecuInputs(s=>({...s,[sel.id]:""}));}}} style={{fontSize:10,whiteSpace:"nowrap"}}>📥 Logger reçu</BtnGhost>
+          </div>
+        </>:<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",color:C.muted}}>
           <div style={{fontSize:32,marginBottom:8}}>💬</div>
           <div style={{fontSize:12}}>Sélectionnez un partenaire</div>
         </div>}
@@ -2938,68 +3233,67 @@ const PagePartenaires=({plan,showToast})=>{
     </div>}
 
     {/* ── DOCUMENTS ─────────────────────────────────────── */}
-    {onglet==="documents"&&<div>
-      {parts.map((p,i)=><Card key={i} style={{marginBottom:12}}>
+    {onglet==="documents"&&parts.length>0&&<div>
+      {parts.map((p,i)=><Card key={p.id} style={{marginBottom:12}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-          <div style={{width:32,height:32,borderRadius:"50%",background:p.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:p.couleur}}>{p.nom[0]}</div>
+          <div style={{width:32,height:32,borderRadius:"50%",background:coul(i)+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:coul(i)}}>{p.nom[0]}</div>
           <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{p.nom}</div><div style={{fontSize:10,color:C.muted}}>{p.docs.length} document(s)</div></div>
-          <BtnGhost onClick={()=>showToast(`📤 Document ajouté pour ${p.nom}`)} style={{fontSize:10,padding:"4px 10px"}}>+ Ajouter</BtnGhost>
         </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:8}}>
-          {p.docs.map((d,j)=><div key={j} style={{background:C.card2,borderRadius:8,padding:10,border:`1px solid ${C.border}`}}>
+        {p.docs.length>0&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:8,marginBottom:10}}>
+          {p.docs.map(d=><div key={d.id} style={{background:C.card2,borderRadius:8,padding:10,border:`1px solid ${C.border}`}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
               <span style={{fontSize:11,fontWeight:600}}>{d.nom}</span>
               <Pill color={d.statut==="signé"||d.statut==="valide"?C.green:d.statut==="envoyé"?C.blue:C.muted}>{d.statut}</Pill>
             </div>
-            <div style={{fontSize:9,color:C.muted,marginBottom:8}}>{d.type} · {d.date}</div>
-            <div style={{display:"flex",gap:4}}>
-              <Btn onClick={()=>showToast(`📄 ${d.nom} téléchargé`)} style={{fontSize:9,padding:"3px 8px"}}>📥</Btn>
-              <BtnGhost onClick={()=>showToast(`📧 Envoyé à ${p.nom}`)} style={{fontSize:9,padding:"3px 8px"}}>📧</BtnGhost>
-            </div>
+            <div style={{fontSize:9,color:C.muted}}>{d.type} · {new Date(d.created_at).toLocaleDateString("fr")}</div>
           </div>)}
+        </div>}
+        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+          <Inp value={docForms[p.id]?.nom||""} onChange={e=>setDocForms(s=>({...s,[p.id]:{...s[p.id],nom:e.target.value}}))} placeholder="Nom du document (ex: Kbis)" style={{flex:1,minWidth:140}}/>
+          <Inp value={docForms[p.id]?.type||""} onChange={e=>setDocForms(s=>({...s,[p.id]:{...s[p.id],type:e.target.value}}))} placeholder="Type (ex: Juridique)" style={{width:140}}/>
+          <button onClick={()=>ajouterDocument(p)} style={{background:"transparent",color:coul(i),border:`1px solid ${coul(i)}44`,borderRadius:6,padding:"7px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Ajouter</button>
         </div>
       </Card>)}
     </div>}
 
     {/* ── ALERTES ───────────────────────────────────────── */}
     {onglet==="alertes"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
-      {[
-        {niv:"critique",icon:"🚨",titre:"Commission Thomas Beaumont — 15 jours de retard",detail:`${fmt(2480)} de commission due depuis le 01/04. À payer immédiatement pour maintenir la confiance du partenaire.`,action:"Payer maintenant",col:C.red,fn:()=>{setParts(ps=>ps.map(p=>p.id==="p1"?{...p,dues:0,paye:p.paye+p.dues}:p));showToast("✅ Commission Thomas payée !");}},
-        {niv:"urgent",icon:"⚠️",titre:"Contrat Fatoumata Diop — Renouvellement dans 30 jours",detail:"Le contrat expire le 01/06/2026. Planifiez une discussion sur les nouvelles conditions (taux actuel : 25%).",action:"Planifier RDV",col:C.orange,fn:()=>showToast("📅 RDV planifié avec Fatoumata")},
-        {niv:"urgent",icon:"📋",titre:"Leila Mansouri — 2 leads sans suivi depuis 7 jours",detail:"SCI Lumière et Résidences du Val sont en attente de retour. Un contact rapide évite de perdre ces opportunités.",action:"Relancer les leads",col:C.orange,fn:()=>showToast("📧 Relances envoyées automatiquement")},
-        {niv:"info",icon:"💰",titre:"Groupe Prestige SARL — Commission à anticiper",detail:`${fmt(2640)} de commission à prévoir en fin de mois. Vérifiez la disponibilité trésorerie avant le 30/04.`,action:"Voir trésorerie",col:C.blue,fn:()=>showToast("💰 Trésorerie vérifiée")},
-        {niv:"good",icon:"✅",titre:"Groupe Prestige SARL — Record de CA ce mois",detail:`${fmt(22000)} de CA apporté — nouveau record mensuel. Pensez à féliciter et proposer une augmentation de commission.`,action:"Envoyer félicitations",col:C.green,fn:()=>showToast("🎉 Message de félicitations envoyé !")},
-      ].map((a,i)=><div key={i} style={{background:`${a.col}11`,border:`1px solid ${a.col}33`,borderRadius:10,padding:14,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+      {parts.filter(p=>p.dues>0).map(p=><div key={"due-"+p.id} style={{background:`${C.red}11`,border:`1px solid ${C.red}33`,borderRadius:10,padding:14,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
         <div style={{flex:1}}>
-          <div style={{fontSize:12,fontWeight:700,color:a.col,marginBottom:4}}>{a.icon} {a.titre}</div>
-          <div style={{fontSize:11,color:C.text,lineHeight:1.6}}>{a.detail}</div>
+          <div style={{fontSize:12,fontWeight:700,color:C.red,marginBottom:4}}>🚨 Commission {p.nom} en attente</div>
+          <div style={{fontSize:11,color:C.text,lineHeight:1.6}}>{fmt(p.dues)} de commission due. À enregistrer puis virer depuis le Wallet pour maintenir la confiance du partenaire.</div>
         </div>
-        <Btn onClick={a.fn} color={a.col} style={{fontSize:11,padding:"7px 14px",flexShrink:0,color:a.col===C.green?"#000":"#fff"}}>{a.action}</Btn>
+        <Btn onClick={()=>payerCommission(p)} style={{fontSize:11,padding:"7px 14px",flexShrink:0,background:C.red}}>Enregistrer</Btn>
       </div>)}
+      {parts.flatMap(p=>p.leads.filter(l=>(l.statut==="en cours"||l.statut==="proposition")&&(Date.now()-new Date(l.created_at).getTime())>7*24*3600*1000).map(l=>({...l,partenaire:p}))).map(l=><div key={"lead-"+l.id} style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:10,padding:14,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+        <div style={{flex:1}}>
+          <div style={{fontSize:12,fontWeight:700,color:C.orange,marginBottom:4}}>⚠️ {l.partenaire.nom} — lead "{l.nom}" sans mise à jour depuis plus de 7 jours</div>
+          <div style={{fontSize:11,color:C.text,lineHeight:1.6}}>Soumis le {new Date(l.created_at).toLocaleDateString("fr")}, toujours en statut "{l.statut}". Une relance évite de perdre l'opportunité.</div>
+        </div>
+        <Btn onClick={()=>ouvrirWhatsApp(l.partenaire.tel)} style={{fontSize:11,padding:"7px 14px",flexShrink:0,background:C.orange}}>Relancer</Btn>
+      </div>)}
+      {parts.length>0&&[...parts].sort((a,b)=>b.ca-a.ca)[0]?.ca>0&&<div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:10,padding:14}}>
+        <div style={{fontSize:12,fontWeight:700,color:C.green,marginBottom:4}}>✅ {[...parts].sort((a,b)=>b.ca-a.ca)[0].nom} — partenaire le plus performant</div>
+        <div style={{fontSize:11,color:C.text,lineHeight:1.6}}>{fmt([...parts].sort((a,b)=>b.ca-a.ca)[0].ca)} de CA apporté à ce jour. Une reconnaissance ou un ajustement de commission peut renforcer la relation.</div>
+      </div>}
+      {parts.length>0&&parts.filter(p=>p.dues>0).length===0&&parts.flatMap(p=>p.leads.filter(l=>(l.statut==="en cours"||l.statut==="proposition")&&(Date.now()-new Date(l.created_at).getTime())>7*24*3600*1000)).length===0&&<Card style={{textAlign:"center",padding:20}}><div style={{fontSize:12,color:C.muted}}>Aucune alerte critique — tout est à jour.</div></Card>}
+      {parts.length===0&&<Card style={{textAlign:"center",padding:20}}><div style={{fontSize:12,color:C.muted}}>Aucun partenaire pour le moment.</div></Card>}
     </div>}
 
     {/* ── IA ────────────────────────────────────────────── */}
     {onglet==="ia"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
-      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:12,padding:16}}>
-        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:8}}>🤖 Analyse globale réseau partenaires — Claude Sonnet</div>
-        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Votre réseau de {parts.length} partenaires génère {fmt(totalCA)} de CA avec un taux de conversion moyen de {Math.round(totalGagnes/totalLeads*100)}%. Groupe Prestige SARL est votre partenaire le plus performant ({fmt(Math.max(...parts.map(p=>p.ca)))}). Priorité : régler les commissions en retard ({fmt(totalDues)}) pour maintenir la confiance du réseau et stimuler l'apport de nouveaux leads.</div>
-      </div>
-      {parts.map((p,i)=><Card key={i} style={{borderColor:`${p.couleur}33`}}>
+      {parts.length>0&&<div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:12,padding:16}}>
+        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:8}}>🤖 Vue d'ensemble réseau partenaires</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Ton réseau de {parts.length} partenaire(s) a apporté {fmt(totalCA)} de CA, avec un taux de conversion moyen de {totalLeads>0?Math.round(totalGagnes/totalLeads*100):0}%. {[...parts].sort((a,b)=>b.ca-a.ca)[0]?.nom} est ton partenaire le plus performant ({fmt(Math.max(...parts.map(p=>p.ca),0))}).{totalDues>0?` Priorité : régler ${fmt(totalDues)} de commissions en attente.`:""}</div>
+      </div>}
+      {parts.map((p,i)=><Card key={p.id} style={{borderColor:`${coul(i)}33`}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-          <div style={{width:36,height:36,borderRadius:"50%",background:p.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:p.couleur}}>{p.nom[0]}</div>
+          <div style={{width:36,height:36,borderRadius:"50%",background:coul(i)+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:coul(i)}}>{p.nom[0]}</div>
           <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{p.nom}</div><div style={{fontSize:10,color:C.muted}}>{p.role}</div></div>
-          <div style={{fontSize:16,fontWeight:700,color:p.couleur}}>{fmt(p.ca)}</div>
+          <div style={{fontSize:16,fontWeight:700,color:coul(i)}}>{fmt(p.ca)}</div>
         </div>
-        <div style={{background:`${p.couleur}0D`,border:`1px solid ${p.couleur}22`,borderRadius:8,padding:12,fontSize:11,color:C.text,lineHeight:1.7}}>
-          {p.id==="p1"&&`Thomas est votre apporteur le plus actif (${p.contrats} contrats). Taux de conversion : ${Math.round(p.leads.filter(l=>l.statut==="gagné").length/p.leads.length*100)}%. Recommandation : augmentez sa commission à ${p.comm+2}% pour accélérer l'apport et viser ${fmt(p.ca*1.4)} de CA.`}
-          {p.id==="p2"&&`Leila Mansouri performe bien sur l'immobilier résidentiel. ${p.leads.length} leads soumis, taux de conversion ${Math.round(p.leads.filter(l=>l.statut==="gagné").length/p.leads.length*100)}%. Recommandation : ciblez ensemble les syndics du Rhône pour maximiser le potentiel.`}
-          {p.id==="p3"&&`Groupe Prestige SARL est votre meilleur partenaire (${fmt(p.ca)}). ${p.contrats} contrats signés. Recommandation : proposez un partenariat exclusif sur les syndics Île-de-France et augmentez la commission à ${p.comm+3}%.`}
-          {p.id==="p4"&&`Fatoumata Diop est votre pont vers l'Afrique de l'Ouest. Énorme potentiel non exploité. Recommandation : organisez une visio mensuelle pour briefer sur les nouvelles offres Xyra et cibler ensemble les ETI sénégalaises.`}
-        </div>
-        <div style={{display:"flex",gap:8,marginTop:10}}>
-          <Btn onClick={()=>showToast(`✅ Proposition envoyée à ${p.nom}`)} style={{fontSize:11,flex:1}}>Envoyer proposition IA</Btn>
-          <BtnGhost onClick={()=>showToast(`📱 Message WA envoyé à ${p.nom}`)} style={{fontSize:11,flex:1}}>📱 WhatsApp</BtnGhost>
-        </div>
+        {iaCache[p.id]?<div style={{background:`${coul(i)}0D`,border:`1px solid ${coul(i)}22`,borderRadius:8,padding:12,fontSize:11,color:C.text,lineHeight:1.7,marginBottom:10}}>{iaCache[p.id]}</div>:<div style={{fontSize:11,color:C.muted,marginBottom:10}}>Aucune analyse générée encore.</div>}
+        <Btn onClick={()=>analyserIA(p)} style={{fontSize:11,opacity:iaLoading[p.id]?0.6:1}}>{iaLoading[p.id]?"⏳ Analyse en cours...":iaCache[p.id]?"🔄 Régénérer l'analyse":"🤖 Générer l'analyse IA"}</Btn>
       </Card>)}
     </div>}
   </div>;
@@ -7170,7 +7464,7 @@ export default function Xyra() {
     notefrais:<PageNoteFrais plan={plan} showToast={showToast}/>,
     tresorerie:<PageTresorerie plan={plan}/>,
     analytique:<PageAnalytique plan={plan}/>,
-    clients:<PageClients plan={plan} showToast={showToast}/>,
+    clients:<PageClients plan={plan} showToast={showToast} profil={profil} setPage={setPage}/>,
     partenaires:<PagePartenaires plan={plan} showToast={showToast}/>,
     club_affaires:<PageClubAffaires plan={plan} showToast={showToast}/>,
     annuaire:<PageAnnuaire plan={plan} showToast={showToast}/>,
