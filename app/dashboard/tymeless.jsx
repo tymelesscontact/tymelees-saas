@@ -887,50 +887,153 @@ const PageCartes=({showToast})=>{
 // ─── PAGE ACCUEIL ─────────────────────────────────────────────
 const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
   const nonLus=notifs.filter(n=>!n.lu).length;
-  const T=profil?.termes||PROFIL_DEFAUT.termes;
-  const[aiMsg]=useState("2 devis en attente — priorité du jour. CA hebdo +12%. Thomas en mission, Abou disponible. Penser à relancer Isabelle Moreau pour le renouvellement contrat mensuel.");
+  const[loading,setLoading]=useState(true);
+  const[caReel,setCaReel]=useState(0);
+  const[caMoisDernier,setCaMoisDernier]=useState(0);
+  const[margeNette,setMargeNette]=useState(0);
+  const[commissionsAVirer,setCommissionsAVirer]=useState(0);
+  const[leadsEnAttente,setLeadsEnAttente]=useState(0);
+  const[prochainRdv,setProchainRdv]=useState(null);
+  const[ca7j,setCa7j]=useState([]);
+  const[aiMsg,setAiMsg]=useState("");
+  const[aiLoading,setAiLoading]=useState(false);
+  const[scoreBusiness,setScoreBusiness]=useState(0);
+  const[tendance,setTendance]=useState("stable");
+  const[totalCharges,setTotalCharges]=useState(0);
+
+  useEffect(()=>{
+    const load=async()=>{
+      try{
+        const[wRes,fRes,chRes]=await Promise.all([
+          fetch('/api/wallet?action=list').then(r=>r.json()).catch(()=>({})),
+          fetch('/api/factures?action=list').then(r=>r.json()).catch(()=>({})),
+          fetch('/api/charges').then(r=>r.json()).catch(()=>({})),
+        ]);
+        const now=new Date();
+        const moisActuel=now.getMonth(),anneeActuelle=now.getFullYear();
+        const moisPrecedent=moisActuel===0?11:moisActuel-1;
+        const anneePrecedente=moisActuel===0?anneeActuelle-1:anneeActuelle;
+        const txs=wRes.transactions||[];
+        let caM=0,caMp=0;
+        txs.forEach(t=>{
+          if(t.type!=="entree"||t.statut!=="confirmé")return;
+          const d=new Date(t.created_at),m=Number(t.montant||0);
+          if(d.getMonth()===moisActuel&&d.getFullYear()===anneeActuelle)caM+=m;
+          if(d.getMonth()===moisPrecedent&&d.getFullYear()===anneePrecedente)caMp+=m;
+        });
+        (fRes.factures||[]).forEach(f=>{
+          if(f.statut!=="payée")return;
+          const d=new Date(f.date_emission||f.created_at),m=Number(f.montant_ttc||0);
+          if(d.getMonth()===moisActuel&&d.getFullYear()===anneeActuelle)caM+=m;
+          if(d.getMonth()===moisPrecedent&&d.getFullYear()===anneePrecedente)caMp+=m;
+        });
+        setCaReel(caM);setCaMoisDernier(caMp);
+        setTendance(caM>caMp?"hausse":caM<caMp?"baisse":"stable");
+        const charges=(chRes.charges||[]);
+        const totalCh=charges.reduce((a,c)=>a+Number(c.montant||0),0);
+        setTotalCharges(totalCh);
+        const marge=caM>0?Math.round(((caM-totalCh)/caM)*100):0;
+        setMargeNette(Math.max(0,Math.min(100,marge)));
+        const comm=txs.filter(t=>t.type==="commission"&&t.statut==="à_virer").reduce((a,t)=>a+Number(t.montant||0),0);
+        setCommissionsAVirer(comm);
+        try{
+          const crmRes=await fetch('/api/crm').then(r=>r.json()).catch(()=>({}));
+          setLeadsEnAttente((crmRes.leads||[]).filter(l=>l.etape==="Nouveau").length);
+        }catch(e){}
+        try{
+          const{createClient}=await import('@supabase/supabase-js');
+          const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+          const{data:pl}=await sb.from('planning').select('date,heure,client,service,collab').gte('date',now.toISOString().slice(0,10)).order('date',{ascending:true}).limit(1);
+          if(pl&&pl[0])setProchainRdv(pl[0]);
+        }catch(e){}
+        const derniers7j=[];
+        for(let i=6;i>=0;i--){
+          const d=new Date();d.setDate(d.getDate()-i);
+          const label=d.toLocaleDateString("fr",{weekday:"short"});
+          const ca=txs.filter(t=>{const td=new Date(t.created_at);return t.type==="entree"&&t.statut==="confirmé"&&td.toDateString()===d.toDateString();}).reduce((a,t)=>a+Number(t.montant||0),0);
+          derniers7j.push({label,ca});
+        }
+        setCa7j(derniers7j);
+        let score=50;
+        if(caM>10000)score+=15;else if(caM>5000)score+=8;
+        if(marge>50)score+=10;else if(marge>30)score+=5;
+        if(comm===0)score+=10;
+        if(caM>=caMp)score+=10;
+        setScoreBusiness(Math.min(100,score));
+      }catch(e){console.error("Accueil:",e);}
+      setLoading(false);
+    };
+    load();
+  },[]);
+
+  const genererAnalyseIA=async()=>{
+    setAiLoading(true);
+    try{
+      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:200,messages:[{role:"user",content:`Données réelles dashboard : CA ce mois ${fmt(caReel)}, CA mois dernier ${fmt(caMoisDernier)}, tendance ${tendance}, marge ${margeNette}%, commissions à virer ${fmt(commissionsAVirer)}, leads CRM ${leadsEnAttente}, charges ${fmt(totalCharges)}, score ${scoreBusiness}/100. Brief morning 2-3 phrases max, français, actionnable, priorité n°1 en premier.`}]})});
+      const data=await res.json();
+      if(data.content?.[0]?.text)setAiMsg(data.content[0].text);
+      else setAiMsg("Enregistre tes premières transactions pour activer l'analyse IA.");
+    }catch(e){setAiMsg("Analyse IA indisponible.");}
+    setAiLoading(false);
+  };
+  useEffect(()=>{if(!loading)genererAnalyseIA();},[loading]);
+
+  const priorites=[];
+  if(commissionsAVirer>0)priorites.push({icon:"🟠",txt:`${fmt(commissionsAVirer)} de commissions partenaires à virer`,act:"wallet"});
+  if(leadsEnAttente>0)priorites.push({icon:"🔴",txt:`${leadsEnAttente} lead(s) CRM en attente`,act:"crm"});
+  if(priorites.length===0)priorites.push({icon:"🟢",txt:"Tout est à jour — bonne journée !",act:null});
+
+  const meteo=tendance==="hausse"?{icon:"☀️",txt:`CA en hausse (+${caMoisDernier>0?Math.round(((caReel-caMoisDernier)/caMoisDernier)*100):0}%)`,color:C.green}:tendance==="baisse"?{icon:"🌧️",txt:"CA en baisse vs mois dernier",color:C.red}:{icon:"⛅",txt:"CA stable",color:C.gold};
+  const maxCa=Math.max(...ca7j.map(d=>d.ca),1);
+
   return <div style={{padding:20}}>
     <div style={{background:`linear-gradient(135deg,${C.card},#0A1A14)`,border:`1px solid ${C.gold}33`,borderRadius:16,padding:24,marginBottom:16}}>
       <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:6}}>XYRA · OWNER DASHBOARD</div>
       <div style={{fontSize:26,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>Bonjour Curtiss ✦</div>
-      <div style={{fontSize:11,color:C.muted,marginBottom:16}}>{new Date().toLocaleDateString("fr-FR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})} · Paris</div>
-      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:12,marginBottom:16}}>
-        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:4}}>🤖 Analyse IA du matin — Claude</div>
-        <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>{aiMsg}</div>
+      <div style={{fontSize:11,color:C.muted,marginBottom:16,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+        {new Date().toLocaleDateString("fr-FR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})} · Paris
+        <span style={{background:`${meteo.color}22`,color:meteo.color,border:`1px solid ${meteo.color}44`,borderRadius:20,padding:"2px 10px",fontSize:10,fontWeight:600}}>{meteo.icon} {meteo.txt}</span>
       </div>
-      <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-        <div style={{borderLeft:`2px solid ${C.gold}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Score business</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>74/100</div></div>
-        <div style={{borderLeft:`2px solid ${C.green}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>CA ce mois</div><div style={{fontSize:16,fontWeight:700,color:C.green}}>24 380 €</div></div>
-        <div style={{borderLeft:`2px solid ${C.teal}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Marge nette</div><div style={{fontSize:16,fontWeight:700,color:C.teal}}>61%</div></div>
+      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:12,marginBottom:16,minHeight:52}}>
+        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:4}}>🤖 Brief IA du matin — Claude · données réelles</div>
+        {aiLoading?<div style={{fontSize:11,color:C.muted}}>⏳ Analyse en cours...</div>:<div style={{fontSize:12,color:C.text,lineHeight:1.7}}>{aiMsg||"—"}</div>}
+      </div>
+      <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
+        <div style={{borderLeft:`2px solid ${C.gold}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Score business</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>{loading?"—":scoreBusiness+"/100"}</div></div>
+        <div style={{borderLeft:`2px solid ${C.green}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>CA ce mois</div><div style={{fontSize:16,fontWeight:700,color:C.green}}>{loading?"—":fmt(caReel)}</div></div>
+        <div style={{borderLeft:`2px solid ${C.teal}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Marge nette</div><div style={{fontSize:16,fontWeight:700,color:C.teal}}>{loading?"—":margeNette+"%"}</div></div>
         <div style={{borderLeft:`2px solid ${C.orange}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Messages</div><div style={{fontSize:16,fontWeight:700,color:C.orange}}>{nonLus} non lus</div></div>
+        {!loading&&commissionsAVirer>0&&<div style={{borderLeft:`2px solid ${C.red}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Commissions dues</div><div style={{fontSize:16,fontWeight:700,color:C.red}}>{fmt(commissionsAVirer)}</div></div>}
       </div>
     </div>
     <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-      <Card><STitle>🔥 Priorités du jour (IA)</STitle>
-        {[{icon:"🔴",txt:`2 ${T.missions||"missions"} en attente de validation`,act:"devis"},{icon:"🟠",txt:`${T.client||"Client"} VIP attend depuis 2h`,act:"chat"},{icon:"🟡",txt:`${T.stock||"Stock"} critique`,act:"stock"},{icon:"🟢",txt:"Nouvelle revue Google à répondre",act:"scoring"}].map((p,i)=><div key={i} onClick={()=>setPage(p.act)} style={{display:"flex",gap:8,padding:"7px 8px",borderRadius:6,marginBottom:5,cursor:"pointer",background:C.card2,border:`1px solid ${C.border}`}}>
-          <span>{p.icon}</span><span style={{fontSize:11,flex:1}}>{p.txt}</span><span style={{fontSize:10,color:C.gold,fontWeight:600}}>→</span>
-        </div>)}
+      <Card>
+        <STitle>🔥 Priorités du jour (calculées)</STitle>
+        {priorites.map((p,i)=><div key={i} onClick={()=>p.act&&setPage(p.act)} style={{display:"flex",gap:8,padding:"7px 8px",borderRadius:6,marginBottom:5,cursor:p.act?"pointer":"default",background:C.card2,border:`1px solid ${C.border}`}}><span>{p.icon}</span><span style={{fontSize:11,flex:1}}>{p.txt}</span>{p.act&&<span style={{fontSize:10,color:C.gold,fontWeight:600}}>→</span>}</div>)}
+        {prochainRdv&&<div style={{marginTop:8,background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:8,padding:"8px 10px",fontSize:11}}><div style={{color:C.blue,fontWeight:600,marginBottom:2}}>📅 Prochain RDV</div><div style={{color:C.text}}>{prochainRdv.client} — {prochainRdv.service}</div><div style={{color:C.muted,fontSize:10}}>{prochainRdv.date} à {prochainRdv.heure} · {prochainRdv.collab}</div></div>}
       </Card>
-      <Card><STitle>📊 Métriques clés</STitle>
+      <Card>
+        <STitle>📊 Métriques clés (réelles)</STitle>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>CA Mois</div><div style={{fontSize:16,fontWeight:700,color:C.green}}>24 380 €</div><div style={{fontSize:9,color:C.green}}>↗ +12%</div></CT>
-          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>Devis</div><div style={{fontSize:16,fontWeight:700,color:C.orange}}>2</div><div style={{fontSize:9,color:C.orange}}>En attente</div></CT>
-          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>Marge</div><div style={{fontSize:16,fontWeight:700,color:C.teal}}>61%</div><div style={{fontSize:9,color:C.teal}}>↗ +4pts</div></CT>
-          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>Score</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>74/100</div><div style={{fontSize:9,color:C.gold}}>🟡 Bon</div></CT>
+          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>CA Mois</div><div style={{fontSize:16,fontWeight:700,color:C.green}}>{loading?"—":fmt(caReel)}</div>{!loading&&caMoisDernier>0&&<div style={{fontSize:9,color:caReel>=caMoisDernier?C.green:C.red}}>{caReel>=caMoisDernier?"↗":"↘"} vs mois dernier</div>}</CT>
+          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>Leads CRM</div><div style={{fontSize:16,fontWeight:700,color:C.orange}}>{loading?"—":leadsEnAttente}</div><div style={{fontSize:9,color:C.muted}}>Nouveaux</div></CT>
+          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>Marge</div><div style={{fontSize:16,fontWeight:700,color:C.teal}}>{loading?"—":margeNette+"%"}</div><div style={{fontSize:9,color:C.muted}}>Estimée</div></CT>
+          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>Score</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>{loading?"—":scoreBusiness+"/100"}</div><div style={{fontSize:9,color:scoreBusiness>=70?C.green:scoreBusiness>=50?C.gold:C.red}}>{loading?"—":scoreBusiness>=70?"🟢 Bon":scoreBusiness>=50?"🟡 Correct":"🔴 À améliorer"}</div></CT>
         </div>
       </Card>
     </div>
+    <Card style={{marginBottom:12}}>
+      <STitle>📈 CA 7 derniers jours (temps réel)</STitle>
+      {ca7j.every(d=>d.ca===0)?<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:"20px 0"}}>Aucune transaction confirmée — les paiements apparaîtront ici automatiquement.</div>
+      :<div style={{display:"flex",alignItems:"flex-end",gap:6,height:100,padding:"10px 0"}}>{ca7j.map((d,i)=>{const h=Math.round((d.ca/maxCa)*80)+4;return <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}><div style={{fontSize:9,color:d.ca>0?C.gold:C.muted,fontWeight:600}}>{d.ca>0?fmt(d.ca).replace(" €",""):""}</div><div style={{width:"100%",height:h,background:d.ca>0?`linear-gradient(180deg,${C.gold},${C.gold}88)`:`${C.border}44`,borderRadius:"3px 3px 0 0",minHeight:4}}/><div style={{fontSize:9,color:C.muted}}>{d.label}</div></div>;})}
+      </div>}
+    </Card>
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10}}>
-      {[{icon:"💳",label:"Wallet",page:"wallet",val:"18 420 €",color:C.teal},{icon:"👥",label:"CRM",page:"crm",val:"5 clients",color:C.blue},{icon:"◧",label:"Devis",page:"devis",val:"2 en attente",color:C.orange},{icon:"📊",label:"Analytique",page:"analytique",val:"CA +12%",color:C.green}].map((c,i)=><Card key={i} style={{cursor:"pointer",borderColor:c.color+"33",textAlign:"center"}} onClick={()=>setPage(c.page)}>
-        <div style={{fontSize:24,marginBottom:6}}>{c.icon}</div>
-        <div style={{fontSize:11,fontWeight:600,color:C.text,marginBottom:2}}>{c.label}</div>
-        <div style={{fontSize:12,fontWeight:700,color:c.color}}>{c.val}</div>
-      </Card>)}
+      {[{icon:"💳",label:"Wallet",page:"wallet",val:loading?"—":commissionsAVirer>0?`⚠ ${fmt(commissionsAVirer)} dus`:"À jour",color:commissionsAVirer>0?C.orange:C.teal},{icon:"◎",label:"CRM",page:"crm",val:loading?"—":`${leadsEnAttente} leads`,color:C.blue},{icon:"◧",label:"Devis",page:"devis",val:"Créer un devis",color:C.gold},{icon:"📊",label:"Analytique",page:"analytique",val:loading?"—":tendance==="hausse"?"CA ↗":"CA stable",color:tendance==="hausse"?C.green:C.gold}].map((c,i)=><Card key={i} style={{cursor:"pointer",borderColor:`${c.color}33`,textAlign:"center"}} onClick={()=>setPage(c.page)}><div style={{fontSize:24,marginBottom:6}}>{c.icon}</div><div style={{fontSize:11,fontWeight:600,color:C.text,marginBottom:2}}>{c.label}</div><div style={{fontSize:11,fontWeight:700,color:c.color}}>{c.val}</div></Card>)}
     </div>
   </div>;
 };
 
-// ─── PAGE OVERVIEW ────────────────────────────────────────────
 const PageOverview=({plan,profil})=>{
   const T=profil?.termes||PROFIL_DEFAUT.termes;
   const kpis=[{l:"CA ce mois",v:"24 380 €",c:C.green,t:"↗ +12%"},{l:"Marge nette",v:"61%",c:C.teal,t:"↗ +4pts"},{l:T.missions||"Missions",v:"14",c:C.blue,t:"Ce mois"},{l:"Devis signés",v:"8",c:C.gold,t:"/ 12 envoyés"},{l:"NPS moyen",v:"★ 4.6",c:C.gold,t:"23 avis"},{l:"Clients actifs",v:"5",c:C.purple,t:"dont 2 VIP"},{l:"Commissions",v:"8 525 €",c:C.orange,t:"À payer"},{l:"Score Xyra",v:"74/100",c:C.gold,t:"🟡 Bon"}];
@@ -2755,6 +2858,7 @@ const PageClients=({plan,showToast,profil,setPage})=>{
 const PagePartenaires=({plan,showToast})=>{
   const[parts,setParts]=useState([]);
   const[loadingParts,setLoadingParts]=useState(true);
+  const[alertes,setAlertes]=useState([]);
   const[onglet,setOnglet]=useState("dashboard");
   const[sel,setSel]=useState(null);
   const[showOnboard,setShowOnboard]=useState(false);
@@ -3921,6 +4025,21 @@ const PageScoring=({plan,showToast})=>{
 
 // ─── PAGE EQUIPE ──────────────────────────────────────────────
 const PageEquipe=({plan,showToast})=>{
+  // Chargement des vraies données Supabase
+  const loadRealData=async()=>{
+    try{
+      const res=await fetch('/api/equipe');
+      const data=await res.json();
+      if(data.membres&&data.membres.length>0){
+        setEquipe(prev=>prev.map(m=>{
+          const real=data.membres.find(r=>r.email===m.email||r.nom===m.nom);
+          return real?{...m,...real,missions:real.missions?.length>0?real.missions:m.missions}:m;
+        }));
+        setAlertes(data.alertes||[]);
+      }
+    }catch(e){console.log("Mode local");}
+  };
+  useEffect(()=>{loadRealData();},[]);
   const[equipe,setEquipe]=useState([
     {id:1,nom:"Thomas Beaumont",prenom:"Thomas",role:"Responsable missions premium",statut:"En mission",localisation:"Airbnb Montmartre",pointage:"09:02",heures:6.5,conges:12,soldeConges:12,salaire:2800,perf:94,contrat:"CDI",email:"thomas@xyra.io",tel:"+33 6 12 34 56 78",embauche:"01/03/2024",nss:"1 85 06 75 056 042 28",rib:"FR76 3000 4000 0100 0012 3456 789",adresse:"12 rue de la Paix, 75001 Paris",dateNaissance:"15/06/1985",couleur:"#4B7BFF",
     missions:[{date:"15/04",service:"Nettoyage Airbnb Montmartre",client:"Isabelle Moreau",duree:"3h",note:5},{date:"14/04",service:"Nettoyage bureaux La Défense",client:"Marc Dupont",duree:"4h",note:5},{date:"12/04",service:"Rapatriement corps — Lefevre",client:"Pierre Lefevre",duree:"8h",note:5}],
