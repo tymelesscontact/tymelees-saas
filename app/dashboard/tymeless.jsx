@@ -5689,6 +5689,48 @@ const PageChat=({plan,showToast})=>{
 };
 
 // ─── PAGE NOTIFICATIONS ───────────────────────────────────────
+const SwipeableNotif=({n,i,onOpen,onDelete,typeColor})=>{
+  const[dragX,setDragX]=useState(0);
+  const[dragging,setDragging]=useState(false);
+  const startX=useRef(0);
+  const DELETE_W=72;
+
+  const onStart=(clientX)=>{startX.current=clientX;setDragging(true);};
+  const onMove=(clientX)=>{
+    if(!dragging)return;
+    const delta=clientX-startX.current;
+    setDragX(Math.max(-DELETE_W,Math.min(0,delta)));
+  };
+  const onEnd=()=>{
+    setDragging(false);
+    if(dragX<-DELETE_W/2)setDragX(-DELETE_W);else setDragX(0);
+  };
+
+  return <div style={{position:"relative",overflow:"hidden",borderRadius:10}}>
+    <div onClick={()=>{onDelete();}} style={{position:"absolute",top:0,right:0,bottom:0,width:DELETE_W,background:C.red,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#fff",fontSize:11,fontWeight:700}}>🗑 Suppr.</div>
+    <div
+      onClick={()=>{if(dragX===0)onOpen();}}
+      onTouchStart={e=>onStart(e.touches[0].clientX)}
+      onTouchMove={e=>onMove(e.touches[0].clientX)}
+      onTouchEnd={onEnd}
+      onMouseDown={e=>onStart(e.clientX)}
+      onMouseMove={e=>{if(dragging)onMove(e.clientX);}}
+      onMouseUp={onEnd}
+      onMouseLeave={()=>{if(dragging)onEnd();}}
+      style={{background:n.lu?C.card2:C.card,border:`1px solid ${n.lu?C.border:typeColor[n.type]||C.border}44`,borderRadius:10,padding:"12px 16px",cursor:"grab",display:"flex",gap:12,alignItems:"center",transform:`translateX(${dragX}px)`,transition:dragging?"none":"transform .2s",position:"relative",userSelect:"none"}}>
+      <div style={{fontSize:22,flexShrink:0}}>{n.icon}</div>
+      <div style={{flex:1}}>
+        <div style={{fontSize:12,fontWeight:n.lu?400:700,color:C.text}}>{n.titre}</div>
+        <div style={{fontSize:10,color:C.muted,marginTop:2}}>{n.heure}</div>
+      </div>
+      <div style={{display:"flex",gap:6,alignItems:"center"}}>
+        {!n.lu&&<div style={{width:8,height:8,borderRadius:"50%",background:typeColor[n.type]||C.blue}}/>}
+        <Pill color={typeColor[n.type]||C.blue}>{n.type}</Pill>
+      </div>
+    </div>
+  </div>;
+};
+
 const PageNotifications=({notifs,setNotifs,showToast})=>{
   const[_notifsReal,setNotifsReal]=useState([]);
   const[_autoNotifs,setAutoNotifs]=useState([]);
@@ -5793,17 +5835,10 @@ const PageNotifications=({notifs,setNotifs,showToast})=>{
         </div>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {filtered.map((n,i)=><div key={i} onClick={()=>setNotifs(ns=>ns.map((x,j)=>j===i?{...x,lu:true}:x))} style={{background:n.lu?C.card2:C.card,border:`1px solid ${n.lu?C.border:typeColor[n.type]||C.border}44`,borderRadius:10,padding:"12px 16px",cursor:"pointer",display:"flex",gap:12,alignItems:"center",transition:"all .2s"}}>
-          <div style={{fontSize:22,flexShrink:0}}>{n.icon}</div>
-          <div style={{flex:1}}>
-            <div style={{fontSize:12,fontWeight:n.lu?400:700,color:C.text}}>{n.titre}</div>
-            <div style={{fontSize:10,color:C.muted,marginTop:2}}>{n.heure}</div>
-          </div>
-          <div style={{display:"flex",gap:6,alignItems:"center"}}>
-            {!n.lu&&<div style={{width:8,height:8,borderRadius:"50%",background:typeColor[n.type]||C.blue}}/>}
-            <Pill color={typeColor[n.type]||C.blue}>{n.type}</Pill>
-          </div>
-        </div>)}
+        {filtered.map((n,i)=><SwipeableNotif key={n.id||i} n={n} i={i} typeColor={typeColor}
+          onOpen={()=>{setNotifs(ns=>ns.map((x,j)=>j===i?{...x,lu:true}:x));if(n.id)_marquerLu(n.id);}}
+          onDelete={()=>{setNotifs(ns=>ns.filter((x,j)=>j!==i));if(n.id)_supprimerNotif(n.id);else showToast("🗑 Notification supprimée");}}
+        />)}
         {filtered.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>✅ Aucune notification pour ce filtre</div>}
       </div>
     </div>}
