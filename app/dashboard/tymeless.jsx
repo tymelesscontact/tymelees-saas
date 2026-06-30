@@ -5233,6 +5233,52 @@ const PageProspection=({plan,showToast,profil=null})=>{
 
 // ─── PAGE STOCK ───────────────────────────────────────────────
 const PageStock=({plan,showToast,profil})=>{
+  const[_stockReal,setStockReal]=useState([]);
+  const[_mouvementsReal,setMouvementsReal]=useState([]);
+  const[_fournisseursReal,setFournisseursReal]=useState([]);
+  const[_stockKpis,setStockKpis]=useState({valeurTotale:0,articlesCritiques:[],scoreStock:100});
+  const[_stockIa,setStockIa]=useState("");
+  const[_stockIaLoading,setStockIaLoading]=useState(false);
+
+  const _loadStock=async()=>{
+    try{
+      const res=await fetch('/api/stock');
+      const data=await res.json();
+      if(data.articles&&data.articles.length>0){
+        setStockReal(data.articles);
+        setMouvementsReal(data.mouvements||[]);
+        setFournisseursReal(data.fournisseurs||[]);
+        setStockKpis({valeurTotale:data.valeurTotale||0,articlesCritiques:data.articlesCritiques||[],scoreStock:data.scoreStock||100});
+        // Enrichir le stock existant avec les données réelles
+        setStock(prev=>{
+          const merged=data.articles.map((r)=>{
+            const existing=prev.find(p=>p.art===r.art||p.id===r.id);
+            return existing?{...existing,...r}:r;
+          });
+          return merged.length>0?merged:prev;
+        });
+      }
+    }catch(e){console.log("Mode local stock");}
+  };
+  const _analyserStockIA=async()=>{
+    if(_stockIaLoading)return;
+    setStockIaLoading(true);
+    try{
+      const res=await fetch('/api/stock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'analyse_ia',articles:_stockReal.length>0?_stockReal:stock})});
+      const data=await res.json();
+      if(data.success)setStockIa(data.analyse);
+    }catch(e){}
+    setStockIaLoading(false);
+  };
+  const _mouvement=async(articleId,type,quantite,note)=>{
+    try{
+      const res=await fetch('/api/stock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'mouvement',article_id:articleId,type,quantite,note,operateur:'Curtiss'})});
+      const data=await res.json();
+      if(data.success){showToast(`✅ Mouvement enregistré — Stock : ${data.nouvelleQte}`);_loadStock();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  useEffect(()=>{_loadStock();},[]);
   const[stock,setStock]=useState([
     {id:"ART-001",art:"Produit vitres Pro",cat:"Nettoyage",qte:3,min:5,max:20,u:"L",four:"CleanPro",prixU:12.5,localisation:"Entrepôt A",historique:[{date:"10/04",type:"sortie",qte:2,note:"Mission Airbnb Montmartre"},{date:"01/04",type:"entrée",qte:10,note:"Commande CleanPro #247"}]},
     {id:"ART-002",art:"Microfibre premium",cat:"Nettoyage",qte:24,min:20,max:100,u:"pcs",four:"TextilePro",prixU:3.5,localisation:"Entrepôt A",historique:[{date:"12/04",type:"sortie",qte:6,note:"Mission bureaux La Défense"}]},
@@ -5644,6 +5690,57 @@ const PageChat=({plan,showToast})=>{
 
 // ─── PAGE NOTIFICATIONS ───────────────────────────────────────
 const PageNotifications=({notifs,setNotifs,showToast})=>{
+  const[_notifsReal,setNotifsReal]=useState([]);
+  const[_autoNotifs,setAutoNotifs]=useState([]);
+  const[_prefs,setPrefs]=useState([]);
+  const[_nonLus,setNonLus]=useState(0);
+
+  const _loadNotifs=async()=>{
+    try{
+      const res=await fetch('/api/notifications');
+      const data=await res.json();
+      if(data.notifications){
+        setNotifsReal(data.notifications);
+        setAutoNotifs(data.autoNotifs||[]);
+        setPrefs(data.preferences||[]);
+        setNonLus(data.nonLus||0);
+        // Mettre à jour les notifs du composant parent aussi
+        if(data.notifications.length>0){
+          setNotifs(data.notifications.map(n=>({...n,heure:n.created_at?new Date(n.created_at).toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}):""})));
+        }
+      }
+    }catch(e){console.log("Mode local notifications");}
+  };
+  const _marquerLu=async(id)=>{
+    try{
+      await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'marquer_lu',id})});
+      _loadNotifs();
+      if(id==='all')setNotifs(prev=>prev.map(n=>({...n,lu:true})));
+      else setNotifs(prev=>prev.map(n=>n.id===id?{...n,lu:true}:n));
+    }catch(e){}
+  };
+  const _supprimerNotif=async(id)=>{
+    try{
+      await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer',id})});
+      _loadNotifs();
+    }catch(e){}
+  };
+  const _digestQuotidien=async()=>{
+    showToast("⏳ Envoi du digest WhatsApp...");
+    try{
+      const res=await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'digest_quotidien',tel:'+33600000000'})});
+      const data=await res.json();
+      if(data.success)showToast(`✅ Digest envoyé — ${data.nb} priorité(s)`);
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur");}
+  };
+  const _updatePref=async(type,fields)=>{
+    try{
+      await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update_preference',type,...fields})});
+      _loadNotifs();
+    }catch(e){}
+  };
+  useEffect(()=>{_loadNotifs();},[]);
   const[onglet,setOnglet]=useState("centre");
   const[config,setConfig]=useState({
     paiement:{actif:true,push:true,whatsapp:true,email:true},
@@ -6420,6 +6517,67 @@ const PageFormation=({plan,showToast})=>{
 
 // ─── PAGE DEALS ───────────────────────────────────────────────
 const PageDeals=({plan,showToast})=>{
+  const[_dealsReal,setDealsReal]=useState([]);
+  const[_partenairesReal,setPartenairesReal]=useState([]);
+  const[_caPipeline,setCaPipeline]=useState(0);
+  const[_caGagne,setCaGagne]=useState(0);
+  const[_objectifCA,setObjectifCA]=useState(0);
+  const[_relanceCache,setRelanceCache]=useState({});
+  const[_relanceLoading,setRelanceLoading]=useState({});
+  const[_doublon,setDoublon]=useState(null);
+
+  const _loadDeals=async()=>{
+    try{
+      const res=await fetch('/api/deals');
+      const data=await res.json();
+      if(data.deals&&data.deals.length>0){
+        setDealsReal(data.deals);
+        setPartenairesReal(data.partenaires||[]);
+        setCaPipeline(data.caPipeline||0);
+        setCaGagne(data.caGagne||0);
+        setDeals(prev=>{
+          const merged=data.deals.map(r=>{const e=prev.find(p=>p.nom===r.nom||p.id===r.id);return e?{...e,...r}:r;});
+          return merged.length>0?merged:prev;
+        });
+      }
+    }catch(e){console.log("Mode local deals");}
+  };
+  const _changerEtape=async(deal,etape)=>{
+    try{
+      const res=await fetch('/api/deals',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'modifier',id:deal.id,etape,_oldEtape:deal.etape})});
+      const data=await res.json();
+      if(data.success)_loadDeals();
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur");}
+  };
+  const _genererRelanceIA=async(deal)=>{
+    if(_relanceLoading[deal.id])return;
+    setRelanceLoading(s=>({...s,[deal.id]:true}));
+    try{
+      const res=await fetch('/api/deals',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'relance_ia',deal})});
+      const data=await res.json();
+      if(data.success)setRelanceCache(c=>({...c,[deal.id]:data.message}));
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur");}
+    setRelanceLoading(s=>({...s,[deal.id]:false}));
+  };
+  const _envoyerRelance=async(deal,canal)=>{
+    const msg=_relanceCache[deal.id];
+    if(!msg)return showToast("⚠️ Génère d'abord le message IA");
+    try{
+      const res=await fetch('/api/deals',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_relance',deal,message:msg,canal})});
+      const data=await res.json();
+      if(data.success){showToast(`✅ Relance envoyée par ${canal}`);_loadDeals();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur");}
+  };
+  const _ajouterTimeline=async(dealId,type,description)=>{
+    try{
+      await fetch('/api/deals',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter_timeline',deal_id:dealId,type,description})});
+      _loadDeals();
+    }catch(e){}
+  };
+  useEffect(()=>{_loadDeals();},[]);
   const ETAPES=["Identification","Qualification","Proposition","Négociation","Closing","Gagné","Perdu"];
   const[deals,setDeals]=useState([
     {id:"DEAL-001",nom:"Contrat Hôtel Prestige Paris",valeur:12000,prob:85,etape:"Proposition",client:"Claire Bernard",tel:"+33 1 23 45 67",email:"claire@prestige.fr",dead:"30/04/2026",source:"CRM",desc:"Nettoyage 40 chambres/jour + entretien communs",actions:[{date:"14/04",type:"Email",note:"Proposition envoyée"},{date:"12/04",type:"RDV",note:"Présentation en présentiel"}],dernierContact:"14/04"},
