@@ -26,11 +26,21 @@ const METIERS_CATEGORIES = [
   { cat: "➕ Autre secteur", metiers: ["Mon secteur n'est pas listé"] },
 ];
 
+// ─── PLANS MIS À JOUR ───────────────────────────────────────────────────────
 const PLANS = [
-  { name: "Starter", emoji: "🌱", price: 59, desc: "3 modules · Idéal pour démarrer", features: ["3 modules au choix","Wallet & Flutterwave","1 utilisateur","Support WhatsApp"], highlight: false },
-  { name: "Business Pro", emoji: "🚀", price: 129, desc: "8 modules · Pour les équipes", features: ["8 modules au choix","Wallet + Cartes virtuelles","5 utilisateurs","IA & Analytics","Support prioritaire"], highlight: true },
-  { name: "Enterprise", emoji: "💎", price: 249, desc: "Tout inclus · Grandes structures", features: ["Tous les modules","Utilisateurs illimités","Prospection IA complète","Support dédié 7j/7"], highlight: false },
+  // ── 1 Société ──
+  { name: "Starter", emoji: "🌱", price: 59, prixLabel: "59€/mois", desc: "1 société · Idéal pour démarrer", features: ["3 modules au choix","Wallet & Flutterwave","1 utilisateur","Support WhatsApp"], highlight: false, groupe: "1 Société" },
+  { name: "Business Pro", emoji: "🚀", price: 129, prixLabel: "129€/mois", desc: "1 société · Pour les équipes", features: ["8 modules au choix","Wallet + Cartes virtuelles","5 utilisateurs","IA & Analytics","Support prioritaire"], highlight: true, groupe: "1 Société" },
+  { name: "Enterprise", emoji: "💎", price: 249, prixLabel: "249€/mois", desc: "1 société · Tout inclus", features: ["Tous les modules","Bot WhatsApp IA","Utilisateurs illimités","Club d'affaires inclus","Support dédié 7j/7"], highlight: false, groupe: "1 Société" },
+  // ── Multi-Sociétés ──
+  { name: "Multi-Sociétés", emoji: "🏢", price: 499, prixLabel: "499€/mois", desc: "3 à 5 sociétés · Multi-entités", features: ["Tout dashboard (sauf Club & Prospection)","3 à 5 sociétés distinctes","Vue consolidée Owner","Multi-devises natif","Connexion bancaire directe","Support prioritaire"], highlight: false, groupe: "Multi-Sociétés" },
+  { name: "Multi-Sociétés Pro", emoji: "🏗", price: 799, prixLabel: "799€/mois", desc: "5 à 10 sociétés · Groupes", features: ["Tout Multi-Sociétés","5 à 10 sociétés","Rapports consolidés avancés","API dédiée par entité","Onboarding personnalisé"], highlight: false, groupe: "Multi-Sociétés" },
+  { name: "Holding", emoji: "🏛", price: 1200, prixLabel: "1 200€/mois", desc: "Sociétés illimitées · Holdings", features: ["Tout Multi-Sociétés Pro","Sociétés illimitées","Vue holding complète","Intercompany transactions","Support dédié 24h/24","Gestionnaire de compte dédié"], highlight: false, groupe: "Multi-Sociétés" },
+  // ── Club d'affaires ──
+  { name: "Club d'affaires", emoji: "🤝", price: 2000, prixLabel: "2 000€/an", desc: "Option annuelle · Réseau privé", features: ["Réseau privé membres Xyra","Deals exclusifs -10% entre membres","IA Match business (Claude)","Événements VIP networking","Annuaire mondial 18+ pays","Messagerie inter-membres"], highlight: false, groupe: "Option", annuel: true },
 ];
+
+const GROUPES = ["1 Société", "Multi-Sociétés", "Option"];
 
 const TAILLES = [
   { label: "1 personne", sub: "Solo" },
@@ -50,6 +60,7 @@ const PAYMENT_METHODS = [
 export default function Inscription() {
   const [step, setStep] = useState(1);
   const [selectedCat, setSelectedCat] = useState("");
+  const [selectedGroupe, setSelectedGroupe] = useState("1 Société");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [selectedPayment, setSelectedPayment] = useState("");
@@ -204,6 +215,7 @@ export default function Inscription() {
 
   const stepTitles = ["Entreprise", "Métier", "Plan", "Paiement"];
   const currentMetiers = METIERS_CATEGORIES.find(c => c.cat === selectedCat)?.metiers || [];
+  const plansAffiches = PLANS.filter(p => p.groupe === selectedGroupe);
 
   if (success) {
     return (
@@ -223,7 +235,7 @@ export default function Inscription() {
             <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "rgba(240,234,214,0.5)", marginBottom: 12, letterSpacing: "0.1em", textTransform: "uppercase" }}>Votre compte</div>
             <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, marginBottom: 6 }}>{form.societe}</div>
             <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "rgba(240,234,214,0.5)", marginBottom: 4 }}>{form.metier} · {form.pays}</div>
-            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#c9a96e" }}>Plan {form.plan} · {form.planPrice}€/mois · 14 jours gratuits</div>
+            <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 13, color: "#c9a96e" }}>Plan {form.plan} · {form.planPrice}€ · 14 jours gratuits</div>
           </div>
           <br />
           <a href="/dashboard" style={{ background: "linear-gradient(135deg,#c9a96e,#a07c45)", color: "#0a0a0a", padding: "16px 40px", fontFamily: "'DM Sans',sans-serif", fontSize: 15, fontWeight: 600, textDecoration: "none", display: "inline-block" }}>
@@ -370,15 +382,25 @@ export default function Inscription() {
           <div className="fade">
             <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, letterSpacing: "0.2em", textTransform: "uppercase", color: "#c9a96e", marginBottom: 10 }}>Étape 3 sur 4</p>
             <h1 style={{ fontSize: "clamp(30px,5vw,46px)", fontWeight: 300, lineHeight: 1.1, marginBottom: 12 }}>Votre <em style={{ fontStyle: "italic", color: "#c9a96e" }}>plan</em></h1>
-            <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, color: "rgba(240,234,214,0.45)", marginBottom: 28 }}>14 jours d'essai gratuit · Annulez à tout moment.</p>
+            <p style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 15, color: "rgba(240,234,214,0.45)", marginBottom: 20 }}>14 jours d'essai gratuit · Annulez à tout moment.</p>
+
+            {/* Sélecteur de groupe */}
+            <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+              {GROUPES.map(g => (
+                <button key={g} onClick={() => { setSelectedGroupe(g); update("plan", ""); update("planPrice", 0); }} style={{ background: selectedGroupe === g ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.02)", border: `1px solid ${selectedGroupe === g ? "#c9a96e" : "rgba(201,169,110,0.15)"}`, color: selectedGroupe === g ? "#c9a96e" : "rgba(240,234,214,0.5)", padding: "8px 18px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 600, transition: "all 0.2s" }}>
+                  {g === "1 Société" ? "🏠 1 Société" : g === "Multi-Sociétés" ? "🏢 Multi-Sociétés" : "🤝 Options"}
+                </button>
+              ))}
+            </div>
+
             <div className="plans-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
-              {PLANS.map(plan => (
+              {plansAffiches.map(plan => (
                 <button key={plan.name} className={`plan-btn${form.plan === plan.name ? " sel" : ""}`} onClick={() => { update("plan", plan.name); update("planPrice", plan.price); }}>
                   {plan.highlight && <div style={{ position: "absolute", top: -11, left: "50%", transform: "translateX(-50%)", background: "#c9a96e", color: "#0a0a0a", fontSize: 10, fontWeight: 700, padding: "3px 14px", textTransform: "uppercase", whiteSpace: "nowrap" }}>Recommandé</div>}
                   <div style={{ paddingTop: plan.highlight ? 8 : 0 }}>
                     <div style={{ fontSize: 12, color: "rgba(240,234,214,0.5)", marginBottom: 8 }}>{plan.emoji} {plan.name}</div>
-                    <div style={{ fontSize: 38, fontWeight: 300, color: plan.highlight ? "#c9a96e" : "#f0ead6", lineHeight: 1, marginBottom: 4 }}>
-                      {plan.price}<span style={{ fontSize: 14, fontWeight: 300, color: "rgba(240,234,214,0.35)" }}>€/mois</span>
+                    <div style={{ fontSize: plan.price >= 1000 ? 28 : 38, fontWeight: 300, color: plan.highlight ? "#c9a96e" : "#f0ead6", lineHeight: 1, marginBottom: 4 }}>
+                      {plan.prixLabel}
                     </div>
                     <div style={{ fontSize: 12, color: "rgba(240,234,214,0.4)", marginBottom: 14, paddingBottom: 14, borderBottom: "1px solid rgba(201,169,110,0.1)" }}>{plan.desc}</div>
                     {plan.features.map(f => (
@@ -408,7 +430,7 @@ export default function Inscription() {
                 </div>
                 <div style={{ textAlign: "right" }}>
                   <div style={{ fontSize: 28, fontWeight: 300, color: "#c9a96e" }}>
-                    {form.planPrice}€<span style={{ fontSize: 12, color: "rgba(240,234,214,0.35)" }}>/mois</span>
+                    {form.planPrice}€<span style={{ fontSize: 12, color: "rgba(240,234,214,0.35)" }}>{PLANS.find(p => p.name === form.plan)?.annuel ? "/an" : "/mois"}</span>
                   </div>
                   <div style={{ fontFamily: "'DM Sans',sans-serif", fontSize: 11, color: "rgba(240,234,214,0.3)" }}>Plan {form.plan} · 14 jours gratuits</div>
                 </div>
