@@ -10,176 +10,61 @@ const C = {
 
 const PLANS_SOLO = [
   {
-    name: "Starter",
-    emoji: "🌱",
-    price: 59,
+    name: "Starter", emoji: "🌱", price: 59,
     desc: "Idéal pour démarrer votre activité",
     color: C.green,
-    modules: [
-      "Wallet & paiements multi-devises",
-      "CRM clients & pipeline",
-      "Devis & facturation",
-      "Cartes virtuelles",
-      "Notifications",
-      "Chat interne",
-      "Support WhatsApp",
-    ],
-    locked: ["Analytics avancés", "Bot WhatsApp IA", "Agent vocal Vapi", "Prospection IA", "Club d'affaires"],
+    modules: ["Wallet & paiements multi-devises","CRM clients & pipeline","Devis & facturation","Cartes virtuelles","Notifications","Chat interne","Support WhatsApp"],
+    locked: ["Analytics avancés","Bot WhatsApp IA","Agent vocal Vapi","Prospection IA","Club d'affaires"],
   },
   {
-    name: "Business Pro",
-    emoji: "🚀",
-    price: 129,
+    name: "Business Pro", emoji: "🚀", price: 129,
     desc: "Pour les équipes en croissance",
-    color: C.gold,
-    highlight: true,
-    modules: [
-      "Tout Starter",
-      "Planning & missions",
-      "Gestion équipe & RH complète",
-      "Partenaires & commissions automatiques",
-      "Stock & services",
-      "Deals & opportunités",
-      "Trésorerie 90 jours + IA",
-      "Analytique & CA",
-      "Annuaire & réseau mondial",
-      "Événements & networking",
-      "Signature électronique",
-      "Formation équipe",
-      "Support prioritaire",
-    ],
-    locked: ["Bot WhatsApp IA", "Agent vocal Vapi", "Prospection IA", "Club d'affaires"],
+    color: C.gold, highlight: true,
+    modules: ["Tout Starter","Planning & missions","Gestion équipe & RH complète","Partenaires & commissions automatiques","Stock & services","Deals & opportunités","Trésorerie 90 jours + IA","Analytique & CA","Annuaire & réseau mondial","Événements & networking","Signature électronique","Formation équipe","Support prioritaire"],
+    locked: ["Bot WhatsApp IA","Agent vocal Vapi","Prospection IA","Club d'affaires"],
   },
   {
-    name: "Enterprise",
-    emoji: "💎",
-    price: 249,
+    name: "Enterprise", emoji: "💎", price: 249,
     desc: "Grandes structures & agences",
     color: C.purple,
-    modules: [
-      "Tout Business Pro",
-      "Bot WhatsApp IA (Claude)",
-      "Agent vocal Vapi IA",
-      "Prospection automatique SIRENE",
-      "Club d'affaires privé",
-      "Déploiement SaaS clients",
-      "API complète & webhooks",
-      "Utilisateurs illimités",
-      "Support dédié 7j/7 24h/24",
-    ],
+    modules: ["Tout Business Pro","Bot WhatsApp IA (Claude)","Agent vocal Vapi IA","Prospection automatique SIRENE","Club d'affaires privé","Déploiement SaaS clients","API complète & webhooks","Utilisateurs illimités","Support dédié 7j/7 24h/24"],
     locked: [],
   },
 ];
 
 const PLANS_MULTI = [
   {
-    name: "Multi-Sociétés",
-    emoji: "🏢",
-    price: 499,
-    societes: "3 à 5 sociétés",
-    desc: "Pour les entrepreneurs multi-entités",
-    color: C.blue,
-    modules: [
-      "Accès complet dashboard (sauf Club & Prospection)",
-      "3 à 5 sociétés distinctes",
-      "Vue consolidée Owner",
-      "Multi-devises natif (EUR/XOF/AED/USD...)",
-      "Connexion bancaire directe (Open Banking)",
-      "Équipes séparées par société",
-      "Comptabilité & facturation par entité",
-      "Trésorerie consolidée",
-      "Support prioritaire",
-    ],
+    name: "Multi-Sociétés", emoji: "🏢", price: 499, societes: "3 à 5 sociétés",
+    desc: "Pour les entrepreneurs multi-entités", color: C.blue,
+    modules: ["Accès complet dashboard (sauf Club & Prospection)","3 à 5 sociétés distinctes","Vue consolidée Owner","Multi-devises natif (EUR/XOF/AED/USD...)","Connexion bancaire directe (Open Banking)","Équipes séparées par société","Comptabilité & facturation par entité","Trésorerie consolidée","Support prioritaire"],
   },
   {
-    name: "Multi-Sociétés Pro",
-    emoji: "🏗",
-    price: 799,
-    societes: "5 à 10 sociétés",
-    desc: "Pour les groupes en expansion",
-    color: C.orange,
-    highlight: true,
-    modules: [
-      "Tout Multi-Sociétés",
-      "5 à 10 sociétés",
-      "Rapports consolidés avancés",
-      "API dédiée par entité",
-      "Analytique multi-entités",
-      "Onboarding personnalisé",
-      "Support dédié",
-    ],
+    name: "Multi-Sociétés Pro", emoji: "🏗", price: 799, societes: "5 à 10 sociétés",
+    desc: "Pour les groupes en expansion", color: C.orange, highlight: true,
+    modules: ["Tout Multi-Sociétés","5 à 10 sociétés","Rapports consolidés avancés","API dédiée par entité","Analytique multi-entités","Onboarding personnalisé","Support dédié"],
   },
   {
-    name: "Holding",
-    emoji: "🏛",
-    price: 1200,
-    societes: "Sociétés illimitées",
-    desc: "Pour les holdings et grands groupes",
-    color: C.gold,
-    modules: [
-      "Tout Multi-Sociétés Pro",
-      "Sociétés illimitées",
-      "Vue holding complète",
-      "Consolidation multi-devises automatique",
-      "Intercompany transactions",
-      "Tableaux de bord par filiale",
-      "Support dédié 24h/24",
-      "Gestionnaire de compte dédié",
-    ],
+    name: "Holding", emoji: "🏛", price: 1200, societes: "Sociétés illimitées",
+    desc: "Pour les holdings et grands groupes", color: C.gold,
+    modules: ["Tout Multi-Sociétés Pro","Sociétés illimitées","Vue holding complète","Consolidation multi-devises automatique","Intercompany transactions","Tableaux de bord par filiale","Support dédié 24h/24","Gestionnaire de compte dédié"],
   },
 ];
 
 const PLANS_SAAS = [
   {
-    name: "White-label Starter",
-    emoji: "⚡",
-    setup: 5000,
-    mensuel: 500,
-    desc: "Revendez Xyra sous votre marque",
-    color: C.green,
-    modules: [
-      "Dashboard à votre marque & logo",
-      "Jusqu'à 10 clients revendeurs",
-      "Domaine personnalisé inclus",
-      "Panneau d'administration revendeur",
-      "Onboarding clients automatisé",
-      "Support technique inclus",
-    ],
+    name: "White-label Starter", emoji: "⚡", setup: 5000, mensuel: 500,
+    desc: "Revendez Xyra sous votre marque", color: C.green,
+    modules: ["Dashboard à votre marque & logo","Jusqu'à 10 clients revendeurs","Domaine personnalisé inclus","Panneau d'administration revendeur","Onboarding clients automatisé","Support technique inclus"],
   },
   {
-    name: "White-label Business",
-    emoji: "🚀",
-    setup: 12000,
-    mensuel: 1000,
-    desc: "Pour les agences & intégrateurs",
-    color: C.gold,
-    highlight: true,
-    modules: [
-      "Tout White-label Starter",
-      "Clients illimités",
-      "API partenaire complète",
-      "Rapports de revenus revendeur",
-      "Formation & certification revendeur",
-      "Support dédié prioritaire",
-      "Co-marketing inclus",
-    ],
+    name: "White-label Business", emoji: "🚀", setup: 12000, mensuel: 1000,
+    desc: "Pour les agences & intégrateurs", color: C.gold, highlight: true,
+    modules: ["Tout White-label Starter","Clients illimités","API partenaire complète","Rapports de revenus revendeur","Formation & certification revendeur","Support dédié prioritaire","Co-marketing inclus"],
   },
   {
-    name: "White-label Enterprise",
-    emoji: "🏆",
-    setup: null,
-    mensuel: null,
-    desc: "Solution sur mesure",
-    color: C.purple,
-    modules: [
-      "Tout White-label Business",
-      "Infrastructure dédiée",
-      "SLA garanti 99.9%",
-      "Développements spécifiques",
-      "Intégrations sur mesure",
-      "Account manager dédié",
-      "Contrat personnalisé",
-    ],
+    name: "White-label Enterprise", emoji: "🏆", setup: null, mensuel: null,
+    desc: "Solution sur mesure", color: C.purple,
+    modules: ["Tout White-label Business","Infrastructure dédiée","SLA garanti 99.9%","Développements spécifiques","Intégrations sur mesure","Account manager dédié","Contrat personnalisé"],
   },
 ];
 
@@ -190,10 +75,25 @@ const MODULES = [
   { icon: "👥", name: "Équipe", price: 19 },
   { icon: "🎯", name: "Prospection IA", price: 29 },
   { icon: "✒", name: "Signature", price: 19 },
-  { icon: "🏢", name: "Club d'affaires", price: 19 },
+  { icon: "🏢", name: "Club d'affaires", price: null, annuel: 2000 },
   { icon: "📦", name: "Stock", price: 14 },
   { icon: "📅", name: "Planning", price: 14 },
   { icon: "🔔", name: "Notifications", price: 9 },
+];
+
+const PAYMENTS = [
+  { icon: "🌊", name: "Wave" },
+  { icon: "📱", name: "Orange Money" },
+  { icon: "📲", name: "MTN" },
+  { icon: "💳", name: "Visa/MC" },
+  { icon: "🏦", name: "SEPA" },
+];
+
+const STATS = [
+  { val: "47+", label: "Entreprises actives" },
+  { val: "98%", label: "Satisfaction client" },
+  { val: "12", label: "Pays couverts" },
+  { val: "59 €", label: "À partir de / mois" },
 ];
 
 const FAQ = [
@@ -201,13 +101,12 @@ const FAQ = [
   { q: "Y a-t-il un engagement ?", r: "Non, Xyra est sans engagement. Vous pouvez annuler à tout moment depuis votre dashboard." },
   { q: "Les 14 jours d'essai sont vraiment gratuits ?", r: "Oui, aucune carte bancaire requise pour démarrer. Vous activez le paiement uniquement si vous souhaitez continuer." },
   { q: "L'agent IA parle en mon nom ?", r: "Oui ! L'agent vocal Vapi et le bot WhatsApp sont entièrement personnalisés à votre nom, secteur et services." },
-  { q: "Puis-je ajouter des modules individuellement ?", r: "Oui, sur les plans Starter et Business Pro vous pouvez ajouter des modules à la carte à partir de 9€/mois." },
   { q: "Quels moyens de paiement acceptez-vous ?", r: "Carte bancaire internationale, virement SEPA, Wave, Orange Money, MTN Mobile Money — pour toute l'Afrique et l'Europe." },
+  { q: "Puis-je ajouter des modules individuellement ?", r: "Oui, sur les plans Starter et Business Pro vous pouvez ajouter des modules à la carte à partir de 9€/mois." },
   { q: "Le plan Multi-Sociétés inclut-il le Bot WhatsApp ?", r: "Non, le bot WhatsApp et la prospection IA sont exclusifs aux plans Enterprise et au-dessus. Le Multi-Sociétés inclut tout le reste du dashboard." },
   { q: "Comment fonctionne le déploiement SaaS ?", r: "Vous revendez Xyra sous votre propre marque avec votre logo et domaine. Vos clients accèdent à leur dashboard personnalisé, vous gérez tout depuis votre panneau revendeur." },
+  { q: "Qu'est-ce que le Club d'affaires Xyra ?", r: "Le Club d'affaires est un réseau privé de membres Xyra — deals exclusifs -10% entre membres, IA Match business, événements VIP, annuaire mondial. Disponible en option à 2 000€/an ou inclus dans le plan Enterprise." },
 ];
-
-const ss = (obj: object) => obj as React.CSSProperties;
 
 export default function Pricing() {
   const [billing, setBilling] = useState<"month" | "year">("month");
@@ -240,12 +139,48 @@ export default function Pricing() {
         <h1 style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: "clamp(40px,6vw,72px)", fontWeight: 300, lineHeight: 1.1, marginBottom: 16 }}>
           Un plan pour <em style={{ color: C.gold, fontStyle: "italic" }}>chaque ambition</em>
         </h1>
-        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 16, color: C.muted, marginBottom: 40, maxWidth: 520, margin: "0 auto 40px" }}>
+        <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 16, color: C.muted, marginBottom: 28, maxWidth: 520, margin: "0 auto 28px" }}>
           Solo, multi-sociétés ou revendeur — Xyra s'adapte à votre structure.
         </p>
 
+        {/* Paiements */}
+        <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
+          <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: C.muted }}>Paiements :</span>
+          {PAYMENTS.map((p, i) => (
+            <span key={i} style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: "4px 12px", color: C.text }}>
+              {p.icon} {p.name}
+            </span>
+          ))}
+        </div>
+
+        {/* Trial box */}
+        <div style={{ display: "inline-block", background: `${C.gold}15`, border: `1px solid ${C.gold}33`, borderRadius: 10, padding: "12px 24px", marginBottom: 24 }}>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: C.gold, fontWeight: 600, marginBottom: 4 }}>🎁 14 jours gratuits</div>
+          <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: C.muted }}>Accès complet · Sans carte bancaire · Annulation à tout moment</div>
+        </div>
+
+        {/* CTA buttons */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap", marginBottom: 40 }}>
+          <a href="/inscription" style={{ display: "inline-block", background: C.gold, color: "#000", padding: "14px 32px", fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700, textDecoration: "none", borderRadius: 4 }}>
+            🚀 Commencer gratuitement — 14 jours
+          </a>
+          <a href="/demo" style={{ display: "inline-block", background: "transparent", color: C.text, padding: "14px 32px", fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 600, textDecoration: "none", border: `1px solid ${C.border}`, borderRadius: 4 }}>
+            ▶ Voir la démo
+          </a>
+        </div>
+
+        {/* Stats */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 40, flexWrap: "wrap", marginBottom: 48 }}>
+          {STATS.map((s, i) => (
+            <div key={i} style={{ textAlign: "center" }}>
+              <div style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: 32, fontWeight: 300, color: C.gold }}>{s.val}</div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: C.muted, marginTop: 4 }}>{s.label}</div>
+            </div>
+          ))}
+        </div>
+
         {/* Toggle mensuel/annuel */}
-        <div style={{ display: "inline-flex", background: C.card, border: `1px solid ${C.border}`, borderRadius: 100, padding: 4, gap: 4, marginBottom: 40 }}>
+        <div style={{ display: "inline-flex", background: C.card, border: `1px solid ${C.border}`, borderRadius: 100, padding: 4, gap: 4, marginBottom: 32 }}>
           {(["month", "year"] as const).map(b => (
             <button key={b} onClick={() => setBilling(b)} style={{ background: billing === b ? C.gold : "transparent", color: billing === b ? "#000" : C.muted, border: "none", borderRadius: 100, padding: "8px 20px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, transition: "all 0.2s" }}>
               {b === "month" ? "Mensuel" : "Annuel"}
@@ -256,7 +191,7 @@ export default function Pricing() {
         {/* Section switcher */}
         <div style={{ display: "flex", justifyContent: "center", gap: 8, flexWrap: "wrap" }}>
           {[
-            { key: "solo", label: "🏠 1 Société", desc: "Starter · Business · Enterprise" },
+            { key: "solo", label: "🏠 1 Société", desc: "59€ · 129€ · 249€" },
             { key: "multi", label: "🏢 Multi-Sociétés", desc: "499€ · 799€ · 1 200€" },
             { key: "saas", label: "🚀 Déploiement SaaS", desc: "White-label revendeur" },
           ].map(s => (
@@ -274,15 +209,12 @@ export default function Pricing() {
           {PLANS_SOLO.map((plan, i) => (
             <div key={i} className="fade" style={{ background: plan.highlight ? `linear-gradient(135deg, ${C.card}, #0a1a0f)` : C.card, border: `1px solid ${plan.highlight ? C.gold + "44" : C.border}`, borderRadius: 16, padding: 28, position: "relative", animationDelay: `${i * 0.1}s` }}>
               {plan.highlight && (
-                <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: C.gold, color: "#000", fontSize: 10, fontWeight: 700, padding: "4px 16px", textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>
-                  ⭐ Recommandé
-                </div>
+                <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: C.gold, color: "#000", fontSize: 10, fontWeight: 700, padding: "4px 16px", textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>⭐ Recommandé</div>
               )}
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 11, color: C.muted, fontFamily: "'DM Sans', sans-serif", marginBottom: 8 }}>{plan.emoji} {plan.name}</div>
                 <div style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: 52, fontWeight: 300, color: plan.highlight ? C.gold : C.text, lineHeight: 1 }}>
-                  {plan.price}€
-                  <span style={{ fontSize: 14, fontWeight: 300, color: C.muted, fontFamily: "'DM Sans', sans-serif" }}>/mois</span>
+                  {plan.price}€<span style={{ fontSize: 14, fontWeight: 300, color: C.muted, fontFamily: "'DM Sans', sans-serif" }}>/mois</span>
                 </div>
                 <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: C.muted, marginTop: 8 }}>{plan.desc}</div>
               </div>
@@ -298,7 +230,7 @@ export default function Pricing() {
                   </div>
                 ))}
               </div>
-              <a href="/inscription" style={{ display: "block", textAlign: "center", background: plan.highlight ? C.gold : "transparent", color: plan.highlight ? "#000" : C.gold, border: `1px solid ${plan.highlight ? C.gold : C.gold + "44"}`, padding: "14px", fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, textDecoration: "none", transition: "all 0.2s" }}>
+              <a href="/inscription" style={{ display: "block", textAlign: "center", background: plan.highlight ? C.gold : "transparent", color: plan.highlight ? "#000" : C.gold, border: `1px solid ${plan.highlight ? C.gold : C.gold + "44"}`, padding: "14px", fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
                 {plan.highlight ? "Commencer gratuitement →" : "Démarrer →"}
               </a>
               <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: C.muted, textAlign: "center", marginTop: 10 }}>
@@ -325,16 +257,13 @@ export default function Pricing() {
             {PLANS_MULTI.map((plan, i) => (
               <div key={i} className="fade" style={{ background: plan.highlight ? `linear-gradient(135deg, ${C.card}, #0a0f1a)` : C.card, border: `1px solid ${plan.highlight ? plan.color + "66" : C.border}`, borderRadius: 16, padding: 28, position: "relative", animationDelay: `${i * 0.1}s` }}>
                 {plan.highlight && (
-                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: plan.color, color: "#000", fontSize: 10, fontWeight: 700, padding: "4px 16px", textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>
-                    ⭐ Recommandé
-                  </div>
+                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: plan.color, color: "#000", fontSize: 10, fontWeight: 700, padding: "4px 16px", textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>⭐ Recommandé</div>
                 )}
                 <div style={{ marginBottom: 20 }}>
                   <div style={{ fontSize: 11, color: C.muted, fontFamily: "'DM Sans', sans-serif", marginBottom: 4 }}>{plan.emoji} {plan.name}</div>
                   <div style={{ fontSize: 11, color: plan.color, fontFamily: "'DM Sans', sans-serif", fontWeight: 600, marginBottom: 8 }}>{plan.societes}</div>
                   <div style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: 52, fontWeight: 300, color: plan.color, lineHeight: 1 }}>
-                    {plan.price}€
-                    <span style={{ fontSize: 14, fontWeight: 300, color: C.muted, fontFamily: "'DM Sans', sans-serif" }}>/mois</span>
+                    {plan.price}€<span style={{ fontSize: 14, fontWeight: 300, color: C.muted, fontFamily: "'DM Sans', sans-serif" }}>/mois</span>
                   </div>
                   <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: C.muted, marginTop: 8 }}>{plan.desc}</div>
                 </div>
@@ -366,34 +295,28 @@ export default function Pricing() {
               Revendez Xyra sous <em style={{ color: C.gold }}>votre propre marque</em>
             </h2>
             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: C.muted, maxWidth: 600, margin: "0 auto" }}>
-              Votre logo, votre domaine, vos clients — Xyra devient votre outil SaaS en marque blanche. Générez des revenus récurrents en proposant Xyra à vos clients.
+              Votre logo, votre domaine, vos clients — générez des revenus récurrents en proposant Xyra à vos clients.
             </p>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
             {PLANS_SAAS.map((plan, i) => (
               <div key={i} className="fade" style={{ background: plan.highlight ? `linear-gradient(135deg, ${C.card}, #0a1a0a)` : C.card, border: `1px solid ${plan.highlight ? plan.color + "66" : C.border}`, borderRadius: 16, padding: 28, position: "relative", animationDelay: `${i * 0.1}s` }}>
                 {plan.highlight && (
-                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: plan.color, color: "#000", fontSize: 10, fontWeight: 700, padding: "4px 16px", textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>
-                    ⭐ Le plus populaire
-                  </div>
+                  <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: plan.color, color: "#000", fontSize: 10, fontWeight: 700, padding: "4px 16px", textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>⭐ Le plus populaire</div>
                 )}
                 <div style={{ marginBottom: 20 }}>
                   <div style={{ fontSize: 11, color: C.muted, fontFamily: "'DM Sans', sans-serif", marginBottom: 8 }}>{plan.emoji} {plan.name}</div>
                   {plan.setup !== null ? (
                     <>
                       <div style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: 36, fontWeight: 300, color: plan.color, lineHeight: 1, marginBottom: 4 }}>
-                        {plan.setup?.toLocaleString("fr")}€
-                        <span style={{ fontSize: 14, fontWeight: 300, color: C.muted, fontFamily: "'DM Sans', sans-serif" }}> setup</span>
+                        {plan.setup?.toLocaleString("fr")}€<span style={{ fontSize: 14, fontWeight: 300, color: C.muted, fontFamily: "'DM Sans', sans-serif" }}> setup</span>
                       </div>
                       <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 16, color: C.text, fontWeight: 600 }}>
-                        + {plan.mensuel?.toLocaleString("fr")}€
-                        <span style={{ fontSize: 13, color: C.muted, fontWeight: 300 }}>/mois</span>
+                        + {plan.mensuel?.toLocaleString("fr")}€<span style={{ fontSize: 13, color: C.muted, fontWeight: 300 }}>/mois</span>
                       </div>
                     </>
                   ) : (
-                    <div style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: 36, fontWeight: 300, color: plan.color, lineHeight: 1 }}>
-                      Sur devis
-                    </div>
+                    <div style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: 36, fontWeight: 300, color: plan.color, lineHeight: 1 }}>Sur devis</div>
                   )}
                   <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: C.muted, marginTop: 8 }}>{plan.desc}</div>
                 </div>
@@ -410,29 +333,45 @@ export default function Pricing() {
               </div>
             ))}
           </div>
+        </div>
+      )}
 
-          {/* Avantages revendeur */}
-          <div style={{ marginTop: 40, background: C.card, border: `1px solid ${C.border}`, borderRadius: 16, padding: 32 }}>
-            <div style={{ textAlign: "center", marginBottom: 24 }}>
-              <div style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: 24, fontWeight: 300, marginBottom: 8 }}>Pourquoi devenir revendeur Xyra ?</div>
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 16 }}>
-              {[
-                { icon: "💰", titre: "Revenus récurrents", desc: "Facturez vos clients mensuellement et générez un MRR stable" },
-                { icon: "🎨", titre: "Votre marque", desc: "Logo, couleurs, domaine — 100% à votre image" },
-                { icon: "🌍", titre: "Multi-devises natif", desc: "Encaissez en EUR, XOF, AED, USD sans friction" },
-                { icon: "🤖", titre: "IA incluse", desc: "Claude IA, bot WhatsApp, agent vocal — tout inclus" },
-              ].map((a, i) => (
-                <div key={i} style={{ textAlign: "center", padding: "16px 12px" }}>
-                  <div style={{ fontSize: 28, marginBottom: 8 }}>{a.icon}</div>
-                  <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, color: C.gold, marginBottom: 6 }}>{a.titre}</div>
-                  <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: C.muted, lineHeight: 1.6 }}>{a.desc}</div>
+      {/* CLUB D'AFFAIRES */}
+      <div style={{ background: `linear-gradient(135deg, ${C.card}, #0a0a1a)`, borderTop: `1px solid ${C.gold}22`, borderBottom: `1px solid ${C.gold}22`, padding: "64px 24px" }}>
+        <div style={{ maxWidth: 800, margin: "0 auto", display: "grid", gridTemplateColumns: "1fr 1fr", gap: 40, alignItems: "center" }}>
+          <div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, letterSpacing: "0.2em", color: C.gold, textTransform: "uppercase", marginBottom: 12 }}>Réseau privé exclusif</div>
+            <h2 style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: "clamp(28px,4vw,42px)", fontWeight: 300, marginBottom: 16 }}>
+              Club d'affaires <em style={{ color: C.gold }}>Xyra</em>
+            </h2>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
+              {["Réseau privé de membres Xyra triés sur le volet","Deals exclusifs -10% entre membres","IA Match business — Claude identifie les synergies","Événements VIP networking","Annuaire mondial 18+ pays","Messagerie directe inter-membres"].map((f, i) => (
+                <div key={i} style={{ display: "flex", gap: 10, fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: C.text }}>
+                  <span style={{ color: C.gold, flexShrink: 0 }}>◆</span>{f}
                 </div>
               ))}
             </div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: C.muted }}>
+              Inclus dans le plan <span style={{ color: C.purple, fontWeight: 600 }}>Enterprise (249€/mois)</span>
+            </div>
+          </div>
+          <div style={{ textAlign: "center" }}>
+            <div style={{ background: C.card2, border: `1px solid ${C.gold}44`, borderRadius: 16, padding: 32 }}>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: C.muted, marginBottom: 8 }}>🏢 Option à la carte</div>
+              <div style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: 56, fontWeight: 300, color: C.gold, lineHeight: 1, marginBottom: 4 }}>
+                2 000€
+              </div>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: C.muted, marginBottom: 24 }}>/an · Accès illimité</div>
+              <a href="/inscription" style={{ display: "block", textAlign: "center", background: C.gold, color: "#000", border: "none", padding: "14px", fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 600, textDecoration: "none", borderRadius: 4 }}>
+                Rejoindre le Club →
+              </a>
+              <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: C.muted, marginTop: 10 }}>
+                Disponible en option sur Starter & Business Pro
+              </div>
+            </div>
           </div>
         </div>
-      )}
+      </div>
 
       {/* MODULES À LA CARTE */}
       <div style={{ background: C.card, borderTop: `1px solid ${C.border}`, borderBottom: `1px solid ${C.border}`, padding: "64px 24px" }}>
@@ -446,14 +385,16 @@ export default function Pricing() {
               Ajoutez uniquement les modules dont vous avez besoin sur les plans Starter et Business Pro.
             </p>
           </div>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(160px, 1fr))", gap: 10 }}>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
             {MODULES.map((m, i) => (
               <div key={i} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <span>{m.icon}</span>
                   <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12 }}>{m.name}</span>
                 </div>
-                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 700, color: C.gold }}>{m.price}€</span>
+                <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, fontWeight: 700, color: C.gold }}>
+                  {m.annuel ? `${m.annuel}€/an` : `${m.price}€`}
+                </span>
               </div>
             ))}
           </div>
@@ -467,12 +408,12 @@ export default function Pricing() {
             Quelle offre <em style={{ color: C.gold }}>vous correspond ?</em>
           </h2>
         </div>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 12 }}>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: 12 }}>
           {[
             { profil: "🧑‍💼 Entrepreneur solo", plan: "Starter ou Business Pro", prix: "59€ – 129€/mois", desc: "Vous avez une société et voulez automatiser votre gestion" },
-            { profil: "🏢 Entrepreneur multi-sociétés", plan: "Multi-Sociétés", prix: "À partir de 499€/mois", desc: "Vous gérez 2 sociétés ou plus et voulez tout centraliser" },
+            { profil: "🏢 Multi-sociétés", plan: "Multi-Sociétés", prix: "À partir de 499€/mois", desc: "Vous gérez 2 sociétés ou plus et voulez tout centraliser" },
             { profil: "🏛 Holding / Grand groupe", plan: "Holding", prix: "1 200€/mois", desc: "Vous avez une structure holding et voulez la vue consolidée complète" },
-            { profil: "🚀 Agence / Revendeur", plan: "White-label", prix: "À partir de 5 000€ + 500€/mois", desc: "Vous voulez revendre Xyra sous votre marque à vos clients" },
+            { profil: "🚀 Agence / Revendeur", plan: "White-label", prix: "5 000€ + 500€/mois", desc: "Vous voulez revendre Xyra sous votre marque à vos clients" },
           ].map((p, i) => (
             <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20 }}>
               <div style={{ fontSize: 20, marginBottom: 8 }}>{p.profil}</div>
@@ -506,21 +447,29 @@ export default function Pricing() {
 
       {/* CTA FINAL */}
       <div style={{ textAlign: "center", padding: "80px 24px" }}>
+        <h2 style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: "clamp(32px,5vw,58px)", fontWeight: 300, marginBottom: 8 }}>
+          Rejoignez les 47+ entreprises
+        </h2>
         <h2 style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: "clamp(32px,5vw,58px)", fontWeight: 300, marginBottom: 16 }}>
-          Prêt à <em style={{ color: C.gold }}>démarrer ?</em>
+          qui gèrent tout avec <em style={{ color: C.gold }}>Xyra</em>
         </h2>
         <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15, color: C.muted, marginBottom: 32 }}>
-          14 jours gratuits · Sans carte bancaire · Annulez à tout moment
+          14 jours gratuits · Aucune carte bancaire requise · Accès immédiat
         </p>
-        <a href="/inscription" style={{ display: "inline-block", background: C.gold, color: "#000", padding: "16px 48px", fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700, textDecoration: "none", letterSpacing: "0.04em" }}>
-          Créer mon compte gratuitement →
-        </a>
+        <div style={{ display: "flex", justifyContent: "center", gap: 12, flexWrap: "wrap" }}>
+          <a href="/inscription" style={{ display: "inline-block", background: C.gold, color: "#000", padding: "16px 40px", fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 700, textDecoration: "none" }}>
+            🚀 Commencer gratuitement — 14j
+          </a>
+          <a href="https://wa.me/33765189527" style={{ display: "inline-block", background: "transparent", color: C.text, padding: "16px 40px", fontFamily: "'DM Sans', sans-serif", fontSize: 15, fontWeight: 600, textDecoration: "none", border: `1px solid ${C.border}` }}>
+            💬 Demander une démo
+          </a>
+        </div>
       </div>
 
       {/* FOOTER */}
       <div style={{ borderTop: `1px solid ${C.border}`, padding: "24px 40px", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 12 }}>
         <div style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: 18, color: C.gold }}>XYRA</div>
-        <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: C.muted }}>© 2025 Xyra · Tous droits réservés</div>
+        <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: C.muted }}>© 2026 Xyra · Tous droits réservés</div>
         <div style={{ display: "flex", gap: 20 }}>
           {["CGV", "Confidentialité", "Contact"].map(l => (
             <a key={l} href="#" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: C.muted, textDecoration: "none" }}>{l}</a>
