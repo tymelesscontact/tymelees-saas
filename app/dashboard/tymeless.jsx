@@ -10,10 +10,14 @@ const C = {
 };
 
 const PLANS = {
-  starter:  {id:"starter",  nom:"Starter",       prix:"59€/mois",  color:"#4B7BFF", icon:"◎", acces:["wallet","cartes","crm","devis","facturation"], description:"Wallet · Paiements · Cartes · CRM · Devis · Facturation"},
-  business: {id:"business", nom:"Business Pro",  prix:"129€/mois", color:"#C9A84C", icon:"✦", acces:["tout"], description:"Tout Starter + Suite complète métier · Équipe · Analytique · Prospection"},
-  enterprise:{id:"enterprise",nom:"Enterprise",  prix:"249€/mois", color:"#9B5FFF", icon:"◈", acces:["tout"], description:"Tout Business Pro + Bot WhatsApp · API · Déploiement SaaS · Support 24h"},
-  owner:    {id:"owner",    nom:"Owner",          prix:"—",         color:"#C9A84C", icon:"★", acces:["tout"], description:"Accès total — Curtiss"},
+  starter:        {id:"starter",        nom:"Starter",            prix:"59€/mois",    color:"#4B7BFF", icon:"◎", acces:["wallet","cartes","crm","devis","facturation"], description:"Wallet · Paiements · Cartes · CRM · Devis · Facturation"},
+  business:       {id:"business",       nom:"Business Pro",       prix:"129€/mois",   color:"#C9A84C", icon:"✦", acces:["tout"], description:"Tout Starter + Suite complète métier · Équipe · Analytique · Prospection"},
+  enterprise:     {id:"enterprise",     nom:"Enterprise",         prix:"249€/mois",   color:"#9B5FFF", icon:"◈", acces:["tout"], description:"Tout Business Pro + Bot WhatsApp · API · Déploiement SaaS · Support 24h"},
+  multi_societes: {id:"multi_societes", nom:"Multi-Sociétés",     prix:"499€/mois",   color:"#4B7BFF", icon:"🏢", acces:["multi"], description:"3 à 5 sociétés · Tout dashboard sauf Club & Prospection · Multi-devises · Connexion bancaire"},
+  multi_pro:      {id:"multi_pro",      nom:"Multi-Sociétés Pro", prix:"799€/mois",   color:"#FF8C3A", icon:"🏗", acces:["multi"], description:"5 à 10 sociétés · Rapports consolidés · API dédiée · Onboarding personnalisé"},
+  holding:        {id:"holding",        nom:"Holding",            prix:"1200€/mois",  color:"#C9A84C", icon:"🏛", acces:["multi"], description:"Sociétés illimitées · Vue holding complète · Intercompany · Support 24h"},
+  club_affaires:  {id:"club_affaires",  nom:"Club d'affaires",    prix:"2000€/an",    color:"#C9A84C", icon:"🤝", acces:["club"], description:"Réseau privé · Deals -10% · IA Match · Événements VIP"},
+  owner:          {id:"owner",          nom:"Owner",              prix:"—",           color:"#C9A84C", icon:"★", acces:["tout"], description:"Accès total — Curtiss"},
 };
 
 const MODULE_PRICES = {
@@ -26,35 +30,38 @@ const MODULE_PRICES = {
   formation:14, deploiement:49, api:29, investissement:24,
 };
 
+const MULTI = ["multi_societes","multi_pro","holding"];
 const PAGE_ACCESS = {
   // Starter (59€) — base
-  wallet:         ["starter","business","enterprise","owner"],
-  cartes:         ["starter","business","enterprise","owner"],
-  crm:            ["starter","business","enterprise","owner"],
-  devis:          ["starter","business","enterprise","owner"],
-  facturation:    ["starter","business","enterprise","owner"],
-  settings:       ["starter","business","enterprise","owner"],
-  // Business Pro (129€)
-  notefrais:      ["business","enterprise","owner"],
-  overview:       ["business","enterprise","owner"],
-  investissement: ["business","enterprise","owner"],
-  compta:         ["business","enterprise","owner"],
-  tresorerie:     ["business","enterprise","owner"],
-  analytique:     ["business","enterprise","owner"],
-  clients:        ["business","enterprise","owner"],
-  partenaires:    ["business","enterprise","owner"],
-  club_affaires:  ["business","enterprise","owner"],
-  annuaire:       ["business","enterprise","owner"],
-  wallet_membres: ["business","enterprise","owner"],
-  evenements:     ["business","enterprise","owner"],
-  scoring:        ["starter","business","enterprise","owner"],
-  equipe:         ["business","enterprise","owner"],
-  planning:       ["business","enterprise","owner"],
-  prospection:    ["owner"],
-  deals:          ["business","enterprise","owner"],
-  stock:          ["business","enterprise","owner"],
-  services:       ["business","enterprise","owner"],
-  notifications:  ["starter","business","enterprise","owner"],
+  wallet:         ["starter","business","enterprise",...MULTI,"owner"],
+  cartes:         ["starter","business","enterprise",...MULTI,"owner"],
+  crm:            ["starter","business","enterprise",...MULTI,"owner"],
+  devis:          ["starter","business","enterprise",...MULTI,"owner"],
+  facturation:    ["starter","business","enterprise",...MULTI,"owner"],
+  settings:       ["starter","business","enterprise",...MULTI,"club_affaires","owner"],
+  // Business Pro (129€) + Multi-Sociétés (tout sauf club & prospection)
+  notefrais:      ["business","enterprise",...MULTI,"owner"],
+  overview:       ["business","enterprise",...MULTI,"owner"],
+  investissement: ["business","enterprise",...MULTI,"owner"],
+  compta:         ["business","enterprise",...MULTI,"owner"],
+  tresorerie:     ["business","enterprise",...MULTI,"owner"],
+  analytique:     ["business","enterprise",...MULTI,"owner"],
+  clients:        ["business","enterprise",...MULTI,"owner"],
+  partenaires:    ["business","enterprise",...MULTI,"owner"],
+  annuaire:       ["business","enterprise",...MULTI,"owner"],
+  wallet_membres: ["business","enterprise",...MULTI,"owner"],
+  evenements:     ["business","enterprise",...MULTI,"owner"],
+  scoring:        ["starter","business","enterprise",...MULTI,"owner"],
+  equipe:         ["business","enterprise",...MULTI,"owner"],
+  planning:       ["business","enterprise",...MULTI,"owner"],
+  deals:          ["business","enterprise",...MULTI,"owner"],
+  stock:          ["business","enterprise",...MULTI,"owner"],
+  services:       ["business","enterprise",...MULTI,"owner"],
+  notifications:  ["starter","business","enterprise",...MULTI,"club_affaires","owner"],
+  // Enterprise uniquement
+  prospection:    ["enterprise","owner"],
+  // Club d'affaires — option séparée ou inclus Enterprise
+  club_affaires:  ["enterprise","club_affaires","owner"],
   signature:      ["business","enterprise","owner"],
   formation:      ["business","enterprise","owner"],
   // Enterprise (249€)
