@@ -1,4 +1,5 @@
 "use client";
+export const dynamic = "force-dynamic";
 import { useState } from "react";
 
 const C = {
@@ -479,4 +480,3 @@ export default function Pricing() {
     </div>
   );
 }
-
