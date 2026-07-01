@@ -38,9 +38,13 @@ const PLANS = [
   { name: "Holding", emoji: "🏛", price: 1200, prixLabel: "1 200€/mois", desc: "Sociétés illimitées · Holdings", features: ["Tout Multi-Sociétés Pro","Sociétés illimitées","Vue holding complète","Intercompany transactions","Support dédié 24h/24","Gestionnaire de compte dédié"], highlight: false, groupe: "Multi-Sociétés" },
   // ── Club d'affaires ──
   { name: "Club d'affaires", emoji: "🤝", price: 2000, prixLabel: "2 000€/an", desc: "Option annuelle · Réseau privé", features: ["Réseau privé membres Xyra","Deals exclusifs -10% entre membres","IA Match business (Claude)","Événements VIP networking","Annuaire mondial 18+ pays","Messagerie inter-membres"], highlight: false, groupe: "Option", annuel: true },
+  // ── Déploiement SaaS ──
+  { name: "White-label Starter", emoji: "⚡", price: 500, prixLabel: "5 000€ setup + 500€/mois", desc: "Revendez Xyra sous votre marque", features: ["Dashboard à votre marque & logo","Jusqu'à 10 clients revendeurs","Domaine personnalisé inclus","Panneau d'administration revendeur","Onboarding clients automatisé","Support technique inclus"], highlight: false, groupe: "Déploiement SaaS", saas: true, setup: 5000 },
+  { name: "White-label Business", emoji: "🚀", price: 1000, prixLabel: "12 000€ setup + 1 000€/mois", desc: "Pour les agences & intégrateurs", features: ["Tout White-label Starter","Clients illimités","API partenaire complète","Rapports de revenus revendeur","Formation & certification revendeur","Support dédié prioritaire","Co-marketing inclus"], highlight: true, groupe: "Déploiement SaaS", saas: true, setup: 12000 },
+  { name: "White-label Enterprise", emoji: "🏆", price: 0, prixLabel: "Sur devis", desc: "Solution sur mesure", features: ["Tout White-label Business","Infrastructure dédiée","SLA garanti 99.9%","Développements spécifiques","Intégrations sur mesure","Account manager dédié","Contrat personnalisé"], highlight: false, groupe: "Déploiement SaaS", saas: true, devis: true },
 ];
 
-const GROUPES = ["1 Société", "Multi-Sociétés", "Option"];
+const GROUPES = ["1 Société", "Multi-Sociétés", "Option", "Déploiement SaaS"];
 
 const TAILLES = [
   { label: "1 personne", sub: "Solo" },
@@ -388,10 +392,16 @@ export default function Inscription() {
             <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
               {GROUPES.map(g => (
                 <button key={g} onClick={() => { setSelectedGroupe(g); update("plan", ""); update("planPrice", 0); }} style={{ background: selectedGroupe === g ? "rgba(201,169,110,0.12)" : "rgba(255,255,255,0.02)", border: `1px solid ${selectedGroupe === g ? "#c9a96e" : "rgba(201,169,110,0.15)"}`, color: selectedGroupe === g ? "#c9a96e" : "rgba(240,234,214,0.5)", padding: "8px 18px", cursor: "pointer", fontFamily: "'DM Sans',sans-serif", fontSize: 12, fontWeight: 600, transition: "all 0.2s" }}>
-                  {g === "1 Société" ? "🏠 1 Société" : g === "Multi-Sociétés" ? "🏢 Multi-Sociétés" : "🤝 Options"}
+                  {g === "1 Société" ? "🏠 1 Société" : g === "Multi-Sociétés" ? "🏢 Multi-Sociétés" : g === "Option" ? "🤝 Options" : "🚀 Déploiement SaaS"}
                 </button>
               ))}
             </div>
+
+            {selectedGroupe === "Déploiement SaaS" && (
+              <div style={{ background: "rgba(201,169,110,0.05)", border: "1px solid rgba(201,169,110,0.15)", padding: "10px 14px", marginBottom: 16, fontFamily: "'DM Sans',sans-serif", fontSize: 12, color: "rgba(240,234,214,0.5)" }}>
+                💡 Pour le White-label Enterprise (sur devis), sélectionnez-le et nous vous contacterons pour finaliser votre offre personnalisée.
+              </div>
+            )}
 
             <div className="plans-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10 }}>
               {plansAffiches.map(plan => (
