@@ -868,31 +868,254 @@ const PageWallet=({plan,showToast,profil})=>{
 };
 
 // ─── PAGE CARTES ──────────────────────────────────────────────
-const PageCartes=({showToast})=>{
+const PageCartes=({plan,showToast})=>{
   const[cartes,setCartes]=useState(INIT_CARTES);
-  const[view,setView]=useState("liste");
-  const toggleCarte=(id)=>{setCartes(cs=>cs.map(c=>c.id===id?{...c,statut:c.statut==="active"?"bloquée":"active"}:c));showToast("✅ Statut carte mis à jour");};
+  const[view,setView]=useState("grille");
+  const[onglet,setOnglet]=useState("cartes");
+  const[showForm,setShowForm]=useState(false);
+  const[analyseIA,setAnalyseIA]=useState("");
+  const[iaLoading,setIaLoading]=useState(false);
+  const[alertes,setAlertes]=useState([]);
+  const[newCarte,setNewCarte]=useState({nom:"",limite:1000,devise:"EUR",couleur:C.blue,type:"standard",collaborateur:"",projet:"",ephemere:false});
+
+  // Calcul alertes automatiques
+  useEffect(()=>{
+    const al=cartes.filter(c=>c.statut==="active"&&(c.solde/c.limite)*100>=80).map(c=>({
+      id:c.id,nom:c.nom,pct:Math.round((c.solde/c.limite)*100),reste:c.limite-c.solde,devise:c.devise
+    }));
+    setAlertes(al);
+  },[cartes]);
+
+  const toggleCarte=(id)=>{
+    setCartes(cs=>cs.map(c=>c.id===id?{...c,statut:c.statut==="active"?"bloquée":"active"}:c));
+    showToast("✅ Statut carte mis à jour");
+  };
+
+  const supprimerCarte=(id)=>{
+    setCartes(cs=>cs.filter(c=>c.id!==id));
+    showToast("🗑 Carte supprimée");
+  };
+
+  const creerCarte=()=>{
+    if(!newCarte.nom)return showToast("⚠️ Nom requis");
+    const id="CRD-"+String(Date.now()).slice(-4);
+    const numero=["4532","5261","4111"][Math.floor(Math.random()*3)]+" •••• •••• "+String(Math.floor(1000+Math.random()*9000));
+    const carte={
+      id,nom:newCarte.nom,numero,reseau:"Visa",solde:0,limite:Number(newCarte.limite),
+      statut:newCarte.ephemere?"éphémère":"active",devise:newCarte.devise,
+      type:newCarte.type,couleur:newCarte.couleur,
+      collaborateur:newCarte.collaborateur,projet:newCarte.projet,
+      ephemere:newCarte.ephemere,expiry:"12/28",cvv:"•••"
+    };
+    setCartes(cs=>[...cs,carte]);
+    setShowForm(false);
+    setNewCarte({nom:"",limite:1000,devise:"EUR",couleur:C.blue,type:"standard",collaborateur:"",projet:"",ephemere:false});
+    showToast("💳 Carte créée !");
+  };
+
+  const analyserDepenses=async()=>{
+    setIaLoading(true);
+    try{
+      const resume=cartes.map(c=>`${c.nom}: ${fmt(c.solde)} utilisé sur ${fmt(c.limite)} (${Math.round(c.solde/c.limite*100)}%)`).join(", ");
+      const res=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        model:'claude-sonnet-4-6',max_tokens:300,
+        messages:[{role:'user',content:`Analyse ces dépenses par carte virtuelle et identifie les anomalies ou points d'attention (3-4 phrases, français, concis) : ${resume}. Donne 1 point positif et 1 recommandation concrète.`}]
+      })});
+      const d=await res.json();
+      setAnalyseIA(d.content?.[0]?.text||"");
+    }catch(e){showToast("❌ Analyse indisponible");}
+    setIaLoading(false);
+  };
+
+  const tabs=[
+    {id:"cartes",label:"💳 Mes cartes"},
+    {id:"depenses",label:"📊 Dépenses"},
+    {id:"alertes",label:`🔔 Alertes${alertes.length>0?" ("+alertes.length+")":""}`},
+    {id:"securite",label:"🛡 Sécurité"},
+  ];
+
+  const totalUtilise=cartes.filter(c=>c.devise==="EUR").reduce((a,c)=>a+c.solde,0);
+  const totalLimite=cartes.filter(c=>c.devise==="EUR").reduce((a,c)=>a+c.limite,0);
+  const cartesActives=cartes.filter(c=>c.statut==="active").length;
+
   return <div style={{padding:20}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◈ Cartes Virtuelles</div><div style={{fontSize:11,color:C.muted}}>Visa virtuelles sécurisées · Contrôle total</div></div>
+    {/* HEADER */}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+      <div>
+        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◈ Cartes Virtuelles</div>
+        <div style={{fontSize:11,color:C.muted}}>Visa virtuelles · Contrôle total · Assignation par projet ou collaborateur</div>
+      </div>
       <div style={{display:"flex",gap:8}}>
         <BtnGhost onClick={()=>setView(view==="liste"?"grille":"liste")} style={{fontSize:11}}>{view==="liste"?"⊞ Grille":"☰ Liste"}</BtnGhost>
-        <Btn onClick={()=>showToast("💳 Nouvelle carte créée !")}>+ Nouvelle carte</Btn>
+        <Btn onClick={()=>setShowForm(true)}>+ Nouvelle carte</Btn>
       </div>
     </div>
-    <div style={{display:"grid",gridTemplateColumns:view==="grille"?"repeat(auto-fill,minmax(280px,1fr))":"1fr",gap:12}}>
-      {cartes.map(c=><PayCard key={c.id} carte={c} onToggle={toggleCarte}/>)}
+
+    {/* ALERTES PLAFOND */}
+    {alertes.length>0&&<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:10,padding:12,marginBottom:14}}>
+      <div style={{fontSize:11,fontWeight:700,color:C.orange,marginBottom:6}}>⚠️ {alertes.length} carte(s) proche(s) du plafond</div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        {alertes.map((a,i)=><div key={i} style={{background:`${C.orange}22`,borderRadius:6,padding:"4px 10px",fontSize:11}}>
+          <span style={{color:C.text}}>{a.nom}</span> — <span style={{color:C.orange,fontWeight:700}}>{a.pct}%</span> utilisé · reste {fmt(a.reste)}
+        </div>)}
+      </div>
+    </div>}
+
+    {/* KPIs */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>CARTES ACTIVES</div><div style={{fontSize:22,fontWeight:700,color:C.green}}>{cartesActives}</div></CT>
+      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>TOTAL UTILISÉ (EUR)</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(totalUtilise)}</div></CT>
+      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>LIMITE TOTALE (EUR)</div><div style={{fontSize:18,fontWeight:700,color:C.blue}}>{fmt(totalLimite)}</div></CT>
+      <CT style={{borderColor:`${C.purple}33`}}><div style={{fontSize:9,color:C.muted,marginBottom:4}}>DISPONIBLE (EUR)</div><div style={{fontSize:18,fontWeight:700,color:C.purple}}>{fmt(totalLimite-totalUtilise)}</div></CT>
     </div>
-    <Card style={{marginTop:16}}>
-      <STitle>🛡 Sécurité & Contrôles</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+
+    {/* FORM NOUVELLE CARTE */}
+    {showForm&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
+      <STitle>+ Créer une carte virtuelle</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Nom de la carte *</label><Inp value={newCarte.nom} onChange={e=>setNewCarte(c=>({...c,nom:e.target.value}))} placeholder="Ex: Abou — Missions"/></div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Plafond</label><Inp type="number" value={newCarte.limite} onChange={e=>setNewCarte(c=>({...c,limite:e.target.value}))}/></div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Devise</label>
+          <Sel value={newCarte.devise} onChange={e=>setNewCarte(c=>({...c,devise:e.target.value}))}>
+            {DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}
+          </Sel>
+        </div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Collaborateur</label><Inp value={newCarte.collaborateur} onChange={e=>setNewCarte(c=>({...c,collaborateur:e.target.value}))} placeholder="Thomas, Abou, Fatou..."/></div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Projet / Mission</label><Inp value={newCarte.projet} onChange={e=>setNewCarte(c=>({...c,projet:e.target.value}))} placeholder="Airbnb Paris, Jet Dubaï..."/></div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Type</label>
+          <Sel value={newCarte.type} onChange={e=>setNewCarte(c=>({...c,type:e.target.value}))}>
+            <option value="standard">Standard</option>
+            <option value="ephemere">Éphémère (usage unique)</option>
+            <option value="projet">Par projet</option>
+            <option value="collaborateur">Par collaborateur</option>
+          </Sel>
+        </div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Couleur</label>
+          <input type="color" value={newCarte.couleur} onChange={e=>setNewCarte(c=>({...c,couleur:e.target.value}))} style={{width:"100%",height:38,border:`1px solid ${C.border}`,borderRadius:6,background:"transparent",cursor:"pointer"}}/>
+        </div>
+      </div>
+      {newCarte.type==="ephemere"&&<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:10,marginBottom:10,fontSize:11,color:C.orange}}>
+        ⚡ Carte éphémère — se désactive automatiquement après le premier paiement. Idéal pour les achats ponctuels sécurisés.
+      </div>}
+      <div style={{display:"flex",gap:8}}>
+        <Btn onClick={creerCarte}>💳 Créer la carte</Btn>
+        <BtnGhost onClick={()=>setShowForm(false)}>Annuler</BtnGhost>
+      </div>
+    </Card>}
+
+    {/* TABS */}
+    <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
+      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
+    </div>
+
+    {/* ── MES CARTES ── */}
+    {onglet==="cartes"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:view==="grille"?"repeat(auto-fill,minmax(280px,1fr))":"1fr",gap:12}}>
+        {cartes.map(c=>{
+          const pct=Math.round((c.solde/c.limite)*100);
+          const barColor=pct>=80?C.red:pct>=60?C.orange:C.green;
+          return <div key={c.id} style={{background:`linear-gradient(135deg,${c.couleur||C.blue}22,${C.card})`,border:`1px solid ${c.couleur||C.blue}44`,borderRadius:14,padding:20,position:"relative"}}>
+            {c.statut==="bloquée"&&<div style={{position:"absolute",top:10,right:10}}><Pill color={C.red}>🔒 Bloquée</Pill></div>}
+            {c.statut==="éphémère"&&<div style={{position:"absolute",top:10,right:10}}><Pill color={C.orange}>⚡ Éphémère</Pill></div>}
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+              <div style={{fontSize:12,fontWeight:700,color:C.text}}>{c.nom}</div>
+              <div style={{fontSize:18,color:c.couleur||C.blue}}>{c.reseau==="Visa"?"Visa":"MC"}</div>
+            </div>
+            <div style={{fontFamily:"'Courier New',monospace",fontSize:13,color:C.muted,marginBottom:12,letterSpacing:"0.1em"}}>{c.numero}</div>
+            {c.collaborateur&&<div style={{fontSize:10,color:C.muted,marginBottom:4}}>👤 {c.collaborateur}</div>}
+            {c.projet&&<div style={{fontSize:10,color:C.muted,marginBottom:8}}>📋 {c.projet}</div>}
+            <div style={{marginBottom:8}}>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}>
+                <span style={{color:C.muted}}>Utilisé</span>
+                <span style={{color:barColor,fontWeight:700}}>{fmt(c.solde,c.devise)} / {fmt(c.limite,c.devise)} · {pct}%</span>
+              </div>
+              <div style={{height:4,background:C.border,borderRadius:2,overflow:"hidden"}}>
+                <div style={{height:"100%",width:Math.min(100,pct)+"%",background:barColor,borderRadius:2,transition:"width 0.5s"}}/>
+              </div>
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:10,color:C.muted,marginBottom:12}}>
+              <span>Exp: {c.expiry}</span><span>CVV: {c.cvv}</span><span>{c.devise}</span>
+            </div>
+            <div style={{display:"flex",gap:6}}>
+              <BtnGhost onClick={()=>toggleCarte(c.id)} style={{flex:1,fontSize:10,color:c.statut==="active"?C.orange:C.green}}>
+                {c.statut==="active"?"🔒 Geler":"🔓 Activer"}
+              </BtnGhost>
+              <BtnGhost onClick={()=>{navigator.clipboard?.writeText(c.numero.replace(/•/g,""));showToast("✅ Numéro copié");}} style={{fontSize:10}}>📋</BtnGhost>
+              <BtnGhost onClick={()=>supprimerCarte(c.id)} style={{fontSize:10,color:C.red,borderColor:`${C.red}33`}}>✕</BtnGhost>
+            </div>
+          </div>;
+        })}
+      </div>
+    </div>}
+
+    {/* ── DÉPENSES ── */}
+    {onglet==="depenses"&&<div>
+      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:14,marginBottom:14}}>
+        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Analyse IA des dépenses — Claude</div>
+        {iaLoading?<div style={{fontSize:11,color:C.muted}}>⏳ Analyse en cours...</div>:<div style={{fontSize:12,color:C.text,lineHeight:1.7}}>{analyseIA||"Clique sur Analyser pour obtenir une analyse IA de tes dépenses par carte."}</div>}
+        <BtnGhost onClick={analyserDepenses} style={{marginTop:8,fontSize:10}}>{iaLoading?"⏳...":"🤖 Analyser les dépenses"}</BtnGhost>
+      </div>
+      <Card>
+        <STitle>📊 Utilisation par carte</STitle>
+        {cartes.map((c,i)=>{
+          const pct=Math.round((c.solde/c.limite)*100);
+          return <div key={i} style={{marginBottom:14}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4,alignItems:"center"}}>
+              <div>
+                <span style={{fontWeight:600}}>{c.nom}</span>
+                {c.collaborateur&&<span style={{color:C.muted,fontSize:10}}> · {c.collaborateur}</span>}
+                {c.projet&&<span style={{color:C.blue,fontSize:10}}> · {c.projet}</span>}
+              </div>
+              <div style={{textAlign:"right"}}>
+                <span style={{color:pct>=80?C.red:pct>=60?C.orange:C.green,fontWeight:700}}>{pct}%</span>
+                <span style={{color:C.muted,fontSize:10,marginLeft:8}}>{fmt(c.solde)} / {fmt(c.limite)} {c.devise}</span>
+              </div>
+            </div>
+            <SM val={pct} max={100} color={pct>=80?C.red:pct>=60?C.orange:C.green}/>
+          </div>;
+        })}
+        <div style={{marginTop:14,padding:"10px 12px",background:`${C.blue}11`,border:`1px solid ${C.blue}22`,borderRadius:8,fontSize:11,color:C.text}}>
+          💡 Total utilisé toutes cartes EUR : <b style={{color:C.gold}}>{fmt(totalUtilise)}</b> sur <b>{fmt(totalLimite)}</b> disponibles
+        </div>
+      </Card>
+    </div>}
+
+    {/* ── ALERTES ── */}
+    {onglet==="alertes"&&<div>
+      {alertes.length===0?<Card style={{textAlign:"center",padding:30}}>
+        <div style={{fontSize:32,marginBottom:8}}>✅</div>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:4}}>Aucune alerte active</div>
+        <div style={{fontSize:11,color:C.muted}}>Toutes tes cartes sont en dessous de 80% de leur plafond.</div>
+      </Card>:<div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {alertes.map((a,i)=><div key={i} style={{background:a.pct>=95?`${C.red}11`:`${C.orange}11`,border:`1px solid ${a.pct>=95?C.red:C.orange}33`,borderRadius:10,padding:14}}>
+          <div style={{fontSize:12,fontWeight:700,color:a.pct>=95?C.red:C.orange,marginBottom:4}}>
+            {a.pct>=95?"🔴":"🟡"} {a.nom} — {a.pct}% du plafond utilisé
+          </div>
+          <div style={{fontSize:11,color:C.text}}>Il reste {fmt(a.reste)} {a.devise} disponible. {a.pct>=95?"Plafond presque atteint — gel conseillé.":"Surveille les prochaines dépenses."}</div>
+        </div>)}
+      </div>}
+    </div>}
+
+    {/* ── SÉCURITÉ ── */}
+    {onglet==="securite"&&<Card>
+      <STitle>🛡 Sécurité & Contrôles globaux</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
         <CT><div style={{fontSize:11,fontWeight:600,marginBottom:4}}>Dépenses max/jour</div><Inp placeholder="500 €"/></CT>
         <CT><div style={{fontSize:11,fontWeight:600,marginBottom:4}}>Pays autorisés</div><Inp placeholder="FR, AE, SN..."/></CT>
         <CT><div style={{fontSize:11,fontWeight:600,marginBottom:4}}>Catégories bloquées</div><Inp placeholder="Jeux, alcool..."/></CT>
       </div>
-    </Card>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {[["🔔 Alertes SMS/WhatsApp à chaque transaction",true],["📍 Limitation géographique activée",false],["⏰ Désactivation automatique la nuit (22h-7h)",false],["🔒 Authentification 3D Secure obligatoire",true]].map(([label,actif],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:C.card2,borderRadius:8,fontSize:12}}>
+          <span>{label}</span>
+          <div style={{width:36,height:20,borderRadius:10,background:actif?C.green:C.border,position:"relative",cursor:"pointer"}}>
+            <div style={{width:16,height:16,borderRadius:"50%",background:"#fff",position:"absolute",top:2,left:actif?18:2,transition:"left 0.2s"}}/>
+          </div>
+        </div>)}
+      </div>
+    </Card>}
   </div>;
 };
+
 
 // ─── PAGE ACCUEIL ─────────────────────────────────────────────
 const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
