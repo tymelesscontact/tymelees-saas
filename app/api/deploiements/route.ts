@@ -181,7 +181,7 @@ Commence par "Rapport SaaS Xyra —" et donne 1 insight et 1 priorité.`;
     } catch (e) { console.error('Resend error:', e); }
 
     // Sauvegarder la demande en base
-    await sb.from('revendeur_demandes').insert({ plan_revendeur, nom, email, societe, tel, message, statut: 'nouveau' }).catch(() => {});
+    try { await sb.from('revendeur_demandes').insert({ plan_revendeur, nom, email, societe, tel, message, statut: 'nouveau' }); } catch(e) {}
 
     return NextResponse.json({ success: true });
   }
