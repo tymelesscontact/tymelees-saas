@@ -9983,892 +9983,366 @@ const PageDeploiement=({plan,showToast})=>{
 
 // ─── PAGE API ─────────────────────────────────────────────────
 const PageAPI=({plan,showToast})=>{
-  const[apiKey,setApiKey]=useState("ty_live_••••••••••••••••••••••••••••••••");
-  const tabs=[{id:"keys",label:"🔑 Clés API"},{id:"webhooks",label:"🔔 Webhooks"},{id:"docs",label:"📚 Docs"},{id:"logs",label:"📋 Logs"}];
   const[onglet,setOnglet]=useState("keys");
-  if(!hasAccess(plan,"api"))return <div style={{padding:20}}><UpgradeWall page="API Xyra" plan={plan}/></div>;
-  return <div style={{padding:20}}>
-    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◇ API Xyra</div>
-    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Clés API · Webhooks · Documentation · Logs · Intégrations</div>
-    <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
-    {onglet==="keys"&&<Card>
-      <STitle>🔑 Clés API</STitle>
-      <div style={{background:C.card2,borderRadius:10,padding:16,marginBottom:12,border:`1px solid ${C.border}`}}>
-        <div style={{fontSize:10,color:C.muted,marginBottom:6}}>CLÉ API DE PRODUCTION</div>
-        <div style={{fontFamily:"'Courier New',monospace",fontSize:13,color:C.gold,marginBottom:10}}>{apiKey}</div>
-        <div style={{display:"flex",gap:8}}>
-          <Btn onClick={()=>showToast("✅ Clé API copiée !")} style={{fontSize:11}}>📋 Copier</Btn>
-          <BtnGhost onClick={()=>showToast("🔄 Nouvelle clé générée !")} style={{fontSize:11}}>🔄 Régénérer</BtnGhost>
-        </div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        <KPI label="Appels/mois" val="2 847" color={C.blue}/>
-        <KPI label="Succès" val="99.2%" color={C.green}/>
-        <KPI label="Latence moy." val="234ms" color={C.gold}/>
-      </div>
-    </Card>}
-    {onglet==="webhooks"&&<Card><STitle>🔔 Webhooks configurés</STitle>
-      {[{evt:"paiement.reçu",url:"https://app.xyra.io/webhooks/payment",statut:"actif"},{evt:"devis.signé",url:"https://app.xyra.io/webhooks/devis",statut:"actif"},{evt:"client.nouveau",url:"https://zapier.com/hooks/tymeless/abc123",statut:"actif"}].map((w,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${C.border}`}}>
-        <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><Pill color={C.gold}>{w.evt}</Pill><St s={w.statut}/></div>
-        <div style={{fontSize:10,fontFamily:"monospace",color:C.muted}}>{w.url}</div>
-      </div>)}
-      <Btn onClick={()=>showToast("✅ Webhook ajouté !")} style={{marginTop:8}}>+ Ajouter webhook</Btn>
-    </Card>}
-    {onglet==="docs"&&<Card><STitle>📚 Documentation API</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-        {[["POST /api/devis","Créer un devis",C.gold],["POST /api/paiements","Initier un paiement",C.green],["GET /api/clients","Lister les clients",C.blue],["POST /api/messages","Envoyer WhatsApp",C.teal],["GET /api/planning","Voir le planning",C.purple],["POST /api/contrats","Créer un contrat",C.orange]].map(([ep,desc,c],i)=><CT key={i}><div style={{fontFamily:"monospace",fontSize:11,color:c,marginBottom:3}}>{ep}</div><div style={{fontSize:10,color:C.muted}}>{desc}</div></CT>)}
-      </div>
-    </Card>}
-    {onglet==="logs"&&<Card><STitle>📋 Logs API récents</STitle>
-      {[{m:"POST",ep:"/api/devis",code:200,t:"2ms",dt:"Aujourd'hui 14:32"},{m:"GET",ep:"/api/clients",code:200,t:"8ms",dt:"Aujourd'hui 14:30"},{m:"POST",ep:"/api/paiements",code:200,t:"145ms",dt:"Aujourd'hui 14:28"}].map((l,i)=><div key={i} style={{display:"flex",gap:10,padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11,alignItems:"center"}}>
-        <Pill color={C.blue}>{l.m}</Pill>
-        <span style={{fontFamily:"monospace",color:C.text,flex:1}}>{l.ep}</span>
-        <Pill color={C.green}>{l.code}</Pill>
-        <span style={{color:C.muted}}>{l.t}</span>
-        <span style={{color:C.muted,fontSize:9}}>{l.dt}</span>
-      </div>)}
-    </Card>}
-  </div>;
-};
+  const[data,setData]=useState(null);
+  const[loading,setLoading]=useState(true);
+  const[showKeyForm,setShowKeyForm]=useState(false);
+  const[showWebhookForm,setShowWebhookForm]=useState(false);
+  const[keyForm,setKeyForm]=useState({nom:"",type:"live",permissions:["read","write"]});
+  const[webhookForm,setWebhookForm]=useState({nom:"",url:"",evenements:["paiement.recu"]});
+  const[newKeyValue,setNewKeyValue]=useState("");
+  const[explicationIA,setExplicationIA]=useState({});
+  const[visible,setVisible]=useState({});
 
-// ─── PAGE SETTINGS ────────────────────────────────────────────
-const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
-  const[onglet,setOnglet]=useState("entreprise");
+  const EVENEMENTS_DISPO=["paiement.recu","client.cree","deal.gagne","facture.payee","avis.recu","membre.inscrit","essai.expire","abonnement.annule"];
+  const DOCS_ENDPOINTS=[
+    {methode:"GET",path:"/api/v1/clients",desc:"Liste tous les clients",auth:true},
+    {methode:"GET",path:"/api/v1/clients/:id",desc:"Détail d'un client",auth:true},
+    {methode:"POST",path:"/api/v1/clients",desc:"Créer un client",auth:true},
+    {methode:"GET",path:"/api/v1/factures",desc:"Liste des factures",auth:true},
+    {methode:"POST",path:"/api/v1/factures",desc:"Créer une facture",auth:true},
+    {methode:"GET",path:"/api/v1/wallet/solde",desc:"Solde du wallet",auth:true},
+    {methode:"POST",path:"/api/v1/wallet/virement",desc:"Effectuer un virement",auth:true},
+    {methode:"GET",path:"/api/v1/deals",desc:"Liste des deals",auth:true},
+    {methode:"POST",path:"/api/v1/deals",desc:"Créer un deal",auth:true},
+    {methode:"GET",path:"/api/v1/analytique",desc:"Données analytiques",auth:true},
+    {methode:"POST",path:"/api/v1/webhooks/test",desc:"Tester un webhook",auth:true},
+  ];
 
-  // États formulaires
-  const[entreprise,setEntreprise]=useState({nom:"Xyra SaaS SASU",siren:"123 456 789",tva:"FR12 123456789",adresse:"75 rue de Rivoli",ville:"Paris",cp:"75001",pays:"France",tel:"+33 1 23 45 67 89",email:"contact@xyra.io",site:"xyra.io",logo:""});
-  const[profUser,setProfUser]=useState({prenom:"Curtiss",nom:"Fondateur",email:"curtiss@xyra.io",tel:"+33 6 00 11 22 33",titre:"Fondateur & CEO",avatar:"C"});
-  const[mdp,setMdp]=useState({actuel:"",nouveau:"",confirmer:""});
-  const[mdpVisible,setMdpVisible]=useState({actuel:false,nouveau:false,confirmer:false});
-  const[theme,setTheme]=useState("dark");
-  const[langue,setLangue]=useState("fr");
-  const[deux_fa,setDeuxFa]=useState(true);
-  const[domaine,setDomaine]=useState({sous_domaine:"curtiss",domaine_custom:"",ssl:true,actif:false});
-  const[utilisateurs,setUtilisateurs]=useState([
-    {id:1,nom:"Thomas Beaumont",email:"thomas@xyra.io",role:"Collaborateur",acces:["planning","stock","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 09:02"},
-    {id:2,nom:"Abou Diallo",email:"abou@xyra.io",role:"Collaborateur",acces:["planning","stock","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 08:45"},
-    {id:3,nom:"Fatou Sarr",email:"fatou@xyra.io",role:"Commercial",acces:["crm","devis","clients","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 09:30"},
-  ]);
-  const[inviteForm,setInviteForm]=useState({email:"",role:"Collaborateur"});
-  const[sessions]=useState([{device:"MacBook Pro — Chrome",ip:"92.168.1.1",lieu:"Paris, France",date:"Maintenant",actuelle:true},{device:"iPhone 14 — Safari",ip:"92.168.1.2",lieu:"Paris, France",date:"Il y a 2h",actuelle:false}]);
-  const[logs]=useState([{date:"Aujourd'hui 09:00",action:"Connexion réussie",ip:"92.168.1.1",statut:"ok"},{date:"Hier 18:30",action:"Modification devis TYM-0044",ip:"92.168.1.1",statut:"ok"},{date:"Hier 14:00",action:"Tentative connexion échouée",ip:"203.45.67.89",statut:"echec"}]);
+  const load=async()=>{
+    setLoading(true);
+    try{
+      const res=await fetch('/api/api-xyra?action=all');
+      const d=await res.json();
+      setData(d);
+    }catch(e){console.error(e);}
+    setLoading(false);
+  };
+
+  useEffect(()=>{load();},[]);
+
+  const creerKey=async()=>{
+    if(!keyForm.nom)return showToast("⚠️ Nom requis");
+    try{
+      const res=await fetch('/api/api-xyra',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create_key',...keyForm})});
+      const d=await res.json();
+      if(d.success){
+        setNewKeyValue(d.key_value);
+        showToast("🔑 Clé créée ! Copiez-la maintenant, elle ne sera plus visible après.");
+        setShowKeyForm(false);setKeyForm({nom:"",type:"live",permissions:["read","write"]});load();
+      }
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const revoquerKey=async(id)=>{
+    if(!confirm("Révoquer cette clé ? Toutes les intégrations utilisant cette clé seront interrompues."))return;
+    try{
+      await fetch('/api/api-xyra',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'revoquer_key',id})});
+      showToast("🔒 Clé révoquée");load();
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const creerWebhook=async()=>{
+    if(!webhookForm.nom||!webhookForm.url)return showToast("⚠️ Nom et URL requis");
+    try{
+      const res=await fetch('/api/api-xyra',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create_webhook',...webhookForm})});
+      const d=await res.json();
+      if(d.success){showToast("✅ Webhook créé");setShowWebhookForm(false);setWebhookForm({nom:"",url:"",evenements:["paiement.recu"]});load();}
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const testerWebhook=async(wh)=>{
+    showToast("⏳ Test du webhook...");
+    try{
+      const res=await fetch('/api/api-xyra',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'tester_webhook',url:wh.url,secret:wh.secret})});
+      const d=await res.json();
+      showToast(d.success?`✅ Webhook OK (${d.status})`:`❌ Webhook KO (${d.status})`);
+    }catch(e){showToast("❌ Erreur réseau");}
+  };
+
+  const expliquerErreur=async(log)=>{
+    try{
+      const res=await fetch('/api/api-xyra',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'expliquer_erreur',code:log.statut_code,endpoint:log.endpoint,message:`Erreur ${log.statut_code} sur ${log.methode} ${log.endpoint}`})});
+      const d=await res.json();
+      if(d.success)setExplicationIA(e=>({...e,[log.id]:d.explication}));
+    }catch(e){}
+  };
+
+  if(!hasAccess(plan,"deploiement"))return <div style={{padding:20}}><UpgradeWall page="API Xyra" plan={plan}/></div>;
+  if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement API...</div></div>;
+
+  const keys=data?.keys||[];
+  const webhooks=data?.webhooks||[];
+  const logs=data?.logs||[];
+  const tauxSucces=data?.tauxSucces||100;
+  const latenceMoy=data?.latenceMoy||0;
 
   const tabs=[
-    {id:"entreprise",label:"🏢 Entreprise"},
-    {id:"profil",label:"👤 Mon profil"},
-    {id:"mdp",label:"🔑 Mot de passe"},
-    {id:"abonnement",label:"💳 Abonnement"},
-    {id:"apparence",label:"🎨 Apparence"},
-    {id:"securite",label:"🛡 Sécurité"},
+    {id:"keys",label:"🔑 Clés API"},
+    {id:"webhooks",label:"🔔 Webhooks"},
+    {id:"logs",label:"📋 Logs"},
+    {id:"docs",label:"📚 Documentation"},
     {id:"integrations",label:"🔗 Intégrations"},
-    {id:"ia",label:"🤖 IA & Claude"},
-    {id:"notifications_param",label:"🔔 Notifications"},
-    {id:"secteur",label:"⊛ Secteur métier"},
-    {id:"utilisateurs",label:"👥 Utilisateurs"},
-    {id:"domaine",label:"🌍 Domaine & White-label"},
-    {id:"rgpd",label:"🔒 RGPD"},
+    {id:"sante",label:"❤ Santé API"},
   ];
 
-  const ROLES=["Fondateur","Admin","Commercial","Collaborateur","Comptable","Lecture seule"];
-  const INTEGRATIONS=[
-    {nom:"Meta WhatsApp API",icon:"💬",statut:true,color:C.green,desc:"Bot WhatsApp + notifications automatiques"},
-    {nom:"Flutterwave",icon:"💳",statut:true,color:C.gold,desc:"Paiements cartes, mobile money Afrique"},
-    {nom:"CinetPay",icon:"🌍",statut:true,color:C.teal,desc:"Wave, Orange Money, MTN — Afrique francophone"},
-    {nom:"Stripe",icon:"💳",statut:false,color:C.blue,desc:"Paiements cartes Europe & international"},
-    {nom:"Supabase",icon:"🗄",statut:true,color:C.green,desc:"Base de données & authentification"},
-    {nom:"Vercel",icon:"▲",statut:true,color:C.text,desc:"Déploiement & hébergement"},
-    {nom:"Google Calendar",icon:"📅",statut:false,color:C.blue,desc:"Synchronisation planning & agenda"},
-    {nom:"Zapier",icon:"⚡",statut:false,color:C.orange,desc:"Automatisations vers 5000+ apps"},
-    {nom:"Anthropic Claude",icon:"🤖",statut:!!sirApiKey,color:C.purple,desc:"IA analyses, rédaction, recommandations"},
-    {nom:"Chorus Pro",icon:"🇫🇷",statut:true,color:C.blue,desc:"Facturation électronique DGFiP"},
-  ];
+  const methodeColor={GET:C.green,POST:C.blue,PUT:C.orange,DELETE:C.red,PATCH:C.purple};
 
   return <div style={{padding:20}}>
-    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>⚙ Paramètres</div>
-    <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Gérez tous les aspects de votre compte Xyra</div>
+    {/* HEADER */}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+      <div>
+        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>⚡ API Xyra</div>
+        <div style={{fontSize:11,color:C.muted}}>Clés API · Webhooks · Logs · Documentation · Intégrations Zapier/Make</div>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        {(()=>{
+          const c=tauxSucces>=99?C.green:tauxSucces>=95?C.gold:C.red;
+          const icon=tauxSucces>=99?"🟢":tauxSucces>=95?"🟡":"🔴";
+          return <div style={{background:`${c}22`,border:`1px solid ${c}44`,borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700,color:c}}>{icon} {tauxSucces}% uptime</div>;
+        })()}
+      </div>
+    </div>
 
-    {/* TABS SCROLLABLE */}
+    {/* KPIs */}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
+      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>CLÉS ACTIVES</div><div style={{fontSize:22,fontWeight:700,color:C.green}}>{keys.length}</div></CT>
+      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>WEBHOOKS</div><div style={{fontSize:22,fontWeight:700,color:C.blue}}>{webhooks.length}</div></CT>
+      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>APPELS TOTAL</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{(data?.totalAppels||0).toLocaleString("fr")}</div></CT>
+      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>TAUX SUCCÈS</div><div style={{fontSize:18,fontWeight:700,color:tauxSucces>=99?C.green:C.orange}}>{tauxSucces}%</div></CT>
+      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>LATENCE MOY.</div><div style={{fontSize:18,fontWeight:700,color:latenceMoy<200?C.green:latenceMoy<500?C.gold:C.red}}>{latenceMoy}ms</div></CT>
+    </div>
+
+    {/* NOUVELLE CLÉ VISIBLE */}
+    {newKeyValue&&<div style={{background:`${C.gold}11`,border:`2px solid ${C.gold}`,borderRadius:10,padding:16,marginBottom:14}}>
+      <div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:8}}>🔑 Votre nouvelle clé API — Copiez-la maintenant, elle ne sera plus visible !</div>
+      <div style={{background:C.dark,borderRadius:6,padding:"10px 14px",fontFamily:"'Courier New',monospace",fontSize:13,color:C.green,marginBottom:10,wordBreak:"break-all"}}>{newKeyValue}</div>
+      <div style={{display:"flex",gap:8}}>
+        <Btn onClick={()=>{navigator.clipboard?.writeText(newKeyValue);showToast("✅ Clé copiée !");}} style={{background:C.gold,color:"#000"}}>📋 Copier la clé</Btn>
+        <BtnGhost onClick={()=>setNewKeyValue("")} style={{fontSize:11}}>✕ Fermer</BtnGhost>
+      </div>
+    </div>}
+
+    {/* TABS */}
     <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
       {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
     </div>
 
-    {/* ── ENTREPRISE ── */}
-    {onglet==="entreprise"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-      <Card>
-        <STitle>🏢 Informations légales</STitle>
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {[["Raison sociale *","nom"],["SIREN","siren"],["Numéro TVA","tva"],["Email professionnel","email"],["Téléphone","tel"],["Site web","site"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={entreprise[k]} onChange={e=>setEntreprise(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
-        </div>
-      </Card>
-      <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        <Card>
-          <STitle>📍 Adresse du siège</STitle>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            {[["Adresse","adresse"],["Ville","ville"],["Code postal","cp"],["Pays","pays"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={entreprise[k]} onChange={e=>setEntreprise(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
-          </div>
-        </Card>
-        <Card>
-          <STitle>🖼 Logo de l'entreprise</STitle>
-          <div style={{background:C.card2,borderRadius:10,padding:20,textAlign:"center",border:`2px dashed ${C.border}`,marginBottom:10}}>
-            <div style={{fontSize:32,marginBottom:6}}>🏢</div>
-            <div style={{fontSize:11,color:C.muted}}>Glissez votre logo ici ou cliquez pour choisir</div>
-            <div style={{fontSize:9,color:C.muted,marginTop:4}}>PNG, JPG — max 2MB</div>
-          </div>
-          <Btn onClick={()=>showToast("✅ Logo uploadé !")} style={{width:"100%"}}>📁 Choisir un fichier</Btn>
-        </Card>
-        <Btn onClick={()=>showToast("✅ Informations entreprise sauvegardées !")}>Sauvegarder les modifications</Btn>
+    {/* ── CLÉS API ── */}
+    {onglet==="keys"&&<div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+        <Btn onClick={()=>setShowKeyForm(true)}>+ Générer une clé API</Btn>
       </div>
-    </div>}
-
-    {/* ── PROFIL ── */}
-    {onglet==="profil"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-      <Card>
-        <STitle>👤 Mon profil</STitle>
-        <div style={{textAlign:"center",marginBottom:16}}>
-          <div style={{width:80,height:80,borderRadius:"50%",background:`${C.gold}22`,border:`3px solid ${C.gold}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,fontWeight:700,color:C.gold,margin:"0 auto 10px"}}>
-            {profUser.avatar}
-          </div>
-          <BtnGhost onClick={()=>showToast("📸 Photo modifiée !")} style={{fontSize:11}}>📸 Changer la photo</BtnGhost>
+      {showKeyForm&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
+        <STitle>🔑 Nouvelle clé API</STitle>
+        <div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:10,marginBottom:12,fontSize:11,color:C.orange}}>
+          ⚠️ La clé complète ne sera affichée qu'une seule fois après création. Copiez-la immédiatement et stockez-la en sécurité.
         </div>
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {[["Prénom *","prenom"],["Nom *","nom"],["Email *","email"],["Téléphone","tel"],["Titre / Fonction","titre"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={profUser[k]} onChange={e=>setProfUser(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
-        </div>
-        <Btn onClick={()=>showToast("✅ Profil sauvegardé !")} style={{marginTop:12,width:"100%"}}>Sauvegarder le profil</Btn>
-      </Card>
-      <Card>
-        <STitle>📊 Infos du compte</STitle>
-        {[["Plan actuel",PLANS[plan]?.nom+" — "+PLANS[plan]?.prix],["Membre depuis","01/03/2024"],["Dernière connexion","Aujourd'hui 09:00"],["Rôle","Fondateur & Owner"],["Dashboard URL","xyraio.fr"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600,color:i===0?C.gold:C.text}}>{v}</span></div>)}
-        <div style={{marginTop:12,background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:8,padding:10,fontSize:11,color:C.green}}>✅ Compte Owner — Accès complet à toutes les fonctionnalités</div>
-      </Card>
-    </div>}
-
-    {/* ── MOT DE PASSE ── */}
-    {onglet==="mdp"&&<div style={{maxWidth:480}}>
-      <Card>
-        <STitle>🔑 Changer le mot de passe</STitle>
-        <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          {[["Mot de passe actuel *","actuel"],["Nouveau mot de passe *","nouveau"],["Confirmer le nouveau mot de passe *","confirmer"]].map(([l,k])=><div key={k}>
-            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label>
-            <div style={{position:"relative"}}>
-              <input type={mdpVisible[k]?"text":"password"} value={mdp[k]} onChange={e=>setMdp(f=>({...f,[k]:e.target.value}))} placeholder="••••••••" style={{background:C.card2,border:`1px solid ${mdp.nouveau&&k==="confirmer"&&mdp.nouveau!==mdp.confirmer?C.red:C.border}`,borderRadius:8,padding:"10px 40px 10px 12px",color:C.text,fontSize:13,fontFamily:"inherit",outline:"none",width:"100%",boxSizing:"border-box"}}/>
-              <button onClick={()=>setMdpVisible(v=>({...v,[k]:!v[k]}))} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:14}}>{mdpVisible[k]?"🙈":"👁"}</button>
-            </div>
-            {k==="confirmer"&&mdp.nouveau&&mdp.confirmer&&mdp.nouveau!==mdp.confirmer&&<div style={{fontSize:10,color:C.red,marginTop:3}}>⚠️ Les mots de passe ne correspondent pas</div>}
-          </div>)}
-          {/* Force du mot de passe */}
-          {mdp.nouveau&&<div>
-            <div style={{fontSize:10,color:C.muted,marginBottom:4}}>Force du mot de passe</div>
-            <div style={{height:4,borderRadius:2,background:C.border,overflow:"hidden"}}>
-              <div style={{height:"100%",width:mdp.nouveau.length<6?"33%":mdp.nouveau.length<10?"66%":"100%",background:mdp.nouveau.length<6?C.red:mdp.nouveau.length<10?C.orange:C.green,borderRadius:2,transition:"width .3s"}}/>
-            </div>
-            <div style={{fontSize:10,color:mdp.nouveau.length<6?C.red:mdp.nouveau.length<10?C.orange:C.green,marginTop:2}}>{mdp.nouveau.length<6?"Trop court":mdp.nouveau.length<10?"Moyen":"Fort ✅"}</div>
-          </div>}
-          <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}22`,borderRadius:8,padding:10,fontSize:11,color:C.muted}}>
-            💡 Conseils : min. 8 caractères, mélangez majuscules, minuscules, chiffres et symboles
-          </div>
-          <Btn onClick={async()=>{if(!mdp.actuel)return showToast("⚠️ Entrez votre mot de passe actuel");if(mdp.nouveau!==mdp.confirmer)return showToast("⚠️ Les mots de passe ne correspondent pas");if(mdp.nouveau.length<8)return showToast("⚠️ Minimum 8 caractères");const token=typeof window!=="undefined"?window.localStorage.getItem("sb-access-token"):null;if(!token)return showToast("⚠️ Session expirée, reconnecte-toi");showToast("⏳ Modification en cours...");try{const res=await fetch('/api/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,currentPassword:mdp.actuel,newPassword:mdp.nouveau})});const data=await res.json();if(data.success){showToast("✅ Mot de passe modifié avec succès !");setMdp({actuel:"",nouveau:"",confirmer:""});}else showToast("❌ "+(data.error||"Erreur"));}catch(e){showToast("❌ Erreur de connexion");}}}>🔑 Modifier le mot de passe</Btn>
-        </div>
-      </Card>
-    </div>}
-
-    {/* ── ABONNEMENT ── */}
-    {onglet==="abonnement"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:14}}>
-        {Object.values(PLANS).filter(p=>p.id!=="owner").map((p,i)=><Card key={i} style={{borderColor:`${p.color}44`,background:plan===p.id?`${p.color}08`:"transparent"}}>
-          <div style={{textAlign:"center",marginBottom:12}}>
-            <div style={{fontSize:24,marginBottom:4}}>{p.icon}</div>
-            <div style={{fontSize:16,fontWeight:700,color:p.color}}>{p.nom}</div>
-            <div style={{fontSize:22,fontWeight:700,color:C.text,margin:"8px 0"}}>{p.prix}</div>
-            <div style={{fontSize:11,color:C.muted}}>{p.description}</div>
-          </div>
-          {plan===p.id?<div style={{background:`${p.color}22`,border:`1px solid ${p.color}44`,borderRadius:8,padding:8,textAlign:"center",fontSize:11,color:p.color,fontWeight:700}}>✓ Plan actuel</div>:<Btn onClick={()=>showToast(`✅ Passage à ${p.nom} initié — Paiement Flutterwave`)} color={p.color} style={{width:"100%",color:p.id==="business"?"#000":"#fff"}}>Passer à ce plan</Btn>}
-        </Card>)}
-      </div>
-      <Card>
-        <STitle>📋 Historique de facturation</STitle>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Date</TH><TH>Description</TH><TH>Montant</TH><TH>Statut</TH><TH>Action</TH></tr></thead>
-          <tbody>{[{date:"01/05/2026",desc:"Abonnement Owner — Mai 2026",montant:"—",statut:"owner"},{date:"01/04/2026",desc:"Abonnement Owner — Avril 2026",montant:"—",statut:"owner"},{date:"01/03/2026",desc:"Setup initial Xyra",montant:"0 €",statut:"payé"}].map((f,i)=><tr key={i}>
-            <Td style={{color:C.muted,fontSize:10}}>{f.date}</Td>
-            <Td style={{fontWeight:600}}>{f.desc}</Td>
-            <Td style={{color:C.gold,fontWeight:700}}>{f.montant}</Td>
-            <Td><Pill color={C.green}>✓ {f.statut}</Pill></Td>
-            <Td><BtnGhost onClick={()=>showToast("📄 Facture téléchargée")} style={{fontSize:10,padding:"3px 8px"}}>PDF</BtnGhost></Td>
-          </tr>)}</tbody>
-        </table>
-      </Card>
-    </div>}
-
-    {/* ── APPARENCE ── */}
-    {onglet==="apparence"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-      <Card>
-        <STitle>🎨 Thème & Couleurs</STitle>
-        <div style={{marginBottom:14}}>
-          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:8}}>Thème de l'interface</label>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {[{id:"dark",label:"🌙 Sombre",desc:"Mode nuit — recommandé"},{id:"light",label:"☀️ Clair",desc:"Mode jour"}].map(t=><div key={t.id} onClick={()=>setTheme(t.id)} style={{background:theme===t.id?`${C.gold}15`:C.card2,border:`2px solid ${theme===t.id?C.gold:C.border}`,borderRadius:10,padding:12,cursor:"pointer",textAlign:"center"}}>
-              <div style={{fontSize:20,marginBottom:4}}>{t.label.split(" ")[0]}</div>
-              <div style={{fontSize:11,fontWeight:theme===t.id?700:400,color:theme===t.id?C.gold:C.text}}>{t.label.split(" ").slice(1).join(" ")}</div>
-              <div style={{fontSize:9,color:C.muted}}>{t.desc}</div>
-            </div>)}
-          </div>
-        </div>
-        <div style={{marginBottom:14}}>
-          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:8}}>Couleur d'accentuation</label>
-          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {[{c:"#C9A84C",n:"Or (défaut)"},{c:"#4B7BFF",n:"Bleu"},{c:"#2EC9B0",n:"Teal"},{c:"#9B5FFF",n:"Violet"},{c:"#FF5F9E",n:"Rose"},{c:"#FF8C3A",n:"Orange"}].map((col,i)=><div key={i} onClick={()=>showToast(`✅ Couleur "${col.n}" appliquée`)} style={{width:32,height:32,borderRadius:"50%",background:col.c,cursor:"pointer",border:`3px solid ${col.c===C.gold?"#fff":"transparent"}`,title:col.n}}/>)}
-          </div>
-        </div>
-        <Btn onClick={()=>showToast("✅ Apparence sauvegardée !")}>Sauvegarder l'apparence</Btn>
-      </Card>
-      <Card>
-        <STitle>🌍 Langue & Région</STitle>
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Langue de l'interface</label>
-            <Sel value={langue} onChange={e=>setLangue(e.target.value)} style={{width:"100%"}}>
-              <option value="fr">🇫🇷 Français</option><option value="en">🇬🇧 English</option><option value="ar">🇲🇦 العربية</option><option value="wo">🇸🇳 Wolof</option>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Nom de la clé *</label><Inp value={keyForm.nom} onChange={e=>setKeyForm(f=>({...f,nom:e.target.value}))} placeholder="Ex: Integration Zapier, App Mobile..."/></div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Environnement</label>
+            <Sel value={keyForm.type} onChange={e=>setKeyForm(f=>({...f,type:e.target.value}))}>
+              <option value="live">🟢 Live (production)</option>
+              <option value="test">🧪 Test (sandbox)</option>
             </Sel>
           </div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Format de date</label>
-            <Sel style={{width:"100%"}}><option>JJ/MM/AAAA (France)</option><option>MM/DD/YYYY (USA)</option></Sel>
-          </div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Fuseau horaire</label>
-            <Sel style={{width:"100%"}}><option>Europe/Paris (UTC+2)</option><option>Africa/Dakar (UTC+0)</option><option>Asia/Dubai (UTC+4)</option><option>America/Montreal (UTC-4)</option></Sel>
-          </div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Devise d'affichage par défaut</label>
-            <Sel style={{width:"100%"}}>{DEVISES.slice(0,5).map(d=><option key={d.code}>{d.flag} {d.code} — {d.nom}</option>)}</Sel>
+          <div style={{gridColumn:"1/-1"}}>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:6}}>Permissions</label>
+            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+              {["read","write","webhooks","admin"].map(p=><label key={p} style={{display:"flex",gap:6,alignItems:"center",fontSize:12,cursor:"pointer"}}>
+                <input type="checkbox" checked={keyForm.permissions.includes(p)} onChange={e=>{const perms=e.target.checked?[...keyForm.permissions,p]:keyForm.permissions.filter(x=>x!==p);setKeyForm(f=>({...f,permissions:perms}));}} style={{accentColor:C.gold}}/>
+                <span style={{color:C.text,textTransform:"capitalize"}}>{p}</span>
+              </label>)}
+            </div>
           </div>
         </div>
-      </Card>
+        <div style={{display:"flex",gap:8}}><Btn onClick={creerKey}>🔑 Générer la clé</Btn><BtnGhost onClick={()=>setShowKeyForm(false)}>Annuler</BtnGhost></div>
+      </Card>}
+      {keys.length===0?<Card style={{textAlign:"center",padding:30}}>
+        <div style={{fontSize:32,marginBottom:8}}>🔑</div>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Aucune clé API</div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Créez une clé API pour connecter Xyra à vos outils externes.</div>
+        <Btn onClick={()=>setShowKeyForm(true)}>+ Générer une clé API</Btn>
+      </Card>:
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {keys.map((k,i)=><Card key={i} style={{borderColor:k.type==="test"?`${C.blue}33`:`${C.green}33`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+            <div style={{flex:1}}>
+              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}>
+                <div style={{fontSize:13,fontWeight:700}}>{k.nom}</div>
+                <Pill color={k.type==="test"?C.blue:C.green}>{k.type==="test"?"🧪 Test":"🟢 Live"}</Pill>
+                {k.permissions?.map(p=><Pill key={p} color={C.muted}>{p}</Pill>)}
+              </div>
+              <div style={{fontFamily:"'Courier New',monospace",fontSize:12,color:C.muted,marginBottom:4}}>
+                {visible[k.id]?k.key_value:(k.key_value?.slice(0,12)+"••••••••••••••••••••••••"||"ty_live_••••••••••••••")}
+              </div>
+              <div style={{fontSize:10,color:C.muted}}>
+                {k.appels_mois||0}/{k.limite_mois||10000} appels ce mois · Dernière utilisation : {k.derniere_utilisation?new Date(k.derniere_utilisation).toLocaleDateString("fr"):"jamais"}
+              </div>
+              <SM val={k.appels_mois||0} max={k.limite_mois||10000} color={((k.appels_mois||0)/(k.limite_mois||10000))>=0.8?C.orange:C.green}/>
+            </div>
+            <div style={{display:"flex",gap:6,marginLeft:12}}>
+              <BtnGhost onClick={()=>setVisible(v=>({...v,[k.id]:!v[k.id]}))} style={{fontSize:10}}>{visible[k.id]?"🙈":"👁"}</BtnGhost>
+              <BtnGhost onClick={()=>{navigator.clipboard?.writeText(k.key_value||"");showToast("✅ Clé copiée");}} style={{fontSize:10}}>📋</BtnGhost>
+              <BtnGhost onClick={()=>revoquerKey(k.id)} style={{fontSize:10,color:C.red,borderColor:`${C.red}33`}}>🔒 Révoquer</BtnGhost>
+            </div>
+          </div>
+        </Card>)}
+      </div>}
     </div>}
 
-    {/* ── SÉCURITÉ ── */}
-    {onglet==="securite"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-        <Card>
-          <STitle>🔐 Authentification à 2 facteurs</STitle>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <div><div style={{fontSize:12,fontWeight:700}}>2FA par SMS</div><div style={{fontSize:10,color:C.muted}}>+33 6 00 11 22 33</div></div>
-            <div onClick={()=>setDeuxFa(v=>!v)} style={{width:44,height:24,borderRadius:12,background:deux_fa?C.green:C.border,cursor:"pointer",position:"relative",transition:".2s"}}>
-              <div style={{position:"absolute",top:3,left:deux_fa?21:3,width:18,height:18,borderRadius:"50%",background:"#fff",transition:".2s"}}/>
-            </div>
-          </div>
-          {deux_fa?<div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:8,padding:10,fontSize:11,color:C.green}}>✅ 2FA activée — Votre compte est sécurisé</div>:<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:10,fontSize:11,color:C.orange}}>⚠️ 2FA désactivée — Recommandé de l'activer</div>}
-          <div style={{marginTop:10,display:"flex",gap:8}}>
-            <BtnGhost onClick={()=>showToast("📱 Code de test envoyé par SMS")} style={{flex:1,fontSize:11}}>Tester le 2FA</BtnGhost>
-            <BtnGhost onClick={()=>showToast("🔑 Codes de secours téléchargés")} style={{flex:1,fontSize:11}}>Codes secours</BtnGhost>
-          </div>
-        </Card>
-        <Card>
-          <STitle>💻 Sessions actives</STitle>
-          {sessions.map((s,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${s.actuelle?C.green:C.border}33`}}>
-            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-              <div style={{fontSize:11,fontWeight:700}}>{s.device}</div>
-              {s.actuelle&&<Pill color={C.green}>● Session actuelle</Pill>}
-            </div>
-            <div style={{fontSize:10,color:C.muted}}>📍 {s.lieu} · 🌐 {s.ip}</div>
-            <div style={{fontSize:10,color:C.muted,marginBottom:6}}>🕐 {s.date}</div>
-            {!s.actuelle&&<BtnGhost onClick={()=>showToast("✅ Session révoquée")} style={{fontSize:10,padding:"3px 8px",color:C.red}}>Révoquer</BtnGhost>}
-          </div>)}
-          <BtnGhost onClick={()=>showToast("✅ Toutes les autres sessions révoquées")} style={{width:"100%",fontSize:11,color:C.red}}>Déconnecter toutes les autres sessions</BtnGhost>
-        </Card>
+    {/* ── WEBHOOKS ── */}
+    {onglet==="webhooks"&&<div>
+      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
+        <Btn onClick={()=>setShowWebhookForm(true)}>+ Ajouter un webhook</Btn>
       </div>
-      <Card>
-        <STitle>📋 Journaux de connexion</STitle>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Date & Heure</TH><TH>Action</TH><TH>Adresse IP</TH><TH>Statut</TH></tr></thead>
-          <tbody>{logs.map((l,i)=><tr key={i}>
-            <Td style={{color:C.muted,fontSize:10}}>{l.date}</Td>
-            <Td style={{fontWeight:600}}>{l.action}</Td>
-            <Td style={{fontFamily:"monospace",fontSize:10,color:C.muted}}>{l.ip}</Td>
-            <Td><Pill color={l.statut==="ok"?C.green:C.red}>{l.statut==="ok"?"✓ Succès":"✗ Échec"}</Pill></Td>
+      {showWebhookForm&&<Card style={{marginBottom:14,borderColor:`${C.blue}44`}}>
+        <STitle>🔔 Nouveau webhook</STitle>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Nom *</label><Inp value={webhookForm.nom} onChange={e=>setWebhookForm(f=>({...f,nom:e.target.value}))} placeholder="Ex: Zapier Nouveaux clients"/></div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>URL endpoint *</label><Inp value={webhookForm.url} onChange={e=>setWebhookForm(f=>({...f,url:e.target.value}))} placeholder="https://hooks.zapier.com/..."/></div>
+          <div style={{gridColumn:"1/-1"}}>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:6}}>Événements à écouter</label>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {EVENEMENTS_DISPO.map(evt=><label key={evt} style={{display:"flex",gap:6,alignItems:"center",fontSize:11,cursor:"pointer",background:webhookForm.evenements.includes(evt)?`${C.blue}15`:"transparent",border:`1px solid ${webhookForm.evenements.includes(evt)?C.blue:C.border}`,borderRadius:6,padding:"4px 10px"}}>
+                <input type="checkbox" checked={webhookForm.evenements.includes(evt)} onChange={e=>{const evts=e.target.checked?[...webhookForm.evenements,evt]:webhookForm.evenements.filter(x=>x!==evt);setWebhookForm(f=>({...f,evenements:evts}));}} style={{accentColor:C.blue}}/>
+                <span style={{color:webhookForm.evenements.includes(evt)?C.blue:C.muted}}>{evt}</span>
+              </label>)}
+            </div>
+          </div>
+        </div>
+        <div style={{display:"flex",gap:8}}><Btn onClick={creerWebhook} style={{background:C.blue}}>✅ Créer le webhook</Btn><BtnGhost onClick={()=>setShowWebhookForm(false)}>Annuler</BtnGhost></div>
+      </Card>}
+      {webhooks.length===0?<Card style={{textAlign:"center",padding:30}}>
+        <div style={{fontSize:32,marginBottom:8}}>🔔</div>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Aucun webhook</div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Configurez des webhooks pour envoyer des événements Xyra vers vos outils (Zapier, Make, votre serveur...).</div>
+        <Btn onClick={()=>setShowWebhookForm(true)}>+ Ajouter un webhook</Btn>
+      </Card>:
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {webhooks.map((wh,i)=><Card key={i} style={{borderColor:wh.statut==="actif"?`${C.green}33`:`${C.border}`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div>
+              <div style={{fontSize:13,fontWeight:700,marginBottom:2}}>{wh.nom}</div>
+              <div style={{fontSize:11,color:C.muted,fontFamily:"'Courier New',monospace"}}>{wh.url}</div>
+            </div>
+            <div style={{display:"flex",gap:6,alignItems:"center"}}>
+              <Pill color={wh.statut==="actif"?C.green:C.muted}>{wh.statut}</Pill>
+              <BtnGhost onClick={()=>testerWebhook(wh)} style={{fontSize:10}}>🧪 Tester</BtnGhost>
+              <BtnGhost onClick={()=>fetch('/api/api-xyra',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'toggle_webhook',id:wh.id,statut_actuel:wh.statut})}).then(()=>{showToast("✅ Statut mis à jour");load();})} style={{fontSize:10,color:wh.statut==="actif"?C.orange:C.green}}>{wh.statut==="actif"?"Désactiver":"Activer"}</BtnGhost>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+            {(wh.evenements||[]).map((evt,j)=><Pill key={j} color={C.blue}>{evt}</Pill>)}
+          </div>
+          {wh.secret&&<div style={{marginTop:8,fontSize:10,color:C.muted}}>Secret : <span style={{fontFamily:"'Courier New',monospace"}}>{wh.secret.slice(0,16)}•••</span></div>}
+        </Card>)}
+      </div>}
+    </div>}
+
+    {/* ── LOGS ── */}
+    {onglet==="logs"&&<Card>
+      <STitle>📋 Logs des appels API — 50 derniers</STitle>
+      {logs.length===0?<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:20}}>Aucun appel API enregistré pour le moment.</div>:
+      <div style={{overflowX:"auto"}}>
+        <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
+          <thead><tr><TH>Date</TH><TH>Méthode</TH><TH>Endpoint</TH><TH>Status</TH><TH>Durée</TH><TH>Action</TH></tr></thead>
+          <tbody>{logs.map((l,i)=><tr key={i} style={{background:l.statut_code>=400?`${C.red}08`:"transparent"}}>
+            <Td style={{fontSize:10,color:C.muted}}>{new Date(l.created_at).toLocaleDateString("fr")} {new Date(l.created_at).toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"})}</Td>
+            <Td><Pill color={methodeColor[l.methode]||C.blue}>{l.methode}</Pill></Td>
+            <Td style={{fontFamily:"'Courier New',monospace",fontSize:11}}>{l.endpoint}</Td>
+            <Td><Pill color={l.statut_code<300?C.green:l.statut_code<400?C.gold:C.red}>{l.statut_code}</Pill></Td>
+            <Td style={{fontSize:11,color:l.duree_ms>500?C.orange:C.muted}}>{l.duree_ms||0}ms</Td>
+            <Td>
+              {l.statut_code>=400&&<div>
+                <BtnGhost onClick={()=>expliquerErreur(l)} style={{fontSize:10,color:C.purple}}>🤖 Expliquer</BtnGhost>
+                {explicationIA[l.id]&&<div style={{fontSize:10,color:C.text,marginTop:4,background:`${C.purple}11`,borderRadius:6,padding:"4px 8px",maxWidth:200,lineHeight:1.5}}>{explicationIA[l.id]}</div>}
+              </div>}
+            </Td>
           </tr>)}</tbody>
         </table>
+      </div>}
+    </Card>}
+
+    {/* ── DOCUMENTATION ── */}
+    {onglet==="docs"&&<div>
+      <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:10,padding:14,marginBottom:14}}>
+        <div style={{fontSize:12,fontWeight:700,color:C.blue,marginBottom:6}}>🌐 URL de base</div>
+        <div style={{fontFamily:"'Courier New',monospace",fontSize:13,color:C.text}}>https://xyraio.fr/api/v1</div>
+        <div style={{fontSize:11,color:C.muted,marginTop:4}}>Authentification : Header <code style={{background:C.dark,padding:"2px 6px",borderRadius:4}}>Authorization: Bearer ty_live_...</code></div>
+      </div>
+      <Card>
+        <STitle>📚 Endpoints disponibles</STitle>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Méthode</TH><TH>Endpoint</TH><TH>Description</TH><TH>Auth</TH></tr></thead>
+          <tbody>{DOCS_ENDPOINTS.map((e,i)=><tr key={i}>
+            <Td><Pill color={methodeColor[e.methode]||C.blue}>{e.methode}</Pill></Td>
+            <Td style={{fontFamily:"'Courier New',monospace",fontSize:11,color:C.text}}>{e.path}</Td>
+            <Td style={{fontSize:11,color:C.muted}}>{e.desc}</Td>
+            <Td>{e.auth&&<Pill color={C.gold}>🔑 Requis</Pill>}</Td>
+          </tr>)}</tbody>
+        </table>
+      </Card>
+      <Card style={{marginTop:12}}>
+        <STitle>💡 Exemple d'appel</STitle>
+        <div style={{background:C.dark,borderRadius:8,padding:16,fontFamily:"'Courier New',monospace",fontSize:12,lineHeight:1.8,color:C.green}}>
+          <div style={{color:C.muted}}>{"// Récupérer vos clients"}</div>
+          <div>{"curl -X GET \\"}</div>
+          <div>{"  https://xyraio.fr/api/v1/clients \\"}</div>
+          <div>{"  -H \"Authorization: Bearer ty_live_...\" \\"}</div>
+          <div>{"  -H \"Content-Type: application/json\""}</div>
+        </div>
       </Card>
     </div>}
 
     {/* ── INTÉGRATIONS ── */}
-    {onglet==="integrations"&&<div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
-      {INTEGRATIONS.map((it,i)=><Card key={i} style={{borderColor:`${it.color}22`}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{fontSize:24}}>{it.icon}</div>
-            <div><div style={{fontSize:13,fontWeight:700}}>{it.nom}</div><div style={{fontSize:10,color:C.muted}}>{it.desc}</div></div>
-          </div>
-          <Pill color={it.statut?C.green:C.muted}>{it.statut?"● Connecté":"○ Non connecté"}</Pill>
-        </div>
-        <div style={{display:"flex",gap:6}}>
-          <BtnGhost onClick={()=>showToast(`✅ ${it.nom} ${it.statut?"déconnecté":"connecté"}`)} style={{flex:1,fontSize:11,color:it.statut?C.red:C.green,borderColor:`${it.statut?C.red:C.green}33`}}>{it.statut?"Déconnecter":"Connecter"}</BtnGhost>
-          {it.statut&&<BtnGhost onClick={()=>showToast(`⚙ Paramètres ${it.nom}`)} style={{fontSize:11}}>⚙</BtnGhost>}
-        </div>
-      </Card>)}
-    </div>}
-
-    {/* ── IA & CLAUDE ── */}
-    {onglet==="ia"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-      <Card>
-        <STitle>🤖 Configuration Claude (Anthropic)</STitle>
-        <div style={{display:"flex",flexDirection:"column",gap:12}}>
-          <div>
-            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Clé API Anthropic *</label>
-            <div style={{display:"flex",gap:8}}>
-              <Inp value={sirApiKey} onChange={e=>setSirApiKey(e.target.value)} placeholder="sk-ant-api03-..." style={{flex:1,fontFamily:"monospace",fontSize:11}}/>
-              <Btn onClick={()=>showToast("✅ Clé API sauvegardée et testée !")}>Sauver</Btn>
-            </div>
-            <div style={{fontSize:9,color:C.muted,marginTop:3}}>Disponible sur console.anthropic.com</div>
-          </div>
-          <div>
-            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Modèle IA</label>
-            <Sel style={{width:"100%"}}>
-              <option value="claude-sonnet-4-5">claude-sonnet-4-5 — Recommandé (rapide + intelligent)</option>
-              <option value="claude-opus-4-5">claude-opus-4-5 — Premium (plus puissant)</option>
-              <option value="claude-haiku-4-5">claude-haiku-4-5 — Rapide (économique)</option>
-            </Sel>
-          </div>
-          <div>
-            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Langue de réponse IA</label>
-            <Sel style={{width:"100%"}}><option>🇫🇷 Français</option><option>🇬🇧 English</option></Sel>
-          </div>
-          <div>
-            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Ton de l'IA</label>
-            <Sel style={{width:"100%"}}><option>Professionnel & concis</option><option>Amical & accessible</option><option>Expert & détaillé</option></Sel>
-          </div>
-        </div>
-      </Card>
-      <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        <Card>
-          <STitle>⚡ Fonctionnalités IA activées</STitle>
-          {[["Analyses business automatiques",true],["Relances devis intelligentes",true],["Recommandations investissement",true],["Réponses avis clients",true],["Chat assistant (WhatsApp bot)",true],["Prévisions trésorerie",true],["Score solvabilité clients",true],["Suggestions upsell",true]].map(([f,a],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}>
-            <span>{f}</span>
-            <Pill color={a?C.green:C.muted}>{a?"✅ Actif":"○ Inactif"}</Pill>
-          </div>)}
-        </Card>
-        <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
-          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>📊 Utilisation API ce mois</div>
-          {[["Tokens utilisés","47 832 / 100 000"],["Coût estimé","~2.40€"],["Appels API","342"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"3px 0"}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600}}>{v}</span></div>)}
-        </Card>
-      </div>
-    </div>}
-
-    {/* ── NOTIFICATIONS CONFIG ── */}
-    {onglet==="notifications_param"&&<Card>
-      <STitle>🔔 Paramètres de notifications</STitle>
-      <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Type</TH><TH style={{textAlign:"center"}}>Push écran</TH><TH style={{textAlign:"center"}}>WhatsApp</TH><TH style={{textAlign:"center"}}>Email</TH><TH style={{textAlign:"center"}}>Activer tout</TH></tr></thead>
-        <tbody>{[["💰 Paiements reçus",true,true,true],["◧ Devis signés",true,true,false],["📦 Stock critique",true,false,false],["👥 Nouveaux leads",true,true,false],["🤖 Alertes IA",true,false,false],["📅 Rappels RDV",true,true,true],["⚙ Système",false,false,true]].map(([t,push,wa,email],i)=><tr key={i}>
-          <Td style={{fontWeight:600}}>{t}</Td>
-          {[push,wa,email].map((v,j)=><td key={j} style={{textAlign:"center",padding:"10px",borderBottom:`1px solid ${C.border}22`}}>
-            <div onClick={()=>showToast("✅ Préférence sauvegardée")} style={{width:32,height:18,borderRadius:9,background:v?C.gold:C.border,cursor:"pointer",margin:"0 auto",position:"relative",transition:".2s"}}>
-              <div style={{position:"absolute",top:2,left:v?14:2,width:14,height:14,borderRadius:"50%",background:"#fff",transition:".2s"}}/>
-            </div>
-          </td>)}
-          <td style={{textAlign:"center",padding:"10px",borderBottom:`1px solid ${C.border}22`}}>
-            <BtnGhost onClick={()=>showToast("✅ Toutes notifications activées")} style={{fontSize:9,padding:"3px 8px"}}>Tout activer</BtnGhost>
-          </td>
-        </tr>)}
-        </tbody>
-      </table>
-    </Card>}
-
-    {/* ── SECTEUR ── */}
-    {onglet==="secteur"&&<div>
-      <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:10,padding:12,marginBottom:14,fontSize:11,color:C.text}}>
-        💡 Le profil sectoriel adapte la terminologie de l'outil à votre activité (missions, clients, stock, services).
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
-        {Object.entries(PROFILS_SECTEURS).map(([key,p])=><div key={key} onClick={()=>{setProfil(p);showToast(`✅ Profil "${p.label}" activé !`);}} style={{background:profil?.label===p.label?`${p.couleur}22`:"transparent",border:`2px solid ${profil?.label===p.label?p.couleur:C.border}`,borderRadius:10,padding:14,cursor:"pointer",transition:"all .2s"}}>
-          <div style={{fontSize:13,fontWeight:700,color:profil?.label===p.label?p.couleur:C.text,marginBottom:4}}>{p.label}</div>
-          <div style={{fontSize:10,color:C.muted}}>Services : {p.services.slice(0,3).join(", ")}...</div>
-          {profil?.label===p.label&&<div style={{marginTop:8,fontSize:10,color:p.couleur,fontWeight:600}}>✅ Profil actuel</div>}
-        </div>)}
-      </div>
-    </div>}
-
-    {/* ── UTILISATEURS ── */}
-    {onglet==="utilisateurs"&&<div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <STitle>👥 Membres & Accès</STitle>
-        <Btn onClick={()=>showToast("📧 Invitation envoyée !")}>+ Inviter un membre</Btn>
-      </div>
-      <Card style={{marginBottom:12}}>
-        <div style={{display:"flex",gap:8,marginBottom:14}}>
-          <Inp value={inviteForm.email} onChange={e=>setInviteForm(f=>({...f,email:e.target.value}))} placeholder="Email à inviter..." style={{flex:1}}/>
-          <Sel value={inviteForm.role} onChange={e=>setInviteForm(f=>({...f,role:e.target.value}))} style={{width:160}}>{ROLES.map(r=><option key={r}>{r}</option>)}</Sel>
-          <Btn onClick={()=>{if(!inviteForm.email)return;showToast(`📧 Invitation envoyée à ${inviteForm.email} — rôle ${inviteForm.role}`);setInviteForm({email:"",role:"Collaborateur"});}}>Inviter</Btn>
-        </div>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Membre</TH><TH>Email</TH><TH>Rôle</TH><TH>Dernière connexion</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
-          <tbody>
-            {/* Owner (non modifiable) */}
-            <tr style={{background:`${C.gold}08`}}>
-              <Td><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:28,height:28,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:C.gold}}>C</div><span style={{fontWeight:700}}>Curtiss (Vous)</span></div></Td>
-              <Td style={{color:C.muted}}>curtiss@xyra.io</Td>
-              <Td><Pill color={C.gold}>★ Owner</Pill></Td>
-              <Td style={{color:C.muted,fontSize:10}}>Maintenant</Td>
-              <Td><Pill color={C.green}>Actif</Pill></Td>
-              <Td><span style={{fontSize:10,color:C.muted}}>Non modifiable</span></Td>
-            </tr>
-            {utilisateurs.map((u,i)=><tr key={i}>
-              <Td><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:28,height:28,borderRadius:"50%",background:`${C.blue}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:C.blue}}>{u.nom[0]}</div><span style={{fontWeight:600}}>{u.nom}</span></div></Td>
-              <Td style={{color:C.muted,fontSize:11}}>{u.email}</Td>
-              <Td><Sel value={u.role} onChange={e=>setUtilisateurs(us=>us.map((x,j)=>j===i?{...x,role:e.target.value}:x))} style={{fontSize:10,padding:"3px 6px"}}>{ROLES.map(r=><option key={r}>{r}</option>)}</Sel></Td>
-              <Td style={{color:C.muted,fontSize:10}}>{u.dernierConnexion}</Td>
-              <Td><Pill color={C.green}>Actif</Pill></Td>
-              <Td><div style={{display:"flex",gap:4}}>
-                <BtnGhost onClick={()=>showToast(`✅ Modifications ${u.nom} sauvegardées`)} style={{fontSize:9,padding:"3px 7px"}}>Sauver</BtnGhost>
-                <BtnGhost onClick={()=>{setUtilisateurs(us=>us.filter((_,j)=>j!==i));showToast(`✅ ${u.nom} retiré de l'équipe`);}} style={{fontSize:9,padding:"3px 7px",color:C.red}}>Retirer</BtnGhost>
-              </div></Td>
-            </tr>)}
-          </tbody>
-        </table>
-      </Card>
-    </div>}
-
-    {/* ── DOMAINE WHITE-LABEL ── */}
-    {onglet==="domaine"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-      <Card>
-        <STitle>🌍 URL Xyra (sous-domaine)</STitle>
-        <div style={{background:C.card2,borderRadius:10,padding:14,marginBottom:12,border:`1px solid ${C.border}`}}>
-          <div style={{fontSize:9,color:C.muted,marginBottom:4}}>URL ACTUELLE</div>
-          <div style={{fontFamily:"monospace",fontSize:13,color:C.teal}}>{domaine.sous_domaine}.xyra.io</div>
-        </div>
-        <div style={{marginBottom:12}}>
-          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Personnaliser le sous-domaine</label>
-          <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            <Inp value={domaine.sous_domaine} onChange={e=>setDomaine(d=>({...d,sous_domaine:e.target.value}))} placeholder="votre-nom" style={{flex:1}}/>
-            <span style={{fontSize:11,color:C.muted,whiteSpace:"nowrap"}}>.xyra.io</span>
-          </div>
-        </div>
-        <Btn onClick={()=>showToast(`✅ Sous-domaine "${domaine.sous_domaine}.xyra.io" activé !`)}>Appliquer</Btn>
-      </Card>
-      <Card>
-        <STitle>🏷 Domaine personnalisé (White-label)</STitle>
-        <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:8,padding:10,marginBottom:12,fontSize:11,color:C.text}}>
-          💡 Disponible avec le plan <b style={{color:C.purple}}>Enterprise (150€/mois)</b>. Votre outil sera accessible sur votre propre domaine avec votre logo.
-        </div>
-        <div style={{marginBottom:10}}>
-          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Votre domaine</label>
-          <Inp value={domaine.domaine_custom} onChange={e=>setDomaine(d=>({...d,domaine_custom:e.target.value}))} placeholder="app.votreentreprise.com"/>
-        </div>
-        <div style={{marginBottom:12,display:"flex",justifyContent:"space-between",fontSize:11}}>
-          <span>SSL / HTTPS</span><Pill color={C.green}>✅ Auto-généré</Pill>
-        </div>
-        {plan==="enterprise"||plan==="owner"?<Btn onClick={()=>showToast(`✅ Domaine "${domaine.domaine_custom}" configuré ! DNS en cours...`)}>🌍 Activer le domaine</Btn>:<Btn onClick={()=>showToast("💳 Passage Enterprise nécessaire")} style={{background:C.purple}}>Passer à Enterprise</Btn>}
-      </Card>
-    </div>}
-
-    {/* ── RGPD ── */}
-    {onglet==="rgpd"&&<div>
-      <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:12,padding:16,marginBottom:14}}>
-        <div style={{fontSize:10,color:C.blue,fontWeight:600,marginBottom:6}}>🔒 CONFORMITÉ RGPD — RÈGLEMENT GÉNÉRAL SUR LA PROTECTION DES DONNÉES</div>
-        <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Xyra est conforme au RGPD. Vos données sont chiffrées (AES-256), hébergées en Europe (Supabase EU) et ne sont jamais revendues.</div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-        <Card>
-          <STitle>📊 Vos données</STitle>
-          {[["Données personnelles","Prénom, nom, email, téléphone"],["Données entreprise","SIREN, TVA, adresse"],["Données financières","Chiffrées AES-256"],["Hébergement","Supabase — Europe (Frankfurt)"],["Durée conservation","5 ans légal / Compte actif"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600,color:C.text,fontSize:10}}>{v}</span></div>)}
-        </Card>
-        <Card>
-          <STitle>✅ Droits RGPD</STitle>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            <Btn onClick={()=>showToast("📦 Export de vos données en cours — email dans 24h")} style={{background:C.blue}}>📦 Exporter toutes mes données</Btn>
-            <BtnGhost onClick={()=>showToast("📧 Demande envoyée à DPO@xyra.io")}>✏️ Demander rectification</BtnGhost>
-            <BtnGhost onClick={()=>showToast("⏳ Demande de suppression envoyée — traitement 30j")} style={{color:C.orange,borderColor:`${C.orange}44`}}>🗑 Demander suppression données</BtnGhost>
-            <div style={{background:`${C.red}11`,border:`1px solid ${C.red}33`,borderRadius:8,padding:10}}>
-              <div style={{fontSize:10,color:C.red,fontWeight:600,marginBottom:4}}>⚠️ Zone dangereuse</div>
-              <BtnGhost onClick={()=>showToast("⚠️ Confirmez la suppression dans l'email envoyé")} style={{width:"100%",color:C.red,borderColor:`${C.red}44`,fontSize:11}}>🗑 Supprimer mon compte</BtnGhost>
-            </div>
-          </div>
-        </Card>
-      </div>
-      <Card>
-        <STitle>🍪 Politique de confidentialité</STitle>
-        <div style={{fontSize:11,color:C.muted,lineHeight:1.7,marginBottom:10}}>Xyra collecte uniquement les données nécessaires au fonctionnement du service. Aucune donnée n'est partagée avec des tiers sans consentement explicite. Vous pouvez exercer vos droits à tout moment en contactant dpo@xyra.io</div>
-        <div style={{display:"flex",gap:8}}><BtnGhost onClick={()=>showToast("📄 Politique confidentialité téléchargée")}>📄 Télécharger PDF</BtnGhost><BtnGhost onClick={()=>showToast("📧 Email DPO ouvert")}>📧 Contacter le DPO</BtnGhost></div>
-      </Card>
-    </div>}
-  </div>;
-};
-// ─── PAGE ADMIN ───────────────────────────────────────────────
-const PageAdmin=({plan,showToast})=>{
-  if(plan!=="owner")return <div style={{padding:20}}><div style={{textAlign:"center",padding:60}}><div style={{fontSize:40}}>👑</div><div style={{fontSize:16,color:C.text,marginTop:8}}>Réservé à Curtiss</div></div></div>;
-  return <div style={{padding:20}}>
-    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>👑 Admin Curtiss</div>
-    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Vue globale · Tous les revenus · Commissions · IA CEO</div>
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
-      <KPI label="CA global" val="24 380 €" color={C.gold}/>
-      <KPI label="Membres Club" val="47" color={C.blue}/>
-      <KPI label="ARR SaaS" val="36 000 €" color={C.green}/>
-      <KPI label="Score CEO" val="88/100" color={C.teal}/>
-    </div>
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-      <Card><STitle>📊 Vue 360° Xyra</STitle>
-        {[["Revenus services",18200,C.gold],["Revenus SaaS",3000,C.green],["Revenus Club",1380,C.blue],["Commissions 5%",2400,C.teal]].map(([n,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div>)}
-      </Card>
-      <Card><STitle>🤖 Analyse CEO — Claude</STitle>
-        <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:8,padding:12}}>
-          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:4}}>Intelligence artificielle · Claude Sonnet</div>
-          <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Xyra performe en dessous de son potentiel sur le SaaS. Recommandation : concentrer 30% des efforts commerciaux sur la conversion de 5 prospects SaaS identifiés. ROI estimé : +18 000€ ARR en Q3.</div>
-        </div>
-      </Card>
-    </div>
-  </div>;
-};
-
-// ─── PAGE OWNER ───────────────────────────────────────────────
-const PageOwner=({plan,showToast,profil})=>{
-  const[onglet,setOnglet]=useState("vue");
-  const[abonnes,setAbonnes]=useState([]);
-  const[loading,setLoading]=useState(true);
-  const[sel,setSel]=useState(null);
-  const[showAdd,setShowAdd]=useState(false);
-  const[addForm,setAddForm]=useState({societe:"",email:"",nom:"",plan:"starter",siren:""});
-  const[msgGroupe,setMsgGroupe]=useState({planCible:"tous",sujet:"",corps:""});
-  const[services,setServices]=useState([]);
-  const[solvLoading,setSolvLoading]=useState({});
-  const tabs=[{id:"vue",label:"📊 Vue globale"},{id:"abonnes",label:"👥 Abonnés"},{id:"alertes",label:"🔔 Alertes"},{id:"communication",label:"📢 Communication"},{id:"investisseur",label:"📄 Investisseur"},{id:"systeme",label:"🐛 Système"}];
-
-  const loadAll=async()=>{
-    setLoading(true);
-    try{
-      const res=await fetch('/api/abonnes');
-      const data=await res.json();
-      if(data.abonnes)setAbonnes(data.abonnes);
-      if(data.services)setServices(data.services);
-    }catch(e){console.error("Owner:",e);}
-    setLoading(false);
-  };
-  useEffect(()=>{loadAll();},[]);
-
-  const creerAbonne=async()=>{
-    if(!addForm.email||!addForm.societe)return showToast("⚠️ Société et email requis");
-    showToast("⏳ Création en cours...");
-    try{
-      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer',...addForm})});
-      const data=await res.json();
-      if(data.success){showToast(`✅ ${addForm.societe} créé et invité par email`);setShowAdd(false);setAddForm({societe:"",email:"",nom:"",plan:"starter",siren:""});loadAll();}
-      else showToast("❌ "+(data.error||"Erreur"));
-    }catch(e){showToast("❌ Erreur de connexion");}
-  };
-
-  const changerPlan=async(id,nouveauPlan)=>{
-    try{
-      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'changer_plan',id,plan:nouveauPlan})});
-      const data=await res.json();
-      if(data.success){showToast("✅ Plan mis à jour");loadAll();}
-      else showToast("❌ "+(data.error||"Erreur"));
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const suspendre=async(id,actuel)=>{
-    const action=actuel==='suspendu'?'reactiver':'suspendre';
-    try{
-      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,id})});
-      const data=await res.json();
-      if(data.success){showToast(action==='suspendre'?"⚠️ Compte suspendu":"✅ Compte réactivé");loadAll();}
-      else showToast("❌ "+(data.error||"Erreur"));
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const supprimerAbonne=async(id,nom)=>{
-    try{
-      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer',id})});
-      const data=await res.json();
-      if(data.success){showToast(`🗑 ${nom} supprimé`);setSel(null);loadAll();}
-      else showToast("❌ "+(data.error||"Erreur"));
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const verifierSolvabilite=async(a)=>{
-    if(!a.siren)return showToast("⚠️ Pas de SIREN pour cette entreprise");
-    setSolvLoading(s=>({...s,[a.id]:true}));
-    try{
-      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verifier_solvabilite',id:a.id,siren:a.siren})});
-      const data=await res.json();
-      if(data.success){showToast(`✅ Solvabilité vérifiée — score ${data.score}/100`);loadAll();}
-      else showToast("❌ "+(data.error||"Erreur SIRENE"));
-    }catch(e){showToast("❌ Erreur");}
-    setSolvLoading(s=>({...s,[a.id]:false}));
-  };
-
-  const envoyerEmailIndividuel=async(a,sujet,corps)=>{
-    if(!sujet||!corps)return showToast("⚠️ Sujet et message requis");
-    showToast("⏳ Envoi...");
-    try{
-      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_email',id:a.id,email:a.email,sujet,corps})});
-      const data=await res.json();
-      if(data.success)showToast(`✅ Email envoyé à ${a.societe}`);
-      else showToast("❌ "+(data.error||"Erreur"));
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const envoyerGroupé=async()=>{
-    if(!msgGroupe.sujet||!msgGroupe.corps)return showToast("⚠️ Sujet et message requis");
-    showToast("⏳ Envoi groupé...");
-    try{
-      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_groupe',...msgGroupe})});
-      const data=await res.json();
-      if(data.success)showToast(`✅ Message envoyé à ${data.nb} abonné(s)`);
-      else showToast("❌ "+(data.error||"Erreur"));
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const genererRelanceIA=async(a)=>{
-    showToast("⏳ Génération IA...");
-    try{
-      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'relance_ia',abonne:a})});
-      const data=await res.json();
-      if(data.success){setSel(s=>({...s,_relanceIA:data.message}));showToast("✅ Message généré");}
-      else showToast("❌ "+(data.error||"Erreur"));
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const mrr=abonnes.filter(a=>a.statut==='actif').reduce((acc,a)=>{const p={starter:29,business:99,enterprise:249,owner:0}[a.plan]||0;return acc+p;},0);
-  const arr=mrr*12;
-  const actifs=abonnes.filter(a=>a.statut==='actif').length;
-  const suspendu=abonnes.filter(a=>a.statut==='suspendu').length;
-  const trials=abonnes.filter(a=>a.statut==='trial').length;
-  const alertesTrials=abonnes.filter(a=>a.statut==='trial'&&a.jours_restants<=3);
-  const alertesInactifs=abonnes.filter(a=>a.inactif_jours>=30);
-  const alertesImpayes=abonnes.filter(a=>a.paiement_echoue);
-  const alertesSolvabilite=abonnes.filter(a=>a.score_solvabilite!==null&&a.score_solvabilite<40);
-
-  const planColor={starter:C.blue,business:C.gold,enterprise:C.purple,owner:C.green};
-  const statutColor={actif:C.green,suspendu:C.red,trial:C.orange};
-
-  return <div style={{padding:20,maxWidth:1200}}>
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-      <div>
-        <div style={{fontSize:18,fontWeight:700,color:C.gold,fontFamily:"Georgia,serif"}}>★ Espace Propriétaire</div>
-        <div style={{fontSize:11,color:C.muted}}>Zone de contrôle global Xyra · {abonnes.length} abonné(s)</div>
-      </div>
-      <Btn onClick={()=>setShowAdd(s=>!s)}>+ Abonné manuel</Btn>
-    </div>
-
-    {showAdd&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
-      <STitle>Créer un abonné manuellement</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
-        {[["Société *","societe"],["Email *","email"],["Nom contact","nom"],["SIREN","siren"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={addForm[k]} onChange={e=>setAddForm(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Plan</label>
-          <Sel value={addForm.plan} onChange={e=>setAddForm(f=>({...f,plan:e.target.value}))} style={{width:"100%"}}>
-            <option value="starter">Starter — 29€/mois</option>
-            <option value="business">Business Pro — 99€/mois</option>
-            <option value="enterprise">Enterprise — 249€/mois</option>
-          </Sel>
-        </div>
-      </div>
-      <div style={{display:"flex",gap:8}}>
-        <Btn onClick={creerAbonne}>✅ Créer et inviter</Btn>
-        <BtnGhost onClick={()=>setShowAdd(false)}>Annuler</BtnGhost>
-      </div>
-    </Card>}
-
-    <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
-
-    {loading&&<div style={{fontSize:11,color:C.muted}}>Chargement...</div>}
-
-    {/* ── VUE GLOBALE ── */}
-    {!loading&&onglet==="vue"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
-        <KPI label="MRR" val={fmt(mrr)} color={C.gold} sub="Revenus mensuels récurrents"/>
-        <KPI label="ARR" val={fmt(arr)} color={C.green} sub="Revenus annuels récurrents"/>
-        <KPI label="Abonnés actifs" val={actifs} color={C.blue}/>
-        <KPI label="Trials en cours" val={trials} color={C.orange}/>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-        <Card>
-          <STitle>Répartition par plan</STitle>
-          {["starter","business","enterprise"].map(p=>{const n=abonnes.filter(a=>a.plan===p).length;return <div key={p} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{textTransform:"capitalize",color:planColor[p]}}>{p}</span><span style={{fontWeight:700}}>{n} abonné(s)</span></div><SM val={n} max={Math.max(abonnes.length,1)} color={planColor[p]}/></div>;})}
-        </Card>
-        <Card>
-          <STitle>Santé globale</STitle>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>Abonnés actifs</span><Pill color={C.green}>{actifs}</Pill></div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>Suspendus</span><Pill color={suspendu>0?C.red:C.green}>{suspendu}</Pill></div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>Alertes actives</span><Pill color={alertesTrials.length+alertesImpayes.length>0?C.orange:C.green}>{alertesTrials.length+alertesImpayes.length+alertesInactifs.length}</Pill></div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"5px 0"}}><span style={{color:C.muted}}>Solvabilité à risque</span><Pill color={alertesSolvabilite.length>0?C.red:C.green}>{alertesSolvabilite.length}</Pill></div>
-          </div>
-        </Card>
-      </div>
-    </div>}
-
-    {/* ── ABONNÉS ── */}
-    {!loading&&onglet==="abonnes"&&<div style={{display:"grid",gridTemplateColumns:sel?"1fr 1fr":"1fr",gap:12}}>
-      <Card>
-        <STitle>👥 Tous les abonnés ({abonnes.length})</STitle>
-        {abonnes.length===0&&<div style={{fontSize:12,color:C.muted,padding:"20px 0",textAlign:"center"}}>Aucun abonné pour le moment.</div>}
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Société</TH><TH>Plan</TH><TH>Statut</TH><TH>Solvabilité</TH><TH>Inscription</TH></tr></thead>
-          <tbody>{abonnes.map(a=><tr key={a.id} style={{cursor:"pointer",background:sel?.id===a.id?`${C.gold}0D`:"transparent"}} onClick={()=>setSel(a)}>
-            <Td style={{fontWeight:600}}>{a.societe}</Td>
-            <Td><Pill color={planColor[a.plan]||C.muted}>{a.plan}</Pill></Td>
-            <Td><Pill color={statutColor[a.statut]||C.muted}>{a.statut}</Pill></Td>
-            <Td>{a.score_solvabilite!==null?<Pill color={a.score_solvabilite>=70?C.green:a.score_solvabilite>=40?C.orange:C.red}>{a.score_solvabilite}/100</Pill>:<span style={{color:C.muted,fontSize:10}}>—</span>}</Td>
-            <Td style={{color:C.muted,fontSize:10}}>{a.created_at?new Date(a.created_at).toLocaleDateString("fr"):"—"}</Td>
-          </tr>)}</tbody>
-        </table>
-      </Card>
-
-      {sel&&<Card>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
-          <div><div style={{fontSize:15,fontWeight:700}}>{sel.societe}</div><div style={{fontSize:11,color:C.muted}}>{sel.email} · {sel.plan}</div></div>
-          <BtnGhost onClick={()=>setSel(null)} style={{fontSize:10,padding:"4px 8px"}}>✕</BtnGhost>
-        </div>
-        {[["Email",sel.email],["SIREN",sel.siren||"—"],["Statut",sel.statut],["Inscrit le",sel.created_at?new Date(sel.created_at).toLocaleDateString("fr"):"—"],["Inactif depuis",sel.inactif_jours>0?sel.inactif_jours+" jours":"Actif récemment"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600}}>{v}</span></div>)}
-        <div style={{marginTop:10}}>
-          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Changer de plan</label>
-          <Sel value={sel.plan} onChange={e=>changerPlan(sel.id,e.target.value)} style={{width:"100%",marginBottom:8}}>
-            <option value="starter">Starter — 29€/mois</option>
-            <option value="business">Business Pro — 99€/mois</option>
-            <option value="enterprise">Enterprise — 249€/mois</option>
-          </Sel>
-        </div>
-        <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:8}}>
-          <Btn onClick={()=>verifierSolvabilite(sel)} style={{background:C.blue,fontSize:11}}>{solvLoading[sel.id]?"⏳ Vérification...":"🔍 Vérifier solvabilité SIRENE"}</Btn>
-          <BtnGhost onClick={()=>genererRelanceIA(sel)} style={{fontSize:11,color:C.purple,borderColor:`${C.purple}44`}}>🤖 Générer relance IA</BtnGhost>
-          {sel._relanceIA&&<div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,padding:10,fontSize:11,color:C.text,lineHeight:1.6,marginBottom:4}}>{sel._relanceIA}<div style={{marginTop:8,display:"flex",gap:6}}><Btn onClick={()=>envoyerEmailIndividuel(sel,"Nous avons pensé à vous",sel._relanceIA)} style={{fontSize:10,padding:"5px 10px"}}>📧 Envoyer</Btn></div></div>}
-          <BtnGhost onClick={()=>suspendre(sel.id,sel.statut)} style={{fontSize:11,color:sel.statut==="suspendu"?C.green:C.orange,borderColor:sel.statut==="suspendu"?`${C.green}44`:`${C.orange}44`}}>{sel.statut==="suspendu"?"✅ Réactiver":"⏸ Suspendre"}</BtnGhost>
-          <BtnGhost onClick={()=>supprimerAbonne(sel.id,sel.societe)} style={{fontSize:11,color:C.red,borderColor:`${C.red}44`}}>🗑 Supprimer</BtnGhost>
-        </div>
-      </Card>}
-    </div>}
-
-    {/* ── ALERTES ── */}
-    {!loading&&onglet==="alertes"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
-      {alertesTrials.length===0&&alertesImpayes.length===0&&alertesInactifs.length===0&&alertesSolvabilite.length===0&&<Card style={{textAlign:"center",padding:30}}><div style={{fontSize:32,marginBottom:8}}>✅</div><div style={{color:C.green,fontWeight:700}}>Aucune alerte active</div></Card>}
-      {alertesTrials.length>0&&<Card style={{borderColor:`${C.orange}44`}}>
-        <STitle style={{color:C.orange}}>⏰ Trials expirant bientôt ({alertesTrials.length})</STitle>
-        {alertesTrials.map(a=><div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
-          <div><div style={{fontWeight:600}}>{a.societe}</div><div style={{fontSize:10,color:C.muted}}>{a.jours_restants} jour(s) restant(s)</div></div>
-          <BtnGhost onClick={()=>envoyerEmailIndividuel(a,"Votre essai Xyra se termine bientôt","Bonjour, votre période d'essai Xyra se termine dans "+a.jours_restants+" jour(s). Passez à un plan payant pour continuer à profiter de toutes les fonctionnalités.")} style={{fontSize:10}}>📧 Relancer</BtnGhost>
-        </div>)}
-      </Card>}
-      {alertesImpayes.length>0&&<Card style={{borderColor:`${C.red}44`}}>
-        <STitle style={{color:C.red}}>💳 Paiements échoués ({alertesImpayes.length})</STitle>
-        {alertesImpayes.map(a=><div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
-          <div style={{fontWeight:600}}>{a.societe}</div>
-          <div style={{display:"flex",gap:6}}>
-            <BtnGhost onClick={()=>envoyerEmailIndividuel(a,"Problème de paiement Xyra","Bonjour, nous n'avons pas pu traiter votre paiement. Merci de mettre à jour vos informations de paiement.")} style={{fontSize:10}}>📧 Relancer</BtnGhost>
-            <BtnGhost onClick={()=>suspendre(a.id,a.statut)} style={{fontSize:10,color:C.orange,borderColor:`${C.orange}44`}}>⏸ Suspendre</BtnGhost>
-          </div>
-        </div>)}
-      </Card>}
-      {alertesInactifs.length>0&&<Card style={{borderColor:`${C.muted}44`}}>
-        <STitle>😴 Comptes inactifs +30j ({alertesInactifs.length})</STitle>
-        {alertesInactifs.map(a=><div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
-          <div><div style={{fontWeight:600}}>{a.societe}</div><div style={{fontSize:10,color:C.muted}}>{a.inactif_jours} jours sans connexion</div></div>
-          <BtnGhost onClick={()=>genererRelanceIA(a)} style={{fontSize:10,color:C.purple,borderColor:`${C.purple}44`}}>🤖 Relance IA</BtnGhost>
-        </div>)}
-      </Card>}
-      {alertesSolvabilite.length>0&&<Card style={{borderColor:`${C.red}44`}}>
-        <STitle style={{color:C.red}}>⚠️ Solvabilité à risque ({alertesSolvabilite.length})</STitle>
-        {alertesSolvabilite.map(a=><div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
-          <div><div style={{fontWeight:600}}>{a.societe}</div><div style={{fontSize:10,color:C.red}}>Score {a.score_solvabilite}/100</div></div>
-          <Pill color={C.red}>Risque élevé</Pill>
-        </div>)}
-      </Card>}
-    </div>}
-
-    {/* ── COMMUNICATION ── */}
-    {!loading&&onglet==="communication"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-      <Card>
-        <STitle>📢 Message groupé par plan</STitle>
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Destinataires</label>
-            <Sel value={msgGroupe.planCible} onChange={e=>setMsgGroupe(m=>({...m,planCible:e.target.value}))} style={{width:"100%"}}>
-              <option value="tous">Tous les abonnés</option>
-              <option value="starter">Starter uniquement</option>
-              <option value="business">Business Pro uniquement</option>
-              <option value="enterprise">Enterprise uniquement</option>
-              <option value="trial">Trials uniquement</option>
-            </Sel>
-          </div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Sujet</label><Inp value={msgGroupe.sujet} onChange={e=>setMsgGroupe(m=>({...m,sujet:e.target.value}))} placeholder="Ex: Nouvelle fonctionnalité disponible"/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Message</label><textarea value={msgGroupe.corps} onChange={e=>setMsgGroupe(m=>({...m,corps:e.target.value}))} placeholder="Votre message..." style={{width:"100%",minHeight:100,background:C.card2,border:`1px solid ${C.border}`,borderRadius:6,padding:8,color:C.text,fontFamily:"inherit",fontSize:12}}/></div>
-          <Btn onClick={envoyerGroupé}>📤 Envoyer à {msgGroupe.planCible==="tous"?abonnes.length:abonnes.filter(a=>a.plan===msgGroupe.planCible||a.statut===msgGroupe.planCible).length} abonné(s)</Btn>
-        </div>
-      </Card>
-      <Card>
-        <STitle>✉️ Message individuel</STitle>
-        {sel?<div style={{display:"flex",flexDirection:"column",gap:8}}>
-          <div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:8,padding:10,fontSize:11}}><b>{sel.societe}</b> · {sel.email}</div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Sujet</label><Inp placeholder="Sujet de l'email"/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Message</label><textarea placeholder="Votre message..." style={{width:"100%",minHeight:100,background:C.card2,border:`1px solid ${C.border}`,borderRadius:6,padding:8,color:C.text,fontFamily:"inherit",fontSize:12}}/></div>
-          <Btn onClick={()=>showToast("📧 Message envoyé à "+sel.societe)}>📧 Envoyer à {sel.societe}</Btn>
-        </div>:<div style={{textAlign:"center",padding:30}}>
-          <div style={{fontSize:24,marginBottom:8}}>👈</div>
-          <div style={{color:C.muted,fontSize:12}}>Sélectionne un abonné dans l'onglet "Abonnés" pour lui envoyer un message individuel</div>
-        </div>}
-      </Card>
-    </div>}
-
-    {/* ── INVESTISSEUR ── */}
-    {!loading&&onglet==="investisseur"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
-        <KPI label="MRR" val={fmt(mrr)} color={C.gold} sub="Monthly Recurring Revenue"/>
-        <KPI label="ARR" val={fmt(arr)} color={C.green} sub="Annual Recurring Revenue"/>
-        <KPI label="Churn" val={suspendu>0?Math.round(suspendu/Math.max(abonnes.length,1)*100)+"%":"0%"} color={suspendu>0?C.red:C.green} sub="Taux d'attrition"/>
-        <KPI label="LTV moyen" val={fmt(mrr/Math.max(actifs,1)*24)} color={C.purple} sub="Valeur vie client (24 mois)"/>
-      </div>
-      <Card style={{marginBottom:12}}>
-        <STitle>📊 Métriques SaaS</STitle>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-          {[["MRR","Monthly Recurring Revenue",fmt(mrr)],["ARR","Annual Recurring Revenue",fmt(arr)],["Abonnés actifs","Comptes payants actifs",actifs],["Trials actifs","Comptes en période d'essai",trials],["Taux de conversion trial","Trials qui deviennent payants","N/A"],["Churn rate","Abonnés perdus ce mois","0%"],["ARPU","Revenu moyen par utilisateur",fmt(mrr/Math.max(actifs,1))],["LTV","Valeur vie client (24 mois)",fmt(mrr/Math.max(actifs,1)*24)]].map(([k,desc,v],i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:12,border:`1px solid ${C.border}`}}><div style={{fontSize:9,color:C.muted,marginBottom:2,letterSpacing:"0.1em"}}>{desc.toUpperCase()}</div><div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:2}}>{k}</div><div style={{fontSize:18,fontWeight:700,color:C.text}}>{v}</div></div>)}
-        </div>
-      </Card>
-      <Btn onClick={()=>showToast("📄 Export PDF investisseur — fonctionnalité à venir")} style={{background:C.purple}}>📄 Exporter dossier investisseur PDF</Btn>
-    </div>}
-
-    {/* ── SYSTÈME ── */}
-    {onglet==="systeme"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
-        {services.map((s,i)=><Card key={i} style={{borderColor:`${s.ok?C.green:C.red}44`}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-            <div style={{fontSize:13,fontWeight:700}}>{s.nom}</div>
-            <span style={{width:10,height:10,borderRadius:"50%",background:s.ok?C.green:C.red,display:"inline-block"}}/>
-          </div>
-          <div style={{fontSize:10,color:C.muted}}>{s.detail}</div>
-        </Card>)}
-        {services.length===0&&[
-          {nom:"Supabase",ok:true,detail:"Base de données connectée"},
-          {nom:"Stripe",ok:true,detail:"Paiements actifs"},
-          {nom:"Resend",ok:true,detail:"Emails transactionnels"},
-          {nom:"WhatsApp API",ok:true,detail:"Meta Business API"},
-          {nom:"Vapi",ok:true,detail:"Agent vocal Lea"},
-          {nom:"Anthropic",ok:true,detail:"Claude Sonnet 4.6"},
-        ].map((s,i)=><Card key={i} style={{borderColor:`${s.ok?C.green:C.red}44`}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
-            <div style={{fontSize:13,fontWeight:700}}>{s.nom}</div>
-            <span style={{width:10,height:10,borderRadius:"50%",background:s.ok?C.green:C.red,display:"inline-block"}}/>
-          </div>
-          <div style={{fontSize:10,color:C.muted}}>{s.detail}</div>
-        </Card>)}
-      </div>
-      <Card>
-        <STitle>📱 Readiness App Mobile</STitle>
-        <div style={{fontSize:12,color:C.muted,marginBottom:12}}>État des endpoints API pour la future app mobile Xyra</div>
+    {onglet==="integrations"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
         {[
-          {route:"/api/clients",pret:true,methodes:"GET, POST"},
-          {route:"/api/partenaires",pret:true,methodes:"GET, POST"},
-          {route:"/api/crm",pret:true,methodes:"GET, POST"},
-          {route:"/api/abonnes",pret:true,methodes:"GET, POST"},
-          {route:"/api/change-password",pret:true,methodes:"POST"},
-          {route:"/api/devis",pret:true,methodes:"GET, POST"},
-          {route:"/api/equipe",pret:false,methodes:"À créer"},
-          {route:"/api/planning",pret:false,methodes:"À créer"},
-          {route:"/api/stock",pret:false,methodes:"À créer"},
-          {route:"/api/wallet",pret:false,methodes:"À créer"},
-        ].map((r,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}>
-          <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <span style={{width:8,height:8,borderRadius:"50%",background:r.pret?C.green:C.muted,display:"inline-block",flexShrink:0}}/>
-            <span style={{fontFamily:"monospace",color:r.pret?C.text:C.muted}}>{r.route}</span>
+          {nom:"Zapier",logo:"⚡",desc:"Connectez Xyra à 5 000+ apps. Automatisez la création de clients, factures, deals depuis n'importe quelle app.",color:C.orange,url:"https://zapier.com"},
+          {nom:"Make (Integromat)",logo:"🔄",desc:"Créez des workflows visuels complexes entre Xyra et vos outils. Plus puissant que Zapier pour les scénarios avancés.",color:C.purple,url:"https://make.com"},
+          {nom:"n8n",logo:"🤖",desc:"Automatisation open-source. Hébergez vos workflows sur votre propre serveur avec accès complet à l'API Xyra.",color:C.green,url:"https://n8n.io"},
+          {nom:"Notion",logo:"📓",desc:"Synchronisez vos clients et deals Xyra avec vos bases Notion via webhooks.",color:C.text,url:"https://notion.so"},
+          {nom:"Slack",logo:"💬",desc:"Recevez des notifications Xyra directement dans Slack — nouveaux clients, paiements, deals gagnés.",color:C.blue,url:"https://slack.com"},
+          {nom:"Google Sheets",logo:"📊",desc:"Exportez automatiquement vos données Xyra vers Google Sheets pour reporting et analyse.",color:C.green,url:"https://sheets.google.com"},
+        ].map((app,i)=><Card key={i} style={{borderColor:`${app.color}33`}}>
+          <div style={{fontSize:28,marginBottom:8}}>{app.logo}</div>
+          <div style={{fontSize:14,fontWeight:700,color:app.color,marginBottom:6}}>{app.nom}</div>
+          <div style={{fontSize:11,color:C.muted,lineHeight:1.6,marginBottom:12}}>{app.desc}</div>
+          <Btn onClick={()=>showToast(`🔗 Guide d'intégration ${app.nom} ouvert`)} style={{width:"100%",fontSize:11,background:`${app.color}22`,color:app.color,border:`1px solid ${app.color}44`}}>Connecter {app.nom}</Btn>
+        </Card>)}
+      </div>
+    </div>}
+
+    {/* ── SANTÉ API ── */}
+    {onglet==="sante"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+        <Card>
+          <STitle>❤ Score de santé API</STitle>
+          <div style={{textAlign:"center",padding:"16px 0"}}>
+            <div style={{fontSize:56,fontWeight:700,color:tauxSucces>=99?C.green:tauxSucces>=95?C.gold:C.red}}>{tauxSucces}</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>/100</div>
+            <SM val={tauxSucces} max={100} color={tauxSucces>=99?C.green:tauxSucces>=95?C.gold:C.red}/>
           </div>
-          <Pill color={r.pret?C.green:C.muted}>{r.methodes}</Pill>
-        </div>)}
-      </Card>
+          {[["Taux de succès",tauxSucces+"%",tauxSucces>=99?C.green:C.orange],["Latence moyenne",latenceMoy+"ms",latenceMoy<200?C.green:C.orange],["Clés actives",String(keys.length),C.blue],["Webhooks actifs",String(webhooks.filter(w=>w.statut==="actif").length),C.green]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
+        </Card>
+        <Card>
+          <STitle>📊 Distribution des statuts</STitle>
+          {[[200,"2xx Succès",C.green],[400,"4xx Client Error",C.orange],[500,"5xx Server Error",C.red]].map(([code,label,color])=>{
+            const count=logs.filter(l=>l.statut_code>=Number(code)&&l.statut_code<Number(code)+100).length;
+            const pct=logs.length>0?Math.round(count/logs.length*100):0;
+            return <div key={code} style={{marginBottom:12}}>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{color}}>{label}</span><span style={{color,fontWeight:700}}>{count} · {pct}%</span></div>
+              <SM val={pct} max={100} color={color}/>
+            </div>;
+          })}
+          {logs.length===0&&<div style={{fontSize:11,color:C.muted,textAlign:"center",padding:12}}>Aucun log disponible.</div>}
+        </Card>
+      </div>
     </div>}
   </div>;
 };
+
 
 // ─── COMPOSANT PRINCIPAL ──────────────────────────────────────
 export default function Xyra() {
