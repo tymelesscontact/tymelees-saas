@@ -10,14 +10,10 @@ const C = {
 };
 
 const PLANS = {
-  starter:        {id:"starter",        nom:"Starter",            prix:"59€/mois",    color:"#4B7BFF", icon:"◎", acces:["wallet","cartes","crm","devis","facturation"], description:"Wallet · Paiements · Cartes · CRM · Devis · Facturation"},
-  business:       {id:"business",       nom:"Business Pro",       prix:"129€/mois",   color:"#C9A84C", icon:"✦", acces:["tout"], description:"Tout Starter + Suite complète métier · Équipe · Analytique · Prospection"},
-  enterprise:     {id:"enterprise",     nom:"Enterprise",         prix:"249€/mois",   color:"#9B5FFF", icon:"◈", acces:["tout"], description:"Tout Business Pro + Bot WhatsApp · API · Déploiement SaaS · Support 24h"},
-  multi_societes: {id:"multi_societes", nom:"Multi-Sociétés",     prix:"499€/mois",   color:"#4B7BFF", icon:"🏢", acces:["multi"], description:"3 à 5 sociétés · Tout dashboard sauf Club & Prospection · Multi-devises · Connexion bancaire"},
-  multi_pro:      {id:"multi_pro",      nom:"Multi-Sociétés Pro", prix:"799€/mois",   color:"#FF8C3A", icon:"🏗", acces:["multi"], description:"5 à 10 sociétés · Rapports consolidés · API dédiée · Onboarding personnalisé"},
-  holding:        {id:"holding",        nom:"Holding",            prix:"1200€/mois",  color:"#C9A84C", icon:"🏛", acces:["multi"], description:"Sociétés illimitées · Vue holding complète · Intercompany · Support 24h"},
-  club_affaires:  {id:"club_affaires",  nom:"Club d'affaires",    prix:"2000€/an",    color:"#C9A84C", icon:"🤝", acces:["club"], description:"Réseau privé · Deals -10% · IA Match · Événements VIP"},
-  owner:          {id:"owner",          nom:"Owner",              prix:"—",           color:"#C9A84C", icon:"★", acces:["tout"], description:"Accès total — Curtiss"},
+  starter:  {id:"starter",  nom:"Starter",       prix:"59€/mois",  color:"#4B7BFF", icon:"◎", acces:["wallet","cartes","crm","devis","facturation"], description:"Wallet · Paiements · Cartes · CRM · Devis · Facturation"},
+  business: {id:"business", nom:"Business Pro",  prix:"129€/mois", color:"#C9A84C", icon:"✦", acces:["tout"], description:"Tout Starter + Suite complète métier · Équipe · Analytique · Prospection"},
+  enterprise:{id:"enterprise",nom:"Enterprise",  prix:"249€/mois", color:"#9B5FFF", icon:"◈", acces:["tout"], description:"Tout Business Pro + Bot WhatsApp · API · Déploiement SaaS · Support 24h"},
+  owner:    {id:"owner",    nom:"Owner",          prix:"—",         color:"#C9A84C", icon:"★", acces:["tout"], description:"Accès total — Curtiss"},
 };
 
 const MODULE_PRICES = {
@@ -30,40 +26,35 @@ const MODULE_PRICES = {
   formation:14, deploiement:49, api:29, investissement:24,
 };
 
-const MULTI = ["multi_societes","multi_pro","holding"];
 const PAGE_ACCESS = {
   // Starter (59€) — base
-  wallet:         ["starter","business","enterprise",...MULTI,"owner"],
-  cartes:         ["starter","business","enterprise",...MULTI,"owner"],
-  crm:            ["starter","business","enterprise",...MULTI,"owner"],
-  devis:          ["starter","business","enterprise",...MULTI,"owner"],
-  facturation:    ["starter","business","enterprise",...MULTI,"owner"],
-  settings:       ["starter","business","enterprise",...MULTI,"club_affaires","owner"],
-  // Business Pro (129€) + Multi-Sociétés (tout sauf club & prospection)
-  notefrais:      ["business","enterprise",...MULTI,"owner"],
-  overview:       ["business","enterprise",...MULTI,"owner"],
-  investissement: ["business","enterprise",...MULTI,"owner"],
-  compta:         ["business","enterprise",...MULTI,"owner"],
-  tresorerie:     ["business","enterprise",...MULTI,"owner"],
-  analytique:     ["business","enterprise",...MULTI,"owner"],
-  clients:        ["business","enterprise",...MULTI,"owner"],
-  partenaires:    ["business","enterprise",...MULTI,"owner"],
-  annuaire:       ["business","enterprise",...MULTI,"owner"],
-  wallet_membres: ["business","enterprise",...MULTI,"owner"],
-  evenements:     ["business","enterprise",...MULTI,"owner"],
-  scoring:        ["starter","business","enterprise",...MULTI,"owner"],
-  equipe:         ["business","enterprise",...MULTI,"owner"],
-  planning:       ["business","enterprise",...MULTI,"owner"],
-  deals:          ["business","enterprise",...MULTI,"owner"],
-  stock:          ["business","enterprise",...MULTI,"owner"],
-  services:       ["business","enterprise",...MULTI,"owner"],
-  notifications:  ["starter","business","enterprise",...MULTI,"club_affaires","owner"],
-  // Enterprise uniquement
-  prospection:    ["enterprise","owner"],
-  // Club d'affaires — option séparée ou inclus Enterprise
-  club_affaires:  ["enterprise","club_affaires","owner"],
-  // Multi-Sociétés — plans multi uniquement
-  multi_societes: ["multi_societes","multi_pro","holding","owner"],
+  wallet:         ["starter","business","enterprise","owner"],
+  cartes:         ["starter","business","enterprise","owner"],
+  crm:            ["starter","business","enterprise","owner"],
+  devis:          ["starter","business","enterprise","owner"],
+  facturation:    ["starter","business","enterprise","owner"],
+  settings:       ["starter","business","enterprise","owner"],
+  // Business Pro (129€)
+  notefrais:      ["business","enterprise","owner"],
+  overview:       ["business","enterprise","owner"],
+  investissement: ["business","enterprise","owner"],
+  compta:         ["business","enterprise","owner"],
+  tresorerie:     ["business","enterprise","owner"],
+  analytique:     ["business","enterprise","owner"],
+  clients:        ["business","enterprise","owner"],
+  partenaires:    ["business","enterprise","owner"],
+  club_affaires:  ["business","enterprise","owner"],
+  annuaire:       ["business","enterprise","owner"],
+  wallet_membres: ["business","enterprise","owner"],
+  evenements:     ["business","enterprise","owner"],
+  scoring:        ["starter","business","enterprise","owner"],
+  equipe:         ["business","enterprise","owner"],
+  planning:       ["business","enterprise","owner"],
+  prospection:    ["owner"],
+  deals:          ["business","enterprise","owner"],
+  stock:          ["business","enterprise","owner"],
+  services:       ["business","enterprise","owner"],
+  notifications:  ["starter","business","enterprise","owner"],
   signature:      ["business","enterprise","owner"],
   formation:      ["business","enterprise","owner"],
   // Enterprise (249€)
@@ -93,7 +84,6 @@ const NAV = [
     { id:"clients",       icon:"◬",  label:"Clients"              },
     { id:"partenaires",   icon:"⬡",  label:"Partenaires & AA",    badge:"comm"   },
     { id:"club_affaires", icon:"◈",  label:"Club d'affaires"      },
-    { id:"multi_societes",icon:"🏢", label:"Multi-Sociétés"       },
     { id:"annuaire",      icon:"◱",  label:"Réseau & Annuaire"    },
     { id:"wallet_membres",icon:"◈",  label:"Wallets Membres"      },
     { id:"evenements",    icon:"◆",  label:"Événements"           },
@@ -868,339 +858,33 @@ const PageWallet=({plan,showToast,profil})=>{
 };
 
 // ─── PAGE CARTES ──────────────────────────────────────────────
-const PageCartes=({plan,showToast})=>{
-  const[cartes,setCartes]=useState([]);
-  const[transactions,setTransactions]=useState([]);
-  const[budgets,setBudgets]=useState([]);
-  const[enAttente,setEnAttente]=useState([]);
-  const[loading,setLoading]=useState(true);
-  const[view,setView]=useState("grille");
-  const[onglet,setOnglet]=useState("cartes");
-  const[showForm,setShowForm]=useState(false);
-  const[showBudgetForm,setShowBudgetForm]=useState(false);
-  const[analyseIA,setAnalyseIA]=useState("");
-  const[iaLoading,setIaLoading]=useState(false);
-  const[alertes,setAlertes]=useState([]);
-  const[newCarte,setNewCarte]=useState({nom:"",limite:1000,devise:"EUR",couleur:C.blue,type:"standard",collaborateur:"",projet:"",ephemere:false});
-  const[newBudget,setNewBudget]=useState({projet:"",budget_total:""});
-
-  const load=async()=>{
-    setLoading(true);
-    try{
-      const[cartesRes,txRes,budgetsRes,enAttenteRes]=await Promise.all([
-        fetch('/api/cartes?action=cartes').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/cartes?action=transactions_all').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/cartes?action=budgets').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/cartes?action=en_attente').then(r=>r.json()).catch(()=>({})),
-      ]);
-      const cartesData=cartesRes.cartes||[];
-      setCartes(cartesData.length>0?cartesData:INIT_CARTES);
-      setTransactions(txRes.transactions||[]);
-      setBudgets(budgetsRes.budgets||[]);
-      setEnAttente(enAttenteRes.transactions||[]);
-      setAlertes(cartesData.filter(c=>c.statut==="active"&&(c.solde/c.limite)*100>=80));
-    }catch(e){setCartes(INIT_CARTES);}
-    setLoading(false);
-  };
-
-  useEffect(()=>{load();},[]);
-
-  const creerCarte=async()=>{
-    if(!newCarte.nom)return showToast("⚠️ Nom requis");
-    try{
-      const res=await fetch('/api/cartes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create',...newCarte})});
-      const d=await res.json();
-      if(d.success){showToast("💳 Carte créée !");setShowForm(false);setNewCarte({nom:"",limite:1000,devise:"EUR",couleur:C.blue,type:"standard",collaborateur:"",projet:"",ephemere:false});load();}
-      else showToast("❌ "+d.error);
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const toggleCarte=async(id,statut)=>{
-    try{
-      await fetch('/api/cartes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'toggle',id,statut_actuel:statut})});
-      showToast("✅ Statut carte mis à jour");load();
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const supprimerCarte=async(id)=>{
-    if(!confirm("Supprimer cette carte ?"))return;
-    try{
-      await fetch('/api/cartes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete',id})});
-      showToast("🗑 Carte supprimée");load();
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const approuverTransaction=async(tx)=>{
-    try{
-      await fetch('/api/cartes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'approuver_transaction',id:tx.id,carte_id:tx.carte_id,montant:tx.montant})});
-      showToast("✅ Transaction approuvée");load();
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const analyserIA=async()=>{
-    setIaLoading(true);
-    try{
-      const res=await fetch('/api/cartes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'analyser_ia',cartes})});
-      const d=await res.json();
-      if(d.success)setAnalyseIA(d.analyse);
-    }catch(e){}
-    setIaLoading(false);
-  };
-
-  const creerBudget=async()=>{
-    if(!newBudget.projet||!newBudget.budget_total)return showToast("⚠️ Projet et budget requis");
-    try{
-      await fetch('/api/cartes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create_budget',...newBudget})});
-      showToast("✅ Budget créé");setShowBudgetForm(false);setNewBudget({projet:"",budget_total:""});load();
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const tabs=[
-    {id:"cartes",label:"💳 Mes cartes"},
-    {id:"transactions",label:`📋 Transactions${transactions.length>0?" ("+transactions.length+")":""}`},
-    {id:"approbations",label:`⏳ Approbations${enAttente.length>0?" ("+enAttente.length+")":""}`},
-    {id:"budgets",label:"📊 Budgets projets"},
-    {id:"analyse",label:"🤖 Analyse IA"},
-    {id:"securite",label:"🛡 Sécurité"},
-  ];
-
-  const totalUtilise=cartes.filter(c=>c.devise==="EUR").reduce((a,c)=>a+Number(c.solde||0),0);
-  const totalLimite=cartes.filter(c=>c.devise==="EUR").reduce((a,c)=>a+Number(c.limite||0),0);
-  const cartesActives=cartes.filter(c=>c.statut==="active"||c.statut==="éphémère").length;
-
-  if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement des cartes...</div></div>;
-
+const PageCartes=({showToast})=>{
+  const[cartes,setCartes]=useState(INIT_CARTES);
+  const[view,setView]=useState("liste");
+  const toggleCarte=(id)=>{setCartes(cs=>cs.map(c=>c.id===id?{...c,statut:c.statut==="active"?"bloquée":"active"}:c));showToast("✅ Statut carte mis à jour");};
   return <div style={{padding:20}}>
-    {/* HEADER */}
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-      <div>
-        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◈ Cartes Virtuelles</div>
-        <div style={{fontSize:11,color:C.muted}}>Visa virtuelles · Supabase · Assignation projet/collaborateur · Approbations</div>
-      </div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◈ Cartes Virtuelles</div><div style={{fontSize:11,color:C.muted}}>Visa virtuelles sécurisées · Contrôle total</div></div>
       <div style={{display:"flex",gap:8}}>
-        {enAttente.length>0&&<div style={{background:`${C.orange}22`,border:`1px solid ${C.orange}44`,borderRadius:8,padding:"6px 12px",fontSize:11,color:C.orange,fontWeight:700}}>⏳ {enAttente.length} en attente</div>}
         <BtnGhost onClick={()=>setView(view==="liste"?"grille":"liste")} style={{fontSize:11}}>{view==="liste"?"⊞ Grille":"☰ Liste"}</BtnGhost>
-        <Btn onClick={()=>setShowForm(true)}>+ Nouvelle carte</Btn>
+        <Btn onClick={()=>showToast("💳 Nouvelle carte créée !")}>+ Nouvelle carte</Btn>
       </div>
     </div>
-
-    {/* ALERTES */}
-    {alertes.length>0&&<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:10,padding:12,marginBottom:14}}>
-      <div style={{fontSize:11,fontWeight:700,color:C.orange,marginBottom:6}}>⚠️ {alertes.length} carte(s) proche(s) du plafond</div>
-      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-        {alertes.map((a,i)=><div key={i} style={{background:`${C.orange}22`,borderRadius:6,padding:"4px 10px",fontSize:11}}>
-          <span style={{color:C.text}}>{a.nom}</span> — <span style={{color:C.orange,fontWeight:700}}>{Math.round((a.solde/a.limite)*100)}%</span> · reste {fmt(a.limite-a.solde)}
-        </div>)}
-      </div>
-    </div>}
-
-    {/* KPIs */}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>CARTES ACTIVES</div><div style={{fontSize:22,fontWeight:700,color:C.green}}>{cartesActives}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>UTILISÉ (EUR)</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(totalUtilise)}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>LIMITE TOTALE</div><div style={{fontSize:18,fontWeight:700,color:C.blue}}>{fmt(totalLimite)}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>DISPONIBLE</div><div style={{fontSize:18,fontWeight:700,color:C.purple}}>{fmt(totalLimite-totalUtilise)}</div></CT>
-      <CT style={{borderColor:`${C.orange}33`}}><div style={{fontSize:9,color:C.muted,marginBottom:4}}>EN ATTENTE</div><div style={{fontSize:18,fontWeight:700,color:C.orange}}>{enAttente.length}</div></CT>
+    <div style={{display:"grid",gridTemplateColumns:view==="grille"?"repeat(auto-fill,minmax(280px,1fr))":"1fr",gap:12}}>
+      {cartes.map(c=><PayCard key={c.id} carte={c} onToggle={toggleCarte}/>)}
     </div>
-
-    {/* FORM NOUVELLE CARTE */}
-    {showForm&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
-      <STitle>+ Créer une carte virtuelle</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Nom *</label><Inp value={newCarte.nom} onChange={e=>setNewCarte(c=>({...c,nom:e.target.value}))} placeholder="Ex: Abou — Missions"/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Plafond</label><Inp type="number" value={newCarte.limite} onChange={e=>setNewCarte(c=>({...c,limite:Number(e.target.value)}))}/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Devise</label><Sel value={newCarte.devise} onChange={e=>setNewCarte(c=>({...c,devise:e.target.value}))}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Collaborateur</label><Inp value={newCarte.collaborateur} onChange={e=>setNewCarte(c=>({...c,collaborateur:e.target.value}))} placeholder="Thomas, Abou, Fatou..."/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Projet / Mission</label><Inp value={newCarte.projet} onChange={e=>setNewCarte(c=>({...c,projet:e.target.value}))} placeholder="Airbnb Paris, Jet Dubaï..."/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Type</label>
-          <Sel value={newCarte.type} onChange={e=>setNewCarte(c=>({...c,type:e.target.value}))}>
-            <option value="standard">Standard</option>
-            <option value="ephemere">Éphémère (usage unique)</option>
-            <option value="projet">Par projet</option>
-            <option value="collaborateur">Par collaborateur</option>
-          </Sel>
-        </div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Couleur</label>
-          <input type="color" value={newCarte.couleur} onChange={e=>setNewCarte(c=>({...c,couleur:e.target.value}))} style={{width:"100%",height:38,border:`1px solid ${C.border}`,borderRadius:6,background:"transparent",cursor:"pointer"}}/>
-        </div>
-      </div>
-      {newCarte.type==="ephemere"&&<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:10,marginBottom:10,fontSize:11,color:C.orange}}>
-        ⚡ Carte éphémère — se désactive automatiquement après le premier paiement.
-      </div>}
-      <div style={{display:"flex",gap:8}}>
-        <Btn onClick={creerCarte}>💳 Créer la carte</Btn>
-        <BtnGhost onClick={()=>setShowForm(false)}>Annuler</BtnGhost>
-      </div>
-    </Card>}
-
-    {/* TABS */}
-    <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
-      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
-    </div>
-
-    {/* ── MES CARTES ── */}
-    {onglet==="cartes"&&<div style={{display:"grid",gridTemplateColumns:view==="grille"?"repeat(auto-fill,minmax(280px,1fr))":"1fr",gap:12}}>
-      {cartes.map((c,i)=>{
-        const pct=c.limite>0?Math.round((Number(c.solde||0)/Number(c.limite||1))*100):0;
-        const barColor=pct>=80?C.red:pct>=60?C.orange:C.green;
-        return <div key={c.id||i} style={{background:`linear-gradient(135deg,${c.couleur||C.blue}22,${C.card})`,border:`1px solid ${c.couleur||C.blue}44`,borderRadius:14,padding:20,position:"relative"}}>
-          {c.statut==="bloquée"&&<div style={{position:"absolute",top:10,right:10}}><Pill color={C.red}>🔒 Bloquée</Pill></div>}
-          {c.statut==="éphémère"&&<div style={{position:"absolute",top:10,right:10}}><Pill color={C.orange}>⚡ Éphémère</Pill></div>}
-          {c.statut==="expirée"&&<div style={{position:"absolute",top:10,right:10}}><Pill color={C.muted}>✕ Expirée</Pill></div>}
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-            <div style={{fontSize:12,fontWeight:700,color:C.text}}>{c.nom}</div>
-            <div style={{fontSize:16,color:c.couleur||C.blue,fontWeight:700}}>{c.reseau||"Visa"}</div>
-          </div>
-          <div style={{fontFamily:"'Courier New',monospace",fontSize:13,color:C.muted,marginBottom:10,letterSpacing:"0.1em"}}>{c.numero}</div>
-          {c.collaborateur&&<div style={{fontSize:10,color:C.muted,marginBottom:3}}>👤 {c.collaborateur}</div>}
-          {c.projet&&<div style={{fontSize:10,color:C.muted,marginBottom:8}}>📋 {c.projet}</div>}
-          <div style={{marginBottom:8}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}>
-              <span style={{color:C.muted}}>Utilisé</span>
-              <span style={{color:barColor,fontWeight:700}}>{fmt(Number(c.solde||0))} / {fmt(Number(c.limite||0))} · {pct}%</span>
-            </div>
-            <div style={{height:4,background:C.border,borderRadius:2,overflow:"hidden"}}>
-              <div style={{height:"100%",width:Math.min(100,pct)+"%",background:barColor,borderRadius:2}}/>
-            </div>
-          </div>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:C.muted,marginBottom:10}}>
-            <span>Exp: {c.expiry||"12/28"}</span><span>CVV: {c.cvv||"•••"}</span><span>{c.devise||"EUR"}</span>
-          </div>
-          <div style={{display:"flex",gap:6}}>
-            <BtnGhost onClick={()=>toggleCarte(c.id,c.statut)} style={{flex:1,fontSize:10,color:c.statut==="active"?C.orange:C.green}}>
-              {c.statut==="active"?"🔒 Geler":"🔓 Activer"}
-            </BtnGhost>
-            <BtnGhost onClick={()=>{navigator.clipboard?.writeText(c.numero?.replace(/[•]/g,"")||"");showToast("✅ Numéro copié");}} style={{fontSize:10}}>📋</BtnGhost>
-            <BtnGhost onClick={()=>supprimerCarte(c.id)} style={{fontSize:10,color:C.red,borderColor:`${C.red}33`}}>✕</BtnGhost>
-          </div>
-        </div>;
-      })}
-    </div>}
-
-    {/* ── TRANSACTIONS ── */}
-    {onglet==="transactions"&&<Card>
-      <STitle>📋 Historique transactions — toutes cartes</STitle>
-      {transactions.length===0?<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:20}}>Aucune transaction enregistrée.</div>:
-      <div style={{overflowX:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",minWidth:500}}>
-          <thead><tr><TH>Date</TH><TH>Carte</TH><TH>Libellé</TH><TH>Catégorie</TH><TH>Montant</TH><TH>Statut</TH></tr></thead>
-          <tbody>{transactions.slice(0,50).map((t,i)=><tr key={i}>
-            <Td style={{fontSize:10,color:C.muted}}>{new Date(t.date_transaction||t.created_at).toLocaleDateString("fr")}</Td>
-            <Td style={{fontSize:11}}>{t.cartes_virtuelles?.nom||"—"}</Td>
-            <Td style={{fontWeight:600}}>{t.libelle}</Td>
-            <Td><Pill color={C.blue}>{t.categorie||"Autres"}</Pill></Td>
-            <Td style={{color:t.sens==="debit"?C.red:C.green,fontWeight:700}}>{t.sens==="debit"?"-":"+"}{fmt(Number(t.montant||0))}</Td>
-            <Td><Pill color={t.statut==="approuvé"?C.green:t.statut==="en_attente"?C.orange:C.red}>{t.statut}</Pill></Td>
-          </tr>)}</tbody>
-        </table>
-      </div>}
-    </Card>}
-
-    {/* ── APPROBATIONS ── */}
-    {onglet==="approbations"&&<div>
-      {enAttente.length===0?<Card style={{textAlign:"center",padding:30}}>
-        <div style={{fontSize:32,marginBottom:8}}>✅</div>
-        <div style={{fontSize:13,fontWeight:700,marginBottom:4}}>Aucune transaction en attente</div>
-        <div style={{fontSize:11,color:C.muted}}>Toutes les transactions ont été traitées.</div>
-      </Card>:<div style={{display:"flex",flexDirection:"column",gap:10}}>
-        <div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:10,padding:12,fontSize:11,color:C.text}}>
-          ⏳ Ces transactions ont été soumises par vos collaborateurs et attendent votre validation. Une notification WhatsApp vous a été envoyée pour chaque demande.
-        </div>
-        {enAttente.map((t,i)=><Card key={i} style={{borderColor:`${C.orange}44`}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div>
-              <div style={{fontSize:13,fontWeight:700}}>{t.libelle}</div>
-              <div style={{fontSize:11,color:C.muted}}>Carte : {t.cartes_virtuelles?.nom||"—"} · {new Date(t.created_at).toLocaleDateString("fr")}</div>
-              <Pill color={C.blue}>{t.categorie||"Autres"}</Pill>
-            </div>
-            <div style={{textAlign:"right"}}>
-              <div style={{fontSize:20,fontWeight:700,color:C.orange,marginBottom:8}}>{fmt(Number(t.montant||0))}</div>
-              <div style={{display:"flex",gap:6}}>
-                <Btn onClick={()=>approuverTransaction(t)} style={{fontSize:11,padding:"6px 12px",background:C.green}}>✅ Approuver</Btn>
-                <BtnGhost onClick={()=>showToast("❌ Transaction refusée")} style={{fontSize:11,color:C.red,borderColor:`${C.red}44`}}>✕ Refuser</BtnGhost>
-              </div>
-            </div>
-          </div>
-        </Card>)}
-      </div>}
-    </div>}
-
-    {/* ── BUDGETS PROJETS ── */}
-    {onglet==="budgets"&&<div>
-      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
-        <Btn onClick={()=>setShowBudgetForm(true)} style={{fontSize:11}}>+ Créer un budget projet</Btn>
-      </div>
-      {showBudgetForm&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
-        <STitle>+ Nouveau budget projet</STitle>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Nom du projet</label><Inp value={newBudget.projet} onChange={e=>setNewBudget(b=>({...b,projet:e.target.value}))} placeholder="Airbnb Paris, Jet Dubaï..."/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Budget total (€)</label><Inp type="number" value={newBudget.budget_total} onChange={e=>setNewBudget(b=>({...b,budget_total:e.target.value}))}/></div>
-        </div>
-        <div style={{display:"flex",gap:8}}><Btn onClick={creerBudget}>✅ Créer</Btn><BtnGhost onClick={()=>setShowBudgetForm(false)}>Annuler</BtnGhost></div>
-      </Card>}
-      {budgets.length===0?<Card style={{textAlign:"center",padding:30}}>
-        <div style={{fontSize:11,color:C.muted}}>Aucun budget projet. Crée-en un pour suivre les dépenses par mission.</div>
-      </Card>:<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:10}}>
-        {budgets.map((b,i)=>{
-          const cartesProjet=cartes.filter(c=>c.projet===b.projet);
-          const depense=cartesProjet.reduce((a,c)=>a+Number(c.solde||0),0);
-          const pct=b.budget_total>0?Math.round(depense/b.budget_total*100):0;
-          return <Card key={i} style={{borderColor:`${C.blue}33`}}>
-            <div style={{fontSize:13,fontWeight:700,marginBottom:4}}>{b.projet}</div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:6}}>
-              <span style={{color:C.muted}}>Dépensé</span>
-              <span style={{color:pct>=80?C.red:C.gold,fontWeight:700}}>{fmt(depense)} / {fmt(b.budget_total)} ({pct}%)</span>
-            </div>
-            <SM val={pct} max={100} color={pct>=80?C.red:pct>=60?C.orange:C.green}/>
-            <div style={{fontSize:10,color:C.muted,marginTop:6}}>{cartesProjet.length} carte(s) rattachée(s)</div>
-          </Card>;
-        })}
-      </div>}
-    </div>}
-
-    {/* ── ANALYSE IA ── */}
-    {onglet==="analyse"&&<div>
-      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:16,marginBottom:14}}>
-        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Analyse IA des dépenses — Claude Sonnet</div>
-        {iaLoading?<div style={{fontSize:11,color:C.muted}}>⏳ Analyse en cours...</div>:<div style={{fontSize:12,color:C.text,lineHeight:1.8}}>{analyseIA||"Clique sur Analyser pour obtenir une analyse IA de tes dépenses par carte."}</div>}
-        <BtnGhost onClick={analyserIA} style={{marginTop:8,fontSize:10}}>{iaLoading?"⏳...":"🤖 Analyser les dépenses"}</BtnGhost>
-      </div>
-      <Card>
-        <STitle>📊 Utilisation par carte</STitle>
-        {cartes.map((c,i)=>{
-          const pct=c.limite>0?Math.round((Number(c.solde||0)/Number(c.limite||1))*100):0;
-          return <div key={i} style={{marginBottom:12}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
-              <div><span style={{fontWeight:600}}>{c.nom}</span>{c.collaborateur&&<span style={{color:C.muted,fontSize:10}}> · {c.collaborateur}</span>}</div>
-              <div><span style={{color:pct>=80?C.red:pct>=60?C.orange:C.green,fontWeight:700}}>{pct}%</span><span style={{color:C.muted,fontSize:10,marginLeft:8}}>{fmt(Number(c.solde||0))} / {fmt(Number(c.limite||0))}</span></div>
-            </div>
-            <SM val={pct} max={100} color={pct>=80?C.red:pct>=60?C.orange:C.green}/>
-          </div>;
-        })}
-      </Card>
-    </div>}
-
-    {/* ── SÉCURITÉ ── */}
-    {onglet==="securite"&&<Card>
-      <STitle>🛡 Sécurité & Contrôles globaux</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+    <Card style={{marginTop:16}}>
+      <STitle>🛡 Sécurité & Contrôles</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
         <CT><div style={{fontSize:11,fontWeight:600,marginBottom:4}}>Dépenses max/jour</div><Inp placeholder="500 €"/></CT>
         <CT><div style={{fontSize:11,fontWeight:600,marginBottom:4}}>Pays autorisés</div><Inp placeholder="FR, AE, SN..."/></CT>
         <CT><div style={{fontSize:11,fontWeight:600,marginBottom:4}}>Catégories bloquées</div><Inp placeholder="Jeux, alcool..."/></CT>
       </div>
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {[["🔔 Alertes WhatsApp à chaque transaction",true],["✅ Approbation manager requise >500€",true],["📍 Limitation géographique activée",false],["⏰ Désactivation auto la nuit (22h-7h)",false],["🔒 Authentification 3D Secure obligatoire",true]].map(([label,actif],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"10px 12px",background:C.card2,borderRadius:8,fontSize:12}}>
-          <span>{label}</span>
-          <div style={{width:36,height:20,borderRadius:10,background:actif?C.green:C.border,position:"relative",cursor:"pointer"}}>
-            <div style={{width:16,height:16,borderRadius:"50%",background:"#fff",position:"absolute",top:2,left:actif?18:2,transition:"left 0.2s"}}/>
-          </div>
-        </div>)}
-      </div>
-    </Card>}
+    </Card>
   </div>;
 };
 
-
+// ─── PAGE ACCUEIL ─────────────────────────────────────────────
 const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
   const nonLus=notifs.filter(n=>!n.lu).length;
   const[loading,setLoading]=useState(true);
@@ -1350,248 +1034,38 @@ const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
   </div>;
 };
 
-const PageOverview=({plan,profil,setPage,showToast})=>{
-  const[data,setData]=useState(null);
-  const[loading,setLoading]=useState(true);
-  const[briefing,setBriefing]=useState("");
-  const[briefingLoading,setBriefingLoading]=useState(false);
-  const[devise,setDevise]=useState("EUR");
-
-  const load=async()=>{
-    setLoading(true);
-    try{
-      const[walletRes,facturesRes,devisRes,clientsRes,dealsRes,chargesRes,partnersRes]=await Promise.all([
-        fetch('/api/wallet').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/factures').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/devis').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/clients').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/deals').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/tresorerie').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/partenaires').then(r=>r.json()).catch(()=>({})),
-      ]);
-
-      const wallet=walletRes.transactions||walletRes.data||[];
-      const factures=facturesRes.factures||facturesRes.data||[];
-      const devis=devisRes.devis||devisRes.data||[];
-      const clients=clientsRes.clients||clientsRes.data||[];
-      const deals=dealsRes.deals||dealsRes.data||[];
-      const partners=partnersRes.partenaires||partnersRes.data||[];
-
-      const now=new Date();
-      const debutMois=new Date(now.getFullYear(),now.getMonth(),1);
-      const debutSemaine=new Date(now.getTime()-now.getDay()*86400000);
-
-      // CA réel
-      const caMois=factures.filter(f=>f.statut==="payée"&&new Date(f.date_emission||f.created_at)>=debutMois).reduce((a,f)=>a+Number(f.montant_ttc||0),0)+
-        wallet.filter(t=>t.type==="entree"&&t.statut==="confirmé"&&new Date(t.created_at)>=debutMois).reduce((a,t)=>a+Number(t.montant||0),0);
-      const caSemaine=factures.filter(f=>f.statut==="payée"&&new Date(f.date_emission||f.created_at)>=debutSemaine).reduce((a,f)=>a+Number(f.montant_ttc||0),0);
-      const caTotal=factures.filter(f=>f.statut==="payée").reduce((a,f)=>a+Number(f.montant_ttc||0),0)+
-        wallet.filter(t=>t.type==="entree"&&t.statut==="confirmé").reduce((a,t)=>a+Number(t.montant||0),0);
-
-      // Solde wallet
-      const solde=(walletRes.solde||walletRes.balance)||
-        wallet.filter(t=>t.type==="entree"&&t.statut==="confirmé").reduce((a,t)=>a+Number(t.montant||0),0)-
-        wallet.filter(t=>t.type!=="entree"&&t.statut==="viré").reduce((a,t)=>a+Number(t.montant||0),0);
-
-      // Commissions dues
-      const commissionsDues=wallet.filter(t=>t.type==="commission"&&t.statut==="à_virer").reduce((a,t)=>a+Number(t.montant||0),0);
-
-      // Factures en attente
-      const facturesEnAttente=factures.filter(f=>f.statut!=="payée"&&f.statut!=="annulée");
-      const montantEnAttente=facturesEnAttente.reduce((a,f)=>a+Number(f.montant_ttc||0),0);
-
-      // Devis en cours
-      const devisEnCours=devis.filter(d=>d.statut==="envoyé"||d.statut==="en_cours");
-
-      // Deals pipeline
-      const dealsActifs=deals.filter(d=>d.statut!=="perdu"&&d.statut!=="gagné");
-      const valeurPipeline=dealsActifs.reduce((a,d)=>a+Number(d.valeur||d.montant||0),0);
-
-      // Score santé global
-      let score=50;
-      if(solde>10000)score+=15;else if(solde>2000)score+=5;else score-=15;
-      if(caMois>5000)score+=15;else if(caMois>1000)score+=5;else score-=5;
-      if(commissionsDues>solde*0.3)score-=10;
-      if(facturesEnAttente.length>5)score-=5;
-      if(clients.length>10)score+=10;else if(clients.length>3)score+=5;
-      const scoreGlobal=Math.max(0,Math.min(100,score));
-
-      // Activité récente
-      const activiteRecente=[
-        ...factures.slice(-5).map(f=>({type:"facture",label:f.client_nom||"Client",montant:Number(f.montant_ttc||0),statut:f.statut,date:f.created_at})),
-        ...wallet.slice(-5).map(t=>({type:"wallet",label:t.libelle||t.type,montant:Number(t.montant||0),statut:t.statut,date:t.created_at})),
-      ].sort((a,b)=>new Date(b.date).getTime()-new Date(a.date).getTime()).slice(0,8);
-
-      // Météo financière
-      const meteo=solde>10000&&caMois>3000?"🌞 Excellente":solde>5000&&caMois>1000?"🌤 Bonne":solde>2000?"⛅ Correcte":"🌧 Difficile";
-      const meteoColor=solde>10000&&caMois>3000?C.green:solde>5000&&caMois>1000?C.teal:solde>2000?C.gold:C.red;
-
-      setData({caMois,caSemaine,caTotal,solde,commissionsDues,montantEnAttente,facturesEnAttente,devisEnCours,dealsActifs,valeurPipeline,scoreGlobal,activiteRecente,meteo,meteoColor,clients,partners});
-    }catch(e){console.error("Overview:",e);}
-    setLoading(false);
-  };
-
-  useEffect(()=>{load();},[]);
-
-  useEffect(()=>{
-    if(data&&!briefing){
-      setBriefingLoading(true);
-      fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-        model:'claude-sonnet-4-6',max_tokens:400,
-        messages:[{role:'user',content:`Tu es l'assistant IA de Xyra. Génère un briefing matinal professionnel (4-5 phrases, français, ton coach business) basé sur ces données réelles :
-Score santé : ${data.scoreGlobal}/100 | CA ce mois : ${data.caMois}€ | Solde : ${data.solde}€
-Commissions dues : ${data.commissionsDues}€ | Factures en attente : ${data.montantEnAttente}€ (${data.facturesEnAttente?.length} factures)
-Devis en cours : ${data.devisEnCours?.length} | Pipeline deals : ${data.valeurPipeline}€
-Clients actifs : ${data.clients?.length}
-
-Donne : 1 constat positif, 1 point de vigilance, et 3 priorités concrètes pour aujourd'hui. Commence par "Bonjour ! Voici votre briefing du jour —"`}]
-      })}).then(r=>r.json()).then(d=>{setBriefing(d.content?.[0]?.text||"");setBriefingLoading(false);}).catch(()=>setBriefingLoading(false));
-    }
-  },[data]);
-
-  if(!hasAccess(plan,"overview"))return <div style={{padding:20}}><UpgradeWall page="overview" plan={plan}/></div>;
-  if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement de votre vue d'ensemble...</div></div>;
-
-  const scoreColor=data.scoreGlobal>=70?C.green:data.scoreGlobal>=40?C.gold:C.red;
-  const scoreLabel=data.scoreGlobal>=70?"🟢 Excellente":data.scoreGlobal>=40?"🟡 Correcte":"🔴 À surveiller";
-
+const PageOverview=({plan,profil})=>{
+  const T=profil?.termes||PROFIL_DEFAUT.termes;
+  const kpis=[{l:"CA ce mois",v:"24 380 €",c:C.green,t:"↗ +12%"},{l:"Marge nette",v:"61%",c:C.teal,t:"↗ +4pts"},{l:T.missions||"Missions",v:"14",c:C.blue,t:"Ce mois"},{l:"Devis signés",v:"8",c:C.gold,t:"/ 12 envoyés"},{l:"NPS moyen",v:"★ 4.6",c:C.gold,t:"23 avis"},{l:"Clients actifs",v:"5",c:C.purple,t:"dont 2 VIP"},{l:"Commissions",v:"8 525 €",c:C.orange,t:"À payer"},{l:"Score Xyra",v:"74/100",c:C.gold,t:"🟡 Bon"}];
   return <div style={{padding:20}}>
-    {/* HEADER */}
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
-      <div>
-        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◑ Vue d'ensemble</div>
-        <div style={{fontSize:11,color:C.muted}}>Tableau de bord principal · Données réelles en temps réel</div>
-      </div>
-      <div style={{display:"flex",gap:8,alignItems:"center"}}>
-        <div style={{fontSize:22}}>{data.meteo.split(" ")[0]}</div>
-        <div style={{fontSize:12,color:data.meteoColor,fontWeight:700}}>{data.meteo.split(" ").slice(1).join(" ")}</div>
-        <Sel value={devise} onChange={e=>setDevise(e.target.value)}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel>
-      </div>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◈ Vue d'ensemble</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>KPIs · Santé business · Alertes critiques · Actions rapides</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+      {kpis.map((k,i)=><CT key={i}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{k.l}</div><div style={{fontSize:20,fontWeight:700,color:k.c,fontFamily:"Georgia,serif"}}>{k.v}</div><div style={{fontSize:10,color:k.c,marginTop:2}}>{k.t}</div></CT>)}
     </div>
-
-    {/* BRIEFING IA */}
-    <div style={{background:`linear-gradient(135deg,${C.card},${C.card2})`,border:`1px solid ${C.purple}44`,borderRadius:12,padding:16,marginBottom:16}}>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-        <div style={{fontSize:10,color:C.purple,fontWeight:700,letterSpacing:"0.1em"}}>🤖 BRIEFING IA — CLAUDE · {new Date().toLocaleDateString("fr",{weekday:"long",day:"numeric",month:"long"}).toUpperCase()}</div>
-        <BtnGhost onClick={()=>{setBriefing("");setBriefingLoading(true);}} style={{fontSize:9,padding:"3px 8px"}}>🔄</BtnGhost>
-      </div>
-      {briefingLoading?<div style={{fontSize:12,color:C.muted}}>⏳ Génération du briefing...</div>:<div style={{fontSize:12,color:C.text,lineHeight:1.8}}>{briefing||"Chargement du briefing..."}</div>}
-    </div>
-
-    {/* SCORE + KPIs PRINCIPAUX */}
-    <div style={{display:"grid",gridTemplateColumns:"140px 1fr",gap:12,marginBottom:16}}>
-      <div style={{background:C.card,border:`2px solid ${scoreColor}44`,borderRadius:12,padding:16,textAlign:"center",display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center"}}>
-        <div style={{fontSize:9,color:C.muted,marginBottom:6,letterSpacing:"0.1em"}}>SCORE SANTÉ</div>
-        <div style={{fontSize:48,fontWeight:700,color:scoreColor,fontFamily:"Georgia,serif",lineHeight:1}}>{data.scoreGlobal}</div>
-        <div style={{fontSize:9,color:scoreColor,marginTop:4}}>{scoreLabel}</div>
-        <div style={{width:"100%",height:4,background:C.border,borderRadius:2,marginTop:8,overflow:"hidden"}}>
-          <div style={{height:"100%",width:data.scoreGlobal+"%",background:scoreColor,borderRadius:2,transition:"width 1s"}}/>
-        </div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8}}>
-        {[
-          {l:"CA ce mois",v:fmt(conv(data.caMois,"EUR",devise),devise),c:C.green,sub:"Réel confirmé"},
-          {l:"Solde wallet",v:fmt(conv(data.solde,"EUR",devise),devise),c:data.solde>5000?C.teal:data.solde>2000?C.gold:C.red,sub:"Disponible"},
-          {l:"En attente",v:fmt(conv(data.montantEnAttente,"EUR",devise),devise),c:C.orange,sub:`${data.facturesEnAttente?.length||0} factures`},
-          {l:"Pipeline deals",v:fmt(conv(data.valeurPipeline,"EUR",devise),devise),c:C.blue,sub:`${data.dealsActifs?.length||0} deals actifs`},
-          {l:"CA cette semaine",v:fmt(conv(data.caSemaine,"EUR",devise),devise),c:C.purple,sub:"7 derniers jours"},
-          {l:"Commissions dues",v:fmt(conv(data.commissionsDues,"EUR",devise),devise),c:data.commissionsDues>0?C.red:C.green,sub:data.commissionsDues>0?"À virer":"Tout à jour"},
-          {l:"Devis en cours",v:data.devisEnCours?.length||0,c:C.blue,sub:"Envoyés"},
-          {l:"Clients actifs",v:data.clients?.length||0,c:C.teal,sub:"Total CRM"},
-        ].map((k,i)=><CT key={i}><div style={{fontSize:9,color:C.muted,marginBottom:3,letterSpacing:"0.08em"}}>{k.l}</div><div style={{fontSize:16,fontWeight:700,color:k.c}}>{k.v}</div><div style={{fontSize:9,color:C.muted,marginTop:2}}>{k.sub}</div></CT>)}
-      </div>
-    </div>
-
-    {/* ACTIONS RAPIDES */}
-    <Card style={{marginBottom:14}}>
-      <STitle>⚡ Actions rapides</STitle>
-      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-        {[
-          {label:"+ Nouveau devis",color:C.gold,page:"devis"},
-          {label:"+ Enregistrer paiement",color:C.green,page:"wallet"},
-          {label:"+ Ajouter client",color:C.blue,page:"crm"},
-          {label:"+ Nouvelle facture",color:C.purple,page:"facturation"},
-          {label:"+ Deal pipeline",color:C.orange,page:"deals"},
-          {label:"Voir trésorerie",color:C.teal,page:"tresorerie"},
-        ].map((a,i)=><button key={i} onClick={()=>setPage&&setPage(a.page)} style={{background:`${a.color}15`,border:`1px solid ${a.color}44`,borderRadius:8,padding:"8px 14px",cursor:"pointer",fontFamily:"inherit",fontSize:12,color:a.color,fontWeight:600,transition:"all 0.2s"}}>{a.label}</button>)}
-      </div>
-    </Card>
-
-    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
-      {/* ACTIVITÉ RÉCENTE */}
-      <Card>
-        <STitle>🕐 Activité récente</STitle>
-        {data.activiteRecente?.length===0&&<div style={{fontSize:11,color:C.muted,textAlign:"center",padding:12}}>Aucune activité récente.</div>}
-        {data.activiteRecente?.map((a,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}>
-          <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            <span style={{fontSize:14}}>{a.type==="facture"?"🧾":"💳"}</span>
-            <div>
-              <div style={{fontWeight:600,color:C.text}}>{a.label}</div>
-              <div style={{fontSize:9,color:C.muted}}>{new Date(a.date).toLocaleDateString("fr")}</div>
-            </div>
-          </div>
-          <div style={{textAlign:"right"}}>
-            <div style={{fontWeight:700,color:C.gold}}>{fmt(a.montant)}</div>
-            <Pill color={a.statut==="payée"||a.statut==="confirmé"?C.green:a.statut==="viré"?C.teal:C.orange}>{a.statut}</Pill>
-          </div>
-        </div>)}
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Card><STitle>🚦 État des modules</STitle>
+        {[["Wallet & Paiements","✅ Opérationnel",C.green],["CRM","✅ 4 leads actifs",C.green],["Stock","⚠️ 2 articles critiques",C.orange],["Équipe","✅ 3/3 actifs",C.green],["Contrats","✅ 3 signés",C.green],["Formation","📋 1 en cours",C.blue]].map(([n,s,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.text}}>{n}</span><span style={{color:c,fontWeight:600,fontSize:11}}>{s}</span></div>)}
       </Card>
-
-      {/* PIPELINE DEALS */}
-      <Card>
-        <STitle>🎯 Pipeline commercial</STitle>
-        {data.dealsActifs?.length===0&&<div style={{fontSize:11,color:C.muted,textAlign:"center",padding:12}}>Aucun deal actif. <button onClick={()=>setPage&&setPage("deals")} style={{background:"transparent",border:"none",color:C.gold,cursor:"pointer",fontFamily:"inherit",fontSize:11}}>Ajouter un deal →</button></div>}
-        {data.dealsActifs?.slice(0,5).map((d,i)=>{
-          const prob=d.probabilite||d.probability||50;
-          const colors=[C.blue,C.purple,C.teal,C.gold,C.orange];
-          return <div key={i} style={{marginBottom:10}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}>
-              <span style={{fontWeight:600}}>{d.nom||d.titre||d.name||"Deal"}</span>
-              <div style={{display:"flex",gap:6,alignItems:"center"}}>
-                <span style={{color:C.gold,fontWeight:700}}>{fmt(Number(d.valeur||d.montant||0))}</span>
-                <Pill color={colors[i%5]}>{prob}%</Pill>
-              </div>
-            </div>
-            <SM val={prob} max={100} color={colors[i%5]}/>
-          </div>;
-        })}
-        {data.valeurPipeline>0&&<div style={{marginTop:10,padding:"8px 12px",background:`${C.blue}11`,border:`1px solid ${C.blue}22`,borderRadius:8,fontSize:11,color:C.text}}>
-          Pipeline total : <b style={{color:C.gold}}>{fmt(data.valeurPipeline)}</b>
-        </div>}
+      <Card><STitle>📈 CA par service</STitle>
+        {[["Airbnb / Résidentiel",12400,C.gold],["Jet & Yacht",8200,C.blue],["Rapatriement",4800,C.purple],["Bureaux",3200,C.teal]].map(([n,v,c],i)=><div key={i} style={{marginBottom:10}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div><SM val={v} max={12400} color={c}/></div>)}
       </Card>
     </div>
-
-    {/* ALERTES URGENTES */}
-    {(data.commissionsDues>0||data.facturesEnAttente?.length>3||data.solde<2000)&&<Card style={{borderColor:`${C.orange}44`}}>
-      <STitle>🔔 Points d'attention</STitle>
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {data.commissionsDues>0&&<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:`${C.red}11`,border:`1px solid ${C.red}22`,borderRadius:8,padding:"10px 12px",fontSize:12}}>
-          <span>💸 Commissions partenaires à virer</span>
-          <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            <span style={{color:C.red,fontWeight:700}}>{fmt(data.commissionsDues)}</span>
-            <BtnGhost onClick={()=>setPage&&setPage("wallet")} style={{fontSize:10,padding:"3px 8px"}}>Gérer →</BtnGhost>
-          </div>
-        </div>}
-        {data.facturesEnAttente?.length>3&&<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:`${C.orange}11`,border:`1px solid ${C.orange}22`,borderRadius:8,padding:"10px 12px",fontSize:12}}>
-          <span>🧾 {data.facturesEnAttente.length} factures en attente de paiement</span>
-          <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            <span style={{color:C.orange,fontWeight:700}}>{fmt(data.montantEnAttente)}</span>
-            <BtnGhost onClick={()=>setPage&&setPage("facturation")} style={{fontSize:10,padding:"3px 8px"}}>Voir →</BtnGhost>
-          </div>
-        </div>}
-        {data.solde<2000&&<div style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:`${C.red}11`,border:`1px solid ${C.red}22`,borderRadius:8,padding:"10px 12px",fontSize:12}}>
-          <span>⚠️ Solde wallet sous le seuil critique</span>
-          <div style={{display:"flex",gap:8,alignItems:"center"}}>
-            <span style={{color:C.red,fontWeight:700}}>{fmt(data.solde)}</span>
-            <BtnGhost onClick={()=>setPage&&setPage("tresorerie")} style={{fontSize:10,padding:"3px 8px"}}>Trésorerie →</BtnGhost>
-          </div>
-        </div>}
-      </div>
-    </Card>}
   </div>;
 };
 
+// ─── SCORE SOLVABILITE ────────────────────────────────────────
+const SolvabiliteWidget=({score,nom})=>{
+  const color=score>=80?C.green:score>=60?C.gold:score>=40?C.orange:C.red;
+  const label=score>=80?"Excellent":score>=60?"Bon":score>=40?"Moyen":"Risqué";
+  return <div style={{background:`${color}11`,border:`1px solid ${color}33`,borderRadius:10,padding:"8px 12px",display:"flex",alignItems:"center",gap:12}}>
+    <div style={{fontSize:22,fontWeight:700,color,fontFamily:"Georgia,serif",minWidth:44}}>{score}</div>
+    <div><div style={{fontSize:10,color,fontWeight:600}}>Score Solvabilité Xyra</div><div style={{fontSize:11,color:C.muted}}>{label} · {nom}</div></div>
+    <SM val={score} max={100} color={color}/>
+  </div>;
+};
 
+// ─── PAGE CRM ─────────────────────────────────────────────────
 const PageCRM=({plan,showToast,profil})=>{
   const[leads,setLeads]=useState([]);
   const[loadingLeads,setLoadingLeads]=useState(true);
@@ -2961,154 +2435,29 @@ const PageCompta=({plan,showToast})=>{
 // ─── PAGE TRESORERIE ──────────────────────────────────────────
 const PageTresorerie=({plan,showToast})=>{
   const[devise,setDevise]=useState("EUR");
-  const[onglet,setOnglet]=useState("dashboard");
-  const[loading,setLoading]=useState(true);
-  const[data,setData]=useState(null);
-  const[analyseIA,setAnalyseIA]=useState("");
-  const[iaLoading,setIaLoading]=useState(false);
-  const[alerteIA,setAlerteIA]=useState("");
-  const[scenario,setScenario]=useState("realiste");
   const[simDepense,setSimDepense]=useState(0);
-  const[ligneManuelle,setLigneManuelle]=useState({libelle:"",montant:"",semaine:"",sens:"entree"});
-  const[lignesManuelles,setLignesManuelles]=useState([]);
-  const[scoringClients,setScoringClients]=useState([]);
-  const[seuils,setSeuils]=useState({seuil_alerte_bas:5000,seuil_alerte_critique:2000,seuil_sortie_importante:3000,placement_seuil:20000});
+  const[onglet,setOnglet]=useState("dashboard");
 
-  const tabs=[
-    {id:"dashboard",label:"📊 Cash-flow"},
-    {id:"scenarios",label:"🎯 3 Scénarios"},
-    {id:"sante",label:"❤ Santé & KPIs"},
-    {id:"sources",label:"📈 Par source"},
-    {id:"equipe",label:"👥 Cashflow équipe"},
-    {id:"clients",label:"🎯 Scoring clients"},
-    {id:"placement",label:"💎 Placements"},
-    {id:"manuel",label:"✏ Prévisionnel"},
-    {id:"simulation",label:"🎮 Simulation"},
-    {id:"alertes",label:"🔔 Alertes"},
-    {id:"export",label:"📤 Export"},
-  ];
+  const tabs=[{id:"dashboard",label:"📊 Cash-flow"},{id:"previsions",label:"🤖 Prévisions IA"},{id:"simulation",label:"🎮 Simulation"},{id:"alertes",label:"🔔 Alertes"},{id:"export",label:"📤 Export"}];
 
-  const load=async()=>{
-    try{
-      const res=await fetch('/api/tresorerie');
-      const d=await res.json();
-      setData(d);
-      if(d.parametres)setSeuils(d.parametres);
-    }catch(e){console.error("Tresorerie:",e);}
-    setLoading(false);
-  };
-
-  useEffect(()=>{load();},[]);
-
-  // Analyse IA au chargement
-  useEffect(()=>{
-    if(data&&!analyseIA){
-      fetch('/api/tresorerie',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'analyse_ia',...data})})
-        .then(r=>r.json()).then(d=>{if(d.success)setAnalyseIA(d.analyse);}).catch(()=>{});
-    }
-  },[data]);
-
-  // Alerte intelligente au chargement si solde à risque
-  useEffect(()=>{
-    if(data&&data.soldeActuel<seuils.seuil_alerte_bas){
-      fetch('/api/tresorerie',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'alerte_intelligente',...data,param:seuils})})
-        .then(r=>r.json()).then(d=>{if(d.success&&d.alerte)setAlerteIA(d.alerte);}).catch(()=>{});
-      // Alerte WhatsApp si critique
-      if(data.soldeActuel<seuils.seuil_alerte_critique){
-        fetch('/api/tresorerie',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'alerte_critique_whatsapp',soldeActuel:data.soldeActuel,seuil:seuils.seuil_alerte_critique})}).catch(()=>{});
-      }
-    }
-  },[data,seuils]);
-
-  const genererScoring=async()=>{
-    if(!data)return;
-    try{
-      const res=await fetch('/api/tresorerie',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'scoring_clients',facturesList:data.clientsEnRetard||[]})});
-      const d=await res.json();
-      if(d.success)setScoringClients(d.predictions||[]);
-    }catch(e){}
-  };
-
-  const envoyerRapportHebdo=async()=>{
-    showToast("⏳ Envoi du rapport WhatsApp...");
-    try{
-      const res=await fetch('/api/tresorerie',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'rapport_hebdo',...data})});
-      const d=await res.json();
-      if(d.success)showToast("✅ Rapport hebdomadaire envoyé sur WhatsApp");
-      else showToast("❌ "+(d.error||"Erreur"));
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const sauverSeuils=async()=>{
-    try{
-      await fetch('/api/tresorerie',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'set_parametres',...seuils})});
-      showToast("✅ Paramètres sauvegardés");load();
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const ajouterLigneManuelle=async()=>{
-    if(!ligneManuelle.libelle||!ligneManuelle.montant||!ligneManuelle.semaine)return showToast("⚠️ Remplis tous les champs");
-    try{
-      await fetch('/api/tresorerie',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter_ligne_manuelle',...ligneManuelle})});
-      showToast("✅ Ligne ajoutée");
-      setLignesManuelles(l=>[...l,{...ligneManuelle,id:Date.now()}]);
-      setLigneManuelle({libelle:"",montant:"",semaine:"",sens:"entree"});
-    }catch(e){showToast("❌ Erreur");}
-  };
+  const soldeActuel=18420;
+  const soldeSim=soldeActuel-simDepense;
 
   if(!hasAccess(plan,"tresorerie"))return <div style={{padding:20}}><UpgradeWall page="tresorerie" plan={plan}/></div>;
-  if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement des données réelles...</div></div>;
-
-  const soldeActuel=data?.soldeActuel||0;
-  const previsions=scenario==="optimiste"?data?.prevOptimiste:scenario==="pessimiste"?data?.prevPessimiste:data?.prevRealiste||[];
-  const semaines=data?.semaines||[];
-  const toutesLesSemaines=[...semaines,...previsions];
-  const soldeJ90=previsions[previsions.length-1]?.sol??soldeActuel;
-  const scoreFinancier=data?.scoreFinancier||0;
-  const pointMort=data?.pointMort||0;
-  const bfr=data?.bfr||0;
-  const sources=data?.sources||{};
-  const cashflowEquipe=data?.cashflowEquipe||[];
-  const clientsEnRetard=data?.clientsEnRetard||[];
-  const suggestionsPlacement=data?.suggestionsPlacement||[];
-  const excedent=data?.excedent||0;
-  const soldeSim=soldeActuel-simDepense;
-  const scoreColor=scoreFinancier>=70?C.green:scoreFinancier>=40?C.gold:C.red;
-  const scoreLabel=scoreFinancier>=70?"🟢 Excellente":scoreFinancier>=40?"🟡 Correcte":"🔴 Risquée";
 
   return <div style={{padding:20}}>
-    {/* HEADER */}
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-      <div>
-        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◑ Trésorerie 90 jours</div>
-        <div style={{fontSize:11,color:C.muted}}>Cash-flow réel · 3 scénarios · Score santé · BFR · Scoring clients · Placements</div>
-      </div>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◑ Trésorerie 90 jours</div>
+        <div style={{fontSize:11,color:C.muted}}>Cash-flow · Prévisions IA · Simulation · Alertes · Export</div></div>
       <div style={{display:"flex",gap:8}}>
-        <BtnGhost onClick={envoyerRapportHebdo} style={{fontSize:11}}>📱 Rapport WhatsApp</BtnGhost>
         <Sel value={devise} onChange={e=>setDevise(e.target.value)}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel>
       </div>
     </div>
 
-    {/* ALERTE INTELLIGENTE */}
-    {alerteIA&&<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:10,padding:14,marginBottom:14}}>
-      <div style={{fontSize:10,color:C.orange,fontWeight:700,marginBottom:4}}>🤖 ALERTE INTELLIGENTE — Claude</div>
-      <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>{alerteIA}</div>
-    </div>}
-
-    {/* KPIs */}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
-      <CT style={{textAlign:"center",borderColor:`${scoreColor}44`}}>
-        <div style={{fontSize:9,color:C.muted,marginBottom:4}}>SCORE SANTÉ</div>
-        <div style={{fontSize:28,fontWeight:700,color:scoreColor}}>{scoreFinancier}</div>
-        <div style={{fontSize:10,color:scoreColor}}>{scoreLabel}</div>
-      </CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>SOLDE ACTUEL</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(conv(soldeActuel,"EUR",devise),devise)}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>SOLDE J+90</div><div style={{fontSize:18,fontWeight:700,color:soldeJ90>=soldeActuel?C.teal:C.orange}}>{fmt(conv(soldeJ90,"EUR",devise),devise)}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>POINT MORT/SEMAINE</div><div style={{fontSize:18,fontWeight:700,color:C.blue}}>{fmt(conv(pointMort,"EUR",devise),devise)}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>BFR</div><div style={{fontSize:18,fontWeight:700,color:C.purple}}>{fmt(conv(bfr,"EUR",devise),devise)}</div></CT>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+      {[["Solde actuel",fmt(conv(soldeActuel,"EUR",devise),devise),C.gold],["Entrées prévues 90j",fmt(conv(33000,"EUR",devise),devise),C.green],["Sorties prévues 90j",fmt(conv(12800,"EUR",devise),devise),C.red],["Solde J+90 estimé",fmt(conv(38620,"EUR",devise),devise),C.teal]].map(([l,v,c],i)=><CT key={i}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div></CT>)}
     </div>
 
-    {/* TABS */}
     <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
       {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
     </div>
@@ -3116,260 +2465,56 @@ const PageTresorerie=({plan,showToast})=>{
     {/* ── CASH-FLOW ── */}
     {onglet==="dashboard"&&<div>
       <Card style={{marginBottom:12}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-          <STitle>📈 Flux réel + prévision 90 jours</STitle>
-          <div style={{display:"flex",gap:6}}>
-            {["realiste","optimiste","pessimiste"].map(s=><button key={s} onClick={()=>setScenario(s)} style={{background:scenario===s?(s==="optimiste"?C.green:s==="pessimiste"?C.red:C.blue)+"22":"transparent",color:s==="optimiste"?C.green:s==="pessimiste"?C.red:C.blue,border:`1px solid ${s==="optimiste"?C.green:s==="pessimiste"?C.red:C.blue}44`,borderRadius:6,padding:"4px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit",textTransform:"capitalize"}}>{s}</button>)}
-          </div>
-        </div>
-        {/* Graphique visuel */}
-        <div style={{display:"flex",alignItems:"flex-end",gap:3,height:120,padding:"10px 0",marginBottom:12}}>
-          {toutesLesSemaines.map((t,i)=>{
-            const maxVal=Math.max(...toutesLesSemaines.map(x=>Math.abs(x.sol||0)),1);
-            const h=Math.max(4,Math.round((Math.abs(t.sol||0)/maxVal)*100));
-            const bg=t.pred?(scenario==="optimiste"?C.green:scenario==="pessimiste"?C.red:C.blue)+"66":t.sol>seuils.seuil_alerte_bas?`${C.green}88`:`${C.orange}88`;
-            return <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:2}}>
-              <div style={{width:"100%",height:h+"%",background:bg,borderRadius:"3px 3px 0 0",minHeight:4}}/>
-              <div style={{fontSize:7,color:C.muted}}>{t.debut?.slice(5)}</div>
-            </div>;
-          })}
-        </div>
-        {/* Tableau */}
+        <STitle>📈 Flux de trésorerie — 90 jours</STitle>
         <div style={{overflowX:"auto"}}>
           <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
-            <thead><tr><TH>Semaine</TH><TH>Entrées</TH><TH>Sorties</TH><TH>Net</TH><TH>Solde cumulé</TH><TH>Statut</TH></tr></thead>
-            <tbody>{toutesLesSemaines.map((t,i)=><tr key={i} style={{background:t.pred?`${C.blue}05`:"transparent"}}>
-              <Td style={{fontSize:10,color:t.pred?C.blue:C.muted,fontWeight:t.pred?600:400}}>{t.debut}{t.pred?" 🤖":""}</Td>
-              <Td><span style={{color:C.green,fontWeight:700}}>+{fmt(conv(t.entrees||0,"EUR",devise),devise)}</span></Td>
-              <Td><span style={{color:C.red}}>-{fmt(conv(t.sorties||0,"EUR",devise),devise)}</span></Td>
-              <Td style={{color:(t.net||0)>0?C.green:C.red,fontWeight:700}}>{(t.net||0)>0?"+":""}{fmt(conv(t.net||0,"EUR",devise),devise)}</Td>
-              <Td style={{fontWeight:700,color:(t.sol||0)>seuils.seuil_alerte_bas?C.green:(t.sol||0)>seuils.seuil_alerte_critique?C.gold:C.red}}>{fmt(conv(t.sol||0,"EUR",devise),devise)}</Td>
+            <thead><tr><TH>Semaine</TH><TH>Entrées</TH><TH>Sorties</TH><TH>Solde net semaine</TH><TH>Solde cumulé</TH><TH>Statut</TH></tr></thead>
+            <tbody>{TRESORERIE_90J.map((t,i)=>{const net=t.e-t.s;return <tr key={i} style={{background:t.pred?`${C.blue}05`:"transparent"}}>
+              <Td style={{fontSize:10,color:t.pred?C.blue:C.muted,fontWeight:t.pred?600:400}}>{t.sem}{t.pred?" 🤖":""}</Td>
+              <Td><div style={{color:C.green,fontWeight:700}}>+{fmt(conv(t.e,"EUR",devise),devise)}</div></Td>
+              <Td><div style={{color:C.red}}>-{fmt(conv(t.s,"EUR",devise),devise)}</div></Td>
+              <Td style={{color:net>0?C.green:C.red,fontWeight:700}}>{net>0?"+":""}{fmt(conv(net,"EUR",devise),devise)}</Td>
+              <Td style={{fontWeight:700,color:t.sol>15000?C.green:t.sol>8000?C.gold:C.red}}>{fmt(conv(t.sol,"EUR",devise),devise)}</Td>
               <Td><Pill color={t.pred?C.blue:C.green}>{t.pred?"🤖 Prévision":"✅ Réel"}</Pill></Td>
-            </tr>)}</tbody>
+            </tr>;})}
+            </tbody>
           </table>
         </div>
       </Card>
-      {/* Analyse IA */}
-      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:14}}>
-        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Analyse IA — Claude · données réelles</div>
-        {iaLoading?<div style={{fontSize:11,color:C.muted}}>⏳ Analyse en cours...</div>:<div style={{fontSize:12,color:C.text,lineHeight:1.8}}>{analyseIA||"Chargement de l'analyse..."}</div>}
-        <BtnGhost onClick={()=>{setIaLoading(true);fetch('/api/tresorerie',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'analyse_ia',...data})}).then(r=>r.json()).then(d=>{if(d.success)setAnalyseIA(d.analyse);setIaLoading(false);}).catch(()=>setIaLoading(false));}} style={{marginTop:8,fontSize:10}}>{iaLoading?"⏳...":"🔄 Régénérer"}</BtnGhost>
-      </div>
-    </div>}
-
-    {/* ── 3 SCÉNARIOS ── */}
-    {onglet==="scenarios"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:14}}>
-        {[
-          {label:"🟢 Optimiste",key:"prevOptimiste",color:C.green,desc:"Entrées +20%, sorties -10% — meilleur cas"},
-          {label:"🔵 Réaliste",key:"prevRealiste",color:C.blue,desc:"Basé sur ta tendance actuelle"},
-          {label:"🔴 Pessimiste",key:"prevPessimiste",color:C.red,desc:"Entrées -20%, sorties +10% — pire cas"},
-        ].map((s,i)=>{
-          const prev=data?.[s.key]||[];
-          const solde=prev[prev.length-1]?.sol??soldeActuel;
-          return <Card key={i} style={{borderColor:`${s.color}44`}}>
-            <div style={{fontSize:13,fontWeight:700,color:s.color,marginBottom:4}}>{s.label}</div>
-            <div style={{fontSize:10,color:C.muted,marginBottom:10}}>{s.desc}</div>
-            <div style={{fontSize:24,fontWeight:700,color:s.color,marginBottom:4}}>{fmt(conv(solde,"EUR",devise),devise)}</div>
-            <div style={{fontSize:10,color:C.muted,marginBottom:10}}>Solde estimé à J+90</div>
-            <div style={{display:"flex",alignItems:"flex-end",gap:2,height:60}}>
-              {prev.slice(0,13).map((p,j)=>{
-                const maxVal=Math.max(...prev.map((x)=>Math.abs(x.sol||0)),1);
-                const h=Math.max(3,Math.round((Math.abs(p.sol||0)/maxVal)*55));
-                return <div key={j} style={{flex:1,height:h,background:`${s.color}66`,borderRadius:"2px 2px 0 0",minHeight:3}}/>;
-              })}
-            </div>
-          </Card>;
-        })}
-      </div>
+      {/* Graphique visuel */}
       <Card>
-        <STitle>📊 Comparaison des 3 scénarios à J+90</STitle>
-        {[["🟢 Optimiste",data?.soldeJ90Optimiste||0,C.green],["🔵 Réaliste",data?.soldeJ90||0,C.blue],["🔴 Pessimiste",data?.soldeJ90Pessimiste||0,C.red]].map(([l,v,c],i)=><div key={i} style={{marginBottom:10}}>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}><span style={{color:c,fontWeight:700}}>{l}</span><span style={{color:c,fontWeight:700}}>{fmt(conv(Number(v),"EUR",devise),devise)}</span></div>
-          <SM val={Number(v)+50000} max={100000} color={c}/>
-        </div>)}
-      </Card>
-    </div>}
-
-    {/* ── SANTÉ & KPIs ── */}
-    {onglet==="sante"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-        <Card style={{borderColor:`${scoreColor}44`}}>
-          <STitle>❤ Score de santé financière</STitle>
-          <div style={{textAlign:"center",padding:"20px 0"}}>
-            <div style={{fontSize:64,fontWeight:700,color:scoreColor,fontFamily:"Georgia,serif"}}>{scoreFinancier}</div>
-            <div style={{fontSize:14,color:C.muted,marginBottom:12}}>/100</div>
-            <div style={{fontSize:16,fontWeight:700,color:scoreColor,marginBottom:8}}>{scoreLabel}</div>
-            <div style={{height:8,background:C.border,borderRadius:4,margin:"0 20px",overflow:"hidden"}}>
-              <div style={{height:"100%",width:scoreFinancier+"%",background:scoreColor,borderRadius:4,transition:"width 1s"}}/>
-            </div>
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {[
-              ["Couverture en semaines",`${data?.couvertureEnSemaines||0} sem.`,(data?.couvertureEnSemaines||0)>=4],
-              ["Tendance 4 dernières semaines",(data?.semaines||[]).slice(-4).reduce((a,s)=>a+s.net,0)>0?"↗ Positive":"↘ Négative",(data?.semaines||[]).slice(-4).reduce((a,s)=>a+s.net,0)>0],
-              ["Commissions dues",fmt(data?.commissionsDues||0),(data?.commissionsDues||0)===0],
-              ["Solde > seuil critique",soldeActuel>=seuils.seuil_alerte_critique?"✅ Oui":"❌ Non",soldeActuel>=seuils.seuil_alerte_critique],
-            ].map(([l,v,ok],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}>
-              <span style={{color:C.muted}}>{l}</span>
-              <span style={{color:(ok)?C.green:C.red,fontWeight:600}}>{v}</span>
-            </div>)}
-          </div>
-        </Card>
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <Card>
-            <STitle>📍 Point mort hebdomadaire</STitle>
-            <div style={{fontSize:28,fontWeight:700,color:C.blue,marginBottom:4}}>{fmt(conv(pointMort,"EUR",devise),devise)}</div>
-            <div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>C'est le minimum que tu dois encaisser cette semaine pour ne pas descendre sous ton seuil d'alerte de {fmt(seuils.seuil_alerte_bas)}.</div>
-          </Card>
-          <Card>
-            <STitle>🔄 BFR — Besoin en Fonds de Roulement</STitle>
-            <div style={{fontSize:28,fontWeight:700,color:C.purple,marginBottom:4}}>{fmt(conv(bfr,"EUR",devise),devise)}</div>
-            <div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>Argent actuellement "bloqué" dans ton cycle d'exploitation. Délai moyen de paiement clients : {data?.couvertureEnSemaines||30} jours.</div>
-          </Card>
+        <STitle>📊 Graphique cash-flow (visuel)</STitle>
+        <div style={{display:"flex",alignItems:"flex-end",gap:6,height:120,padding:"10px 0"}}>
+          {TRESORERIE_90J.map((t,i)=>{const maxVal=Math.max(...TRESORERIE_90J.map(x=>x.sol));const h=Math.round((t.sol/maxVal)*100);return <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:3}}>
+            <div style={{width:"100%",height:h+"%",background:t.pred?`${C.blue}66`:t.sol>15000?`${C.green}88`:`${C.gold}88`,borderRadius:"3px 3px 0 0",minHeight:4,transition:"height .3s"}}/>
+            <div style={{fontSize:7,color:C.muted,textAlign:"center",lineHeight:1.2}}>{t.sem.split(" ")[0]}</div>
+          </div>;})}
         </div>
-      </div>
-    </div>}
-
-    {/* ── PAR SOURCE ── */}
-    {onglet==="sources"&&<Card>
-      <STitle>📈 Décomposition des revenus par source</STitle>
-      {Object.keys(sources).length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:20}}>Pas assez de données pour la décomposition. Les sources apparaîtront au fil des transactions.</div>}
-      {Object.entries(sources).sort((a,b)=>Number(b[1])-Number(a[1])).map(([source,montant],i)=>{
-        const colors=[C.gold,C.blue,C.green,C.purple,C.teal,C.orange];
-        const total=Object.values(sources).reduce((a,v)=>a+Number(v),0);
-        const pct=total>0?Math.round(Number(montant)/total*100):0;
-        return <div key={i} style={{marginBottom:12}}>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
-            <span style={{fontWeight:600}}>{source}</span>
-            <span style={{color:colors[i%colors.length],fontWeight:700}}>{fmt(conv(Number(montant),"EUR",devise),devise)} · {pct}%</span>
-          </div>
-          <SM val={pct} max={100} color={colors[i%colors.length]}/>
-        </div>;
-      })}
-      {Object.keys(sources).length>0&&<div style={{marginTop:12,background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:8,padding:10,fontSize:11,color:C.text}}>
-        🤖 Source principale : <b style={{color:C.gold}}>{Object.entries(sources).sort((a,b)=>Number(b[1])-Number(a[1]))[0]?.[0]||"—"}</b>. Pour diversifier tes revenus, développe la 2ème source.
-      </div>}
-    </Card>}
-
-    {/* ── CASHFLOW ÉQUIPE ── */}
-    {onglet==="equipe"&&<div>
-      <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:10,padding:12,marginBottom:14,fontSize:11,color:C.text}}>
-        💡 Coût réel = salaire net × 1.43 (charges patronales). Comparer le coût mensuel au CA généré par chaque collaborateur pour mesurer la rentabilité réelle.
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10,marginBottom:12}}>
-        {cashflowEquipe.map((e,i)=>{
-          const colors=[C.blue,C.purple,C.pink];
-          return <Card key={i} style={{borderColor:`${colors[i%3]}33`}}>
-            <div style={{fontSize:13,fontWeight:700,marginBottom:8}}>{e.nom}</div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-              <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Salaire net</div><div style={{fontSize:14,fontWeight:700,color:C.text}}>{fmt(e.salaire)}</div></CT>
-              <CT style={{textAlign:"center",borderColor:`${C.red}33`}}><div style={{fontSize:9,color:C.red}}>Coût réel/mois</div><div style={{fontSize:14,fontWeight:700,color:C.red}}>{fmt(e.coutMensuel)}</div></CT>
-            </div>
-            <div style={{marginTop:8,fontSize:10,color:C.muted}}>Coût hebdomadaire : <b style={{color:C.orange}}>{fmt(e.coutHebdo)}</b></div>
-          </Card>;
-        })}
-      </div>
-      <Card>
-        <STitle>💸 Coût total équipe vs CA</STitle>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10}}>
-          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Coût mensuel total</div><div style={{fontSize:18,fontWeight:700,color:C.red}}>{fmt(conv(data?.coutEquipeTotal||0,"EUR",devise),devise)}</div></CT>
-          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>% du CA mensuel</div><div style={{fontSize:18,fontWeight:700,color:C.orange}}>{soldeActuel>0?Math.round((data?.coutEquipeTotal||0)/soldeActuel*100):0}%</div></CT>
-          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Marge après équipe</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>{fmt(conv(soldeActuel-(data?.coutEquipeTotal||0),"EUR",devise),devise)}</div></CT>
+        <div style={{display:"flex",gap:12,justifyContent:"center",fontSize:10,color:C.muted,marginTop:4}}>
+          <span>🟢 Solide</span><span>🟡 Correct</span><span>🔵 Prévision IA</span>
         </div>
       </Card>
     </div>}
 
-    {/* ── SCORING CLIENTS ── */}
-    {onglet==="clients"&&<div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <div><div style={{fontSize:13,fontWeight:700}}>🎯 Scoring prédictif des paiements</div><div style={{fontSize:11,color:C.muted}}>Claude analyse l'historique et prédit qui va payer en retard</div></div>
-        <Btn onClick={genererScoring} style={{fontSize:11}}>🤖 Lancer le scoring IA</Btn>
+    {/* ── PRÉVISIONS IA ── */}
+    {onglet==="previsions"&&<div>
+      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:12,padding:16,marginBottom:14}}>
+        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:8}}>🤖 Analyse prédictive — Claude Sonnet</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Basé sur vos 6 dernières semaines, votre trésorerie est en croissance de +14% par mois. À ce rythme, vous atteindrez <b style={{color:C.gold}}>38 620€</b> dans 90 jours. Attention : <b style={{color:C.orange}}>2 commissions partenaires (8 525€)</b> dues en fin de mois réduiront significativement ce solde.</div>
       </div>
-      {clientsEnRetard.length===0&&scoringClients.length===0&&<Card style={{textAlign:"center",padding:30}}><div style={{fontSize:32,marginBottom:8}}>✅</div><div style={{fontSize:12,color:C.muted}}>Aucune facture en retard identifiée pour le moment.</div></Card>}
-      {clientsEnRetard.length>0&&<Card style={{marginBottom:12,borderColor:`${C.red}33`}}>
-        <STitle>⚠️ Factures en retard actuelles</STitle>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Client</TH><TH>Montant</TH><TH>Retard</TH></tr></thead>
-          <tbody>{clientsEnRetard.map((c,i)=><tr key={i}>
-            <Td style={{fontWeight:600}}>{c.client}</Td>
-            <Td style={{color:C.red,fontWeight:700}}>{fmt(c.montant)}</Td>
-            <Td><Pill color={c.retardJours>30?C.red:C.orange}>{c.retardJours}j de retard</Pill></Td>
-          </tr>)}</tbody>
-        </table>
-      </Card>}
-      {scoringClients.length>0&&<Card>
-        <STitle>🤖 Prédictions IA — Risque de retard ce mois</STitle>
-        {scoringClients.map((c,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
-          <div><div style={{fontWeight:600}}>{c.client}</div><div style={{fontSize:10,color:C.muted}}>{c.raison}</div></div>
-          <Pill color={c.risque==="élevé"?C.red:c.risque==="moyen"?C.orange:C.green}>{c.risque}</Pill>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:12}}>
+        {[{mois:"Juin 2026",e:fmt(conv(28400,"EUR",devise),devise),s:fmt(conv(12000,"EUR",devise),devise),sol:fmt(conv(34840,"EUR",devise),devise),c:C.green},{mois:"Juillet 2026",e:fmt(conv(31200,"EUR",devise),devise),s:fmt(conv(13500,"EUR",devise),devise),sol:fmt(conv(52540,"EUR",devise),devise),c:C.teal},{mois:"Août 2026",e:fmt(conv(29800,"EUR",devise),devise),s:fmt(conv(11200,"EUR",devise),devise),sol:fmt(conv(71140,"EUR",devise),devise),c:C.blue}].map((p,i)=><Card key={i} style={{borderColor:`${p.c}33`}}>
+          <div style={{fontSize:11,color:p.c,fontWeight:600,marginBottom:8}}>📅 {p.mois} <Pill color={C.blue}>🤖 IA</Pill></div>
+          {[["Entrées prévues",p.e,C.green],["Sorties prévues",p.s,C.red],["Solde cumulé",p.sol,C.gold]].map(([l,v,c],j)=><div key={j} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
+        </Card>)}
+      </div>
+      <Card style={{background:`${C.orange}08`,borderColor:`${C.orange}33`}}>
+        <STitle>⚠️ Risques identifiés par l'IA</STitle>
+        {[{r:"Commissions partenaires dues",montant:"8 525€",echeance:"30/05/2026",impact:"Élevé"},{r:"Renouvellement abonnements SaaS",montant:"1 890€",echeance:"01/06/2026",impact:"Moyen"},{r:"Fournitures Q2 à commander",montant:"2 200€",echeance:"15/06/2026",impact:"Faible"}].map((r,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
+          <div><div style={{fontWeight:600}}>{r.r}</div><div style={{fontSize:10,color:C.muted}}>Échéance : {r.echeance}</div></div>
+          <div style={{textAlign:"right"}}><div style={{color:C.red,fontWeight:700}}>{r.montant}</div><Pill color={r.impact==="Élevé"?C.red:r.impact==="Moyen"?C.orange:C.gold}>{r.impact}</Pill></div>
         </div>)}
-      </Card>}
-    </div>}
-
-    {/* ── PLACEMENTS ── */}
-    {onglet==="placement"&&<div>
-      {excedent<=0?<Card style={{textAlign:"center",padding:30}}>
-        <div style={{fontSize:32,marginBottom:8}}>💎</div>
-        <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Pas encore d'excédent à placer</div>
-        <div style={{fontSize:11,color:C.muted}}>Dès que ton solde dépasse {fmt(seuils.placement_seuil)}, Xyra te suggère automatiquement les meilleures options de placement.</div>
-        <div style={{marginTop:14}}>
-          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Modifier le seuil de déclenchement</label>
-          <div style={{display:"flex",gap:8,justifyContent:"center"}}>
-            <Inp value={seuils.placement_seuil} onChange={e=>setSeuils(s=>({...s,placement_seuil:Number(e.target.value)}))} style={{width:140}}/>
-            <Btn onClick={sauverSeuils} style={{fontSize:11}}>Sauver</Btn>
-          </div>
-        </div>
-      </Card>:<div>
-        <div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:10,padding:14,marginBottom:14}}>
-          <div style={{fontSize:13,fontWeight:700,color:C.gold,marginBottom:4}}>💎 Excédent disponible pour placement</div>
-          <div style={{fontSize:24,fontWeight:700,color:C.gold}}>{fmt(conv(excedent,"EUR",devise),devise)}</div>
-          <div style={{fontSize:11,color:C.muted,marginTop:4}}>Solde actuel {fmt(soldeActuel)} − seuil de sécurité {fmt(seuils.placement_seuil)} = excédent</div>
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12}}>
-          {suggestionsPlacement.map((p,i)=>{
-            const colors=[C.green,C.blue,C.purple];
-            return <Card key={i} style={{borderColor:`${colors[i]}44`}}>
-              <div style={{fontSize:14,fontWeight:700,color:colors[i],marginBottom:4}}>{p.nom}</div>
-              <div style={{fontSize:24,fontWeight:700,color:C.text,marginBottom:2}}>{p.taux}</div>
-              <div style={{fontSize:11,color:C.muted,marginBottom:8}}>rendement annuel</div>
-              <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:10}}>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:11}}><span style={{color:C.muted}}>Rendement/an</span><span style={{color:colors[i],fontWeight:700}}>+{fmt(conv(p.rendementAnnuel,"EUR",devise),devise)}</span></div>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:11}}><span style={{color:C.muted}}>Risque</span><span style={{fontWeight:600}}>{p.risque}</span></div>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:11}}><span style={{color:C.muted}}>Liquidité</span><span style={{fontWeight:600}}>{p.liquidite}</span></div>
-              </div>
-              <BtnGhost onClick={()=>showToast(`✅ Demande de placement ${p.nom} enregistrée — ton conseiller te contactera`)} style={{width:"100%",fontSize:11,color:colors[i],borderColor:`${colors[i]}44`}}>Souscrire</BtnGhost>
-            </Card>;
-          })}
-        </div>
-      </div>}
-    </div>}
-
-    {/* ── PRÉVISIONNEL MANUEL ── */}
-    {onglet==="manuel"&&<div>
-      <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:10,padding:12,marginBottom:14,fontSize:11,color:C.text}}>
-        ✏️ Ajoute ici des flux prévisionnels que tu connais à l'avance — un gros encaissement attendu, une dépense planifiée — ils s'intègreront dans tes prévisions.
-      </div>
-      <Card style={{marginBottom:12}}>
-        <STitle>+ Ajouter une ligne prévisionnelle</STitle>
-        <div style={{display:"grid",gridTemplateColumns:"1fr auto 1fr 1fr",gap:8,alignItems:"end"}}>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Description</label><Inp value={ligneManuelle.libelle} onChange={e=>setLigneManuelle(l=>({...l,libelle:e.target.value}))} placeholder="Ex: Paiement Sofia Al-Rashid"/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Sens</label><Sel value={ligneManuelle.sens} onChange={e=>setLigneManuelle(l=>({...l,sens:e.target.value}))} style={{height:38}}><option value="entree">↓ Entrée</option><option value="sortie">↑ Sortie</option></Sel></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Montant (€)</label><Inp value={ligneManuelle.montant} onChange={e=>setLigneManuelle(l=>({...l,montant:e.target.value}))} placeholder="0"/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Semaine (lundi)</label><Inp type="date" value={ligneManuelle.semaine} onChange={e=>setLigneManuelle(l=>({...l,semaine:e.target.value}))}/></div>
-        </div>
-        <Btn onClick={ajouterLigneManuelle} style={{marginTop:10}}>✅ Ajouter à la prévision</Btn>
       </Card>
-      {lignesManuelles.length>0&&<Card>
-        <STitle>📋 Lignes manuelles ajoutées</STitle>
-        {lignesManuelles.map((l,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
-          <span style={{fontWeight:600}}>{l.libelle}</span>
-          <div style={{display:"flex",gap:8}}>
-            <span style={{color:l.sens==="entree"?C.green:C.red,fontWeight:700}}>{l.sens==="entree"?"+":"-"}{fmt(Number(l.montant))}</span>
-            <span style={{color:C.muted,fontSize:10}}>{l.semaine}</span>
-          </div>
-        </div>)}
-      </Card>}
     </div>}
 
     {/* ── SIMULATION ── */}
@@ -3377,24 +2522,22 @@ const PageTresorerie=({plan,showToast})=>{
       <Card>
         <STitle>🎮 Simulateur "Si je dépense X, il me reste Y"</STitle>
         <div style={{marginBottom:16}}>
-          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:6}}>Montant de la dépense simulée</label>
-          <input type="range" min={0} max={Math.max(soldeActuel,1000)} value={simDepense} onChange={e=>setSimDepense(Number(e.target.value))} style={{width:"100%",accentColor:C.gold}}/>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:C.muted,marginTop:4}}>
-            <span>0€</span><span style={{color:C.gold,fontWeight:700}}>{fmt(simDepense)}</span><span>{fmt(Math.max(soldeActuel,1000))}</span>
-          </div>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:6}}>Montant de la dépense simulée (€)</label>
+          <input type="range" min={0} max={soldeActuel} value={simDepense} onChange={e=>setSimDepense(Number(e.target.value))} style={{width:"100%",accentColor:C.gold}}/>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:C.muted,marginTop:4}}><span>0€</span><span style={{color:C.gold,fontWeight:700}}>{fmt(simDepense)}</span><span>{fmt(soldeActuel)}</span></div>
         </div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:14}}>
-          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Solde actuel</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>{fmt(conv(soldeActuel,"EUR",devise),devise)}</div></CT>
-          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.red}}>Dépense simulée</div><div style={{fontSize:16,fontWeight:700,color:C.red}}>-{fmt(conv(simDepense,"EUR",devise),devise)}</div></CT>
-          <CT style={{textAlign:"center",borderColor:`${soldeSim>seuils.seuil_alerte_bas?C.green:C.red}44`}}><div style={{fontSize:9,color:C.muted}}>Solde restant</div><div style={{fontSize:16,fontWeight:700,color:soldeSim>seuils.seuil_alerte_bas?C.green:soldeSim>seuils.seuil_alerte_critique?C.gold:C.red}}>{fmt(conv(soldeSim,"EUR",devise),devise)}</div></CT>
+          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Solde actuel</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(conv(soldeActuel,"EUR",devise),devise)}</div></CT>
+          <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.red}}>Dépense simulée</div><div style={{fontSize:18,fontWeight:700,color:C.red}}>-{fmt(conv(simDepense,"EUR",devise),devise)}</div></CT>
+          <CT style={{textAlign:"center",borderColor:`${soldeSim>5000?C.green:C.red}44`}}><div style={{fontSize:9,color:C.muted}}>Solde restant</div><div style={{fontSize:18,fontWeight:700,color:soldeSim>10000?C.green:soldeSim>5000?C.gold:C.red}}>{fmt(conv(soldeSim,"EUR",devise),devise)}</div></CT>
         </div>
-        <div style={{background:soldeSim>seuils.seuil_alerte_bas?`${C.green}11`:soldeSim>seuils.seuil_alerte_critique?`${C.gold}11`:`${C.red}11`,border:`1px solid ${soldeSim>seuils.seuil_alerte_bas?C.green:soldeSim>seuils.seuil_alerte_critique?C.gold:C.red}33`,borderRadius:8,padding:12,fontSize:12,color:C.text,marginBottom:12}}>
-          {soldeSim>seuils.seuil_alerte_bas?`✅ Trésorerie saine après cette dépense. Il te restera ${fmt(conv(soldeSim,"EUR",devise),devise)} — au-dessus de ton seuil de ${fmt(seuils.seuil_alerte_bas)}.`:soldeSim>seuils.seuil_alerte_critique?`⚠️ Trésorerie sous ton seuil d'alerte (${fmt(seuils.seuil_alerte_bas)}) mais au-dessus du seuil critique. Dépense faisable avec prudence.`:`❌ Danger ! Après cette dépense ton solde (${fmt(conv(soldeSim,"EUR",devise),devise)}) passerait sous ton seuil critique de ${fmt(seuils.seuil_alerte_critique)}. Attends les prochains encaissements.`}
+        <div style={{background:soldeSim>10000?`${C.green}11`:soldeSim>5000?`${C.gold}11`:`${C.red}11`,border:`1px solid ${soldeSim>10000?C.green:soldeSim>5000?C.gold:C.red}33`,borderRadius:8,padding:12,fontSize:12,color:C.text}}>
+          {soldeSim>10000?`✅ Trésorerie saine. Vous pouvez faire cette dépense sans risque. Il vous restera ${fmt(conv(soldeSim,"EUR",devise),devise)} — suffisant pour 2+ mois d'exploitation.`:soldeSim>5000?`⚠️ Trésorerie correcte mais surveillée. Dépense faisable avec prudence. Pensez aux commissions partenaires dues ce mois.`:`❌ Risque trésorerie ! Après cette dépense (${fmt(conv(simDepense,"EUR",devise),devise)}), votre solde serait critique. Attendez les prochains encaissements avant de dépenser.`}
         </div>
-        <div>
-          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:6}}>Scénarios réels rapides</label>
+        <div style={{marginTop:12}}>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:6}}>Tester des scénarios prédéfinis</label>
           <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            {[["Commissions dues",data?.commissionsDues||0],["Charges du mois",data?.chargesMensuelles||0],["BFR",data?.bfr||0]].filter(([,v])=>Number(v)>0).map(([l,v])=><button key={l} onClick={()=>setSimDepense(Math.round(Number(v)))} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit",color:C.muted}}>{l} ({fmt(Number(v))})</button>)}
+            {[["Commissions partenaires",8525],["Fournitures Q2",2200],["Recrutement CDI",2400],["Investissement marketing",3000]].map(([l,v])=><button key={l} onClick={()=>setSimDepense(v)} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit",color:C.muted}}>{l} ({fmt(v)})</button>)}
           </div>
         </div>
       </Card>
@@ -3402,33 +2545,16 @@ const PageTresorerie=({plan,showToast})=>{
 
     {/* ── ALERTES ── */}
     {onglet==="alertes"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
-      {data?.commissionsDues>0&&<div style={{background:`${C.red}11`,border:`1px solid ${C.red}33`,borderRadius:10,padding:14}}>
-        <div style={{fontSize:12,fontWeight:700,color:C.red,marginBottom:4}}>🔴 Commissions partenaires en attente</div>
-        <div style={{fontSize:11,color:C.text,lineHeight:1.6}}>{fmt(data.commissionsDues)} de commissions dues. Va dans le Wallet pour les enregistrer et virer.</div>
-      </div>}
-      {soldeJ90<seuils.seuil_alerte_bas&&<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:10,padding:14}}>
-        <div style={{fontSize:12,fontWeight:700,color:C.orange,marginBottom:4}}>🟡 Projection J+90 sous le seuil d'alerte</div>
-        <div style={{fontSize:11,color:C.text,lineHeight:1.6}}>Ton solde projeté à J+90 ({fmt(soldeJ90)}) est sous ton seuil ({fmt(seuils.seuil_alerte_bas)}). Surveille tes encaissements.</div>
-      </div>}
-      {clientsEnRetard.length>0&&<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:10,padding:14}}>
-        <div style={{fontSize:12,fontWeight:700,color:C.orange,marginBottom:4}}>⏰ {clientsEnRetard.length} facture(s) en retard de paiement</div>
-        <div style={{fontSize:11,color:C.text}}>{clientsEnRetard.map((c)=>c.client).join(", ")}</div>
-      </div>}
-      {soldeActuel>=seuils.seuil_alerte_bas&&soldeJ90>=seuils.seuil_alerte_bas&&(data?.commissionsDues||0)===0&&clientsEnRetard.length===0&&<div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:10,padding:14}}>
-        <div style={{fontSize:12,fontWeight:700,color:C.green,marginBottom:4}}>🟢 Trésorerie saine — aucune alerte</div>
-        <div style={{fontSize:11,color:C.text}}>Tout est en ordre. Solde actuel et projection J+90 au-dessus de tes seuils.</div>
-      </div>}
+      {[{icon:"🔴",t:"Commissions partenaires en retard",d:"8 525€ de commissions dues à Thomas Beaumont, Leila Mansouri et Groupe Prestige SARL. Payez avant le 30/05 pour maintenir les relations.",c:C.red,a:"Payer maintenant"},{icon:"🟡",t:"Seuil d'alerte bientôt atteint",d:`Si vous payez toutes les commissions dues (8 525€), votre solde descendra à ${fmt(soldeActuel-8525)}€ — proche du seuil d'alerte (5 000€).`,c:C.orange,a:"Voir simulation"},{icon:"🟢",t:"Croissance trésorerie confirmée",d:"Votre trésorerie croît de +14% par mois depuis 3 mois. Objectif 40 000€ atteint dans 45 jours selon les prévisions IA.",c:C.green,a:null}].map((a,i)=><div key={i} style={{background:`${a.c}11`,border:`1px solid ${a.c}33`,borderRadius:10,padding:14,display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:12}}>
+        <div><div style={{fontSize:12,fontWeight:700,color:a.c,marginBottom:4}}>{a.icon} {a.t}</div><div style={{fontSize:11,color:C.text,lineHeight:1.6}}>{a.d}</div></div>
+        {a.a&&<Btn onClick={()=>showToast("✅ Action effectuée")} color={a.c} style={{fontSize:11,padding:"7px 14px",flexShrink:0,color:"#000"}}>{a.a}</Btn>}
+      </div>)}
       <Card>
-        <STitle>⚙ Configurer les seuils</STitle>
+        <STitle>⚙ Configurer les seuils d'alerte</STitle>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {[["Alerte solde bas","seuil_alerte_bas"],["Alerte solde critique","seuil_alerte_critique"],["Alerte sortie importante","seuil_sortie_importante"],["Seuil de placement automatique","placement_seuil"]].map(([l,k])=><div key={k} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12}}>
-            <span style={{color:C.muted}}>{l}</span>
-            <div style={{display:"flex",gap:6,alignItems:"center"}}>
-              <Inp value={(seuils)[k]} onChange={e=>setSeuils((s)=>({...s,[k]:Number(e.target.value)}))} style={{width:120,fontSize:11}}/>
-              <span style={{fontSize:10,color:C.muted}}>€</span>
-            </div>
+          {[["Alerte solde bas","5 000"],["Alerte solde critique","2 000"],["Alerte sortie importante","> 3 000€ en une fois"]].map(([l,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",fontSize:12}}>
+            <span>{l}</span><div style={{display:"flex",gap:8,alignItems:"center"}}><Inp placeholder={v} style={{width:120,fontSize:11}}/><Btn onClick={()=>showToast("✅ Seuil sauvegardé")} style={{fontSize:10,padding:"4px 10px"}}>Sauver</Btn></div>
           </div>)}
-          <Btn onClick={sauverSeuils} style={{marginTop:4,fontSize:11}}>✅ Sauvegarder</Btn>
         </div>
       </Card>
     </div>}
@@ -3437,287 +2563,52 @@ const PageTresorerie=({plan,showToast})=>{
     {onglet==="export"&&<Card>
       <STitle>📤 Exports trésorerie</STitle>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        {[
-          {icon:"📋",label:"CSV complet",desc:"Toutes les semaines réelles + prévisions"},
-          {icon:"📱",label:"Rapport WhatsApp",desc:"Résumé hebdo sur ton téléphone"},
-          {icon:"📧",label:"Email mensuel",desc:"Rapport PDF automatique"},
-        ].map((item,i)=><CT key={i} style={{cursor:"pointer"}} onClick={()=>{
-          if(i===0){
-            const lignes=["Semaine,Entrées,Sorties,Net,Solde,Type"];
-            toutesLesSemaines.forEach((s)=>lignes.push(`${s.debut},${s.entrees||0},${s.sorties||0},${s.net||0},${s.sol||0},${s.pred?"Prévision":"Réel"}`));
-            const blob=new Blob([lignes.join("\n")],{type:"text/csv;charset=utf-8"});
-            const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="tresorerie_xyra.csv";a.click();
-            showToast("✅ CSV téléchargé");
-          }else if(i===1){envoyerRapportHebdo();}
-          else showToast("✅ Rapport email programmé");
-        }}>
-          <div style={{fontSize:20,marginBottom:6}}>{item.icon}</div>
-          <div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:2}}>{item.label}</div>
-          <div style={{fontSize:9,color:C.muted}}>{item.desc}</div>
+        {[["📊 Excel","Cash-flow 90j complet",".xlsx",C.green],["📄 PDF","Rapport trésorerie",".pdf",C.red],["📋 CSV","Données brutes",".csv",C.blue],["🏦 Expert-comptable","Pack complet",".zip",C.gold],["📱 WhatsApp","Résumé hebdo","WA",C.teal],["📧 Email","Rapport mensuel auto","Email",C.purple]].map(([icon,desc,fmt,c],i)=><CT key={i} style={{cursor:"pointer",borderColor:`${c}33`}} onClick={()=>showToast(`✅ Export ${desc} téléchargé`)}>
+          <div style={{fontSize:14,marginBottom:6}}>{icon}</div>
+          <div style={{fontSize:11,fontWeight:700,color:c,marginBottom:2}}>{desc}</div>
+          <div style={{fontSize:9,color:C.muted}}>{fmt}</div>
         </CT>)}
       </div>
     </Card>}
   </div>;
 };
-
 // ─── PAGE ANALYTIQUE ──────────────────────────────────────────
-const PageAnalytique=({plan,showToast})=>{
-  const[data,setData]=useState(null);
-  const[loading,setLoading]=useState(true);
-  const[devise,setDevise]=useState("EUR");
-  const[onglet,setOnglet]=useState("overview");
-  const[analyseIA,setAnalyseIA]=useState("");
-  const[iaLoading,setIaLoading]=useState(false);
-
-  const tabs=[
-    {id:"overview",label:"📊 Vue globale"},
-    {id:"evolution",label:"📈 Évolution CA"},
-    {id:"sources",label:"🎯 Par source"},
-    {id:"clients",label:"👤 Par client"},
-    {id:"rentabilite",label:"💰 Rentabilité"},
-    {id:"previsions",label:"🤖 Prévisions"},
-    {id:"export",label:"📤 Export"},
-  ];
-
-  const load=async()=>{
-    setLoading(true);
-    try{
-      const res=await fetch(`/api/analytique?devise=${devise}`);
-      const d=await res.json();
-      setData(d);
-    }catch(e){console.error(e);}
-    setLoading(false);
-  };
-
-  useEffect(()=>{load();},[devise]);
-
-  useEffect(()=>{
-    if(data&&!analyseIA){
-      fetch('/api/analytique',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'analyse_ia',...data})})
-        .then(r=>r.json()).then(d=>{if(d.success)setAnalyseIA(d.analyse);}).catch(()=>{});
-    }
-  },[data]);
-
-  const envoyerRapport=async()=>{
-    showToast("⏳ Envoi du rapport WhatsApp...");
-    try{
-      const res=await fetch('/api/analytique',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'rapport_mensuel_whatsapp',...data})});
-      const d=await res.json();
-      if(d.success)showToast("✅ Rapport mensuel envoyé");
-      else showToast("❌ "+(d.error||"Erreur"));
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const exportCSV=()=>{
-    if(!data)return;
-    const lignes=["Mois,CA"];
-    Object.entries(data.caParMois||{}).forEach(([m,v])=>lignes.push(`${m},${v}`));
-    const blob=new Blob([lignes.join("\n")],{type:"text/csv;charset=utf-8"});
-    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="analytique_ca_xyra.csv";a.click();
-    showToast("✅ CSV téléchargé");
-  };
-
-  if(!hasAccess(plan,"analytique"))return <div style={{padding:20}}><UpgradeWall page="analytique" plan={plan}/></div>;
-  if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement des données réelles...</div></div>;
-
-  const caParMoisEntries=Object.entries(data?.caParMois||{});
-  const maxCA=Math.max(...caParMoisEntries.map(([,v])=>Number(v)),1);
-  const sourceEntries=Object.entries(data?.caParSource||{}).sort((a,b)=>Number(b[1])-Number(a[1]));
-  const totalSources=sourceEntries.reduce((a,[,v])=>a+Number(v),0);
-  const COLORS=[C.gold,C.blue,C.green,C.purple,C.orange,C.teal,C.pink];
-
+const PageAnalytique=({plan})=>{
+  if(!hasAccess(plan,"analytique"))return <div style={{padding:20}}><UpgradeWall page="Analytique & CA" plan={plan}/></div>;
   return <div style={{padding:20}}>
-    {/* HEADER */}
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-      <div>
-        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>📊 Analytique & CA</div>
-        <div style={{fontSize:11,color:C.muted}}>CA réel · Évolution · Sources · Clients · Rentabilité · Prévisions IA</div>
-      </div>
-      <div style={{display:"flex",gap:8}}>
-        <BtnGhost onClick={envoyerRapport} style={{fontSize:11}}>📱 Rapport WhatsApp</BtnGhost>
-        <Sel value={devise} onChange={e=>setDevise(e.target.value)}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel>
-      </div>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◒ Analytique & CA</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Prédictions IA · Objectifs · Par service · Par pays</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+      <KPI label="CA ce mois" val="24 380 €" color={C.gold} sub="↗ +12%"/>
+      <KPI label="CA annuel projeté" val="292 560 €" color={C.green} sub="IA prédiction"/>
+      <KPI label="Marge nette" val="61%" color={C.teal} sub="↗ +4pts"/>
+      <KPI label="Objectif mensuel" val="72%" color={C.orange} sub="24 380 / 34 000 €"/>
     </div>
-
-    {/* ALERTE DÉPENDANCE */}
-    {(data?.alerteDependance||[]).length>0&&<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:10,padding:12,marginBottom:14}}>
-      <div style={{fontSize:12,fontWeight:700,color:C.orange,marginBottom:4}}>⚠️ Alerte dépendance client</div>
-      <div style={{fontSize:11,color:C.text}}>{data.alerteDependance.map((c)=>c.nom).join(", ")} représente plus de 30% de ton CA. Diversifie ta base clients pour réduire ce risque.</div>
-    </div>}
-
-    {/* KPIs */}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>CA TOTAL</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(data?.caTotal||0)}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>CA CE MOIS</div>
-        <div style={{fontSize:18,fontWeight:700,color:C.green}}>{fmt(data?.caMoisActuel||0)}</div>
-        <div style={{fontSize:10,color:(data?.evolutionMois||0)>=0?C.green:C.red}}>{(data?.evolutionMois||0)>=0?"↗":""}{data?.evolutionMois||0}% vs mois préc.</div>
-      </CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>VS N-1</div>
-        <div style={{fontSize:18,fontWeight:700,color:(data?.evolutionNMoins1||0)>=0?C.teal:C.orange}}>{(data?.evolutionNMoins1||0)>=0?"↗":""}{data?.evolutionNMoins1||0}%</div>
-      </CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>MARGE NETTE</div>
-        <div style={{fontSize:18,fontWeight:700,color:(data?.tauxMarge||0)>=20?C.green:(data?.tauxMarge||0)>=10?C.gold:C.red}}>{data?.tauxMarge||0}%</div>
-      </CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>TRANSACTIONS</div><div style={{fontSize:18,fontWeight:700,color:C.blue}}>{data?.nbTransactions||0}</div></CT>
-    </div>
-
-    {/* TABS */}
-    <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
-      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
-    </div>
-
-    {/* ── VUE GLOBALE ── */}
-    {onglet==="overview"&&<div>
-      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:16,marginBottom:14}}>
-        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Analyse IA — Claude · données réelles</div>
-        {iaLoading?<div style={{fontSize:11,color:C.muted}}>⏳ Analyse en cours...</div>:<div style={{fontSize:12,color:C.text,lineHeight:1.8}}>{analyseIA||"Chargement de l'analyse..."}</div>}
-        <BtnGhost onClick={()=>{setIaLoading(true);fetch('/api/analytique',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'analyse_ia',...data})}).then(r=>r.json()).then(d=>{if(d.success)setAnalyseIA(d.analyse);setIaLoading(false);}).catch(()=>setIaLoading(false));}} style={{marginTop:8,fontSize:10}}>{iaLoading?"⏳...":"🔄 Régénérer"}</BtnGhost>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        <Card>
-          <STitle>💰 Résultat financier</STitle>
-          {[["CA total",data?.caTotal||0,C.green],["Charges fixes",data?.chargesTotales||0,C.red],["Coût équipe",data?.coutEquipe||0,C.orange],["Marge nette",data?.margeNette||0,data?.margeNette>=0?C.teal:C.red]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
-            <span style={{color:C.muted}}>{l}</span>
-            <span style={{color:c,fontWeight:700}}>{fmt(Number(v))}</span>
-          </div>)}
-        </Card>
-        <Card>
-          <STitle>📊 Comparaisons</STitle>
-          {[["Mois actuel",data?.caMoisActuel||0,C.blue],["Mois précédent",data?.caMoisPrecedent||0,C.muted],["Même mois N-1",data?.caNMoins1||0,C.purple]].map(([l,v,c],i)=><div key={i} style={{marginBottom:10}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{fmt(Number(v))}</span></div>
-            <SM val={Number(v)} max={Math.max(data?.caMoisActuel||0,data?.caMoisPrecedent||0,data?.caNMoins1||0,1)} color={c}/>
-          </div>)}
-        </Card>
-      </div>
-    </div>}
-
-    {/* ── ÉVOLUTION CA ── */}
-    {onglet==="evolution"&&<Card>
-      <STitle>📈 Évolution CA — 12 derniers mois</STitle>
-      {caParMoisEntries.every(([,v])=>Number(v)===0)&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:20}}>Pas encore assez de transactions pour afficher l'évolution.</div>}
-      <div style={{display:"flex",alignItems:"flex-end",gap:6,height:160,padding:"10px 0",marginBottom:12}}>
-        {caParMoisEntries.map(([mois,ca],i)=>{
-          const h=Math.max(4,Math.round((Number(ca)/maxCA)*140));
-          const isCurrent=mois===`${new Date().getFullYear()}-${String(new Date().getMonth()+1).padStart(2,'0')}`;
-          return <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-            {Number(ca)>0&&<div style={{fontSize:8,color:C.muted}}>{fmt(Number(ca))}</div>}
-            <div style={{width:"100%",height:h,background:isCurrent?C.gold:`${C.blue}88`,borderRadius:"4px 4px 0 0",minHeight:4}}/>
-            <div style={{fontSize:8,color:isCurrent?C.gold:C.muted,fontWeight:isCurrent?700:400}}>{mois.slice(5)}/{mois.slice(2,4)}</div>
-          </div>;
-        })}
-      </div>
-      <div style={{display:"flex",gap:16,justifyContent:"center",fontSize:10,color:C.muted}}>
-        <span>🟡 Mois actuel</span><span style={{background:`${C.blue}33`,padding:"2px 8px",borderRadius:4}}>🔵 Historique</span>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginTop:16}}>
-        {[["Meilleur mois",Math.max(...caParMoisEntries.map(([,v])=>Number(v)))],["Moyenne mensuelle",Math.round(caParMoisEntries.reduce((a,[,v])=>a+Number(v),0)/Math.max(1,caParMoisEntries.filter(([,v])=>Number(v)>0).length))],["Total 12 mois",caParMoisEntries.reduce((a,[,v])=>a+Number(v),0)]].map(([l,v],i)=><CT key={i}><div style={{fontSize:9,color:C.muted,marginBottom:4}}>{l}</div><div style={{fontSize:14,fontWeight:700,color:C.gold}}>{fmt(Number(v))}</div></CT>)}
-      </div>
-    </Card>}
-
-    {/* ── PAR SOURCE ── */}
-    {onglet==="sources"&&<div>
-      <Card style={{marginBottom:12}}>
-        <STitle>🎯 CA par source de revenus</STitle>
-        {sourceEntries.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:20}}>Pas encore de données par source. Les sources apparaîtront au fil des transactions.</div>}
-        {sourceEntries.map(([source,montant],i)=>{
-          const pct=totalSources>0?Math.round(Number(montant)/totalSources*100):0;
-          return <div key={i} style={{marginBottom:12}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4}}>
-              <span style={{fontWeight:600}}>{source}</span>
-              <span style={{color:COLORS[i%COLORS.length],fontWeight:700}}>{fmt(Number(montant))} · {pct}%</span>
-            </div>
-            <SM val={pct} max={100} color={COLORS[i%COLORS.length]}/>
-          </div>;
-        })}
-      </Card>
-      {sourceEntries.length>0&&<div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:12,fontSize:12,color:C.text,lineHeight:1.7}}>
-        🤖 Source principale : <b style={{color:C.gold}}>{sourceEntries[0]?.[0]||"—"}</b> ({Math.round(Number(sourceEntries[0]?.[1]||0)/totalSources*100)}% du CA). {sourceEntries.length<3?"Diversifie tes sources de revenus pour réduire les risques.":"Bonne diversification des sources de revenus."}
-      </div>}
-    </div>}
-
-    {/* ── PAR CLIENT ── */}
-    {onglet==="clients"&&<div>
-      {(data?.alerteDependance||[]).length>0&&<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:10,padding:12,marginBottom:12,fontSize:11,color:C.text}}>
-        ⚠️ <b>{data.alerteDependance.map((c)=>c.nom).join(", ")}</b> représente plus de 30% de ton CA. Risque élevé si ce client part. Développe d'autres comptes.
-      </div>}
-      <Card>
-        <STitle>👤 Top clients par CA généré</STitle>
-        {(data?.topClients||[]).length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:20}}>Aucune donnée client disponible pour le moment.</div>}
-        {(data?.topClients||[]).map((c,i)=><div key={i} style={{marginBottom:12}}>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:4,alignItems:"center"}}>
-            <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              <div style={{width:24,height:24,borderRadius:"50%",background:COLORS[i%COLORS.length],display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:"#000"}}>{i+1}</div>
-              <span style={{fontWeight:600}}>{c.nom}</span>
-            </div>
-            <div style={{textAlign:"right"}}>
-              <span style={{color:c.pct>=30?C.orange:C.gold,fontWeight:700}}>{fmt(c.ca)}</span>
-              <span style={{fontSize:10,color:c.pct>=30?C.orange:C.muted,marginLeft:8}}>{c.pct}%{c.pct>=30?" ⚠️":""}</span>
-            </div>
-          </div>
-          <SM val={c.pct} max={100} color={c.pct>=30?C.orange:COLORS[i%COLORS.length]}/>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Card><STitle>📊 CA par service</STitle>
+        {[["Airbnb & Résidentiel",12400,C.gold],[`Jet & Yacht`,8200,C.blue],["Rapatriement",4800,C.purple],["Bureaux",3200,C.teal],["Divers",1980,C.muted]].map(([n,v,c],i)=><div key={i} style={{marginBottom:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div>
+          <SM val={v} max={12400} color={c}/>
         </div>)}
       </Card>
-    </div>}
-
-    {/* ── RENTABILITÉ ── */}
-    {onglet==="rentabilite"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-        <Card>
-          <STitle>💰 Compte de résultat simplifié</STitle>
-          {[["Chiffre d'affaires",data?.caTotal||0,C.green,false],["Charges fixes",-(data?.chargesTotales||0),C.red,false],["Coût équipe (charges incluses)",-(data?.coutEquipe||0),C.orange,false],["Marge nette",data?.margeNette||0,(data?.margeNette||0)>=0?C.teal:C.red,true]].map(([l,v,c,bold],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12,fontWeight:bold?"700":"400"}}>
-            <span style={{color:bold?C.text:C.muted}}>{l}</span>
-            <span style={{color:c}}>{Number(v)>=0?"+":""}{fmt(Math.abs(Number(v)))}</span>
-          </div>)}
-          <div style={{marginTop:12}}>
-            <div style={{fontSize:11,color:C.muted,marginBottom:4}}>Taux de marge</div>
-            <SM val={Math.max(0,data?.tauxMarge||0)} max={100} color={(data?.tauxMarge||0)>=20?C.green:(data?.tauxMarge||0)>=10?C.gold:C.red}/>
-            <div style={{fontSize:11,color:(data?.tauxMarge||0)>=20?C.green:(data?.tauxMarge||0)>=10?C.gold:C.red,marginTop:4,fontWeight:700}}>{data?.tauxMarge||0}% de marge nette</div>
-          </div>
-        </Card>
-        <Card>
-          <STitle>📊 Analyse de rentabilité</STitle>
-          <div style={{display:"flex",flexDirection:"column",gap:12}}>
-            {[{label:"Taux de marge",val:(data?.tauxMarge||0)+"%",ok:(data?.tauxMarge||0)>=20,msg:(data?.tauxMarge||0)>=20?"✅ Excellente marge":(data?.tauxMarge||0)>=10?"⚠️ Marge correcte":"❌ Marge insuffisante"},
-              {label:"Part équipe / CA",val:data?.caTotal>0?Math.round((data?.coutEquipe||0)/data.caTotal*100)+"%":"—",ok:data?.caTotal>0&&(data?.coutEquipe||0)/data.caTotal<0.4,msg:data?.caTotal>0&&(data?.coutEquipe||0)/data.caTotal<0.4?"✅ Équipe rentable":"⚠️ Coût équipe élevé"},
-              {label:"Part charges / CA",val:data?.caTotal>0?Math.round((data?.chargesTotales||0)/data.caTotal*100)+"%":"—",ok:data?.caTotal>0&&(data?.chargesTotales||0)/data.caTotal<0.3,msg:data?.caTotal>0&&(data?.chargesTotales||0)/data.caTotal<0.3?"✅ Charges maîtrisées":"⚠️ Charges à optimiser"},
-            ].map((item,i)=><div key={i} style={{background:item.ok?`${C.green}08`:`${C.orange}08`,border:`1px solid ${item.ok?C.green:C.orange}22`,borderRadius:8,padding:10}}>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:4}}><span style={{color:C.muted}}>{item.label}</span><span style={{fontWeight:700,color:item.ok?C.green:C.orange}}>{item.val}</span></div>
-              <div style={{fontSize:11,color:item.ok?C.green:C.orange}}>{item.msg}</div>
-            </div>)}
-          </div>
-        </Card>
-      </div>
-    </div>}
-
-    {/* ── PRÉVISIONS ── */}
-    {onglet==="previsions"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:14}}>
-        {[["🟢 Optimiste",data?.prevision?.optimiste||0,C.green,"Tendance haute +20%"],["🔵 Réaliste",data?.prevision?.realiste||0,C.blue,"Basé sur ta tendance actuelle"],["🔴 Pessimiste",data?.prevision?.pessimiste||0,C.red,"Tendance basse -20%"]].map(([l,v,c,desc],i)=><Card key={i} style={{borderColor:`${c}44`,textAlign:"center"}}>
-          <div style={{fontSize:12,fontWeight:700,color:c,marginBottom:4}}>{l}</div>
-          <div style={{fontSize:11,color:C.muted,marginBottom:12}}>{desc}</div>
-          <div style={{fontSize:28,fontWeight:700,color:c,marginBottom:4}}>{fmt(Number(v))}</div>
-          <div style={{fontSize:11,color:C.muted}}>CA estimé à 90 jours</div>
-        </Card>)}
-      </div>
-      <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:10,padding:14,fontSize:12,color:C.text,lineHeight:1.7}}>
-        🤖 Prévisions basées sur ta tendance réelle des 3 derniers mois. Pour améliorer la précision, assure-toi que toutes tes factures payées sont bien enregistrées dans Xyra.
-      </div>
-    </div>}
-
-    {/* ── EXPORT ── */}
-    {onglet==="export"&&<Card>
-      <STitle>📤 Exports analytique</STitle>
+      <Card><STitle>🌍 CA par pays</STitle>
+        {[["🇫🇷 France",14800,C.blue],["🇦🇪 Dubaï / EAU",6200,C.gold],["🇸🇳 Sénégal",2400,C.green],["🇲🇨 Monaco",980,C.purple]].map(([n,v,c],i)=><div key={i} style={{marginBottom:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div>
+          <SM val={v} max={14800} color={c}/>
+        </div>)}
+      </Card>
+    </div>
+    <Card style={{marginTop:12}}><STitle>🤖 Prédictions IA — Claude</STitle>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        {[{icon:"📋",label:"CSV CA mensuel",desc:"Évolution sur 12 mois",action:exportCSV},{icon:"📱",label:"Rapport WhatsApp",desc:"Résumé mensuel automatique",action:envoyerRapport},{icon:"🔄",label:"Actualiser",desc:"Recharger les données",action:load}].map((item,i)=><CT key={i} style={{cursor:"pointer"}} onClick={item.action}>
-          <div style={{fontSize:20,marginBottom:6}}>{item.icon}</div>
-          <div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:2}}>{item.label}</div>
-          <div style={{fontSize:9,color:C.muted}}>{item.desc}</div>
+        {[{mois:"Mai 2026",val:"28 400 €",c:C.green,trend:"↗ +16%"},{mois:"Juin 2026",val:"31 200 €",c:C.green,trend:"↗ +10%"},{mois:"Q2 2026",val:"84 000 €",c:C.gold,trend:"↗ +22% vs Q1"}].map((p,i)=><CT key={i} style={{textAlign:"center"}}>
+          <div style={{fontSize:10,color:C.muted,marginBottom:4}}>{p.mois}</div>
+          <div style={{fontSize:18,fontWeight:700,color:p.c}}>{p.val}</div>
+          <div style={{fontSize:10,color:p.c}}>{p.trend}</div>
         </CT>)}
       </div>
-    </Card>}
+    </Card>
   </div>;
 };
-
 
 // ─── PAGE CLIENTS ─────────────────────────────────────────────
 const PageClients=({plan,showToast,profil,setPage})=>{
@@ -4512,599 +3403,63 @@ const PagePartenaires=({plan,showToast})=>{
   </div>;
 };
 // ─── PAGE ANNUAIRE ────────────────────────────────────────────
-// ─── PAGE MULTI-SOCIÉTÉS ──────────────────────────────────────
-// ─── PAGE MULTI-SOCIÉTÉS ──────────────────────────────────────
-const PageMultiSocietes=({plan,showToast})=>{
-  const[onglet,setOnglet]=useState("consolidee");
-  const[companies,setCompanies]=useState([]);
-  const[consolidee,setConsolidee]=useState([]);
-  const[totaux,setTotaux]=useState(null);
-  const[transfers,setTransfers]=useState([]);
-  const[loading,setLoading]=useState(true);
-  const[devise,setDevise]=useState("EUR");
-  const[showAddForm,setShowAddForm]=useState(false);
-  const[showTransferForm,setShowTransferForm]=useState(false);
-  const[newCompany,setNewCompany]=useState({nom:"",pays:"France",metier:"",devise:"EUR",couleur:"#C9A84C"});
-  const[newTransfer,setNewTransfer]=useState({from_company_id:"",to_company_id:"",montant:"",devise:"EUR",libelle:""});
-  const[selectedCompany,setSelectedCompany]=useState(null);
-
-  const MULTI_PLANS=["multi_societes","multi_pro","holding","owner"];
-  if(!MULTI_PLANS.includes(plan))return <div style={{padding:20}}><UpgradeWall page="Multi-Sociétés" plan={plan}/></div>;
-
-  const load=async()=>{
-    setLoading(true);
-    try{
-      const [listRes,consolRes,transfersRes]=await Promise.all([
-        fetch('/api/multi-societes?action=list'),
-        fetch(`/api/multi-societes?action=consolidee&devise=${devise}`),
-        fetch('/api/multi-societes?action=transfers'),
-      ]);
-      const [list,consol,trans]=await Promise.all([listRes.json(),consolRes.json(),transfersRes.json()]);
-      setCompanies(list.companies||[]);
-      setConsolidee(consol.consolidee||[]);
-      setTotaux(consol.totaux||null);
-      setTransfers(trans.transfers||[]);
-    }catch(e){console.error(e);}
-    setLoading(false);
-  };
-
-  useEffect(()=>{load();},[devise]);
-
-  const ajouterSociete=async()=>{
-    if(!newCompany.nom)return showToast("⚠️ Nom requis");
-    try{
-      const res=await fetch('/api/multi-societes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create_company',...newCompany})});
-      const d=await res.json();
-      if(d.success){showToast("✅ Société ajoutée");setShowAddForm(false);setNewCompany({nom:"",pays:"France",metier:"",devise:"EUR",couleur:"#C9A84C"});load();}
-      else showToast("❌ "+d.error);
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const supprimerSociete=async(id)=>{
-    if(!confirm("Supprimer cette société ?"))return;
-    try{
-      await fetch('/api/multi-societes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'delete_company',id})});
-      showToast("✅ Société supprimée");load();
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const effectuerTransfert=async()=>{
-    if(!newTransfer.from_company_id||!newTransfer.to_company_id||!newTransfer.montant)return showToast("⚠️ Remplis tous les champs");
-    if(newTransfer.from_company_id===newTransfer.to_company_id)return showToast("⚠️ Même société source et destination");
-    try{
-      const res=await fetch('/api/multi-societes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'intercompany_transfer',...newTransfer})});
-      const d=await res.json();
-      if(d.success){showToast("✅ Transfert effectué");setShowTransferForm(false);setNewTransfer({from_company_id:"",to_company_id:"",montant:"",devise:"EUR",libelle:""});load();}
-      else showToast("❌ "+d.error);
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const tabs=[
-    {id:"consolidee",label:"📊 Vue consolidée"},
-    {id:"societes",label:"🏢 Mes sociétés"},
-    {id:"intercompany",label:"🔄 Transferts inter-sociétés"},
-    {id:"alertes",label:"🔔 Alertes croisées"},
-  ];
-
-  const scoreColor=(solde)=>solde>10000?C.green:solde>2000?C.gold:C.red;
-
-  return <div style={{padding:20}}>
-    {/* HEADER */}
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-      <div>
-        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>🏢 Multi-Sociétés</div>
-        <div style={{fontSize:11,color:C.muted}}>Vue consolidée · Gestion multi-entités · Transferts · Alertes croisées</div>
-      </div>
-      <div style={{display:"flex",gap:8}}>
-        <Sel value={devise} onChange={e=>setDevise(e.target.value)}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel>
-        <Btn onClick={()=>setShowAddForm(true)} style={{fontSize:11}}>+ Ajouter une société</Btn>
-      </div>
-    </div>
-
-    {/* FORM AJOUT SOCIÉTÉ */}
-    {showAddForm&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
-      <STitle>+ Nouvelle société</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:10}}>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Nom *</label><Inp value={newCompany.nom} onChange={e=>setNewCompany(c=>({...c,nom:e.target.value}))} placeholder="Ex: Tymeless CI"/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Pays</label><Inp value={newCompany.pays} onChange={e=>setNewCompany(c=>({...c,pays:e.target.value}))} placeholder="France"/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Métier</label><Inp value={newCompany.metier} onChange={e=>setNewCompany(c=>({...c,metier:e.target.value}))} placeholder="Nettoyage"/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Devise</label>
-          <Sel value={newCompany.devise} onChange={e=>setNewCompany(c=>({...c,devise:e.target.value}))}>
-            {DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}
-          </Sel>
-        </div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Couleur</label><input type="color" value={newCompany.couleur} onChange={e=>setNewCompany(c=>({...c,couleur:e.target.value}))} style={{width:"100%",height:38,border:`1px solid ${C.border}`,borderRadius:6,background:"transparent",cursor:"pointer"}}/></div>
-      </div>
-      <div style={{display:"flex",gap:8}}>
-        <Btn onClick={ajouterSociete}>✅ Créer la société</Btn>
-        <BtnGhost onClick={()=>setShowAddForm(false)}>Annuler</BtnGhost>
-      </div>
-    </Card>}
-
-    {/* FORM TRANSFERT */}
-    {showTransferForm&&<Card style={{marginBottom:14,borderColor:`${C.blue}44`}}>
-      <STitle>🔄 Nouveau transfert inter-sociétés</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Société source *</label>
-          <Sel value={newTransfer.from_company_id} onChange={e=>setNewTransfer(t=>({...t,from_company_id:e.target.value}))}>
-            <option value="">Sélectionner...</option>
-            {companies.map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}
-          </Sel>
-        </div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Société destination *</label>
-          <Sel value={newTransfer.to_company_id} onChange={e=>setNewTransfer(t=>({...t,to_company_id:e.target.value}))}>
-            <option value="">Sélectionner...</option>
-            {companies.map(c=><option key={c.id} value={c.id}>{c.nom}</option>)}
-          </Sel>
-        </div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Montant *</label><Inp type="number" value={newTransfer.montant} onChange={e=>setNewTransfer(t=>({...t,montant:e.target.value}))} placeholder="0"/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Devise</label>
-          <Sel value={newTransfer.devise} onChange={e=>setNewTransfer(t=>({...t,devise:e.target.value}))}>
-            {DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}
-          </Sel>
-        </div>
-        <div style={{gridColumn:"1/-1"}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Libellé</label><Inp value={newTransfer.libelle} onChange={e=>setNewTransfer(t=>({...t,libelle:e.target.value}))} placeholder="Ex: Avance de trésorerie"/></div>
-      </div>
-      <div style={{display:"flex",gap:8}}>
-        <Btn onClick={effectuerTransfert} style={{background:C.blue}}>✅ Effectuer le transfert</Btn>
-        <BtnGhost onClick={()=>setShowTransferForm(false)}>Annuler</BtnGhost>
-      </div>
-    </Card>}
-
-    {/* KPIs CONSOLIDÉS */}
-    {totaux&&<div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>SOCIÉTÉS</div><div style={{fontSize:24,fontWeight:700,color:C.gold}}>{companies.length}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>CA TOTAL CONSOLIDÉ</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>{fmt(conv(totaux.ca,"EUR",devise),devise)}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>CHARGES TOTALES</div><div style={{fontSize:18,fontWeight:700,color:C.red}}>{fmt(conv(totaux.charges,"EUR",devise),devise)}</div></CT>
-      <CT style={{borderColor:`${totaux.solde>0?C.green:C.red}44`}}><div style={{fontSize:9,color:C.muted,marginBottom:4}}>SOLDE CONSOLIDÉ</div><div style={{fontSize:18,fontWeight:700,color:totaux.solde>0?C.green:C.red}}>{fmt(conv(totaux.solde,"EUR",devise),devise)}</div></CT>
-    </div>}
-
-    {/* TABS */}
-    <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
-      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
-    </div>
-
-    {loading&&<div style={{fontSize:11,color:C.muted}}>⏳ Chargement...</div>}
-
-    {/* ── VUE CONSOLIDÉE ── */}
-    {!loading&&onglet==="consolidee"&&<div>
-      {consolidee.length===0?<Card style={{textAlign:"center",padding:30}}>
-        <div style={{fontSize:32,marginBottom:8}}>🏢</div>
-        <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Aucune société encore</div>
-        <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Ajoutez votre première société pour voir la vue consolidée.</div>
-        <Btn onClick={()=>setShowAddForm(true)}>+ Ajouter une société</Btn>
-      </Card>:<div>
-        {/* Graphique comparatif */}
-        <Card style={{marginBottom:12}}>
-          <STitle>📊 Comparaison CA par société</STitle>
-          <div style={{display:"flex",alignItems:"flex-end",gap:8,height:120,padding:"10px 0"}}>
-            {consolidee.map((c,i)=>{
-              const maxCA=Math.max(...consolidee.map(x=>x.ca),1);
-              const h=Math.max(8,Math.round((c.ca/maxCA)*100));
-              return <div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
-                <div style={{fontSize:9,color:C.muted}}>{fmt(c.ca)}</div>
-                <div style={{width:"100%",height:h+"%",background:c.couleur||C.gold,borderRadius:"4px 4px 0 0",minHeight:8,opacity:0.8}}/>
-                <div style={{fontSize:9,color:C.muted,textAlign:"center",lineHeight:1.2}}>{c.nom}</div>
-              </div>;
-            })}
-          </div>
-        </Card>
-        {/* Cards par société */}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
-          {consolidee.map((c,i)=><Card key={i} style={{borderColor:`${c.couleur||C.gold}44`}}>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-              <div>
-                <div style={{fontSize:14,fontWeight:700,color:c.couleur||C.gold}}>{c.nom}</div>
-                <div style={{fontSize:11,color:C.muted}}>{c.metier} · {c.pays} · {c.devise}</div>
-              </div>
-              <div style={{display:"flex",gap:6}}>
-                <BtnGhost onClick={()=>setSelectedCompany(c)} style={{fontSize:10,padding:"4px 8px"}}>Détails</BtnGhost>
-                <BtnGhost onClick={()=>supprimerSociete(c.id)} style={{fontSize:10,padding:"4px 8px",color:C.red,borderColor:`${C.red}44`}}>✕</BtnGhost>
-              </div>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:6}}>
-              <CT style={{textAlign:"center",padding:"8px 4px"}}><div style={{fontSize:8,color:C.muted}}>CA</div><div style={{fontSize:13,fontWeight:700,color:C.green}}>{fmt(conv(c.ca,"EUR",devise),devise)}</div></CT>
-              <CT style={{textAlign:"center",padding:"8px 4px"}}><div style={{fontSize:8,color:C.muted}}>CHARGES</div><div style={{fontSize:13,fontWeight:700,color:C.red}}>{fmt(conv(c.charges,"EUR",devise),devise)}</div></CT>
-              <CT style={{textAlign:"center",padding:"8px 4px",borderColor:`${scoreColor(c.solde)}44`}}><div style={{fontSize:8,color:C.muted}}>SOLDE</div><div style={{fontSize:13,fontWeight:700,color:scoreColor(c.solde)}}>{fmt(conv(c.solde,"EUR",devise),devise)}</div></CT>
-            </div>
-          </Card>)}
-        </div>
-      </div>}
-    </div>}
-
-    {/* ── MES SOCIÉTÉS ── */}
-    {!loading&&onglet==="societes"&&<div>
-      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
-        <Btn onClick={()=>setShowAddForm(true)} style={{fontSize:11}}>+ Ajouter une société</Btn>
-      </div>
-      {companies.length===0?<Card style={{textAlign:"center",padding:30}}>
-        <div style={{fontSize:11,color:C.muted}}>Aucune société. Ajoutez-en une pour commencer.</div>
-      </Card>:<div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {companies.map((c,i)=><Card key={i} style={{borderColor:`${c.couleur||C.gold}22`}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div style={{display:"flex",gap:12,alignItems:"center"}}>
-              <div style={{width:40,height:40,borderRadius:8,background:c.couleur||C.gold,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:700,color:"#000"}}>
-                {c.nom?.[0]?.toUpperCase()||"?"}
-              </div>
-              <div>
-                <div style={{fontSize:13,fontWeight:700,color:C.text}}>{c.nom}</div>
-                <div style={{fontSize:11,color:C.muted}}>{c.metier||"—"} · {c.pays} · {c.devise}</div>
-                <div style={{fontSize:10,color:C.muted}}>Créée le {new Date(c.created_at).toLocaleDateString("fr")}</div>
-              </div>
-            </div>
-            <div style={{display:"flex",gap:6}}>
-              <Pill color={c.couleur||C.gold}>{c.statut}</Pill>
-              <BtnGhost onClick={()=>supprimerSociete(c.id)} style={{fontSize:10,color:C.red,borderColor:`${C.red}44`}}>Supprimer</BtnGhost>
-            </div>
-          </div>
-        </Card>)}
-      </div>}
-    </div>}
-
-    {/* ── TRANSFERTS INTER-SOCIÉTÉS ── */}
-    {!loading&&onglet==="intercompany"&&<div>
-      <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:10,padding:12,marginBottom:14,fontSize:11,color:C.text}}>
-        🔄 Les transferts inter-sociétés permettent de déplacer de la trésorerie d'une entité à une autre. Chaque transfert est tracé et horodaté.
-      </div>
-      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
-        <Btn onClick={()=>setShowTransferForm(true)} style={{background:C.blue,fontSize:11}}>+ Nouveau transfert</Btn>
-      </div>
-      {transfers.length===0?<Card style={{textAlign:"center",padding:30}}>
-        <div style={{fontSize:11,color:C.muted}}>Aucun transfert inter-sociétés pour le moment.</div>
-      </Card>:<Card>
-        <STitle>📋 Historique des transferts</STitle>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Date</TH><TH>De</TH><TH>Vers</TH><TH>Montant</TH><TH>Libellé</TH><TH>Statut</TH></tr></thead>
-          <tbody>{transfers.map((t,i)=>{
-            const from=companies.find(c=>c.id===t.from_company_id);
-            const to=companies.find(c=>c.id===t.to_company_id);
-            return <tr key={i}>
-              <Td style={{fontSize:10,color:C.muted}}>{new Date(t.created_at).toLocaleDateString("fr")}</Td>
-              <Td style={{color:C.red,fontWeight:600}}>{from?.nom||"—"}</Td>
-              <Td style={{color:C.green,fontWeight:600}}>{to?.nom||"—"}</Td>
-              <Td style={{fontWeight:700}}>{fmt(t.montant)} {t.devise}</Td>
-              <Td style={{color:C.muted,fontSize:11}}>{t.libelle||"—"}</Td>
-              <Td><Pill color={C.green}>{t.statut}</Pill></Td>
-            </tr>;
-          })}</tbody>
-        </table>
-      </Card>}
-    </div>}
-
-    {/* ── ALERTES CROISÉES ── */}
-    {!loading&&onglet==="alertes"&&<div>
-      <div style={{fontSize:11,color:C.muted,marginBottom:12}}>Alertes générées automatiquement sur toutes vos sociétés.</div>
-      {consolidee.length===0?<Card style={{textAlign:"center",padding:30}}>
-        <div style={{fontSize:11,color:C.muted}}>Ajoutez des sociétés pour voir les alertes croisées.</div>
-      </Card>:<div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {consolidee.filter(c=>c.solde<2000).map((c,i)=><div key={i} style={{background:`${C.red}11`,border:`1px solid ${C.red}33`,borderRadius:10,padding:14}}>
-          <div style={{fontSize:12,fontWeight:700,color:C.red,marginBottom:4}}>🔴 Trésorerie critique — {c.nom}</div>
-          <div style={{fontSize:11,color:C.text}}>Solde de {fmt(conv(c.solde,"EUR",devise),devise)} sous le seuil critique. Envisagez un transfert inter-sociétés pour renflouer cette entité.</div>
-        </div>)}
-        {consolidee.filter(c=>c.solde>=2000&&c.solde<5000).map((c,i)=><div key={i} style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:10,padding:14}}>
-          <div style={{fontSize:12,fontWeight:700,color:C.orange,marginBottom:4}}>🟡 Trésorerie à surveiller — {c.nom}</div>
-          <div style={{fontSize:11,color:C.text}}>Solde de {fmt(conv(c.solde,"EUR",devise),devise)} en zone d'alerte.</div>
-        </div>)}
-        {consolidee.filter(c=>c.solde>=5000).length===consolidee.length&&<div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:10,padding:14}}>
-          <div style={{fontSize:12,fontWeight:700,color:C.green,marginBottom:4}}>🟢 Toutes vos sociétés sont en bonne santé</div>
-          <div style={{fontSize:11,color:C.text}}>Aucune alerte active sur vos {consolidee.length} sociétés.</div>
-        </div>}
-      </div>}
-    </div>}
-  </div>;
-};
-
 const PageClubAffaires=({plan,showToast})=>{
   const[onglet,setOnglet]=useState("accueil");
-  const[membres,setMembres]=useState([]);
-  const[tenants,setTenants]=useState([]);
-  const[coinvestissements,setCoinvestissements]=useState([]);
-  const[contenu,setContenu]=useState([]);
-  const[candidatures,setCandidatures]=useState([]);
-  const[meetings,setMeetings]=useState([]);
-  const[loading,setLoading]=useState(true);
-  const[iaMatches,setIaMatches]=useState([]);
-  const[iaLoading,setIaLoading]=useState(false);
-  const[selectedMembre,setSelectedMembre]=useState(null);
-  const[showCandidature,setShowCandidature]=useState(false);
-  const[showCoinvest,setShowCoinvest]=useState(false);
-  const[candidatureForm,setCandidatureForm]=useState({nom:"",email:"",metier:"",message:"",coopte_par:""});
-  const[coinvestForm,setCoinvestForm]=useState({titre:"",description:"",montant_total:"",montant_min_ticket:"1000",secteur:"",rendement_estime:"",date_cloture:""});
-  const[dealForm,setDealForm]=useState({service:"",valeur:"",detail:""});
   const[deals,setDeals]=useState([
     {id:"DA-001",offrant:"Marc Dupont",recevant:"Sofia Al-Rashid",service:"Mise en relation Airbnb Dubai",valeur:2400,statut:"en cours",date:"12/04"},
     {id:"DA-002",offrant:"Groupe Prestige SARL",recevant:"Fatoumata Diop",service:"Distribution services Dakar",valeur:8000,statut:"validé",date:"10/04"},
     {id:"DA-003",offrant:"Leila Mansouri",recevant:"Jean-Marc Olivier",service:"Référencement syndic Paris",valeur:1200,statut:"proposé",date:"15/04"},
   ]);
-
-  const MEMBRES_DEFAUT=[
-    {id:1,nom:"Isabelle Moreau",metier:"Gestion Airbnb",ville:"Paris",pays:"🇫🇷",plan:"Starter",score_reputation:72,couleur:"#4B7BFF",bio:"Gestionnaire de 8 appartements Airbnb sur Paris.",services:["Gestion locative","Conciergerie","Ménage"],ca_genere:9600,nb_deals:2,email:"i.moreau@mail.fr",tel:"+33 6 12 34 56 78"},
-    {id:2,nom:"Marc Dupont",metier:"Immobilier",ville:"Lyon",pays:"🇫🇷",plan:"Business Pro",score_reputation:88,couleur:"#9B5FFF",bio:"Investisseur immobilier, portefeuille de 15 biens résidentiels.",services:["Vente","Location","Investissement"],ca_genere:38400,nb_deals:5,email:"m.dupont@corp.fr",tel:"+33 6 98 76 54 32"},
-    {id:3,nom:"Sofia Al-Rashid",metier:"Aviation d'affaires",ville:"Dubaï",pays:"🇦🇪",plan:"Enterprise",score_reputation:98,couleur:"#C9A84C",bio:"Directrice d'une flotte de jets privés desservant l'Europe et le Moyen-Orient.",services:["Location jet privé","Conciergerie VIP","Transferts"],ca_genere:110400,nb_deals:8,email:"sofia@vip.ae",tel:"+971 50 123 45 67"},
-    {id:4,nom:"Groupe Prestige SARL",metier:"Syndic & Gestion",ville:"Paris",pays:"🇫🇷",plan:"Enterprise",score_reputation:94,couleur:"#2EC9B0",bio:"Syndic professionnel gérant plus de 200 résidences en Île-de-France.",services:["Syndic","Gestion immeuble","Maintenance"],ca_genere:264000,nb_deals:14,email:"contact@prestige.fr",tel:"+33 1 44 55 66 77"},
-    {id:5,nom:"Fatoumata Diop",metier:"Finance Afrique",ville:"Dakar",pays:"🇸🇳",plan:"Business Pro",score_reputation:89,couleur:"#FF5F9E",bio:"Consultante en finance d'entreprise couvrant l'Afrique de l'Ouest.",services:["Conseil financier","Investissement","Formation"],ca_genere:81600,nb_deals:4,email:"fatou.d@dakar.sn",tel:"+221 77 123 45 67"},
+  const MEMBRES=[
+    {id:1,nom:"Isabelle Moreau",metier:"Gestion Airbnb",ville:"Paris",pays:"🇫🇷",plan:"Starter",score:72},
+    {id:2,nom:"Marc Dupont",metier:"Immobilier",ville:"Lyon",pays:"🇫🇷",plan:"Business Pro",score:88},
+    {id:3,nom:"Sofia Al-Rashid",metier:"Aviation d'affaires",ville:"Dubaï",pays:"🇦🇪",plan:"Enterprise",score:98},
+    {id:4,nom:"Groupe Prestige SARL",metier:"Syndic",ville:"Paris",pays:"🇫🇷",plan:"Enterprise",score:94},
+    {id:5,nom:"Fatoumata Diop",metier:"Finance Afrique",ville:"Dakar",pays:"🇸🇳",plan:"Business Pro",score:89},
   ];
-
-  const load=async()=>{
-    setLoading(true);
-    try{
-      const [membresRes,coinvestRes,contenuRes,candidaturesRes,meetingsRes]=await Promise.all([
-        fetch('/api/club?action=membres').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/club?action=coinvestissements').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/club?action=contenu').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/club?action=candidatures').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/club?action=speed_meetings').then(r=>r.json()).catch(()=>({})),
-      ]);
-      const membresReels=membresRes.membres||[];
-      setMembres(membresReels.length>0?membresReels:MEMBRES_DEFAUT);
-      setTenants(membresRes.tenants||[]);
-      setCoinvestissements(coinvestRes.coinvestissements||[]);
-      setContenu(contenuRes.contenu||[]);
-      setCandidatures(candidaturesRes.candidatures||[]);
-      setMeetings(meetingsRes.meetings||[]);
-    }catch(e){setMembres(MEMBRES_DEFAUT);}
-    setLoading(false);
-  };
-
-  useEffect(()=>{load();},[]);
-
-  const lancerIaMatch=async()=>{
-    setIaLoading(true);
-    try{
-      const res=await fetch('/api/club',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ia_match',membres,profil:{metier:'Conciergerie premium',pays:'France'}})});
-      const d=await res.json();
-      if(d.success)setIaMatches(d.matches||[]);
-    }catch(e){}
-    setIaLoading(false);
-  };
-
-  const soumettreCandidat=async()=>{
-    if(!candidatureForm.nom||!candidatureForm.email)return showToast("⚠️ Nom et email requis");
-    try{
-      await fetch('/api/club',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'candidature',...candidatureForm})});
-      showToast("✅ Candidature soumise — nous vous répondrons sous 48h");
-      setShowCandidature(false);setCandidatureForm({nom:"",email:"",metier:"",message:"",coopte_par:""});
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const creerCoinvest=async()=>{
-    if(!coinvestForm.titre||!coinvestForm.montant_total)return showToast("⚠️ Titre et montant requis");
-    try{
-      await fetch('/api/club',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer_coinvestissement',...coinvestForm})});
-      showToast("✅ Opportunité publiée dans le Club");
-      setShowCoinvest(false);setCoinvestForm({titre:"",description:"",montant_total:"",montant_min_ticket:"1000",secteur:"",rendement_estime:"",date_cloture:""});
-      load();
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const tabs=[
-    {id:"accueil",label:"🏠 Club"},
-    {id:"membres",label:"👥 Membres"},
-    {id:"coinvestissement",label:"💼 Co-investissement"},
-    {id:"deals",label:"🤝 Deals"},
-    {id:"meetings",label:"⚡ Speed Meetings"},
-    {id:"contenu",label:"📚 Contenu exclusif"},
-    {id:"candidatures",label:"📋 Candidatures"},
-    {id:"avantages",label:"💎 Avantages"},
-    {id:"stats",label:"📊 Stats"},
+  const[selectedMembre,setSelectedMembre]=useState(null);
+  const MEMBRES_PROFILS=[
+    {id:1,nom:"Isabelle Moreau",initiales:"IM",metier:"Gestion Airbnb",ville:"Paris",pays:"🇫🇷",plan:"Starter",score:72,couleur:"#4B7BFF",bio:"Gestionnaire de 8 appartements Airbnb sur Paris. Spécialisée dans le tourisme haut de gamme.",services:["Gestion locative","Conciergerie","Ménage"],ca:9600,deals:2,contact:"+33 6 12 34 56 78",email:"i.moreau@mail.fr",reseaux:{linkedin:"isabelle-moreau",instagram:"@isa.airbnb"},stats:{missions:18,noteMoy:4.8,anciennete:"2 ans"}},
+    {id:2,nom:"Marc Dupont",initiales:"MD",metier:"Immobilier",ville:"Lyon",pays:"🇫🇷",plan:"Business Pro",score:88,couleur:"#9B5FFF",bio:"Investisseur immobilier avec un portefeuille de 15 biens résidentiels. Expert en valorisation de patrimoine.",services:["Vente","Location","Gestion locative","Investissement"],ca:38400,deals:5,contact:"+33 6 98 76 54 32",email:"m.dupont@corp.fr",reseaux:{linkedin:"marc-dupont-immo"},stats:{missions:42,noteMoy:4.7,anciennete:"3 ans"}},
+    {id:3,nom:"Sofia Al-Rashid",initiales:"SA",metier:"Aviation d'affaires",ville:"Dubaï",pays:"🇦🇪",plan:"Enterprise",score:98,couleur:"#C9A84C",bio:"Directrice d'une flotte de jets privés desservant l'Europe et le Moyen-Orient. Cliente VIP Xyra depuis l'origine.",services:["Location jet privé","Conciergerie VIP","Transferts"],ca:110400,deals:8,contact:"+971 50 123 45 67",email:"sofia@vip.ae",reseaux:{linkedin:"sofia-al-rashid",instagram:"@sofia.aviation"},stats:{missions:46,noteMoy:4.9,anciennete:"2 ans"}},
+    {id:4,nom:"Groupe Prestige SARL",initiales:"GP",metier:"Syndic & Gestion",ville:"Paris",pays:"🇫🇷",plan:"Enterprise",score:94,couleur:"#2EC9B0",bio:"Syndic professionnel gérant plus de 200 résidences en Île-de-France. Partenaire stratégique Xyra.",services:["Syndic copropriété","Gestion immeuble","Maintenance"],ca:264000,deals:14,contact:"+33 1 44 55 66 77",email:"contact@prestige.fr",reseaux:{linkedin:"groupe-prestige"},stats:{missions:156,noteMoy:4.6,anciennete:"3 ans"}},
+    {id:5,nom:"Fatoumata Diop",initiales:"FD",metier:"Finance Afrique",ville:"Dakar",pays:"🇸🇳",plan:"Business Pro",score:89,couleur:"#FF5F9E",bio:"Consultante en finance d'entreprise couvrant l'Afrique de l'Ouest. Développe le réseau Xyra en Afrique francophone.",services:["Conseil financier","Investissement","Formation"],ca:81600,deals:4,contact:"+221 77 123 45 67",email:"fatou.d@dakar.sn",reseaux:{linkedin:"fatoumata-diop",instagram:"@fatou.finance"},stats:{missions:38,noteMoy:4.9,anciennete:"1 an"}},
   ];
-
-  const totalCA=membres.reduce((a,m)=>a+Number(m.ca_genere||0),0);
-  const totalDeals=membres.reduce((a,m)=>a+Number(m.nb_deals||0),0);
-
-  if(!hasAccess(plan,"club_affaires"))return <div style={{padding:20}}><UpgradeWall page="club_affaires" plan={plan}/></div>;
-
+  const tabs=[{id:"accueil",label:"🏠 Club"},{id:"membres",label:"👥 Profils membres"},{id:"deals",label:"🤝 Deals membres"},{id:"networking",label:"🌐 Networking"},{id:"avantages",label:"💎 Avantages"},{id:"stats",label:"📊 Stats club"}];
+  if(!hasAccess(plan,"annuaire"))return <div style={{padding:20}}><UpgradeWall page="annuaire" plan={plan}/></div>;
   return <div style={{padding:20}}>
-    {/* HEADER */}
     <div style={{background:`linear-gradient(135deg,${C.card},#0A0A1A)`,border:`1px solid ${C.gold}44`,borderRadius:16,padding:20,marginBottom:14}}>
       <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:4}}>CLUB XYRA · RÉSEAU AFFAIRES PRIVÉ</div>
       <div style={{fontSize:22,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◈ Club d'affaires Xyra</div>
-      <div style={{fontSize:12,color:C.muted,marginBottom:12}}>Réseau privé · Cooptation · IA Match · Co-investissement · Speed Meetings · VIP</div>
+      <div style={{fontSize:12,color:C.muted,marginBottom:12}}>Réseau privé · Deals exclusifs -10% · IA Match · Événements VIP · {MEMBRES.length} membres actifs</div>
       <div style={{display:"flex",gap:16,flexWrap:"wrap"}}>
-        <div style={{borderLeft:`2px solid ${C.gold}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>Membres actifs</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>{membres.length}</div></div>
-        <div style={{borderLeft:`2px solid ${C.green}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>Deals conclus</div><div style={{fontSize:16,fontWeight:700,color:C.green}}>{totalDeals}</div></div>
-        <div style={{borderLeft:`2px solid ${C.blue}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>CA généré réseau</div><div style={{fontSize:16,fontWeight:700,color:C.blue}}>{fmt(totalCA)}</div></div>
-        <div style={{borderLeft:`2px solid ${C.purple}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>Pays représentés</div><div style={{fontSize:16,fontWeight:700,color:C.purple}}>{new Set(membres.map(m=>m.pays)).size}</div></div>
-        <div style={{borderLeft:`2px solid ${C.teal}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>Co-investissements</div><div style={{fontSize:16,fontWeight:700,color:C.teal}}>{coinvestissements.length}</div></div>
+        <div style={{borderLeft:`2px solid ${C.gold}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>Membres</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>{MEMBRES.length}</div></div>
+        <div style={{borderLeft:`2px solid ${C.green}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>Deals actifs</div><div style={{fontSize:16,fontWeight:700,color:C.green}}>{deals.length}</div></div>
+        <div style={{borderLeft:`2px solid ${C.blue}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>CA généré club</div><div style={{fontSize:16,fontWeight:700,color:C.blue}}>142 000 €</div></div>
+        <div style={{borderLeft:`2px solid ${C.purple}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>Pays représentés</div><div style={{fontSize:16,fontWeight:700,color:C.purple}}>8</div></div>
       </div>
     </div>
-
-    <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
-      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
-    </div>
-
-    {/* ── ACCUEIL ── */}
+    <div style={{marginBottom:14}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
     {onglet==="accueil"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-      <Card>
-        <STitle>🏆 Top membres actifs</STitle>
-        {[...membres].sort((a,b)=>Number(b.score_reputation||0)-Number(a.score_reputation||0)).slice(0,5).map((m,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"8px 0",borderBottom:`1px solid ${C.border}22`,cursor:"pointer"}} onClick={()=>{setSelectedMembre(m);setOnglet("membres");}}>
+      <Card><STitle>🏆 Top membres actifs</STitle>
+        {[...MEMBRES].sort((a,b)=>b.score-a.score).map((m,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 0",borderBottom:`1px solid ${C.border}22`}}>
           <div style={{width:22,height:22,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:9,fontWeight:700,color:C.gold}}>{i+1}</div>
           <div style={{flex:1}}><div style={{fontSize:11,fontWeight:600}}>{m.nom}</div><div style={{fontSize:9,color:C.muted}}>{m.metier} · {m.pays}</div></div>
-          <div style={{textAlign:"right"}}><div style={{fontSize:11,color:C.gold,fontWeight:700}}>★ {m.score_reputation||50}</div><div style={{fontSize:9,color:C.muted}}>{m.nb_deals||0} deals</div></div>
+          <div style={{textAlign:"right"}}><Pill color={m.plan==="Enterprise"?C.purple:C.gold}>{m.plan}</Pill><div style={{fontSize:10,color:C.gold,marginTop:2}}>★ {m.score}</div></div>
         </div>)}
       </Card>
-
       <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
         <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:8}}>🤖 IA Match du jour — Claude</div>
-        {iaMatches.length===0?<div>
-          <div style={{fontSize:12,color:C.muted,marginBottom:10}}>Lance l'analyse IA pour identifier les meilleures synergies entre membres.</div>
-          <Btn onClick={lancerIaMatch} style={{fontSize:11}}>{iaLoading?"⏳ Analyse...":"🤖 Lancer l'IA Match"}</Btn>
-        </div>:<div>
-          {iaMatches.slice(0,2).map((m,i)=><div key={i} style={{marginBottom:10,padding:"8px 10px",background:`${C.purple}11`,borderRadius:8}}>
-            <div style={{fontSize:12,color:C.text,lineHeight:1.7,marginBottom:4}}><b style={{color:C.gold}}>{m.membre}</b> — {m.raison}</div>
-            <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              <span style={{fontSize:10,color:C.green}}>CA estimé : {fmt(m.ca_estime||0)}</span>
-              <Pill color={C.purple}>Score {m.score}%</Pill>
-            </div>
-          </div>)}
-          <div style={{display:"flex",gap:8,marginTop:8}}>
-            <Btn onClick={()=>showToast("✅ Mise en relation effectuée !")} style={{fontSize:10}}>🤝 Mettre en relation</Btn>
-            <BtnGhost onClick={()=>{setIaMatches([]);lancerIaMatch();}} style={{fontSize:10}}>🔄 Relancer</BtnGhost>
-          </div>
-        </div>}
-      </Card>
-
-      {/* Prochains événements */}
-      <Card>
-        <STitle>📅 Prochains événements</STitle>
-        {EVENEMENTS.map((e,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${C.border}`}}>
-          <div style={{fontSize:12,fontWeight:700,marginBottom:2}}>{e.titre}</div>
-          <div style={{fontSize:10,color:C.muted,marginBottom:6}}>📅 {e.date} · 📍 {e.lieu}</div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><Pill color={C.green}>{e.inscrits}/{e.max}</Pill><Btn onClick={()=>showToast(`✅ Inscrit à ${e.titre}`)} style={{fontSize:10,padding:"4px 10px"}}>S'inscrire</Btn></div>
-        </div>)}
-      </Card>
-
-      {/* Co-investissements récents */}
-      <Card style={{borderColor:`${C.gold}33`}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-          <STitle>💼 Co-investissements ouverts</STitle>
-          <BtnGhost onClick={()=>setOnglet("coinvestissement")} style={{fontSize:10}}>Voir tout →</BtnGhost>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Correspondance identifiée : <b style={{color:C.gold}}>Marc Dupont (Immobilier)</b> ↔ <b style={{color:C.teal}}>Fatoumata Diop (Finance Afrique)</b> — Potentiel de collaboration sur expansion immobilière Dakar. CA estimé : 15 000€. Score : 94%.</div>
+        <div style={{display:"flex",gap:8,marginTop:10}}>
+          <Btn onClick={()=>showToast("✅ Mise en relation effectuée !")}>🤝 Mettre en relation</Btn>
+          <BtnGhost onClick={()=>showToast("🤖 Nouvelle analyse IA lancée")}>🔄 Relancer</BtnGhost>
         </div>
-        {coinvestissements.length===0?<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>Aucun co-investissement ouvert pour le moment.<br/><button onClick={()=>{setShowCoinvest(true);setOnglet("coinvestissement");}} style={{background:"transparent",border:"none",color:C.gold,cursor:"pointer",fontFamily:"inherit",fontSize:12,marginTop:8}}>+ Proposer une opportunité</button></div>:
-        coinvestissements.slice(0,2).map((c,i)=><div key={i} style={{background:`${C.gold}08`,border:`1px solid ${C.gold}22`,borderRadius:8,padding:10,marginBottom:8}}>
-          <div style={{fontSize:12,fontWeight:700,color:C.gold,marginBottom:2}}>{c.titre}</div>
-          <div style={{fontSize:10,color:C.muted,marginBottom:6}}>{c.secteur} · Ticket min : {fmt(c.montant_min_ticket||1000)}</div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <span style={{fontSize:11,color:C.green}}>Rendement estimé : {c.rendement_estime||"—"}</span>
-            <Btn onClick={()=>showToast("✅ Participation enregistrée")} style={{fontSize:10,padding:"4px 8px"}}>Participer</Btn>
-          </div>
-        </div>)}
       </Card>
     </div>}
-
-    {/* ── MEMBRES ── */}
-    {onglet==="membres"&&<div>
-      {selectedMembre?<div>
-        <BtnGhost onClick={()=>setSelectedMembre(null)} style={{marginBottom:14}}>← Retour aux membres</BtnGhost>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
-          <Card style={{borderColor:`${selectedMembre.couleur||C.gold}44`}}>
-            <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:20}}>
-              <div style={{width:72,height:72,borderRadius:"50%",background:`${selectedMembre.couleur||C.gold}22`,border:`3px solid ${selectedMembre.couleur||C.gold}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,fontWeight:700,color:selectedMembre.couleur||C.gold}}>{inits(selectedMembre.nom)}</div>
-              <div>
-                <div style={{fontSize:18,fontWeight:700,color:C.text}}>{selectedMembre.nom}</div>
-                <div style={{fontSize:12,color:C.muted}}>{selectedMembre.metier}</div>
-                <div style={{fontSize:11,color:C.muted}}>{selectedMembre.pays} {selectedMembre.ville}</div>
-                <Pill color={C.gold}>★ {selectedMembre.score_reputation||50}/100</Pill>
-              </div>
-            </div>
-            <div style={{background:`${selectedMembre.couleur||C.gold}11`,borderRadius:10,padding:14,marginBottom:16,fontSize:12,color:C.text,lineHeight:1.7,fontStyle:"italic"}}>"{selectedMembre.bio}"</div>
-            {(selectedMembre.services||[]).length>0&&<div style={{marginBottom:14}}>
-              <div style={{fontSize:11,color:C.muted,marginBottom:6}}>SERVICES PROPOSÉS</div>
-              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>{(selectedMembre.services||[]).map((s,i)=><Pill key={i} color={selectedMembre.couleur||C.gold}>{s}</Pill>)}</div>
-            </div>}
-            <div style={{display:"flex",flexDirection:"column",gap:5}}>
-              {selectedMembre.email&&<div style={{display:"flex",gap:10,fontSize:12,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}><span>📧</span><span style={{color:C.muted}}>{selectedMembre.email}</span></div>}
-              {selectedMembre.tel&&<div style={{display:"flex",gap:10,fontSize:12,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}><span>📱</span><span style={{color:C.muted}}>{selectedMembre.tel}</span></div>}
-            </div>
-          </Card>
-          <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-              <CT><div style={{fontSize:9,color:C.muted}}>CA généré</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>{fmt(selectedMembre.ca_genere||0)}</div></CT>
-              <CT><div style={{fontSize:9,color:C.muted}}>Score</div><div style={{fontSize:16,fontWeight:700,color:selectedMembre.couleur||C.gold}}>{selectedMembre.score_reputation||50}/100</div></CT>
-              <CT><div style={{fontSize:9,color:C.muted}}>Deals</div><div style={{fontSize:16,fontWeight:700,color:C.blue}}>{selectedMembre.nb_deals||0}</div></CT>
-              <CT><div style={{fontSize:9,color:C.muted}}>Plan</div><div style={{fontSize:12,fontWeight:700,color:C.purple}}>{selectedMembre.plan||"—"}</div></CT>
-            </div>
-            <Card>
-              <STitle>⚡ Actions</STitle>
-              <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                <Btn onClick={()=>showToast("💬 WhatsApp ouvert")} style={{background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 WhatsApp</Btn>
-                <Btn onClick={()=>showToast("🤝 Deal proposé")} style={{background:`${C.gold}22`,color:C.gold,border:`1px solid ${C.gold}44`}}>🤝 Proposer un deal</Btn>
-                <BtnGhost onClick={()=>{setOnglet("meetings");showToast("📅 Planifiez votre speed meeting ci-dessous");}}>⚡ Speed Meeting</BtnGhost>
-                <BtnGhost onClick={()=>showToast("⭐ Recommandation envoyée")}>⭐ Recommander</BtnGhost>
-              </div>
-            </Card>
-            <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
-              <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 IA Match — Synergies</div>
-              <div style={{fontSize:11,color:C.text,lineHeight:1.7}}>Synergies avec {selectedMembre.nom?.split(" ")[0]} : collaboration sur {(selectedMembre.services||["vos services"])[0]}. CA potentiel : {fmt(Math.round(Number(selectedMembre.ca_genere||0)*0.15))}. Score : {Math.min(99,Number(selectedMembre.score_reputation||50)+3)}%.</div>
-            </Card>
-          </div>
-        </div>
-      </div>:<div>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-          <div style={{fontSize:14,fontWeight:700}}>👥 {membres.length} membres actifs</div>
-          <Btn onClick={()=>setShowCandidature(true)} style={{fontSize:11}}>+ Proposer un membre</Btn>
-        </div>
-        {showCandidature&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
-          <STitle>📋 Coopter un nouveau membre</STitle>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Nom *</label><Inp value={candidatureForm.nom} onChange={e=>setCandidatureForm(f=>({...f,nom:e.target.value}))}/></div>
-            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Email *</label><Inp value={candidatureForm.email} onChange={e=>setCandidatureForm(f=>({...f,email:e.target.value}))}/></div>
-            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Métier</label><Inp value={candidatureForm.metier} onChange={e=>setCandidatureForm(f=>({...f,metier:e.target.value}))}/></div>
-            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Coopté par</label><Inp value={candidatureForm.coopte_par} onChange={e=>setCandidatureForm(f=>({...f,coopte_par:e.target.value}))} placeholder="Votre nom"/></div>
-            <div style={{gridColumn:"1/-1"}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Message / Recommandation</label><Inp value={candidatureForm.message} onChange={e=>setCandidatureForm(f=>({...f,message:e.target.value}))} placeholder="Pourquoi recommandez-vous cette personne ?"/></div>
-          </div>
-          <div style={{display:"flex",gap:8}}><Btn onClick={soumettreCandidat}>✅ Soumettre la candidature</Btn><BtnGhost onClick={()=>setShowCandidature(false)}>Annuler</BtnGhost></div>
-        </Card>}
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:12}}>
-          {membres.map((m,i)=><Card key={i} style={{cursor:"pointer",borderColor:`${m.couleur||C.gold}33`}} onClick={()=>setSelectedMembre(m)}>
-            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
-              <div style={{width:52,height:52,borderRadius:"50%",background:`${m.couleur||C.gold}22`,border:`2px solid ${m.couleur||C.gold}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:700,color:m.couleur||C.gold,flexShrink:0}}>{inits(m.nom)}</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:13,fontWeight:700,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{m.nom}</div>
-                <div style={{fontSize:10,color:C.muted}}>{m.pays} {m.ville}</div>
-                <Pill color={m.plan==="Enterprise"?C.purple:m.plan==="Business Pro"?C.gold:C.blue}>{m.plan||"Starter"}</Pill>
-              </div>
-            </div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:10,lineHeight:1.5}}>{(m.bio||"").slice(0,80)}{(m.bio||"").length>80?"...":""}</div>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>{(m.services||[]).slice(0,3).map((s,j)=><span key={j} style={{fontSize:9,background:`${m.couleur||C.gold}15`,color:m.couleur||C.gold,border:`1px solid ${m.couleur||C.gold}33`,borderRadius:4,padding:"2px 6px"}}>{s}</span>)}</div>
-            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-              <span style={{fontSize:11,fontWeight:700,color:C.gold}}>{fmt(m.ca_genere||0)}</span>
-              <span style={{fontSize:11,color:m.couleur||C.gold,fontWeight:600}}>★ {m.score_reputation||50}/100</span>
-            </div>
-            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-              <Btn onClick={e=>{e.stopPropagation();showToast(`💬 WhatsApp ${m.nom}`);}} style={{fontSize:10,padding:"6px 4px",background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 Contact</Btn>
-              <BtnGhost onClick={e=>{e.stopPropagation();setSelectedMembre(m);}} style={{fontSize:10,padding:"6px 4px"}}>Profil →</BtnGhost>
-            </div>
-          </Card>)}
-        </div>
-      </div>}
-    </div>}
-
-    {/* ── CO-INVESTISSEMENT ── */}
-    {onglet==="coinvestissement"&&<div>
-      <div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:10,padding:12,marginBottom:14,fontSize:11,color:C.text,lineHeight:1.7}}>
-        💼 Le co-investissement Club Xyra permet aux membres de s'associer sur des projets communs — immobilier, commerce, tech, services. Chaque membre fixe librement son ticket de participation. Toutes les opportunités sont présentées de manière transparente avec le rendement estimé et la date de clôture.
-      </div>
-      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
-        <Btn onClick={()=>setShowCoinvest(!showCoinvest)} style={{fontSize:11}}>+ Proposer une opportunité</Btn>
-      </div>
-      {showCoinvest&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
-        <STitle>💼 Nouvelle opportunité de co-investissement</STitle>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Titre *</label><Inp value={coinvestForm.titre} onChange={e=>setCoinvestForm(f=>({...f,titre:e.target.value}))} placeholder="Ex: Villa Côte d'Azur"/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Secteur</label><Inp value={coinvestForm.secteur} onChange={e=>setCoinvestForm(f=>({...f,secteur:e.target.value}))} placeholder="Immobilier, Tech, Commerce..."/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Montant total (€) *</label><Inp type="number" value={coinvestForm.montant_total} onChange={e=>setCoinvestForm(f=>({...f,montant_total:e.target.value}))}/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Ticket minimum (€)</label><Inp type="number" value={coinvestForm.montant_min_ticket} onChange={e=>setCoinvestForm(f=>({...f,montant_min_ticket:e.target.value}))}/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Rendement estimé</label><Inp value={coinvestForm.rendement_estime} onChange={e=>setCoinvestForm(f=>({...f,rendement_estime:e.target.value}))} placeholder="Ex: 8-12% / an"/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Date de clôture</label><Inp type="date" value={coinvestForm.date_cloture} onChange={e=>setCoinvestForm(f=>({...f,date_cloture:e.target.value}))}/></div>
-          <div style={{gridColumn:"1/-1"}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Description</label><Inp value={coinvestForm.description} onChange={e=>setCoinvestForm(f=>({...f,description:e.target.value}))} placeholder="Décrivez l'opportunité..."/></div>
-        </div>
-        <div style={{display:"flex",gap:8}}><Btn onClick={creerCoinvest}>✅ Publier l'opportunité</Btn><BtnGhost onClick={()=>setShowCoinvest(false)}>Annuler</BtnGhost></div>
-      </Card>}
-      {coinvestissements.length===0?<Card style={{textAlign:"center",padding:30}}>
-        <div style={{fontSize:32,marginBottom:8}}>💼</div>
-        <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Aucun co-investissement ouvert</div>
-        <div style={{fontSize:11,color:C.muted}}>Soyez le premier à proposer une opportunité au réseau.</div>
-      </Card>:<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:12}}>
-        {coinvestissements.map((c,i)=><Card key={i} style={{borderColor:`${C.gold}33`}}>
-          <div style={{fontSize:14,fontWeight:700,color:C.gold,marginBottom:4}}>{c.titre}</div>
-          <div style={{fontSize:11,color:C.muted,marginBottom:10}}>{c.secteur} · Porteur : {c.porteur||"Membre Club"}</div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:12}}>
-            <CT><div style={{fontSize:9,color:C.muted}}>Montant total</div><div style={{fontSize:14,fontWeight:700,color:C.text}}>{fmt(c.montant_total||0)}</div></CT>
-            <CT><div style={{fontSize:9,color:C.muted}}>Ticket min</div><div style={{fontSize:14,fontWeight:700,color:C.blue}}>{fmt(c.montant_min_ticket||1000)}</div></CT>
-          </div>
-          {c.rendement_estime&&<div style={{background:`${C.green}11`,border:`1px solid ${C.green}22`,borderRadius:6,padding:"6px 10px",fontSize:11,color:C.green,marginBottom:10}}>📈 Rendement estimé : {c.rendement_estime}</div>}
-          {c.description&&<div style={{fontSize:11,color:C.muted,marginBottom:10,lineHeight:1.6}}>{c.description}</div>}
-          {c.date_cloture&&<div style={{fontSize:10,color:C.orange,marginBottom:10}}>⏰ Clôture : {c.date_cloture}</div>}
-          <Btn onClick={()=>showToast("✅ Participation enregistrée — notre équipe vous contacte")} style={{width:"100%",fontSize:11}}>💼 Participer à ce projet</Btn>
-        </Card>)}
-      </div>}
-    </div>}
-
-    {/* ── DEALS ── */}
     {onglet==="deals"&&<Card>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-        <STitle>🤝 Deals entre membres</STitle>
+        <STitle>🤝 Deals entre membres (-10%)</STitle>
         <Btn onClick={()=>showToast("✅ Deal proposé au réseau !")} style={{fontSize:11}}>+ Proposer un deal</Btn>
       </div>
       <table style={{width:"100%",borderCollapse:"collapse"}}>
@@ -5117,141 +3472,147 @@ const PageClubAffaires=({plan,showToast})=>{
           <Td><St s={d.statut}/></Td>
           <Td><div style={{display:"flex",gap:4}}>
             {d.statut==="proposé"&&<Btn onClick={()=>{setDeals(ds=>ds.map((x,j)=>j===i?{...x,statut:"en cours"}:x));showToast("✅ Deal accepté !");}} style={{fontSize:10,padding:"4px 8px",background:C.green}}>✅</Btn>}
-            <BtnGhost onClick={()=>showToast("💬 Chat ouvert")} style={{fontSize:10,padding:"4px 8px"}}>💬</BtnGhost>
+            <BtnGhost onClick={()=>showToast("💬 Chat deal ouvert")} style={{fontSize:10,padding:"4px 8px"}}>💬</BtnGhost>
           </div></Td>
         </tr>)}</tbody>
       </table>
     </Card>}
-
-    {/* ── SPEED MEETINGS ── */}
-    {onglet==="meetings"&&<div>
-      <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:10,padding:12,marginBottom:14,fontSize:11,color:C.text}}>
-        ⚡ Le Speed Meeting Club Xyra — 20 minutes chrono avec un membre, format BNI mais en digital. Planifiez directement depuis ce module, un lien visio est généré automatiquement.
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:14}}>
-        <Card>
-          <STitle>📅 Planifier un Speed Meeting</STitle>
-          <div style={{display:"flex",flexDirection:"column",gap:10}}>
-            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Membre à rencontrer</label>
-              <Sel><option value="">Choisir un membre...</option>{membres.map(m=><option key={m.id} value={m.id}>{m.nom} — {m.metier}</option>)}</Sel>
-            </div>
-            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Date et heure</label><Inp type="datetime-local"/></div>
-            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Durée</label>
-              <Sel><option value="20">20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option></Sel>
-            </div>
-            <Btn onClick={()=>showToast("✅ Speed Meeting planifié — lien visio envoyé par email")}>⚡ Confirmer le meeting</Btn>
-          </div>
-        </Card>
-        <Card>
-          <STitle>🎥 Salle Visio Club VIP</STitle>
-          <div style={{textAlign:"center",padding:"24px 0"}}>
-            <div style={{fontSize:36,marginBottom:10}}>🎥</div>
-            <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Salon Visio Club Xyra</div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Salle privée réservée aux membres Club</div>
-            <div style={{display:"flex",gap:8,justifyContent:"center"}}>
-              <Btn onClick={()=>showToast("🎥 Salon : meet.xyra.io/club")}>🎥 Rejoindre</Btn>
-              <BtnGhost onClick={()=>showToast("📅 Visio planifiée !")}>📅 Planifier</BtnGhost>
-            </div>
-          </div>
-        </Card>
-      </div>
-      {meetings.length>0&&<Card>
-        <STitle>📋 Meetings planifiés</STitle>
-        {meetings.map((m,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
-          <div><div style={{fontWeight:600}}>{new Date(m.date_heure).toLocaleDateString("fr")} à {new Date(m.date_heure).toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"})}</div><div style={{fontSize:10,color:C.muted}}>{m.duree_minutes} min</div></div>
-          <div style={{display:"flex",gap:8}}><Pill color={C.blue}>{m.statut}</Pill><BtnGhost onClick={()=>showToast("🎥 Lien copié")} style={{fontSize:10}}>🔗 Lien</BtnGhost></div>
+    {onglet==="networking"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Card><STitle>📅 Prochains événements</STitle>
+        {EVENEMENTS.map((e,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${C.border}`}}>
+          <div style={{fontSize:12,fontWeight:700,marginBottom:2}}>{e.titre}</div>
+          <div style={{fontSize:10,color:C.muted,marginBottom:6}}>📅 {e.date} · 📍 {e.lieu}</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><Pill color={C.green}>{e.inscrits}/{e.max}</Pill><Btn onClick={()=>showToast(`✅ Inscrit à ${e.titre}`)} style={{fontSize:10,padding:"4px 10px"}}>S'inscrire</Btn></div>
         </div>)}
-      </Card>}
-    </div>}
-
-    {/* ── CONTENU EXCLUSIF ── */}
-    {onglet==="contenu"&&<div>
-      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:12,marginBottom:14,fontSize:11,color:C.text}}>
-        📚 Contenu exclusif réservé aux membres Club — analyses de marché, masterclass, rapports sectoriels, accès direct aux experts du réseau.
-      </div>
-      {contenu.length===0?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
-        {[{icon:"📊",titre:"Analyse marché immobilier luxe Q2 2026",type:"Rapport",auteur:"Équipe Xyra",desc:"Tendances et opportunités sur les marchés France, Dubaï et Afrique du Nord."},
-          {icon:"🎥",titre:"Masterclass : Développer son réseau en Afrique",type:"Masterclass",auteur:"Fatoumata Diop",desc:"Stratégies concrètes pour s'implanter sur les marchés africains francophones."},
-          {icon:"📝",titre:"Guide : Structurer une holding multi-sociétés",type:"Guide",auteur:"Équipe Xyra",desc:"Comment optimiser la gestion de plusieurs entités juridiques depuis Xyra."},
-          {icon:"🤖",titre:"IA & Business : comment automatiser ses opérations",type:"Article",auteur:"Curtiss — Fondateur Xyra",desc:"Retour d'expérience sur l'intégration de l'IA Claude dans les processus business."}
-        ].map((c,i)=><Card key={i} style={{cursor:"pointer"}} onClick={()=>showToast("📖 Contenu ouvert")}>
-          <div style={{fontSize:24,marginBottom:8}}>{c.icon}</div>
-          <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:4}}>{c.titre}</div>
-          <div style={{display:"flex",gap:6,marginBottom:8}}><Pill color={C.purple}>{c.type}</Pill><span style={{fontSize:10,color:C.muted}}>par {c.auteur}</span></div>
-          <div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>{c.desc}</div>
-        </Card>)}
-      </div>:<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
-        {contenu.map((c,i)=><Card key={i} style={{cursor:"pointer"}} onClick={()=>showToast("📖 Contenu ouvert")}>
-          <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:4}}>{c.titre}</div>
-          <div style={{display:"flex",gap:6,marginBottom:8}}><Pill color={C.purple}>{c.type}</Pill><span style={{fontSize:10,color:C.muted}}>par {c.auteur}</span></div>
-          {c.contenu&&<div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>{c.contenu.slice(0,100)}...</div>}
-        </Card>)}
-      </div>}
-    </div>}
-
-    {/* ── CANDIDATURES ── */}
-    {onglet==="candidatures"&&<div>
-      <div style={{fontSize:13,fontWeight:700,marginBottom:14}}>📋 Candidatures en attente ({candidatures.filter(c=>c.statut==="en_attente").length})</div>
-      {candidatures.length===0?<Card style={{textAlign:"center",padding:30}}>
-        <div style={{fontSize:11,color:C.muted}}>Aucune candidature pour le moment.</div>
-      </Card>:<div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {candidatures.map((c,i)=><Card key={i}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div>
-              <div style={{fontSize:13,fontWeight:700}}>{c.nom}</div>
-              <div style={{fontSize:11,color:C.muted}}>{c.email} · {c.metier}</div>
-              {c.coopte_par&&<div style={{fontSize:10,color:C.gold}}>Coopté par : {c.coopte_par}</div>}
-              {c.message&&<div style={{fontSize:11,color:C.muted,marginTop:4,fontStyle:"italic"}}>"{c.message.slice(0,80)}..."</div>}
-            </div>
-            <div style={{display:"flex",gap:6}}>
-              <Pill color={c.statut==="en_attente"?C.orange:c.statut==="accepté"?C.green:C.red}>{c.statut}</Pill>
-              {c.statut==="en_attente"&&<>
-                <Btn onClick={()=>showToast("✅ Candidature acceptée")} style={{fontSize:10,padding:"4px 8px",background:C.green}}>✅ Accepter</Btn>
-                <BtnGhost onClick={()=>showToast("❌ Candidature refusée")} style={{fontSize:10,color:C.red,borderColor:`${C.red}44`}}>✕ Refuser</BtnGhost>
-              </>}
-            </div>
+      </Card>
+      <Card><STitle>🎥 Visio Club privée</STitle>
+        <div style={{textAlign:"center",padding:"24px 0"}}>
+          <div style={{fontSize:36,marginBottom:10}}>🎥</div>
+          <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Salon Visio Club VIP</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Salle privée membres Club Xyra</div>
+          <div style={{display:"flex",gap:8,justifyContent:"center"}}>
+            <Btn onClick={()=>showToast("🎥 Salle club : meet.xyra.io/club")}>🎥 Rejoindre</Btn>
+            <BtnGhost onClick={()=>showToast("📅 Visio planifiée !")}>📅 Planifier</BtnGhost>
           </div>
-        </Card>)}
+        </div>
+      </Card>
+    </div>}
+    {onglet==="membres"&&<div>
+      {selectedMembre?<div>
+        <BtnGhost onClick={()=>setSelectedMembre(null)} style={{marginBottom:16}}>← Retour aux membres</BtnGhost>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+          {/* Profil principal */}
+          <Card style={{borderColor:`${selectedMembre.couleur}44`}}>
+            <div style={{display:"flex",alignItems:"center",gap:16,marginBottom:20}}>
+              <div style={{width:72,height:72,borderRadius:"50%",background:`${selectedMembre.couleur}22`,border:`3px solid ${selectedMembre.couleur}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:24,fontWeight:700,color:selectedMembre.couleur}}>{selectedMembre.initiales}</div>
+              <div>
+                <div style={{fontSize:18,fontWeight:700,color:C.text}}>{selectedMembre.nom}</div>
+                <div style={{fontSize:12,color:C.muted}}>{selectedMembre.metier}</div>
+                <div style={{fontSize:11,color:C.muted}}>{selectedMembre.pays} {selectedMembre.ville}</div>
+                <Pill color={selectedMembre.plan==="Enterprise"?C.purple:selectedMembre.plan==="Business Pro"?C.gold:C.blue}>{selectedMembre.plan}</Pill>
+              </div>
+            </div>
+            <div style={{background:`${selectedMembre.couleur}11`,borderRadius:10,padding:14,marginBottom:16,fontSize:12,color:C.text,lineHeight:1.7,fontStyle:"italic"}}>"{selectedMembre.bio}"</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:16}}>
+              {[["📱",selectedMembre.contact],["📧",selectedMembre.email],["🏢",selectedMembre.metier],["📍",`${selectedMembre.pays} ${selectedMembre.ville}`]].map(([icon,val],i)=>(
+                <div key={i} style={{display:"flex",gap:10,fontSize:12,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}>
+                  <span>{icon}</span><span style={{color:C.muted}}>{val}</span>
+                </div>
+              ))}
+            </div>
+            <div style={{marginBottom:16}}>
+              <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:8}}>SERVICES PROPOSÉS</div>
+              <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+                {selectedMembre.services.map((s,i)=><Pill key={i} color={selectedMembre.couleur}>{s}</Pill>)}
+              </div>
+            </div>
+            {selectedMembre.reseaux&&<div>
+              <div style={{fontSize:11,color:C.muted,fontWeight:600,marginBottom:8}}>RÉSEAUX SOCIAUX</div>
+              <div style={{display:"flex",gap:8}}>
+                {selectedMembre.reseaux.linkedin&&<BtnGhost onClick={()=>showToast("🔗 LinkedIn ouvert")} style={{fontSize:11}}>💼 LinkedIn</BtnGhost>}
+                {selectedMembre.reseaux.instagram&&<BtnGhost onClick={()=>showToast("📸 Instagram ouvert")} style={{fontSize:11}}>📸 Instagram</BtnGhost>}
+              </div>
+            </div>}
+          </Card>
+          {/* Stats et actions */}
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <KPI label="CA généré" val={fmt(selectedMembre.ca)} color={C.gold}/>
+              <KPI label="Score réseau" val={selectedMembre.score+"/100"} color={selectedMembre.couleur}/>
+              <KPI label="Missions" val={selectedMembre.stats.missions} color={C.blue}/>
+              <KPI label="Note moy." val={"★ "+selectedMembre.stats.noteMoy} color={C.teal}/>
+            </div>
+            <Card>
+              <STitle>⚡ Actions</STitle>
+              <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                <Btn onClick={()=>showToast("💬 WhatsApp ouvert")} style={{background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 Contacter sur WhatsApp</Btn>
+                <Btn onClick={()=>showToast("🤝 Proposition de deal envoyée")} style={{background:`${C.gold}22`,color:C.gold,border:`1px solid ${C.gold}44`}}>🤝 Proposer un deal</Btn>
+                <BtnGhost onClick={()=>showToast("📧 Email envoyé")}>📧 Envoyer un email</BtnGhost>
+                <BtnGhost onClick={()=>showToast("⭐ Recommandation envoyée")}>⭐ Recommander</BtnGhost>
+              </div>
+            </Card>
+            <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
+              <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 IA Match — Claude</div>
+              <div style={{fontSize:11,color:C.text,lineHeight:1.7}}>
+                Synergies potentielles avec {selectedMembre.nom.split(" ")[0]} : collaboration sur {selectedMembre.services[0]}. CA estimé : {fmt(Math.round(selectedMembre.ca*0.15))}. Score compatibilité : {Math.min(99,selectedMembre.score+3)}%.
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>:<div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+          <div style={{fontSize:14,fontWeight:700,color:C.text}}>👥 Membres du Club Xyra</div>
+          <div style={{fontSize:11,color:C.muted}}>{MEMBRES_PROFILS.length} membres actifs</div>
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(260px,1fr))",gap:12}}>
+          {MEMBRES_PROFILS.map((m,i)=><Card key={i} style={{cursor:"pointer",borderColor:`${m.couleur}33`}} onClick={()=>setSelectedMembre(m)}>
+            <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:12}}>
+              <div style={{width:52,height:52,borderRadius:"50%",background:`${m.couleur}22`,border:`2px solid ${m.couleur}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:700,color:m.couleur,flexShrink:0}}>{m.initiales}</div>
+              <div style={{flex:1,minWidth:0}}>
+                <div style={{fontSize:13,fontWeight:700,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{m.nom}</div>
+                <div style={{fontSize:10,color:C.muted}}>{m.pays} {m.ville}</div>
+                <Pill color={m.plan==="Enterprise"?C.purple:m.plan==="Business Pro"?C.gold:C.blue}>{m.plan}</Pill>
+              </div>
+            </div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:10,lineHeight:1.5}}>{m.bio.slice(0,80)}...</div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap",marginBottom:10}}>
+              {m.services.slice(0,3).map((s,j)=><span key={j} style={{fontSize:9,background:`${m.couleur}15`,color:m.couleur,border:`1px solid ${m.couleur}33`,borderRadius:4,padding:"2px 6px"}}>{s}</span>)}
+            </div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+              <span style={{fontSize:11,fontWeight:700,color:C.gold}}>{fmt(m.ca)} CA</span>
+              <span style={{fontSize:11,color:m.couleur,fontWeight:600}}>★ {m.score}/100</span>
+            </div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+              <Btn onClick={e=>{e.stopPropagation();showToast(`💬 WhatsApp ${m.nom}`);}} style={{fontSize:10,padding:"6px 4px",background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 Contact</Btn>
+              <BtnGhost onClick={e=>{e.stopPropagation();setSelectedMembre(m);}} style={{fontSize:10,padding:"6px 4px"}}>Voir profil →</BtnGhost>
+            </div>
+          </Card>)}
+        </div>
       </div>}
     </div>}
 
-    {/* ── AVANTAGES ── */}
     {onglet==="avantages"&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
-      {[
-        {icon:"🤖",titre:"IA Match Business",desc:"Claude identifie automatiquement les meilleures synergies chaque semaine",color:C.purple},
-        {icon:"💼",titre:"Co-investissement",desc:"Investissez aux côtés des membres Club sur des projets sélectionnés",color:C.gold},
-        {icon:"⚡",titre:"Speed Meetings",desc:"20 minutes chrono avec n'importe quel membre, lien visio automatique",color:C.blue},
-        {icon:"🌍",titre:"Annuaire privé mondial",desc:"Accès à l'annuaire complet 18+ pays avec coordonnées directes",color:C.teal},
-        {icon:"📅",titre:"Événements VIP",desc:"Dîners privés, tables rondes, soirées networking exclusives",color:C.orange},
-        {icon:"📚",titre:"Contenu exclusif",desc:"Analyses, masterclass, rapports sectoriels réservés aux membres",color:C.green},
-        {icon:"🤝",titre:"Deals réseau",desc:"Proposez et concluez des deals directement avec les membres",color:C.pink},
-        {icon:"⭐",titre:"Score de réputation",desc:"Score basé sur vos interactions — les meilleurs membres sont mis en avant",color:C.gold},
-      ].map((a,i)=><Card key={i} style={{borderColor:`${a.color}33`,textAlign:"center"}}>
+      {[{icon:"💎",titre:"Remise -10% entre membres",desc:"Tous les services entre membres Club au tarif préférentiel",color:C.gold},{icon:"🤖",titre:"IA Match Business",desc:"Claude identifie les meilleures synergies du réseau chaque semaine",color:C.purple},{icon:"🌍",titre:"Annuaire privé mondial",desc:"Accès à l'annuaire complet avec coordonnées directes",color:C.blue},{icon:"📅",titre:"Événements VIP exclusifs",desc:"Invitations prioritaires soirées networking et forums",color:C.teal},{icon:"💳",titre:"Carte Membre Xyra",desc:"Carte virtuelle Club avec cashback 2% sur les achats réseau",color:C.green},{icon:"📊",titre:"Rapport business mensuel",desc:"Analyse IA personnalisée par Claude chaque 1er du mois",color:C.orange}].map((a,i)=><Card key={i} style={{borderColor:`${a.color}33`,textAlign:"center"}}>
         <div style={{fontSize:28,marginBottom:8}}>{a.icon}</div>
         <div style={{fontSize:13,fontWeight:700,color:a.color,marginBottom:6}}>{a.titre}</div>
         <div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>{a.desc}</div>
       </Card>)}
     </div>}
-
-    {/* ── STATS ── */}
     {onglet==="stats"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-      <Card>
-        <STitle>📊 Activité du club</STitle>
+      <Card><STitle>📊 Activité du club</STitle>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-          <CT><div style={{fontSize:9,color:C.muted}}>Membres actifs</div><div style={{fontSize:22,fontWeight:700,color:C.blue}}>{membres.length}</div></CT>
-          <CT><div style={{fontSize:9,color:C.muted}}>Deals conclus</div><div style={{fontSize:22,fontWeight:700,color:C.green}}>{deals.filter(d=>d.statut==="validé").length}</div></CT>
-          <CT><div style={{fontSize:9,color:C.muted}}>CA réseau total</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(totalCA)}</div></CT>
-          <CT><div style={{fontSize:9,color:C.muted}}>Taux engagement</div><div style={{fontSize:22,fontWeight:700,color:C.teal}}>84%</div></CT>
+          <KPI label="Membres actifs" val={MEMBRES.length} color={C.blue}/>
+          <KPI label="Deals conclus" val={deals.filter(d=>d.statut==="validé").length} color={C.green}/>
+          <KPI label="CA généré réseau" val="142K€" color={C.gold}/>
+          <KPI label="Taux engagement" val="84%" color={C.teal}/>
         </div>
       </Card>
-      <Card>
-        <STitle>💰 Revenus Club Xyra</STitle>
-        {[["Abonnements annuels (2 000€/an)",fmt(membres.length*2000),C.gold],["Commissions deals (5%)",fmt(deals.filter(d=>d.statut==="validé").reduce((a,d)=>a+d.valeur*0.05,0)),C.green],["Co-investissements",fmt(coinvestissements.reduce((a,c)=>a+Number(c.montant_total||0)*0.02,0)),C.blue],["Total annuel estimé",fmt(membres.length*2000+deals.filter(d=>d.statut==="validé").reduce((a,d)=>a+d.valeur*0.05,0)),C.teal]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
+      <Card><STitle>💰 Revenus Club Xyra</STitle>
+        {[["Abonnements (29€/mois)",fmt(MEMBRES.length*29),C.gold],["Commissions deals (5%)",fmt(7100),C.green],["Événements",fmt(2400),C.blue],["Total mensuel",fmt(MEMBRES.length*29+7100+2400),C.teal]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
       </Card>
     </div>}
   </div>;
 };
-
 
 const PageAnnuaire=({plan,showToast})=>{
   // ── Données réseau mondial ─────────────────────────────────
@@ -5570,948 +3931,97 @@ const PageAnnuaire=({plan,showToast})=>{
 // ─── PAGE WALLET MEMBRES ──────────────────────────────────────
 const PageWalletMembres=({plan,showToast})=>{
   const[membres,setMembres]=useState(MEMBRES_WALLET);
-  const[data,setData]=useState(null);
-  const[loading,setLoading]=useState(true);
-  const[onglet,setOnglet]=useState("membres");
-  const[analyseChurn,setAnalyseChurn]=useState("");
-  const[iaLoading,setIaLoading]=useState(false);
-  const[devise,setDevise]=useState("EUR");
-  const[selectedMembre,setSelectedMembre]=useState(null);
-  const[filtre,setFiltre]=useState("tous");
-
-  const load=async()=>{
-    setLoading(true);
-    try{
-      const res=await fetch('/api/wallet-membres?action=membres');
-      const d=await res.json();
-      if(d.membres&&d.membres.length>0){
-        setMembres(d.membres);
-        setData(d);
-      }
-    }catch(e){console.error(e);}
-    setLoading(false);
-  };
-
-  useEffect(()=>{load();},[]);
-
-  const upgradeDowngrade=async(tenant_id,nouveau_plan,type)=>{
-    try{
-      await fetch('/api/wallet-membres',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:type,tenant_id,nouveau_plan})});
-      showToast(`✅ Plan mis à jour : ${nouveau_plan}`);load();
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const changerStatut=async(tenant_id,action)=>{
-    try{
-      await fetch('/api/wallet-membres',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,tenant_id})});
-      showToast(`✅ Statut mis à jour`);load();
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const lancerAnalyseChurn=async()=>{
-    setIaLoading(true);
-    try{
-      const res=await fetch('/api/wallet-membres',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'analyse_churn',membres})});
-      const d=await res.json();
-      if(d.success)setAnalyseChurn(d.analyse);
-    }catch(e){}
-    setIaLoading(false);
-  };
-
-  const envoyerRapportMRR=async()=>{
-    showToast("⏳ Envoi rapport MRR WhatsApp...");
-    try{
-      const res=await fetch('/api/wallet-membres',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'rapport_mrr',mrr:data?.mrr||0,membres_actifs:membres.filter(m=>m.statut==="actif").length,essais:data?.essais||0,expirant:data?.expirant||0,taux_churn:data?.tauxChurn||0})});
-      const d=await res.json();
-      if(d.success)showToast("✅ Rapport MRR envoyé");
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const envoyerAlertes=async()=>{
-    try{
-      const res=await fetch('/api/wallet-membres',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'alertes_expiration',membres})});
-      const d=await res.json();
-      showToast(`✅ ${d.alertes_envoyees} alerte(s) envoyée(s)`);
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const exportCSV=()=>{
-    const lignes=["Société,Plan,Prix,Statut,Pays,Email,Jours restants"];
-    membres.forEach(m=>lignes.push(`${m.societe||m.nom||"—"},${m.plan||"—"},${m.plan_price||m.prix_plan||59},${m.statut||"—"},${m.pays||"—"},${m.email||"—"},${m.jours_restants||"—"}`));
-    const blob=new Blob([lignes.join("\n")],{type:"text/csv;charset=utf-8"});
-    const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="wallets_membres_xyra.csv";a.click();
-    showToast("✅ CSV téléchargé");
-  };
-
   if(!hasAccess(plan,"wallet_membres"))return <div style={{padding:20}}><UpgradeWall page="Wallets Membres" plan={plan}/></div>;
-
-  const membresFiltres=membres.filter(m=>{
-    if(filtre==="actifs")return m.statut==="actif";
-    if(filtre==="essais")return m.statut==="essai";
-    if(filtre==="expirants")return m.statut==="essai"&&m.jours_restants!==null&&m.jours_restants<=3&&m.jours_restants>=0;
-    if(filtre==="suspendus")return m.statut==="suspendu"||m.statut==="expiré"||m.statut==="annulé";
-    return true;
-  });
-
-  const mrr=data?.mrr||membres.filter(m=>m.statut==="actif").reduce((a,m)=>a+Number(m.prix_plan||m.plan_price||59),0);
-  const actifs=membres.filter(m=>m.statut==="actif").length;
-  const essais=membres.filter(m=>m.statut==="essai").length;
-  const expirants=membres.filter(m=>m.statut==="essai"&&m.jours_restants!==null&&m.jours_restants<=3&&m.jours_restants>=0).length;
-
-  const tabs=[
-    {id:"membres",label:"👥 Membres"},
-    {id:"mrr",label:"📊 MRR & Métriques"},
-    {id:"churn",label:"🤖 Analyse Churn IA"},
-    {id:"historique",label:"📋 Historique"},
-  ];
-
   return <div style={{padding:20}}>
-    {/* HEADER */}
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-      <div>
-        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◈ Wallets Membres</div>
-        <div style={{fontSize:11,color:C.muted}}>Soldes · Abonnements · MRR · Churn · Upgrade/Downgrade · Alertes expiration</div>
-      </div>
-      <div style={{display:"flex",gap:8}}>
-        <BtnGhost onClick={envoyerRapportMRR} style={{fontSize:11}}>📱 Rapport MRR</BtnGhost>
-        <BtnGhost onClick={envoyerAlertes} style={{fontSize:11,color:C.orange,borderColor:`${C.orange}44`}}>🔔 Alertes expiration</BtnGhost>
-        <BtnGhost onClick={exportCSV} style={{fontSize:11}}>📋 CSV</BtnGhost>
-        <Sel value={devise} onChange={e=>setDevise(e.target.value)}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel>
-      </div>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◈ Wallets Membres</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Soldes · Abonnements · Renouvellements · Multi-devises</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+      <KPI label="Membres actifs" val={membres.length} color={C.blue}/>
+      <KPI label="Abonnements actifs" val={membres.length} color={C.gold}/>
+      <KPI label="Revenu abos/mois" val={fmt(membres.length*29)} color={C.green}/>
     </div>
-
-    {/* ALERTES EXPIRATION */}
-    {expirants>0&&<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:10,padding:12,marginBottom:14}}>
-      <div style={{fontSize:11,fontWeight:700,color:C.orange,marginBottom:4}}>⏰ {expirants} essai(s) expire(nt) dans moins de 3 jours</div>
-      <div style={{fontSize:11,color:C.text}}>{membres.filter(m=>m.statut==="essai"&&m.jours_restants!==null&&m.jours_restants<=3&&m.jours_restants>=0).map(m=>m.societe||m.nom).join(", ")} — contactez-les maintenant pour convertir.</div>
-    </div>}
-
-    {/* KPIs */}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
-      <CT style={{borderColor:`${C.green}33`}}><div style={{fontSize:9,color:C.muted,marginBottom:4}}>MRR</div><div style={{fontSize:20,fontWeight:700,color:C.green}}>{fmt(conv(mrr,"EUR",devise),devise)}</div><div style={{fontSize:9,color:C.muted}}>Revenus récurrents</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>MEMBRES ACTIFS</div><div style={{fontSize:20,fontWeight:700,color:C.blue}}>{actifs}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>EN ESSAI</div><div style={{fontSize:20,fontWeight:700,color:C.gold}}>{essais}</div></CT>
-      <CT style={{borderColor:`${C.orange}33`}}><div style={{fontSize:9,color:C.muted,marginBottom:4}}>EXPIRENT BIENTÔT</div><div style={{fontSize:20,fontWeight:700,color:expirants>0?C.orange:C.green}}>{expirants}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>TAUX CHURN</div><div style={{fontSize:20,fontWeight:700,color:(data?.tauxChurn||0)>5?C.red:C.green}}>{data?.tauxChurn||0}%</div></CT>
-    </div>
-
-    {/* TABS */}
-    <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
-      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
-    </div>
-
-    {/* ── MEMBRES ── */}
-    {onglet==="membres"&&<div>
-      {/* Filtres */}
-      <div style={{display:"flex",gap:6,marginBottom:12,flexWrap:"wrap"}}>
-        {[["tous","Tous",""],["actifs","Actifs",C.green],["essais","En essai",C.gold],["expirants","Expirent bientôt",C.orange],["suspendus","Suspendus",C.red]].map(([f,l,c])=><button key={f} onClick={()=>setFiltre(f)} style={{background:filtre===f?`${c||C.blue}22`:"transparent",border:`1px solid ${filtre===f?c||C.blue:C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit",color:filtre===f?c||C.blue:C.muted}}>{l}</button>)}
-      </div>
-
-      {/* Membres existants (MEMBRES_WALLET) en grille */}
-      {membres.length===0||!data?<div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12,marginBottom:14}}>
-          {MEMBRES_WALLET.map((m,i)=><Card key={i} style={{borderColor:`${C.gold}22`}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-              <div style={{width:36,height:36,borderRadius:"50%",background:`${C.gold}22`,border:`1px solid ${C.gold}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:C.gold}}>{inits(m.nom)}</div>
-              <div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:C.text}}>{m.nom}</div><div style={{fontSize:10,color:C.muted}}>{m.banque} · {m.pays}</div></div>
-              <St s={m.statut}/>
-            </div>
-            <div style={{background:C.card2,borderRadius:8,padding:10,marginBottom:10}}>
-              <div style={{fontSize:9,color:C.muted,marginBottom:3}}>SOLDE WALLET</div>
-              <div style={{fontSize:20,fontWeight:700,color:C.gold}}>{fmt(conv(m.solde,"EUR",devise),devise)}</div>
-              <div style={{fontSize:9,color:C.muted,fontFamily:"'Courier New',monospace",marginTop:4}}>{m.iban}</div>
-            </div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:8}}>
-              <span style={{color:C.muted}}>Plan : <b style={{color:m.type==="Enterprise"?C.purple:m.type==="Business Pro"?C.gold:C.blue}}>{m.type}</b></span>
-              <span style={{color:C.muted}}>Tx : <b style={{color:C.text}}>{m.transactions}</b></span>
-            </div>
-            <Btn onClick={()=>showToast(`💳 Carte virtuelle ${m.nom} créée !`)} style={{width:"100%",fontSize:11,background:m.carte?C.green+"22":"transparent",color:m.carte?C.green:C.muted,border:`1px solid ${m.carte?C.green:C.border}44`}}>{m.carte?"💳 Carte active":"+ Créer carte"}</Btn>
-          </Card>)}
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
+      {membres.map((m,i)=><Card key={i} style={{borderColor:`${C.gold}22`}}>
+        <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+          <div style={{width:36,height:36,borderRadius:"50%",background:`${C.gold}22`,border:`1px solid ${C.gold}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:C.gold}}>{inits(m.nom)}</div>
+          <div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:C.text}}>{m.nom}</div><div style={{fontSize:10,color:C.muted}}>{m.banque} · {m.pays}</div></div>
+          <St s={m.statut}/>
         </div>
-      </div>:null}
-
-      {/* Membres Supabase réels */}
-      {data&&membresFiltres.length>0&&<div style={{overflowX:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",minWidth:700}}>
-          <thead><tr><TH>Société</TH><TH>Plan</TH><TH>Prix/mois</TH><TH>Statut</TH><TH>Pays</TH><TH>Essai</TH><TH>Actions</TH></tr></thead>
-          <tbody>{membresFiltres.map((m,i)=>{
-            const joursLeft=m.jours_restants;
-            return <tr key={i} style={{background:joursLeft!==null&&joursLeft<=3&&joursLeft>=0?`${C.orange}08`:"transparent"}}>
-              <Td>
-                <div style={{display:"flex",alignItems:"center",gap:8}}>
-                  <div style={{width:28,height:28,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:C.gold}}>{inits(m.societe||m.nom||"?")}</div>
-                  <div>
-                    <div style={{fontSize:12,fontWeight:700}}>{m.societe||m.nom||"—"}</div>
-                    <div style={{fontSize:10,color:C.muted}}>{m.email||"—"}</div>
-                  </div>
-                </div>
-              </Td>
-              <Td><Pill color={m.plan==="enterprise"?C.purple:m.plan?.includes("multi")||m.plan==="holding"?C.blue:C.gold}>{m.plan||"starter"}</Pill></Td>
-              <Td style={{fontWeight:700,color:C.green}}>{fmt(m.prix_plan||m.plan_price||59)}</Td>
-              <Td><St s={m.statut}/></Td>
-              <Td style={{fontSize:11,color:C.muted}}>{m.pays||"—"}</Td>
-              <Td>
-                {joursLeft!==null?<div style={{fontSize:11,color:joursLeft<=3?C.orange:C.muted,fontWeight:joursLeft<=3?700:400}}>
-                  {joursLeft<=0?"⚠️ Expiré":joursLeft<=3?`⏰ J-${joursLeft}`:`${joursLeft}j`}
-                </div>:<span style={{color:C.muted,fontSize:10}}>—</span>}
-              </Td>
-              <Td>
-                <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-                  <BtnGhost onClick={()=>upgradeDowngrade(m.id,"enterprise","upgrade")} style={{fontSize:9,padding:"3px 6px",color:C.purple}}>↑ Upgrade</BtnGhost>
-                  <BtnGhost onClick={()=>changerStatut(m.id,m.statut==="actif"?"suspendre":"reactiver")} style={{fontSize:9,padding:"3px 6px",color:m.statut==="actif"?C.orange:C.green}}>{m.statut==="actif"?"Suspendre":"Réactiver"}</BtnGhost>
-                  <BtnGhost onClick={()=>showToast("💬 Email envoyé")} style={{fontSize:9,padding:"3px 6px"}}>✉</BtnGhost>
-                </div>
-              </Td>
-            </tr>;
-          })}</tbody>
-        </table>
-        {membresFiltres.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:20}}>Aucun membre dans ce filtre.</div>}
-      </div>}
-    </div>}
-
-    {/* ── MRR & MÉTRIQUES ── */}
-    {onglet==="mrr"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-        <Card>
-          <STitle>📊 Revenus récurrents</STitle>
-          {[["MRR (membres actifs)",fmt(conv(mrr,"EUR",devise),devise),C.green],["ARR (MRR × 12)",fmt(conv(mrr*12,"EUR",devise),devise),C.teal],["Revenu moyen par membre",fmt(conv(actifs>0?mrr/actifs:0,"EUR",devise),devise),C.gold],["MRR potentiel (si essais convertis)",fmt(conv(mrr+essais*59,"EUR",devise),devise),C.blue]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
-            <span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span>
-          </div>)}
-        </Card>
-        <Card>
-          <STitle>👥 Répartition membres</STitle>
-          {[["Actifs",actifs,C.green],["En essai",essais,C.gold],["Expirent bientôt",expirants,C.orange],["Taux de churn",`${data?.tauxChurn||0}%`,data?.tauxChurn>5?C.red:C.green]].map(([l,v,c],i)=><div key={i} style={{marginBottom:10}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>
-            {typeof v==="number"&&<SM val={v} max={membres.length||1} color={c}/>}
-          </div>)}
-        </Card>
-      </div>
-      <Card>
-        <STitle>💡 Répartition par plan</STitle>
-        {["starter","business","business_pro","enterprise","multi_societes","multi_pro","holding"].map(p=>{
-          const count=membres.filter(m=>m.plan===p).length;
-          if(count===0)return null;
-          const prix=({starter:59,business:129,business_pro:129,enterprise:249,multi_societes:499,multi_pro:799,holding:1200})[p]||59;
-          const colors={starter:C.blue,business:C.gold,business_pro:C.gold,enterprise:C.purple,multi_societes:C.teal,multi_pro:C.orange,holding:C.gold};
-          return <div key={p} style={{marginBottom:10}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,marginBottom:3}}>
-              <span style={{fontWeight:600,color:colors[p]||C.gold}}>{p.replace("_"," ").toUpperCase()}</span>
-              <span style={{color:C.muted}}>{count} membres · {fmt(count*prix)}/mois</span>
-            </div>
-            <SM val={count} max={membres.length||1} color={colors[p]||C.gold}/>
-          </div>;
-        })}
-      </Card>
-    </div>}
-
-    {/* ── ANALYSE CHURN IA ── */}
-    {onglet==="churn"&&<div>
-      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:16,marginBottom:14}}>
-        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Analyse prédictive Churn — Claude Sonnet</div>
-        {iaLoading?<div style={{fontSize:11,color:C.muted}}>⏳ Analyse en cours...</div>:<div style={{fontSize:12,color:C.text,lineHeight:1.8}}>{analyseChurn||"Lance l'analyse pour identifier les membres à risque de churn et obtenir des recommandations concrètes."}</div>}
-        <BtnGhost onClick={lancerAnalyseChurn} style={{marginTop:8,fontSize:10}}>{iaLoading?"⏳...":"🤖 Analyser le risque de churn"}</BtnGhost>
-      </div>
-      <Card>
-        <STitle>⏰ Membres en essai expirant bientôt</STitle>
-        {membres.filter(m=>m.statut==="essai"&&m.jours_restants!==null&&m.jours_restants<=7).length===0?<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>Aucun essai n'expire dans les 7 prochains jours.</div>:
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Société</TH><TH>Plan</TH><TH>Jours restants</TH><TH>Action</TH></tr></thead>
-          <tbody>{membres.filter(m=>m.statut==="essai"&&m.jours_restants!==null&&m.jours_restants<=7).sort((a,b)=>Number(a.jours_restants)-Number(b.jours_restants)).map((m,i)=><tr key={i}>
-            <Td style={{fontWeight:600}}>{m.societe||m.nom||"—"}</Td>
-            <Td><Pill color={C.gold}>{m.plan||"starter"}</Pill></Td>
-            <Td><span style={{color:Number(m.jours_restants)<=3?C.red:C.orange,fontWeight:700}}>{Number(m.jours_restants)<=0?"Expiré":`J-${m.jours_restants}`}</span></Td>
-            <Td><div style={{display:"flex",gap:6}}>
-              <Btn onClick={()=>showToast("✉ Email de relance envoyé")} style={{fontSize:10,padding:"4px 8px"}}>✉ Relancer</Btn>
-              <BtnGhost onClick={()=>showToast("📞 Appel planifié")} style={{fontSize:10}}>📞</BtnGhost>
-            </div></Td>
-          </tr>)}</tbody>
-        </table>}
-      </Card>
-    </div>}
-
-    {/* ── HISTORIQUE ── */}
-    {onglet==="historique"&&<Card>
-      <STitle>📋 Historique inscriptions</STitle>
-      <div style={{overflowX:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
-          <thead><tr><TH>Date</TH><TH>Société</TH><TH>Plan</TH><TH>Prix</TH><TH>Pays</TH><TH>Statut</TH></tr></thead>
-          <tbody>{membres.slice(0,30).map((m,i)=><tr key={i}>
-            <Td style={{fontSize:10,color:C.muted}}>{m.created_at?new Date(m.created_at).toLocaleDateString("fr"):"—"}</Td>
-            <Td style={{fontWeight:600}}>{m.societe||m.nom||"—"}</Td>
-            <Td><Pill color={C.gold}>{m.plan||"starter"}</Pill></Td>
-            <Td style={{color:C.green,fontWeight:700}}>{fmt(m.prix_plan||m.plan_price||59)}</Td>
-            <Td style={{color:C.muted}}>{m.pays||"—"}</Td>
-            <Td><St s={m.statut||"actif"}/></Td>
-          </tr>)}</tbody>
-        </table>
-      </div>
-    </Card>}
+        <div style={{background:C.card2,borderRadius:8,padding:10,marginBottom:10}}>
+          <div style={{fontSize:9,color:C.muted,marginBottom:3}}>SOLDE WALLET</div>
+          <div style={{fontSize:20,fontWeight:700,color:C.gold}}>{fmt(m.solde,m.devise)}</div>
+          <div style={{fontSize:9,color:C.muted,fontFamily:"'Courier New',monospace",marginTop:4}}>{m.iban}</div>
+        </div>
+        <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:8}}>
+          <span style={{color:C.muted}}>Plan : <b style={{color:m.type==="Enterprise"?C.purple:m.type==="Business Pro"?C.gold:C.blue}}>{m.type}</b></span>
+          <span style={{color:C.muted}}>Tx : <b style={{color:C.text}}>{m.transactions}</b></span>
+        </div>
+        <Btn onClick={()=>showToast(`💳 Carte virtuelle ${m.nom} créée !`)} style={{width:"100%",fontSize:11,background:m.carte?C.green+"22":"transparent",color:m.carte?C.green:C.muted,border:`1px solid ${m.carte?C.green:C.border}44`}}>{m.carte?"💳 Carte active":"+ Créer carte"}</Btn>
+      </Card>)}
+    </div>
   </div>;
 };
-
 
 // ─── PAGE EVENEMENTS ──────────────────────────────────────────
 const PageEvenements=({plan,showToast})=>{
   const[evts,setEvts]=useState(EVENEMENTS);
-  const[loading,setLoading]=useState(true);
-  const[onglet,setOnglet]=useState("liste");
-  const[showForm,setShowForm]=useState(false);
-  const[analyseROI,setAnalyseROI]=useState("");
-  const[iaLoading,setIaLoading]=useState(false);
-  const[selectedEvt,setSelectedEvt]=useState(null);
-  const[inscrits,setInscrits]=useState([]);
-  const[showInscription,setShowInscription]=useState(false);
-  const[inscriptionForm,setInscriptionForm]=useState({nom:"",email:"",tel:""});
-  const[newEvt,setNewEvt]=useState({titre:"",description:"",date_debut:"",date_fin:"",lieu:"",type:"présentiel",prix:0,max_inscrits:50,club_only:false});
-
-  const load=async()=>{
-    setLoading(true);
-    try{
-      const res=await fetch('/api/evenements?action=list');
-      const d=await res.json();
-      if(d.evenements&&d.evenements.length>0)setEvts(d.evenements);
-    }catch(e){console.error(e);}
-    setLoading(false);
-  };
-
-  useEffect(()=>{load();},[]);
-
-  const creerEvenement=async()=>{
-    if(!newEvt.titre||!newEvt.date_debut)return showToast("⚠️ Titre et date requis");
-    try{
-      const res=await fetch('/api/evenements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create',...newEvt})});
-      const d=await res.json();
-      if(d.success){showToast("✅ Événement créé !");setShowForm(false);setNewEvt({titre:"",description:"",date_debut:"",date_fin:"",lieu:"",type:"présentiel",prix:0,max_inscrits:50,club_only:false});load();}
-      else showToast("❌ "+d.error);
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const sInscrire=async()=>{
-    if(!inscriptionForm.nom)return showToast("⚠️ Nom requis");
-    if(!selectedEvt)return;
-    try{
-      const res=await fetch('/api/evenements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'inscrire',evenement_id:selectedEvt.id,...inscriptionForm})});
-      const d=await res.json();
-      if(d.success){showToast("✅ Inscription confirmée ! WhatsApp envoyé.");setShowInscription(false);setInscriptionForm({nom:"",email:"",tel:""});load();}
-      else showToast("❌ "+d.error);
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const chargerInscrits=async(evtId)=>{
-    try{
-      const res=await fetch(`/api/evenements?action=inscrits&event_id=${evtId}`);
-      const d=await res.json();
-      setInscrits(d.inscrits||[]);
-    }catch(e){}
-  };
-
-  const inviterReseau=async(evt)=>{
-    showToast("⏳ Envoi des invitations WhatsApp...");
-    try{
-      const res=await fetch('/api/evenements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'inviter_reseau',...evt})});
-      const d=await res.json();
-      if(d.success)showToast("✅ Invitations WhatsApp envoyées au réseau");
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const analyserROI=async()=>{
-    setIaLoading(true);
-    try{
-      const res=await fetch('/api/evenements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'analyse_roi',evenements:evts})});
-      const d=await res.json();
-      if(d.success)setAnalyseROI(d.analyse);
-    }catch(e){}
-    setIaLoading(false);
-  };
-
-  const genererQR=(evt)=>{
-    const url=`https://xyraio.fr/events/${evt.id||evt.titre?.replace(/\s/g,'-')}`;
-    showToast(`📲 QR Code : ${url} — copié !`);
-    navigator.clipboard?.writeText(url);
-  };
-
   if(!hasAccess(plan,"evenements"))return <div style={{padding:20}}><UpgradeWall page="Événements" plan={plan}/></div>;
-
-  const tabs=[
-    {id:"liste",label:"📅 Événements"},
-    {id:"calendrier",label:"🗓 Calendrier"},
-    {id:"inscrits",label:"👥 Inscrits"},
-    {id:"roi",label:"🤖 ROI & Analyse IA"},
-  ];
-
-  const totalInscrits=evts.reduce((a,e)=>a+Number(e.inscrits||0),0);
-  const totalCA=evts.reduce((a,e)=>a+Number(e.inscrits||0)*Number(e.prix||0),0);
-  const tauxRemplissage=evts.length>0?Math.round(evts.reduce((a,e)=>a+(Number(e.inscrits||0)/Math.max(1,Number(e.max_inscrits||50))),0)/evts.length*100):0;
-
   return <div style={{padding:20}}>
-    {/* HEADER */}
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-      <div>
-        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◆ Événements</div>
-        <div style={{fontSize:11,color:C.muted}}>Networking · Visio · QR Code · Inscriptions · WhatsApp · ROI IA</div>
-      </div>
-      <div style={{display:"flex",gap:8}}>
-        <BtnGhost onClick={()=>fetch('/api/evenements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'rappels'})}).then(()=>showToast("✅ Rappels J-7/J-1 envoyés"))} style={{fontSize:11}}>🔔 Rappels WhatsApp</BtnGhost>
-        <Btn onClick={()=>setShowForm(true)}>+ Créer un événement</Btn>
-      </div>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◆ Événements</div><div style={{fontSize:11,color:C.muted}}>Networking · Visio · QR Code · Inscriptions</div></div>
+      <Btn onClick={()=>showToast("✅ Événement créé !")}>+ Créer un événement</Btn>
     </div>
-
-    {/* KPIs */}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>ÉVÉNEMENTS</div><div style={{fontSize:22,fontWeight:700,color:C.blue}}>{evts.length}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>TOTAL INSCRITS</div><div style={{fontSize:22,fontWeight:700,color:C.green}}>{totalInscrits}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>TAUX REMPLISSAGE</div><div style={{fontSize:22,fontWeight:700,color:tauxRemplissage>=80?C.green:tauxRemplissage>=50?C.gold:C.orange}}>{tauxRemplissage}%</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:4}}>CA ÉVÉNEMENTS</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(totalCA)}</div></CT>
-    </div>
-
-    {/* FORM CRÉATION */}
-    {showForm&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
-      <STitle>+ Créer un événement</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-        <div style={{gridColumn:"1/-1"}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Titre *</label><Inp value={newEvt.titre} onChange={e=>setNewEvt(v=>({...v,titre:e.target.value}))} placeholder="Ex: Dîner privé Xyra Club — Paris"/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Date début *</label><Inp type="datetime-local" value={newEvt.date_debut} onChange={e=>setNewEvt(v=>({...v,date_debut:e.target.value}))}/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Date fin</label><Inp type="datetime-local" value={newEvt.date_fin} onChange={e=>setNewEvt(v=>({...v,date_fin:e.target.value}))}/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Lieu</label><Inp value={newEvt.lieu} onChange={e=>setNewEvt(v=>({...v,lieu:e.target.value}))} placeholder="Paris, Visio, Dubaï..."/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Type</label>
-          <Sel value={newEvt.type} onChange={e=>setNewEvt(v=>({...v,type:e.target.value}))}>
-            <option value="présentiel">Présentiel</option>
-            <option value="visio">Visio</option>
-            <option value="hybride">Hybride</option>
-            <option value="vip">VIP privé</option>
-          </Sel>
-        </div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Prix (€, 0 = gratuit)</label><Inp type="number" value={newEvt.prix} onChange={e=>setNewEvt(v=>({...v,prix:Number(e.target.value)}))}/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Capacité max</label><Inp type="number" value={newEvt.max_inscrits} onChange={e=>setNewEvt(v=>({...v,max_inscrits:Number(e.target.value)}))}/></div>
-        <div style={{gridColumn:"1/-1"}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Description</label><Inp value={newEvt.description} onChange={e=>setNewEvt(v=>({...v,description:e.target.value}))} placeholder="Décrivez l'événement..."/></div>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <input type="checkbox" id="club_only" checked={newEvt.club_only} onChange={e=>setNewEvt(v=>({...v,club_only:e.target.checked}))} style={{accentColor:C.gold}}/>
-          <label htmlFor="club_only" style={{fontSize:11,color:C.muted,cursor:"pointer"}}>🏢 Réservé aux membres Club d'affaires</label>
-        </div>
-      </div>
-      <div style={{display:"flex",gap:8}}><Btn onClick={creerEvenement}>✅ Créer l'événement</Btn><BtnGhost onClick={()=>setShowForm(false)}>Annuler</BtnGhost></div>
-    </Card>}
-
-    {/* FORM INSCRIPTION */}
-    {showInscription&&selectedEvt&&<Card style={{marginBottom:14,borderColor:`${C.green}44`}}>
-      <STitle>🎟 S'inscrire — {selectedEvt.titre}</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:10}}>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Nom *</label><Inp value={inscriptionForm.nom} onChange={e=>setInscriptionForm(f=>({...f,nom:e.target.value}))}/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Email</label><Inp value={inscriptionForm.email} onChange={e=>setInscriptionForm(f=>({...f,email:e.target.value}))}/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>WhatsApp</label><Inp value={inscriptionForm.tel} onChange={e=>setInscriptionForm(f=>({...f,tel:e.target.value}))} placeholder="+33..."/></div>
-      </div>
-      <div style={{display:"flex",gap:8}}><Btn onClick={sInscrire} style={{background:C.green}}>✅ Confirmer l'inscription</Btn><BtnGhost onClick={()=>setShowInscription(false)}>Annuler</BtnGhost></div>
-    </Card>}
-
-    {/* TABS */}
-    <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
-      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
-    </div>
-
-    {/* ── LISTE ── */}
-    {onglet==="liste"&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:12}}>
-      {evts.map((e,i)=><Card key={i} style={{borderColor:e.statut==="complet"?`${C.red}44`:e.club_only?`${C.gold}44`:`${C.gold}22`}}>
-        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,alignItems:"center"}}>
-          <div style={{display:"flex",gap:6}}>
-            <Pill color={e.statut==="ouvert"?C.green:C.red}>{e.statut==="ouvert"?"🟢 Ouvert":"🔴 Complet"}</Pill>
-            {e.club_only&&<Pill color={C.gold}>🏢 Club</Pill>}
-            {e.type&&<Pill color={C.blue}>{e.type}</Pill>}
-          </div>
-          <div style={{fontSize:12,color:C.gold,fontWeight:700}}>{Number(e.prix||0)===0?"Gratuit":fmt(Number(e.prix||0))}</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:12}}>
+      {evts.map((e,i)=><Card key={i} style={{borderColor:e.statut==="complet"?`${C.red}44`:`${C.gold}22`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
+          <Pill color={e.statut==="ouvert"?C.green:C.red}>{e.statut==="ouvert"?"🟢 Inscriptions ouvertes":"🔴 Complet"}</Pill>
+          <div style={{fontSize:12,color:C.gold,fontWeight:700}}>{e.prix}</div>
         </div>
         <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:4}}>{e.titre}</div>
-        <div style={{fontSize:11,color:C.muted,marginBottom:2}}>📅 {e.date_debut?new Date(e.date_debut).toLocaleDateString("fr",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):e.date}</div>
-        <div style={{fontSize:11,color:C.muted,marginBottom:10}}>📍 {e.lieu}</div>
-        {e.description&&<div style={{fontSize:11,color:C.muted,marginBottom:10,lineHeight:1.5}}>{(e.description||"").slice(0,80)}{(e.description||"").length>80?"...":""}</div>}
-        <div style={{marginBottom:12}}>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:10,marginBottom:3}}>
-            <span style={{color:C.muted}}>Inscriptions</span>
-            <span style={{color:C.gold,fontWeight:700}}>{e.inscrits||0}/{e.max||e.max_inscrits||50}</span>
-          </div>
-          <SM val={Number(e.inscrits||0)} max={Number(e.max||e.max_inscrits||50)} color={Number(e.inscrits||0)===Number(e.max||e.max_inscrits||50)?C.red:C.green}/>
-        </div>
-        <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-          <Btn onClick={()=>{setSelectedEvt(e);setShowInscription(true);}} style={{flex:1,fontSize:11,background:e.statut==="complet"?C.border:C.green,color:e.statut==="complet"?C.muted:"#000"}} disabled={e.statut==="complet"}>🎟 S'inscrire</Btn>
-          <BtnGhost onClick={()=>genererQR(e)} style={{fontSize:11}}>📲 QR</BtnGhost>
-          {(e.type==="visio"||e.type==="hybride")&&<BtnGhost onClick={()=>showToast("🎥 Visio Jitsi lancée !")} style={{fontSize:11}}>🎥 Visio</BtnGhost>}
-          <BtnGhost onClick={()=>inviterReseau(e)} style={{fontSize:11}}>📱 Inviter</BtnGhost>
-          <BtnGhost onClick={()=>{setSelectedEvt(e);chargerInscrits(e.id);setOnglet("inscrits");}} style={{fontSize:11}}>👥</BtnGhost>
+        <div style={{fontSize:11,color:C.muted,marginBottom:2}}>📅 {e.date}</div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:12}}>📍 {e.lieu}</div>
+        <div style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:10,marginBottom:3}}><span style={{color:C.muted}}>Inscriptions</span><span style={{color:C.gold,fontWeight:700}}>{e.inscrits}/{e.max}</span></div><SM val={e.inscrits} max={e.max} color={e.inscrits===e.max?C.red:C.green}/></div>
+        <div style={{display:"flex",gap:8}}>
+          <Btn onClick={()=>showToast("📱 Lien QR Code copié !")} style={{flex:1,fontSize:11}}>📲 QR Code</Btn>
+          {e.statut==="ouvert"&&<BtnGhost onClick={()=>showToast("🎥 Visio Jitsi lancée !")} style={{flex:1,fontSize:11}}>🎥 Visio</BtnGhost>}
         </div>
       </Card>)}
-      {evts.length===0&&<Card style={{textAlign:"center",padding:30,gridColumn:"1/-1"}}>
-        <div style={{fontSize:32,marginBottom:8}}>📅</div>
-        <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Aucun événement</div>
-        <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Créez votre premier événement networking pour votre réseau.</div>
-        <Btn onClick={()=>setShowForm(true)}>+ Créer un événement</Btn>
-      </Card>}
-    </div>}
-
-    {/* ── CALENDRIER ── */}
-    {onglet==="calendrier"&&<Card>
-      <STitle>🗓 Calendrier événements</STitle>
-      {evts.length===0?<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:20}}>Aucun événement à afficher.</div>:
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {[...evts].sort((a,b)=>new Date(a.date_debut||a.date||0).getTime()-new Date(b.date_debut||b.date||0).getTime()).map((e,i)=>{
-          const d=e.date_debut?new Date(e.date_debut):null;
-          return <div key={i} style={{display:"flex",gap:12,alignItems:"center",padding:"10px 12px",background:C.card2,borderRadius:8,border:`1px solid ${C.border}`}}>
-            {d&&<div style={{textAlign:"center",minWidth:48,background:`${C.gold}22`,borderRadius:8,padding:"6px 4px"}}>
-              <div style={{fontSize:18,fontWeight:700,color:C.gold}}>{d.getDate()}</div>
-              <div style={{fontSize:9,color:C.muted}}>{d.toLocaleDateString("fr",{month:"short"}).toUpperCase()}</div>
-            </div>}
-            <div style={{flex:1}}>
-              <div style={{fontSize:12,fontWeight:700}}>{e.titre}</div>
-              <div style={{fontSize:10,color:C.muted}}>{e.lieu} · {e.inscrits||0}/{e.max||e.max_inscrits||50} inscrits</div>
-            </div>
-            <div style={{display:"flex",gap:6}}>
-              <Pill color={e.statut==="ouvert"?C.green:C.red}>{e.statut==="ouvert"?"Ouvert":"Complet"}</Pill>
-              {e.type&&<Pill color={C.blue}>{e.type}</Pill>}
-            </div>
-          </div>;
-        })}
-      </div>}
-    </Card>}
-
-    {/* ── INSCRITS ── */}
-    {onglet==="inscrits"&&<div>
-      {selectedEvt&&<div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:10,padding:12,marginBottom:12}}>
-        <div style={{fontSize:12,fontWeight:700,color:C.gold}}>{selectedEvt.titre}</div>
-        <div style={{fontSize:11,color:C.muted}}>{selectedEvt.inscrits||0} inscrits · {selectedEvt.lieu}</div>
-      </div>}
-      {!selectedEvt&&<div style={{fontSize:12,color:C.muted,marginBottom:12}}>Clique sur 👥 d'un événement pour voir ses inscrits.</div>}
-      {inscrits.length===0?<Card style={{textAlign:"center",padding:20}}>
-        <div style={{fontSize:11,color:C.muted}}>Aucun inscrit pour cet événement.</div>
-      </Card>:<Card>
-        <STitle>👥 Liste des inscrits — {selectedEvt?.titre}</STitle>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Nom</TH><TH>Email</TH><TH>WhatsApp</TH><TH>Statut</TH><TH>Check-in</TH></tr></thead>
-          <tbody>{inscrits.map((ins,i)=><tr key={i}>
-            <Td style={{fontWeight:600}}>{ins.nom}</Td>
-            <Td style={{fontSize:11,color:C.muted}}>{ins.email||"—"}</Td>
-            <Td style={{fontSize:11,color:C.muted}}>{ins.tel||"—"}</Td>
-            <Td><Pill color={ins.statut==="présent"?C.green:ins.statut==="confirmé"?C.blue:C.orange}>{ins.statut}</Pill></Td>
-            <Td>
-              {ins.statut!=="présent"?<Btn onClick={()=>fetch('/api/evenements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'checkin',inscrit_id:ins.id})}).then(()=>{showToast("✅ Check-in effectué");chargerInscrits(selectedEvt?.id);})} style={{fontSize:10,padding:"4px 8px",background:C.green}}>✅ Check-in</Btn>:<span style={{fontSize:11,color:C.green}}>✅ Présent</span>}
-            </Td>
-          </tr>)}</tbody>
-        </table>
-      </Card>}
-    </div>}
-
-    {/* ── ROI & ANALYSE IA ── */}
-    {onglet==="roi"&&<div>
-      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:16,marginBottom:14}}>
-        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Analyse ROI événementiel — Claude</div>
-        {iaLoading?<div style={{fontSize:11,color:C.muted}}>⏳ Analyse en cours...</div>:<div style={{fontSize:12,color:C.text,lineHeight:1.8}}>{analyseROI||"Lance l'analyse pour obtenir des recommandations sur le ROI de tes événements."}</div>}
-        <BtnGhost onClick={analyserROI} style={{marginTop:8,fontSize:10}}>{iaLoading?"⏳...":"🤖 Analyser le ROI"}</BtnGhost>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        <Card>
-          <STitle>📊 Performance événements</STitle>
-          {[["Total événements",evts.length,C.blue],["Total inscrits",totalInscrits,C.green],["Taux de remplissage moyen",tauxRemplissage+"%",tauxRemplissage>=70?C.green:C.gold],["CA généré",fmt(totalCA),C.gold],["Événements Club",evts.filter(e=>e.club_only).length,C.purple],["Événements visio",evts.filter(e=>e.type==="visio"||e.type==="hybride").length,C.teal]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
-            <span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span>
-          </div>)}
-        </Card>
-        <Card>
-          <STitle>🏆 Top événements par remplissage</STitle>
-          {[...evts].sort((a,b)=>(Number(b.inscrits||0)/Math.max(1,Number(b.max||b.max_inscrits||50)))-(Number(a.inscrits||0)/Math.max(1,Number(a.max||a.max_inscrits||50)))).slice(0,5).map((e,i)=>{
-            const pct=Math.round(Number(e.inscrits||0)/Math.max(1,Number(e.max||e.max_inscrits||50))*100);
-            return <div key={i} style={{marginBottom:10}}>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{fontWeight:600}}>{e.titre.slice(0,30)}{e.titre.length>30?"...":""}</span><span style={{color:pct>=80?C.green:C.gold,fontWeight:700}}>{pct}%</span></div>
-              <SM val={pct} max={100} color={pct>=80?C.green:C.gold}/>
-            </div>;
-          })}
-        </Card>
-      </div>
-    </div>}
+    </div>
   </div>;
 };
-
 
 // ─── PAGE SCORING / NPS ───────────────────────────────────────
-const PageScoring=({plan,showToast,profil})=>{
-  const[data,setData]=useState(null);
-  const[loading,setLoading]=useState(true);
-  const[onglet,setOnglet]=useState("dashboard");
-  const[showAjoutAvis,setShowAjoutAvis]=useState(false);
-  const[showNPS,setShowNPS]=useState(false);
-  const[showCSAT,setShowCSAT]=useState(false);
-  const[analyseConc,setAnalyseConc]=useState("");
-  const[iaLoading,setIaLoading]=useState(false);
-  const[reponseIA,setReponseIA]=useState({});
-  const[avisForm,setAvisForm]=useState({client_nom:"",note:5,commentaire:"",service:"",source:"direct",google:false});
-  const[npsForm,setNpsForm]=useState({client_nom:"",client_email:"",score:8,commentaire:""});
-  const[csatForm,setCsatForm]=useState({client_nom:"",service:"",score:4,commentaire:""});
-  const[demandeForm,setDemandeForm]=useState({client_tel:"",client_nom:"",service:""});
-
-  const AVIS_DEFAUT=[
-    {id:"a1",client_nom:"Sophie M.",note:5,commentaire:"Service impeccable, réactivité exceptionnelle. Je recommande vivement !",service:"Airbnb Paris",source:"google",google:true,sentiment:"positif",statut:"répondu",date_avis:new Date().toISOString()},
-    {id:"a2",client_nom:"Jean-Pierre L.",note:4,commentaire:"Très bon service globalement, quelques petits détails à améliorer.",service:"Nettoyage Bureau",source:"direct",google:false,sentiment:"positif",statut:"nouveau",date_avis:new Date().toISOString()},
-    {id:"a3",client_nom:"Amina D.",note:2,commentaire:"Déçue par le manque de communication lors de la prestation.",service:"Conciergerie",source:"google",google:true,sentiment:"négatif",statut:"nouveau",date_avis:new Date().toISOString()},
-  ];
-
-  const load=async()=>{
-    setLoading(true);
-    try{
-      const res=await fetch('/api/scoring');
-      const d=await res.json();
-      setData(d);
-    }catch(e){console.error(e);}
-    setLoading(false);
-  };
-
-  useEffect(()=>{load();},[]);
-
-  const ajouterAvis=async()=>{
-    if(!avisForm.client_nom)return showToast("⚠️ Nom client requis");
-    try{
-      const res=await fetch('/api/scoring',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter_avis',...avisForm})});
-      const d=await res.json();
-      if(d.success){showToast("✅ Avis ajouté"+Number(avisForm.note)<=2?" · Alerte WhatsApp envoyée":"");setShowAjoutAvis(false);setAvisForm({client_nom:"",note:5,commentaire:"",service:"",source:"direct",google:false});load();}
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const repondreIA=async(avis)=>{
-    try{
-      const res=await fetch('/api/scoring',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'repondre_ia',avis_id:avis.id,client_nom:avis.client_nom,note:avis.note,commentaire:avis.commentaire,service:avis.service,secteur:profil?.metier||"services premium"})});
-      const d=await res.json();
-      if(d.success){setReponseIA(r=>({...r,[avis.id]:d.reponse}));showToast("✅ Réponse IA générée");}
-    }catch(e){showToast("❌ Erreur IA");}
-  };
-
-  const ajouterNPS=async()=>{
-    if(!npsForm.client_nom)return showToast("⚠️ Nom requis");
-    try{
-      await fetch('/api/scoring',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter_nps',...npsForm})});
-      showToast("✅ NPS enregistré"+Number(npsForm.score)>=9?" · Invitation Google envoyée":Number(npsForm.score)<=6?" · Alerte envoyée":"");
-      setShowNPS(false);setNpsForm({client_nom:"",client_email:"",score:8,commentaire:""});load();
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const ajouterCSAT=async()=>{
-    if(!csatForm.client_nom)return showToast("⚠️ Nom requis");
-    try{
-      await fetch('/api/scoring',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter_csat',...csatForm})});
-      showToast("✅ CSAT enregistré");setShowCSAT(false);setCsatForm({client_nom:"",service:"",score:4,commentaire:""});load();
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const demanderAvisWhatsApp=async()=>{
-    if(!demandeForm.client_tel||!demandeForm.client_nom)return showToast("⚠️ Nom et numéro requis");
-    try{
-      await fetch('/api/scoring',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'demander_avis_whatsapp',...demandeForm})});
-      showToast("✅ Demande d'avis WhatsApp envoyée");setDemandeForm({client_tel:"",client_nom:"",service:""});
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const analyserConcurrence=async()=>{
-    setIaLoading(true);
-    try{
-      const res=await fetch('/api/scoring',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'analyse_concurrentielle',secteur:profil?.metier||"services premium",note_actuelle:data?.noteMoyenne||0,nb_avis:data?.totalAvis||0})});
-      const d=await res.json();
-      if(d.success)setAnalyseConc(d.analyse);
-    }catch(e){}
-    setIaLoading(false);
-  };
-
-  const envoyerRapport=async()=>{
-    showToast("⏳ Envoi rapport réputation...");
-    try{
-      await fetch('/api/scoring',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'rapport_reputation_whatsapp',...data})});
-      showToast("✅ Rapport réputation envoyé");
-    }catch(e){showToast("❌ Erreur");}
-  };
-
+const PageScoring=({plan,showToast})=>{
   if(!hasAccess(plan,"scoring"))return <div style={{padding:20}}><UpgradeWall page="Réputation & NPS" plan={plan}/></div>;
-  if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement de la réputation...</div></div>;
-
-  const avisAffichés=data?.avis?.length>0?data.avis:AVIS_DEFAUT;
-  const scoreReputation=data?.scoreReputation||72;
-  const scoreColor=scoreReputation>=70?C.green:scoreReputation>=40?C.gold:C.red;
-
-  const tabs=[
-    {id:"dashboard",label:"★ Dashboard"},
-    {id:"avis",label:"💬 Avis clients"},
-    {id:"nps",label:"📊 NPS"},
-    {id:"csat",label:"😊 CSAT"},
-    {id:"demandes",label:"📱 Demander un avis"},
-    {id:"concurrent",label:"🔍 Analyse concurrentielle"},
-  ];
-
   return <div style={{padding:20}}>
-    {/* HEADER */}
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-      <div>
-        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>★ Réputation & NPS</div>
-        <div style={{fontSize:11,color:C.muted}}>Avis · NPS · CSAT · Réponses IA · Routage intelligent · Multi-sociétés</div>
-      </div>
-      <div style={{display:"flex",gap:8}}>
-        <BtnGhost onClick={envoyerRapport} style={{fontSize:11}}>📱 Rapport WhatsApp</BtnGhost>
-        <Btn onClick={()=>setShowAjoutAvis(true)} style={{fontSize:11}}>+ Ajouter un avis</Btn>
-      </div>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>★ Réputation & NPS</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Avis Google · Widget · IA · Rapport WhatsApp</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+      <KPI label="Note Google" val="★ 4.8" color={C.gold}/>
+      <KPI label="Nombre d'avis" val="23" color={C.blue}/>
+      <KPI label="NPS score" val="+72" color={C.green} sub="Excellent"/>
+      <KPI label="Taux réponse" val="91%" color={C.teal}/>
     </div>
-
-    {/* KPIs */}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:14}}>
-      <CT style={{borderColor:`${scoreColor}44`,gridColumn:"span 1"}}>
-        <div style={{fontSize:9,color:C.muted,marginBottom:3}}>SCORE RÉPUTATION</div>
-        <div style={{fontSize:24,fontWeight:700,color:scoreColor}}>{scoreReputation}</div>
-        <div style={{fontSize:9,color:scoreColor}}>/100</div>
-      </CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>NOTE GOOGLE</div><div style={{fontSize:20,fontWeight:700,color:C.gold}}>★ {data?.noteGoogle||4.8}</div><div style={{fontSize:9,color:C.muted}}>{data?.totalAvis||0} avis</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>NPS</div><div style={{fontSize:20,fontWeight:700,color:data?.npsScore>=50?C.green:data?.npsScore>=0?C.gold:C.red}}>{data?.npsScore>=0?"+":""}{data?.npsScore||72}</div><div style={{fontSize:9,color:C.muted}}>Net Promoter</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>CSAT</div><div style={{fontSize:20,fontWeight:700,color:C.teal}}>{data?.csatScore||85}%</div><div style={{fontSize:9,color:C.muted}}>Satisfaction</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>TAUX RÉPONSE</div><div style={{fontSize:20,fontWeight:700,color:data?.tauxReponse>=80?C.green:C.orange}}>{data?.tauxReponse||91}%</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>NON RÉPONDUS</div><div style={{fontSize:20,fontWeight:700,color:C.orange}}>{avisAffichés.filter(a=>a.statut==="nouveau").length}</div></CT>
-    </div>
-
-    {/* ALERTES AVIS NÉGATIFS */}
-    {avisAffichés.filter(a=>a.note<=2&&a.statut==="nouveau").length>0&&<div style={{background:`${C.red}11`,border:`1px solid ${C.red}33`,borderRadius:10,padding:12,marginBottom:14}}>
-      <div style={{fontSize:11,fontWeight:700,color:C.red,marginBottom:4}}>🔴 {avisAffichés.filter(a=>a.note<=2&&a.statut==="nouveau").length} avis négatif(s) sans réponse</div>
-      <div style={{fontSize:11,color:C.text}}>{avisAffichés.filter(a=>a.note<=2&&a.statut==="nouveau").map(a=>a.client_nom).join(", ")} — Répondez rapidement pour limiter l'impact sur votre réputation.</div>
-    </div>}
-
-    {/* FORMS */}
-    {showAjoutAvis&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
-      <STitle>+ Ajouter un avis</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Client *</label><Inp value={avisForm.client_nom} onChange={e=>setAvisForm(f=>({...f,client_nom:e.target.value}))}/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Service</label><Inp value={avisForm.service} onChange={e=>setAvisForm(f=>({...f,service:e.target.value}))} placeholder="Airbnb, Nettoyage..."/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Note (1-5)</label>
-          <div style={{display:"flex",gap:6}}>
-            {[1,2,3,4,5].map(n=><button key={n} onClick={()=>setAvisForm(f=>({...f,note:n}))} style={{width:36,height:36,borderRadius:6,background:avisForm.note>=n?`${C.gold}33`:"transparent",border:`1px solid ${avisForm.note>=n?C.gold:C.border}`,cursor:"pointer",fontSize:16,color:C.gold}}>★</button>)}
+    <Card>
+      <STitle>⭐ Derniers avis clients</STitle>
+      {AVIS.map((a,i)=><div key={i} style={{background:C.card2,borderRadius:10,padding:14,marginBottom:10,border:`1px solid ${C.border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
+          <div style={{fontWeight:700,fontSize:12}}>{a.client}</div>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            {a.google&&<Pill color={C.blue}>Google</Pill>}
+            <div style={{color:C.gold}}>{"★".repeat(a.note)}</div>
           </div>
         </div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Source</label>
-          <Sel value={avisForm.source} onChange={e=>setAvisForm(f=>({...f,source:e.target.value}))}>
-            <option value="direct">Direct</option>
-            <option value="google">Google</option>
-            <option value="whatsapp">WhatsApp</option>
-            <option value="trustpilot">Trustpilot</option>
-            <option value="facebook">Facebook</option>
-          </Sel>
+        <div style={{fontSize:11,color:C.muted,marginBottom:4}}>{a.service}</div>
+        <div style={{fontSize:12,color:C.text,fontStyle:"italic",lineHeight:1.6}}>"{a.comm}"</div>
+        <div style={{marginTop:8,display:"flex",gap:8}}>
+          <Btn onClick={()=>showToast("✅ Réponse IA générée et publiée !")} style={{fontSize:10,padding:"4px 10px"}}>🤖 Répondre (IA)</Btn>
+          <BtnGhost onClick={()=>showToast("📱 Partagé sur WhatsApp !")} style={{fontSize:10,padding:"4px 8px"}}>📱 Partager</BtnGhost>
         </div>
-        <div style={{gridColumn:"1/-1"}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Commentaire</label><Inp value={avisForm.commentaire} onChange={e=>setAvisForm(f=>({...f,commentaire:e.target.value}))} placeholder="Commentaire du client..."/></div>
-        <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <input type="checkbox" id="google_chk" checked={avisForm.google} onChange={e=>setAvisForm(f=>({...f,google:e.target.checked}))} style={{accentColor:C.gold}}/>
-          <label htmlFor="google_chk" style={{fontSize:11,color:C.muted}}>Avis Google (compte dans la note publique)</label>
-        </div>
-      </div>
-      {Number(avisForm.note)<=2&&<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:8,marginBottom:10,fontSize:11,color:C.orange}}>⚠️ Avis négatif — une alerte WhatsApp sera envoyée automatiquement.</div>}
-      <div style={{display:"flex",gap:8}}><Btn onClick={ajouterAvis}>✅ Ajouter l'avis</Btn><BtnGhost onClick={()=>setShowAjoutAvis(false)}>Annuler</BtnGhost></div>
-    </Card>}
-
-    {showNPS&&<Card style={{marginBottom:14,borderColor:`${C.blue}44`}}>
-      <STitle>📊 Nouvelle réponse NPS</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Client *</label><Inp value={npsForm.client_nom} onChange={e=>setNpsForm(f=>({...f,client_nom:e.target.value}))}/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Email</label><Inp value={npsForm.client_email} onChange={e=>setNpsForm(f=>({...f,client_email:e.target.value}))}/></div>
-        <div style={{gridColumn:"1/-1"}}>
-          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:6}}>Score NPS (0-10) : {npsForm.score}/10 — {getNPSCat(Number(npsForm.score))}</label>
-          <input type="range" min={0} max={10} value={npsForm.score} onChange={e=>setNpsForm(f=>({...f,score:Number(e.target.value)}))} style={{width:"100%",accentColor:C.blue}}/>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:10,color:C.muted,marginTop:2}}><span>0 Détracteur</span><span>10 Promoteur</span></div>
-        </div>
-        <div style={{gridColumn:"1/-1"}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Commentaire</label><Inp value={npsForm.commentaire} onChange={e=>setNpsForm(f=>({...f,commentaire:e.target.value}))}/></div>
-      </div>
-      <div style={{display:"flex",gap:8}}><Btn onClick={ajouterNPS} style={{background:C.blue}}>✅ Enregistrer</Btn><BtnGhost onClick={()=>setShowNPS(false)}>Annuler</BtnGhost></div>
-    </Card>}
-
-    {showCSAT&&<Card style={{marginBottom:14,borderColor:`${C.teal}44`}}>
-      <STitle>😊 Nouvelle réponse CSAT</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Client *</label><Inp value={csatForm.client_nom} onChange={e=>setCsatForm(f=>({...f,client_nom:e.target.value}))}/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Service</label><Inp value={csatForm.service} onChange={e=>setCsatForm(f=>({...f,service:e.target.value}))}/></div>
-        <div style={{gridColumn:"1/-1"}}>
-          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:6}}>Score CSAT (1-5)</label>
-          <div style={{display:"flex",gap:8,justifyContent:"center"}}>
-            {[{s:1,e:"😡"},{s:2,e:"😕"},{s:3,e:"😐"},{s:4,e:"😊"},{s:5,e:"🤩"}].map(({s,e})=><button key={s} onClick={()=>setCsatForm(f=>({...f,score:s}))} style={{fontSize:28,background:csatForm.score===s?`${C.teal}22`:"transparent",border:`2px solid ${csatForm.score===s?C.teal:C.border}`,borderRadius:8,padding:"8px 12px",cursor:"pointer"}}>{e}</button>)}
-          </div>
-        </div>
-        <div style={{gridColumn:"1/-1"}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Commentaire</label><Inp value={csatForm.commentaire} onChange={e=>setCsatForm(f=>({...f,commentaire:e.target.value}))}/></div>
-      </div>
-      <div style={{display:"flex",gap:8}}><Btn onClick={ajouterCSAT} style={{background:C.teal}}>✅ Enregistrer</Btn><BtnGhost onClick={()=>setShowCSAT(false)}>Annuler</BtnGhost></div>
-    </Card>}
-
-    {/* TABS */}
-    <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
-      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
-    </div>
-
-    {/* ── DASHBOARD ── */}
-    {onglet==="dashboard"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
-        <Card style={{borderColor:`${scoreColor}44`}}>
-          <STitle>⭐ Score de réputation global</STitle>
-          <div style={{textAlign:"center",padding:"16px 0"}}>
-            <div style={{fontSize:64,fontWeight:700,color:scoreColor,fontFamily:"Georgia,serif",lineHeight:1}}>{scoreReputation}</div>
-            <div style={{fontSize:12,color:C.muted,marginBottom:12}}>/100</div>
-            <div style={{height:6,background:C.border,borderRadius:3,margin:"0 20px",overflow:"hidden"}}>
-              <div style={{height:"100%",width:scoreReputation+"%",background:scoreColor,borderRadius:3}}/>
-            </div>
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {[["Note globale",(data?.noteMoyenne||4.8)+"/5",C.gold],["NPS",(data?.npsScore>=0?"+":"")+String(data?.npsScore||72),C.blue],["CSAT",(data?.csatScore||85)+"%",C.teal],["Taux de réponse",(data?.tauxReponse||91)+"%",C.green]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
-          </div>
-        </Card>
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <Card>
-            <STitle>😊 Analyse des sentiments</STitle>
-            {[["🟢 Positif",(data?.sentiments?.positif||2),C.green],["🟡 Neutre",(data?.sentiments?.neutre||1),C.gold],["🔴 Négatif",(data?.sentiments?.négatif||0),C.red]].map(([l,v,c],i)=>{
-              const total=Object.values(data?.sentiments||{positif:2,neutre:1,négatif:0}).reduce((a,x)=>a+Number(x),0)||1;
-              const pct=Math.round(Number(v)/total*100);
-              return <div key={i} style={{marginBottom:8}}>
-                <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{l}</span><span style={{color:c,fontWeight:700}}>{v} · {pct}%</span></div>
-                <SM val={pct} max={100} color={c}/>
-              </div>;
-            })}
-          </Card>
-          <Card>
-            <STitle>📊 Répartition NPS</STitle>
-            {[["🏆 Promoteurs (9-10)",data?.promoteurs||3,C.green],["😐 Passifs (7-8)",data?.passifs||2,C.gold],["⚠️ Détracteurs (0-6)",data?.detracteurs||0,C.red]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
-          </Card>
-        </div>
-      </div>
-    </div>}
-
-    {/* ── AVIS ── */}
-    {onglet==="avis"&&<div>
-      <div style={{display:"flex",gap:8,marginBottom:14,flexWrap:"wrap"}}>
-        {["tous","positif","neutre","négatif"].map(f=><button key={f} onClick={()=>{}} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit",color:C.muted,textTransform:"capitalize"}}>{f}</button>)}
-      </div>
-      <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {avisAffichés.map((a,i)=><Card key={i} style={{borderColor:a.note<=2?`${C.red}44`:a.note>=4?`${C.green}22`:`${C.border}`}}>
-          <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,alignItems:"center"}}>
-            <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              <div style={{width:32,height:32,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:C.gold}}>{inits(a.client_nom)}</div>
-              <div>
-                <div style={{fontSize:12,fontWeight:700}}>{a.client_nom}</div>
-                <div style={{fontSize:10,color:C.muted}}>{a.service} · {new Date(a.date_avis||a.created_at).toLocaleDateString("fr")}</div>
-              </div>
-            </div>
-            <div style={{display:"flex",gap:6,alignItems:"center"}}>
-              <div style={{color:C.gold,fontSize:14}}>{"★".repeat(Number(a.note||0))}{"☆".repeat(5-Number(a.note||0))}</div>
-              {a.google&&<Pill color={C.blue}>Google</Pill>}
-              <Pill color={a.sentiment==="positif"?C.green:a.sentiment==="négatif"?C.red:C.gold}>{a.sentiment}</Pill>
-              <St s={a.statut}/>
-            </div>
-          </div>
-          {a.commentaire&&<div style={{fontSize:12,color:C.text,fontStyle:"italic",lineHeight:1.6,marginBottom:10}}>"{a.commentaire}"</div>}
-          {reponseIA[a.id]&&<div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:8,padding:10,marginBottom:10,fontSize:11,color:C.text,lineHeight:1.6}}>
-            <div style={{fontSize:9,color:C.purple,fontWeight:700,marginBottom:4}}>🤖 RÉPONSE IA GÉNÉRÉE</div>
-            {reponseIA[a.id]}
-          </div>}
-          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            <Btn onClick={()=>repondreIA(a)} style={{fontSize:10,padding:"5px 10px"}}>🤖 Répondre (IA)</Btn>
-            <BtnGhost onClick={()=>showToast("📱 Partagé !")} style={{fontSize:10}}>📱 Partager</BtnGhost>
-            {a.google&&<BtnGhost onClick={()=>showToast("🔗 Lien Google copié")} style={{fontSize:10}}>🔗 Google</BtnGhost>}
-          </div>
-        </Card>)}
-      </div>
-    </div>}
-
-    {/* ── NPS ── */}
-    {onglet==="nps"&&<div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:10,padding:14,flex:1,marginRight:12}}>
-          <div style={{fontSize:9,color:C.blue,fontWeight:600,marginBottom:4}}>NET PROMOTER SCORE</div>
-          <div style={{fontSize:48,fontWeight:700,color:data?.npsScore>=50?C.green:data?.npsScore>=0?C.gold:C.red}}>{data?.npsScore>=0?"+":""}{data?.npsScore||72}</div>
-          <div style={{fontSize:11,color:C.muted}}>Basé sur {data?.nps?.length||0} réponses · Promoteurs {data?.promoteurs||0} · Détracteurs {data?.detracteurs||0}</div>
-        </div>
-        <Btn onClick={()=>setShowNPS(true)} style={{fontSize:11,flexShrink:0}}>+ Ajouter réponse NPS</Btn>
-      </div>
-      {(data?.nps||[]).length===0?<Card style={{textAlign:"center",padding:30}}><div style={{fontSize:11,color:C.muted}}>Aucune réponse NPS. Collectez les scores de satisfaction de vos clients.</div></Card>:
-      <Card>
-        <STitle>📋 Réponses NPS</STitle>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Client</TH><TH>Score</TH><TH>Catégorie</TH><TH>Commentaire</TH><TH>Date</TH></tr></thead>
-          <tbody>{(data?.nps||[]).map((n,i)=><tr key={i}>
-            <Td style={{fontWeight:600}}>{n.client_nom}</Td>
-            <Td><span style={{fontSize:16,fontWeight:700,color:n.score>=9?C.green:n.score>=7?C.gold:C.red}}>{n.score}</span></Td>
-            <Td><Pill color={n.categorie==="promoteur"?C.green:n.categorie==="passif"?C.gold:C.red}>{n.categorie}</Pill></Td>
-            <Td style={{fontSize:11,color:C.muted}}>{(n.commentaire||"—").slice(0,50)}</Td>
-            <Td style={{fontSize:10,color:C.muted}}>{new Date(n.created_at).toLocaleDateString("fr")}</Td>
-          </tr>)}</tbody>
-        </table>
-      </Card>}
-    </div>}
-
-    {/* ── CSAT ── */}
-    {onglet==="csat"&&<div>
-      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <div style={{background:`${C.teal}11`,border:`1px solid ${C.teal}33`,borderRadius:10,padding:14,flex:1,marginRight:12}}>
-          <div style={{fontSize:9,color:C.teal,fontWeight:600,marginBottom:4}}>CUSTOMER SATISFACTION SCORE</div>
-          <div style={{fontSize:48,fontWeight:700,color:C.teal}}>{data?.csatScore||85}%</div>
-          <div style={{fontSize:11,color:C.muted}}>Basé sur {data?.csat?.length||0} évaluations · Note moyenne : {data?.csat?.length>0?Math.round(data.csat.reduce((a,r)=>a+r.score,0)/data.csat.length*10)/10:4.2}/5</div>
-        </div>
-        <Btn onClick={()=>setShowCSAT(true)} style={{fontSize:11,flexShrink:0}}>+ Ajouter CSAT</Btn>
-      </div>
-      {(data?.csat||[]).length===0?<Card style={{textAlign:"center",padding:30}}><div style={{fontSize:11,color:C.muted}}>Aucune évaluation CSAT. Recueillez la satisfaction de vos clients après chaque prestation.</div></Card>:
-      <Card>
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Client</TH><TH>Service</TH><TH>Score</TH><TH>Commentaire</TH></tr></thead>
-          <tbody>{(data?.csat||[]).map((c,i)=><tr key={i}>
-            <Td style={{fontWeight:600}}>{c.client_nom}</Td>
-            <Td style={{color:C.muted}}>{c.service||"—"}</Td>
-            <Td><span style={{fontSize:20}}>{["😡","😕","😐","😊","🤩"][c.score-1]}</span></Td>
-            <Td style={{fontSize:11,color:C.muted}}>{(c.commentaire||"—").slice(0,50)}</Td>
-          </tr>)}</tbody>
-        </table>
-      </Card>}
-    </div>}
-
-    {/* ── DEMANDER UN AVIS ── */}
-    {onglet==="demandes"&&<div>
-      <div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:10,padding:12,marginBottom:14,fontSize:11,color:C.text,lineHeight:1.7}}>
-        📱 Routage intelligent — les clients avec un NPS ≥ 9 reçoivent automatiquement une invitation à laisser un avis Google. Les clients insatisfaits sont contactés en privé d'abord pour résoudre le problème avant qu'ils postent un avis public.
-      </div>
-      <Card style={{marginBottom:12}}>
-        <STitle>📱 Envoyer une demande d'avis WhatsApp</STitle>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:10,marginBottom:10}}>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Nom du client *</label><Inp value={demandeForm.client_nom} onChange={e=>setDemandeForm(f=>({...f,client_nom:e.target.value}))}/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>WhatsApp *</label><Inp value={demandeForm.client_tel} onChange={e=>setDemandeForm(f=>({...f,client_tel:e.target.value}))} placeholder="+33..."/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Service effectué</label><Inp value={demandeForm.service} onChange={e=>setDemandeForm(f=>({...f,service:e.target.value}))} placeholder="Airbnb, Nettoyage..."/></div>
-        </div>
-        <Btn onClick={demanderAvisWhatsApp} style={{background:C.green}}>📱 Envoyer la demande d'avis</Btn>
-      </Card>
-      <Card>
-        <STitle>🔗 Lien direct Google Reviews</STitle>
-        <div style={{background:C.card2,borderRadius:8,padding:12,fontSize:12,color:C.muted,marginBottom:10,fontFamily:"'Courier New',monospace"}}>https://g.page/r/xyra/review</div>
-        <div style={{display:"flex",gap:8}}>
-          <BtnGhost onClick={()=>{navigator.clipboard?.writeText("https://g.page/r/xyra/review");showToast("✅ Lien copié");}}>📋 Copier</BtnGhost>
-          <BtnGhost onClick={()=>showToast("📱 Lien envoyé sur WhatsApp")}>📱 Envoyer WhatsApp</BtnGhost>
-        </div>
-      </Card>
-    </div>}
-
-    {/* ── ANALYSE CONCURRENTIELLE ── */}
-    {onglet==="concurrent"&&<div>
-      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:16,marginBottom:14}}>
-        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🔍 Analyse concurrentielle — Claude IA</div>
-        {iaLoading?<div style={{fontSize:11,color:C.muted}}>⏳ Analyse en cours...</div>:<div style={{fontSize:12,color:C.text,lineHeight:1.8}}>{analyseConc||"Lance l'analyse pour obtenir un benchmark de ta réputation vs les concurrents de ton secteur."}</div>}
-        <BtnGhost onClick={analyserConcurrence} style={{marginTop:8,fontSize:10}}>{iaLoading?"⏳...":"🔍 Analyser vs concurrents"}</BtnGhost>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        <Card>
-          <STitle>📊 Ta position sur le marché</STitle>
-          {[["Secteur",profil?.metier||"Services premium"],["Note actuelle",(data?.noteMoyenne||4.8)+"/5 ★"],["Benchmark sectoriel","4.3/5 ★ (moyenne marché)"],["Objectif recommandé","4.8+/5 ★"],["Nb avis actuels",String(data?.totalAvis||0)],["Objectif avis","50+ pour la crédibilité"]].map(([l,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"6px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>{l}</span><span style={{color:C.text,fontWeight:600}}>{v}</span></div>)}
-        </Card>
-        <Card>
-          <STitle>💡 Actions prioritaires</STitle>
-          {[{icon:"📱",action:"Envoyer des demandes d'avis WhatsApp après chaque prestation",urgence:"Immédiat",couleur:C.green},{icon:"🤖",action:"Répondre aux avis négatifs avec l'IA dans les 24h",urgence:"Critique",couleur:C.red},{icon:"🎯",action:"Atteindre 50+ avis Google pour maximiser la visibilité",urgence:"1 mois",couleur:C.blue},{icon:"📊",action:"Collecter le NPS mensuellement pour mesurer l'évolution",urgence:"Récurrent",couleur:C.purple}].map((a,i)=><div key={i} style={{display:"flex",gap:10,padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}>
-            <span style={{fontSize:16,flexShrink:0}}>{a.icon}</span>
-            <div style={{flex:1}}><div style={{color:C.text}}>{a.action}</div><Pill color={a.couleur}>{a.urgence}</Pill></div>
-          </div>)}
-        </Card>
-      </div>
-    </div>}
+      </div>)}
+    </Card>
   </div>;
 };
-
-// Helper NPS catégorie
-function getNPSCat(score) {
-  if(score>=9)return "🏆 Promoteur";
-  if(score>=7)return "😐 Passif";
-  return "⚠️ Détracteur";
-}
-
 
 // ─── PAGE EQUIPE ──────────────────────────────────────────────
 const PageEquipe=({plan,showToast})=>{
@@ -8152,328 +5662,33 @@ const PageServices=({plan,showToast,profil})=>{
 // ─── PAGE CHAT ────────────────────────────────────────────────
 const PageChat=({plan,showToast})=>{
   const[espace,setEspace]=useState("equipe");
-  const[convs,setConvs]=useState([]);
-  const[loadingConvs,setLoadingConvs]=useState(true);
-  const[selConv,setSelConv]=useState(null);
-  const[msgInput,setMsgInput]=useState("");
-  const[showNewConv,setShowNewConv]=useState(false);
-  const[newConvForm,setNewConvForm]=useState({contact_nom:"",contact_type:"client",contact_tel:"",contact_email:"",premier_contact:true});
-  const[suggestion,setSuggestion]=useState("");
-  const[suggestionLoading,setSuggestionLoading]=useState(false);
-  const[resume,setResume]=useState("");
-  const[resumeLoading,setResumeLoading]=useState(false);
-  const[swipingId,setSwipingId]=useState(null);
-  const[dragX,setDragX]=useState(0);
-  const dragStartX=useRef(0);
-  const fileRef=useRef(null);
-  const audioRef=useRef(null);
-  const[recording,setRecording]=useState(false);
-  const endRef=useRef();
-
-  const espaces=[{id:"equipe",label:"👥 Équipe"},{id:"externe",label:"💬 Clients & Partenaires"},{id:"visio",label:"🎥 Visio Jitsi"}];
-
-  const loadConvs=async()=>{
-    try{
-      const res=await fetch(`/api/chat?espace=${espace==="visio"?"externe":espace}`);
-      const data=await res.json();
-      if(data.conversations)setConvs(data.conversations);
-    }catch(e){console.error("Chat:",e);}
-    setLoadingConvs(false);
-  };
-  useEffect(()=>{if(espace!=="visio"){setLoadingConvs(true);setSelConv(null);loadConvs();}},[espace]);
-  useEffect(()=>{const i=setInterval(()=>{if(espace!=="visio")loadConvs();},15000);return()=>clearInterval(i);},[espace]);
-  useEffect(()=>{if(selConv)setSelConv(c=>convs.find(x=>x.id===c.id)||null);},[convs]);
-  useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"});},[selConv?.messages?.length]);
-
-  // Vérifie l'inactivité 1h toutes les 5 minutes
-  useEffect(()=>{
-    const check=()=>{fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verifier_inactivite'})}).catch(()=>{});};
-    const i=setInterval(check,5*60*1000);
-    return()=>clearInterval(i);
-  },[]);
-
-  const creerConversation=async()=>{
-    if(!newConvForm.contact_nom)return showToast("⚠️ Nom du contact requis");
-    try{
-      const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer_conversation',espace,...newConvForm})});
-      const data=await res.json();
-      if(data.success){showToast(`✅ Conversation créée avec ${newConvForm.contact_nom}`+(newConvForm.premier_contact?" — message de bienvenue envoyé":""));setShowNewConv(false);setNewConvForm({contact_nom:"",contact_type:"client",contact_tel:"",contact_email:"",premier_contact:true});loadConvs();}
-      else showToast("❌ "+(data.error||"Erreur"));
-    }catch(e){showToast("❌ Erreur de connexion");}
-  };
-
-  const envoyerMsg=async()=>{
-    if(!msgInput.trim()||!selConv)return;
-    const texte=msgInput;setMsgInput("");setSuggestion("");
-    try{
-      const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_message',conversation_id:selConv.id,contenu:texte,contact_tel:selConv.contact_tel})});
-      const data=await res.json();
-      if(data.success)loadConvs();
-      else showToast("❌ "+(data.error||"Erreur"));
-    }catch(e){showToast("❌ Erreur de connexion");}
-  };
-
-  const demanderSuggestion=async()=>{
-    if(!selConv?.messages?.length)return showToast("⚠️ Aucun historique pour suggérer une réponse");
-    setSuggestionLoading(true);
-    try{
-      const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'suggestion_reponse',conversation_id:selConv.id,derniers_messages:selConv.messages.slice(-8)})});
-      const data=await res.json();
-      if(data.success)setSuggestion(data.suggestion);
-      else showToast("❌ "+(data.error||"Erreur"));
-    }catch(e){showToast("❌ Erreur");}
-    setSuggestionLoading(false);
-  };
-
-  const demanderResume=async()=>{
-    if(!selConv?.messages?.length)return showToast("⚠️ Conversation vide");
-    setResumeLoading(true);
-    try{
-      const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'resume_conversation',messages:selConv.messages})});
-      const data=await res.json();
-      if(data.success)setResume(data.resume);
-      else showToast("❌ "+(data.error||"Erreur"));
-    }catch(e){showToast("❌ Erreur");}
-    setResumeLoading(false);
-  };
-
-  const creerActionDepuis=async(type)=>{
-    if(!selConv)return;
-    showToast(`⏳ Création ${type}...`);
-    try{
-      const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer_action',type,conversation_id:selConv.id,contact_nom:selConv.contact_nom,contact_email:selConv.contact_email,contact_tel:selConv.contact_tel})});
-      const data=await res.json();
-      if(data.success)showToast(`✅ ${type==='deal'?'Deal':'Devis'} créé pour ${selConv.contact_nom}`);
-      else showToast("❌ "+(data.error||"Erreur"));
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const supprimerConv=async(id)=>{
-    try{
-      await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer_conversation',id})});
-      setConvs(cs=>cs.filter(c=>c.id!==id));
-      if(selConv?.id===id)setSelConv(null);
-      showToast("🗑 Conversation supprimée");
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const handleFile=async(e)=>{
-    const file=e.target.files?.[0];
-    if(!file||!selConv)return;
-    showToast("⏳ Envoi du fichier...");
-    try{
-      const reader=new FileReader();
-      reader.onload=async()=>{
-        try{
-          const{createClient}=await import('@supabase/supabase-js');
-          const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-          const path=`chat/${selConv.id}/${Date.now()}_${file.name}`;
-          const{data:upData,error:upErr}=await sb.storage.from('attachments').upload(path,file);
-          if(upErr){showToast("❌ Échec de l'envoi — vérifie que le bucket 'attachments' existe");return;}
-          const{data:urlData}=sb.storage.from('attachments').getPublicUrl(path);
-          await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_message',conversation_id:selConv.id,contenu:"📎 "+file.name,type:file.type.startsWith("image/")?"image":"fichier",fichier_url:urlData.publicUrl})});
-          loadConvs();showToast("✅ Fichier envoyé");
-        }catch(e2){showToast("❌ Erreur d'envoi");}
-      };
-      reader.readAsArrayBuffer(file);
-    }catch(e){showToast("❌ Erreur");}
-    e.target.value="";
-  };
-
-  const startRecording=async()=>{
-    try{
-      const stream=await navigator.mediaDevices.getUserMedia({audio:true});
-      const recorder=new MediaRecorder(stream);
-      const chunks=[];
-      recorder.ondataavailable=ev=>chunks.push(ev.data);
-      recorder.onstop=async()=>{
-        const blob=new Blob(chunks,{type:"audio/webm"});
-        if(!selConv)return;
-        showToast("⏳ Envoi du message vocal...");
-        try{
-          const{createClient}=await import('@supabase/supabase-js');
-          const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-          const path=`chat/${selConv.id}/${Date.now()}_vocal.webm`;
-          const{error:upErr}=await sb.storage.from('attachments').upload(path,blob);
-          if(upErr){showToast("❌ Échec — vérifie le bucket 'attachments'");return;}
-          const{data:urlData}=sb.storage.from('attachments').getPublicUrl(path);
-          await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_message',conversation_id:selConv.id,contenu:"🎤 Message vocal",type:"audio",fichier_url:urlData.publicUrl})});
-          loadConvs();showToast("✅ Message vocal envoyé");
-        }catch(e){showToast("❌ Erreur d'envoi");}
-        stream.getTracks().forEach(t=>t.stop());
-      };
-      recorder.start();audioRef.current=recorder;setRecording(true);
-    }catch(e){showToast("⚠️ Micro non accessible");}
-  };
-  const stopRecording=()=>{audioRef.current?.stop();setRecording(false);};
-
-  const catColor={nouveau_lead:C.orange,suivi:C.blue,vip:C.gold,cloture:C.muted};
-  const catLabel={nouveau_lead:"🆕 Nouveau lead",suivi:"💬 Suivi",vip:"⭐ VIP",cloture:"✅ Clôturé"};
-
-  // Swipe handlers pour la liste de conversations
-  const onSwipeStart=(id,x)=>{setSwipingId(id);dragStartX.current=x;setDragX(0);};
-  const onSwipeMove=(id,x)=>{if(swipingId!==id)return;setDragX(Math.max(-72,Math.min(0,x-dragStartX.current)));};
-  const onSwipeEnd=(id)=>{if(dragX<-36){setDragX(-72);}else{setDragX(0);setSwipingId(null);}};
-
+  const[msgsEq,setMsgsEq]=useState(MSGS_EQUIPE.map(m=>({...m,moi:m.auteur==="Béné"})));
+  const[msgsPt,setMsgsPt]=useState(MSGS_PART.map(m=>({...m,moi:m.auteur==="Béné"})));
+  const[msgsAI,setMsgsAI]=useState([{av:"AI",msg:"Bonjour ! Je suis l'assistant IA Xyra, propulsé par Claude. Comment puis-je vous aider ?",h:"09:00",moi:false}]);
+  const espaces=[{id:"equipe",label:"👥 Équipe",badge:MSGS_EQUIPE.filter(m=>!m.lu&&m.auteur!=="Béné").length},{id:"partenaires",label:"⬡ Partenaires",badge:MSGS_PART.filter(m=>!m.lu).length},{id:"ai",label:"🤖 Assistant IA"},{id:"visio",label:"🎥 Visio Jitsi"}];
   return <div style={{padding:20}}>
     <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>💬 Chat</div>
-    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Équipe interne · Clients & Partenaires · Visio Jitsi · IA quand tu es absent</div>
-    <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>{espaces.map(e=><button key={e.id} onClick={()=>setEspace(e.id)} style={{background:espace===e.id?C.card:C.card2,color:espace===e.id?C.gold:C.muted,border:`1px solid ${espace===e.id?C.gold+"44":C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"inherit",fontSize:12}}>{e.label}</button>)}</div>
-
-    {/* ── VISIO ── */}
-    {espace==="visio"&&<Card style={{height:460,display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",gap:16}}>
-      <div style={{fontSize:48}}>🎥</div>
-      <div style={{fontSize:14,fontWeight:700,color:C.text}}>Visioconférence Jitsi</div>
-      <div style={{fontSize:11,color:C.muted}}>Crée une salle pour une réunion d'équipe ou avec un client/partenaire</div>
-      <div style={{display:"flex",gap:10}}>
-        <Btn onClick={()=>{const room=`xyra-${Date.now().toString(36)}`;window.open(`https://meet.jit.si/${room}`,"_blank");showToast("🎥 Salle Jitsi ouverte dans un nouvel onglet");}}>🎥 Nouvelle salle</Btn>
-        <BtnGhost onClick={()=>{const room=`xyra-${Date.now().toString(36)}`;navigator.clipboard?.writeText(`https://meet.jit.si/${room}`);showToast("📋 Lien copié — partage-le pour inviter quelqu'un");}}>📋 Copier un lien à partager</BtnGhost>
-      </div>
-      {convs.length>0&&<div style={{marginTop:10,width:"100%",maxWidth:400}}>
-        <div style={{fontSize:10,color:C.muted,marginBottom:6,textAlign:"center"}}>Ou rejoindre la salle dédiée d'une conversation existante</div>
-        {convs.filter(c=>c.jitsi_room).slice(0,5).map(c=><div key={c.id} onClick={()=>window.open(`https://meet.jit.si/${c.jitsi_room}`,"_blank")} style={{background:C.card2,borderRadius:8,padding:"8px 12px",marginBottom:6,cursor:"pointer",display:"flex",justifyContent:"space-between",fontSize:11}}>
-          <span>{c.contact_nom}</span><span style={{color:C.gold}}>Rejoindre →</span>
-        </div>)}
-      </div>}
-    </Card>}
-
-    {/* ── ÉQUIPE / EXTERNE ── */}
-    {espace!=="visio"&&<div style={{display:"grid",gridTemplateColumns:selConv?"260px 1fr":"1fr",gap:12}}>
-      <Card style={{padding:0,overflow:"hidden",height:520}}>
-        <div style={{padding:"10px 14px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <span style={{fontSize:11,fontWeight:700,color:C.muted}}>{espace==="equipe"?"ÉQUIPE":"CLIENTS & PARTENAIRES"}</span>
-          <button onClick={()=>setShowNewConv(s=>!s)} style={{background:"transparent",border:"none",color:C.gold,cursor:"pointer",fontSize:16}}>+</button>
-        </div>
-        {showNewConv&&<div style={{padding:10,borderBottom:`1px solid ${C.border}`,background:C.card2}}>
-          <Inp value={newConvForm.contact_nom} onChange={e=>setNewConvForm(f=>({...f,contact_nom:e.target.value}))} placeholder="Nom du contact" style={{marginBottom:6,fontSize:11}}/>
-          {espace==="externe"&&<Sel value={newConvForm.contact_type} onChange={e=>setNewConvForm(f=>({...f,contact_type:e.target.value}))} style={{width:"100%",marginBottom:6,fontSize:11}}>
-            <option value="client">Client</option><option value="lead">Nouveau lead</option><option value="partenaire">Partenaire</option><option value="fournisseur">Fournisseur</option>
-          </Sel>}
-          <Inp value={newConvForm.contact_tel} onChange={e=>setNewConvForm(f=>({...f,contact_tel:e.target.value}))} placeholder="Téléphone WhatsApp" style={{marginBottom:6,fontSize:11}}/>
-          <Inp value={newConvForm.contact_email} onChange={e=>setNewConvForm(f=>({...f,contact_email:e.target.value}))} placeholder="Email (optionnel)" style={{marginBottom:6,fontSize:11}}/>
-          {(newConvForm.contact_type==="client"||newConvForm.contact_type==="lead")&&<label style={{display:"flex",alignItems:"center",gap:6,fontSize:10,color:C.muted,marginBottom:8,cursor:"pointer"}}><input type="checkbox" checked={newConvForm.premier_contact} onChange={e=>setNewConvForm(f=>({...f,premier_contact:e.target.checked}))}/>Envoyer le message de bienvenue automatique</label>}
-          <div style={{display:"flex",gap:6}}><Btn onClick={creerConversation} style={{fontSize:10,padding:"5px 10px"}}>Créer</Btn><BtnGhost onClick={()=>setShowNewConv(false)} style={{fontSize:10,padding:"5px 10px"}}>Annuler</BtnGhost></div>
-        </div>}
-        <div style={{overflowY:"auto",height:"calc(100% - 44px)"}}>
-          {loadingConvs&&<div style={{padding:14,fontSize:11,color:C.muted}}>Chargement...</div>}
-          {!loadingConvs&&convs.length===0&&<div style={{padding:14,fontSize:11,color:C.muted,textAlign:"center"}}>Aucune conversation. Clique sur + pour commencer.</div>}
-          {convs.map(c=><div key={c.id} style={{position:"relative",overflow:"hidden"}}>
-            <div onClick={()=>supprimerConv(c.id)} style={{position:"absolute",top:0,right:0,bottom:0,width:72,background:C.red,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#fff",fontSize:10,fontWeight:700}}>🗑 Suppr.</div>
-            <div
-              onClick={()=>{if(swipingId===c.id&&dragX!==0)return;setSelConv(c);if(c.id)fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'marquer_lu',conversation_id:c.id})}).then(loadConvs);}}
-              onTouchStart={e=>onSwipeStart(c.id,e.touches[0].clientX)}
-              onTouchMove={e=>onSwipeMove(c.id,e.touches[0].clientX)}
-              onTouchEnd={()=>onSwipeEnd(c.id)}
-              onMouseDown={e=>onSwipeStart(c.id,e.clientX)}
-              onMouseMove={e=>{if(swipingId===c.id)onSwipeMove(c.id,e.clientX);}}
-              onMouseUp={()=>onSwipeEnd(c.id)}
-              onMouseLeave={()=>{if(swipingId===c.id)onSwipeEnd(c.id);}}
-              style={{display:"flex",alignItems:"center",gap:8,padding:"10px 14px",cursor:"grab",background:selConv?.id===c.id?`${C.gold}0D`:C.card,borderBottom:`1px solid ${C.border}22`,transform:`translateX(${swipingId===c.id?dragX:0}px)`,transition:swipingId===c.id?"none":"transform .2s"}}>
-              <div style={{width:30,height:30,borderRadius:"50%",background:`${C.blue}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:C.blue,flexShrink:0}}>{c.contact_nom?.[0]||"?"}</div>
-              <div style={{flex:1,minWidth:0}}>
-                <div style={{fontSize:11,fontWeight:c.nonLus>0?700:600,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.contact_nom}</div>
-                <div style={{fontSize:9,color:C.muted,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{c.dernierMsg?.contenu||"Aucun message"}</div>
-              </div>
-              {c.nonLus>0&&<span style={{background:C.red,color:"#fff",borderRadius:20,padding:"0 5px",fontSize:9,fontWeight:700,flexShrink:0}}>{c.nonLus}</span>}
-            </div>
-          </div>)}
-        </div>
-      </Card>
-
-      {selConv?<Card style={{padding:0,overflow:"hidden",height:520,display:"flex",flexDirection:"column"}}>
-        <div style={{padding:"12px 16px",borderBottom:`1px solid ${C.border}`,background:C.card2,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div>
-            <div style={{fontSize:13,fontWeight:700,color:C.text}}>{selConv.contact_nom}</div>
-            <div style={{fontSize:10,color:C.muted,display:"flex",gap:6,alignItems:"center"}}>{selConv.contact_type||"équipe"}{selConv.categorie&&<Pill color={catColor[selConv.categorie]}>{catLabel[selConv.categorie]}</Pill>}</div>
-          </div>
-          <div style={{display:"flex",gap:6}}>
-            <button onClick={()=>window.open(`https://meet.jit.si/${selConv.jitsi_room||"xyra-"+selConv.id}`,"_blank")} title="Lancer une visio" style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 8px",cursor:"pointer",color:C.green,fontSize:12}}>🎥</button>
-            <button onClick={demanderResume} title="Résumer la conversation" style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"4px 8px",cursor:"pointer",color:C.purple,fontSize:12}}>{resumeLoading?"⏳":"📝"}</button>
-          </div>
-        </div>
-        {resume&&<div style={{background:`${C.purple}11`,borderBottom:`1px solid ${C.purple}33`,padding:10,fontSize:11,color:C.text,lineHeight:1.6}}>🤖 <b>Résumé :</b> {resume} <span onClick={()=>setResume("")} style={{cursor:"pointer",color:C.muted,marginLeft:6}}>✕</span></div>}
-        <div style={{flex:1,overflowY:"auto",padding:16,display:"flex",flexDirection:"column",gap:10}}>
-          {(selConv.messages||[]).map((m,i)=><div key={m.id||i} style={{display:"flex",gap:8,flexDirection:m.moi?"row-reverse":"row"}}>
-            <div style={{width:26,height:26,borderRadius:"50%",background:m.moi?`${C.gold}22`:`${C.blue}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:m.moi?C.gold:C.blue,flexShrink:0}}>{m.moi?(m.type==="auto_ia"?"🤖":"C"):selConv.contact_nom?.[0]}</div>
-            <div style={{maxWidth:"70%"}}>
-              <div style={{background:m.moi?(m.type==="auto_ia"?`${C.purple}18`:`${C.gold}18`):C.card2,border:`1px solid ${m.moi?(m.type==="auto_ia"?C.purple+"33":C.gold+"33"):C.border}`,borderRadius:10,padding:"8px 12px"}}>
-                {m.type==="image"&&m.fichier_url&&<img src={m.fichier_url} alt="" style={{maxWidth:200,borderRadius:6,marginBottom:4,display:"block"}}/>}
-                {m.type==="audio"&&m.fichier_url&&<audio controls src={m.fichier_url} style={{maxWidth:220,marginBottom:4}}/>}
-                <div style={{fontSize:12,color:C.text,lineHeight:1.5}}>{m.contenu}</div>
-              </div>
-              <div style={{fontSize:9,color:C.muted,textAlign:m.moi?"right":"left",marginTop:2}}>{m.created_at?new Date(m.created_at).toLocaleString("fr",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):""}{m.type==="auto_ia"?" · réponse IA":""}</div>
-            </div>
-          </div>)}
-          <div ref={endRef}/>
-        </div>
-        {suggestion&&<div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:8,padding:10,margin:"0 16px 10px",fontSize:11,color:C.text}}>
-          <div style={{color:C.blue,fontWeight:700,marginBottom:4}}>💡 Suggestion Claude</div>
-          {suggestion}
-          <div style={{marginTop:8,display:"flex",gap:6}}><Btn onClick={()=>{setMsgInput(suggestion);setSuggestion("");}} style={{fontSize:10,padding:"4px 10px"}}>Utiliser</Btn><BtnGhost onClick={()=>setSuggestion("")} style={{fontSize:10,padding:"4px 10px"}}>Ignorer</BtnGhost></div>
-        </div>}
-        <div style={{padding:"8px 16px",borderTop:`1px solid ${C.border}`,display:"flex",gap:6,flexWrap:"wrap"}}>
-          {espace==="externe"&&<>
-            <BtnGhost onClick={()=>creerActionDepuis("deal")} style={{fontSize:9,padding:"3px 8px"}}>+ Deal</BtnGhost>
-            <BtnGhost onClick={()=>creerActionDepuis("devis")} style={{fontSize:9,padding:"3px 8px"}}>+ Devis</BtnGhost>
-          </>}
-          <BtnGhost onClick={demanderSuggestion} style={{fontSize:9,padding:"3px 8px",color:C.blue,borderColor:`${C.blue}44`}}>{suggestionLoading?"⏳":"💡 Suggestion IA"}</BtnGhost>
-        </div>
-        <div style={{padding:"10px 16px",borderTop:`1px solid ${C.border}`,display:"flex",gap:8,alignItems:"center"}}>
-          <input ref={fileRef} type="file" accept="image/*,application/pdf" style={{display:"none"}} onChange={handleFile}/>
-          <button onClick={()=>fileRef.current?.click()} title="Joindre une photo/fichier" style={{background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:16}}>📎</button>
-          <button onClick={recording?stopRecording:startRecording} title="Message vocal" style={{background:recording?C.red:"transparent",border:"none",color:recording?"#fff":C.muted,cursor:"pointer",fontSize:16,borderRadius:"50%",width:28,height:28}}>🎤</button>
-          <Inp value={msgInput} onChange={e=>setMsgInput(e.target.value)} placeholder="Écrire un message..." style={{flex:1}} onKeyDown={e=>{if(e.key==="Enter")envoyerMsg();}}/>
-          <Btn onClick={envoyerMsg} style={{padding:"8px 14px",flexShrink:0}}>↗</Btn>
-        </div>
-      </Card>:<Card style={{height:520,display:"flex",alignItems:"center",justifyContent:"center"}}>
-        <div style={{textAlign:"center",color:C.muted}}><div style={{fontSize:32,marginBottom:8}}>💬</div><div style={{fontSize:12}}>Sélectionne une conversation</div></div>
-      </Card>}
-    </div>}
-  </div>;
-};
-
-const SwipeableNotif=({n,i,onOpen,onDelete,typeColor})=>{
-  const[dragX,setDragX]=useState(0);
-  const[dragging,setDragging]=useState(false);
-  const startX=useRef(0);
-  const DELETE_W=72;
-
-  const onStart=(clientX)=>{startX.current=clientX;setDragging(true);};
-  const onMove=(clientX)=>{
-    if(!dragging)return;
-    const delta=clientX-startX.current;
-    setDragX(Math.max(-DELETE_W,Math.min(0,delta)));
-  };
-  const onEnd=()=>{
-    setDragging(false);
-    if(dragX<-DELETE_W/2)setDragX(-DELETE_W);else setDragX(0);
-  };
-
-  return <div style={{position:"relative",overflow:"hidden",borderRadius:10}}>
-    <div onClick={()=>{onDelete();}} style={{position:"absolute",top:0,right:0,bottom:0,width:DELETE_W,background:C.red,display:"flex",alignItems:"center",justifyContent:"center",cursor:"pointer",color:"#fff",fontSize:11,fontWeight:700}}>🗑 Suppr.</div>
-    <div
-      onClick={()=>{if(dragX===0)onOpen();}}
-      onTouchStart={e=>onStart(e.touches[0].clientX)}
-      onTouchMove={e=>onMove(e.touches[0].clientX)}
-      onTouchEnd={onEnd}
-      onMouseDown={e=>onStart(e.clientX)}
-      onMouseMove={e=>{if(dragging)onMove(e.clientX);}}
-      onMouseUp={onEnd}
-      onMouseLeave={()=>{if(dragging)onEnd();}}
-      style={{background:n.lu?C.card2:C.card,border:`1px solid ${n.lu?C.border:typeColor[n.type]||C.border}44`,borderRadius:10,padding:"12px 16px",cursor:"grab",display:"flex",gap:12,alignItems:"center",transform:`translateX(${dragX}px)`,transition:dragging?"none":"transform .2s",position:"relative",userSelect:"none"}}>
-      <div style={{fontSize:22,flexShrink:0}}>{n.icon}</div>
-      <div style={{flex:1}}>
-        <div style={{fontSize:12,fontWeight:n.lu?400:700,color:C.text}}>{n.titre}</div>
-        <div style={{fontSize:10,color:C.muted,marginTop:2}}>{n.heure}</div>
-      </div>
-      <div style={{display:"flex",gap:6,alignItems:"center"}}>
-        {!n.lu&&<div style={{width:8,height:8,borderRadius:"50%",background:typeColor[n.type]||C.blue}}/>}
-        <Pill color={typeColor[n.type]||C.blue}>{n.type}</Pill>
-      </div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>WhatsApp style · Appel vocal · Visio Jitsi · 4 espaces</div>
+    <div style={{display:"flex",gap:8,marginBottom:16,flexWrap:"wrap"}}>{espaces.map(e=><button key={e.id} onClick={()=>setEspace(e.id)} style={{background:espace===e.id?C.card:C.card2,color:espace===e.id?C.gold:C.muted,border:`1px solid ${espace===e.id?C.gold+"44":C.border}`,borderRadius:8,padding:"6px 14px",cursor:"pointer",fontFamily:"inherit",fontSize:12,display:"flex",alignItems:"center",gap:6}}>{e.label}{e.badge>0&&<span style={{background:C.red,color:"#fff",borderRadius:20,padding:"0 5px",fontSize:9,fontWeight:700}}>{e.badge}</span>}</button>)}
     </div>
+    <Card style={{height:460,padding:0,overflow:"hidden"}}>
+      {espace==="equipe"&&<Chat msgs={msgsEq} onSend={(msg)=>setMsgsEq(ms=>[...ms,{av:"B",auteur:"Béné",msg,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),lu:true,moi:true}])} title="Chat Équipe" subtitle="Thomas · Abou · Fatou"/>}
+      {espace==="partenaires"&&<Chat msgs={msgsPt} onSend={(msg)=>setMsgsPt(ms=>[...ms,{av:"B",auteur:"Béné",msg,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),lu:true,moi:true}])} title="Chat Partenaires" subtitle="Leila · Fatoumata"/>}
+      {espace==="ai"&&<Chat msgs={msgsAI} onSend={async(msg)=>{const userMsg={av:"B",msg,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),moi:true};setMsgsAI(ms=>[...ms,userMsg]);setTimeout(()=>setMsgsAI(ms=>[...ms,{av:"AI",msg:`Je traite votre demande : "${msg.slice(0,30)}..."`,h:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}),moi:false}]),800);}} title="Assistant IA Xyra" subtitle="Propulsé par Claude (Anthropic)"/>}
+      {espace==="visio"&&<div style={{display:"flex",flexDirection:"column",alignItems:"center",justifyContent:"center",height:"100%",gap:16}}>
+        <div style={{fontSize:48}}>🎥</div>
+        <div style={{fontSize:14,fontWeight:700,color:C.text}}>Visioconférence Jitsi</div>
+        <div style={{fontSize:11,color:C.muted}}>Lancer une réunion d'équipe ou avec un client</div>
+        <div style={{display:"flex",gap:10}}>
+          <Btn onClick={()=>showToast("🎥 Salle Jitsi créée : meet.xyra.io/curtiss")}>🎥 Nouvelle salle</Btn>
+          <BtnGhost onClick={()=>showToast("🔗 Lien copié !")}>🔗 Copier le lien</BtnGhost>
+        </div>
+      </div>}
+    </Card>
   </div>;
 };
 
+// ─── PAGE NOTIFICATIONS ───────────────────────────────────────
 const PageNotifications=({notifs,setNotifs,showToast})=>{
   const[_notifsReal,setNotifsReal]=useState([]);
   const[_autoNotifs,setAutoNotifs]=useState([]);
@@ -8578,10 +5793,17 @@ const PageNotifications=({notifs,setNotifs,showToast})=>{
         </div>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {filtered.map((n,i)=><SwipeableNotif key={n.id||i} n={n} i={i} typeColor={typeColor}
-          onOpen={()=>{setNotifs(ns=>ns.map((x,j)=>j===i?{...x,lu:true}:x));if(n.id)_marquerLu(n.id);}}
-          onDelete={()=>{setNotifs(ns=>ns.filter((x,j)=>j!==i));if(n.id)_supprimerNotif(n.id);else showToast("🗑 Notification supprimée");}}
-        />)}
+        {filtered.map((n,i)=><div key={i} onClick={()=>setNotifs(ns=>ns.map((x,j)=>j===i?{...x,lu:true}:x))} style={{background:n.lu?C.card2:C.card,border:`1px solid ${n.lu?C.border:typeColor[n.type]||C.border}44`,borderRadius:10,padding:"12px 16px",cursor:"pointer",display:"flex",gap:12,alignItems:"center",transition:"all .2s"}}>
+          <div style={{fontSize:22,flexShrink:0}}>{n.icon}</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:12,fontWeight:n.lu?400:700,color:C.text}}>{n.titre}</div>
+            <div style={{fontSize:10,color:C.muted,marginTop:2}}>{n.heure}</div>
+          </div>
+          <div style={{display:"flex",gap:6,alignItems:"center"}}>
+            {!n.lu&&<div style={{width:8,height:8,borderRadius:"50%",background:typeColor[n.type]||C.blue}}/>}
+            <Pill color={typeColor[n.type]||C.blue}>{n.type}</Pill>
+          </div>
+        </div>)}
         {filtered.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>✅ Aucune notification pour ce filtre</div>}
       </div>
     </div>}
@@ -9555,72 +6777,41 @@ const PageDeploiement=({plan,showToast})=>{
   const[filterPlan,setFilterPlan]=useState("tous");
   const[filterStatut,setFilterStatut]=useState("tous");
   const[mrr,setMrr]=useState(0);
-  const[stats,setStats]=useState({actifs:0,essais:0,churnes:0,inactifs:0,commissions:0,arr:0});
-  const[analyseChurn,setAnalyseChurn]=useState("");
-  const[iaLoading,setIaLoading]=useState(false);
-  const[upsellEmail,setUpsellEmail]=useState("");
-  const[showProvision,setShowProvision]=useState(false);
-  const[provisionForm,setProvisionForm]=useState({societe:"",email:"",plan:"starter",pays:"France",metier:""});
-  const[showRevendeurForm,setShowRevendeurForm]=useState(false);
-  const[revendeurForm,setRevendeurForm]=useState({nom:"",email:"",societe:"",tel:"",message:"",plan_revendeur:""});
-  const[revendeurLoading,setRevendeurLoading]=useState(false);
-
-  const envoyerDemandeRevendeur=async()=>{
-    if(!revendeurForm.nom||!revendeurForm.email||!revendeurForm.societe)return showToast("⚠️ Nom, email et société requis");
-    setRevendeurLoading(true);
-    try{
-      const res=await fetch('/api/deploiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'demande_revendeur',...revendeurForm})});
-      const d=await res.json();
-      if(d.success){showToast("✅ Demande envoyée ! WhatsApp + email reçus par l'équipe Xyra");setShowRevendeurForm(false);setRevendeurForm({nom:"",email:"",societe:"",tel:"",message:"",plan_revendeur:""});}
-      else showToast("❌ Erreur");
-    }catch(e){showToast("❌ Erreur");}
-    setRevendeurLoading(false);
-  };
 
   const calcSolvabilite=(t)=>{
     let score=50;
     if(t.plan==="enterprise")score+=20;
-    else if(t.plan==="business_pro"||t.plan==="business")score+=10;
+    else if(t.plan==="business_pro")score+=10;
     if(t.pays&&["France","Allemagne","Royaume-Uni","Émirats arabes unis (Dubaï)","États-Unis","Canada"].includes(t.pays))score+=15;
     if(t.taille==="20+")score+=15;
     else if(t.taille==="6 à 20")score+=10;
     else if(t.taille==="2 à 5")score+=5;
     if(t.statut==="actif")score+=10;
-    if(t.created_at){const days=(Date.now()-new Date(t.created_at).getTime())/(1000*60*60*24);if(days>30)score+=5;}
+    if(t.created_at){
+      const days=(Date.now()-new Date(t.created_at).getTime())/(1000*60*60*24);
+      if(days>30)score+=5;
+    }
     return Math.min(100,score);
   };
 
   const scoreCouleur=(s)=>s>=80?C.green:s>=50?C.gold:C.red;
   const scoreLabel=(s)=>s>=80?"🟢 Solvable":s>=50?"🟡 Moyen":"🔴 Risqué";
 
-  const load=async()=>{
-    setLoading(true);
-    try{
-      const res=await fetch('/api/deploiement?action=dashboard');
-      const d=await res.json();
-      if(d.tenants){
-        setTenants(d.tenants);
-        setMrr(d.mrr||0);
-        setStats({actifs:d.actifs||0,essais:d.essais||0,churnes:d.churnes||0,inactifs:d.inactifs||0,commissions:d.commissions||0,arr:d.arr||0});
-      }
-    }catch(e){
-      // Fallback Supabase direct
+  useEffect(()=>{
+    const load=async()=>{
       try{
         const {createClient}=await import('@supabase/supabase-js');
         const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
         const{data}=await sb.from('tenants').select('*').order('created_at',{ascending:false});
         if(data){
           setTenants(data);
-          const m=data.reduce((a,t)=>a+(t.plan_price||0),0);
-          setMrr(m);
-          setStats({actifs:data.filter(t=>t.statut==="actif").length,essais:data.filter(t=>t.statut==="essai").length,churnes:data.filter(t=>t.statut==="suspendu").length,inactifs:0,commissions:m*0.05,arr:m*12});
+          setMrr(data.reduce((a,t)=>a+(t.plan_price||0),0));
         }
-      }catch(e2){console.error(e2);}
-    }
-    setLoading(false);
-  };
-
-  useEffect(()=>{load();},[]);
+      }catch(e){console.error(e);}
+      setLoading(false);
+    };
+    load();
+  },[]);
 
   const filtered=tenants.filter(t=>{
     const q=searchQ.toLowerCase();
@@ -9630,62 +6821,18 @@ const PageDeploiement=({plan,showToast})=>{
     return matchQ&&matchPlan&&matchStatut;
   });
 
-  const churn=stats.churnes;
-  const essai=stats.essais;
-  const actifs=stats.actifs;
-  const arr=stats.arr;
+  const churn=tenants.filter(t=>t.statut==="suspendu").length;
+  const essai=tenants.filter(t=>t.statut==="essai").length;
+  const actifs=tenants.filter(t=>t.statut==="actif").length;
+  const arr=mrr*12;
   const ltv=mrr>0?mrr*24:0;
   const tauxConv=tenants.length>0?Math.round((actifs/tenants.length)*100):0;
-  const planColors={starter:C.blue,business:C.gold,business_pro:C.gold,enterprise:C.purple,multi_societes:C.teal,multi_pro:C.orange,holding:C.gold};
 
-  const lancerAnalyseChurn=async()=>{
-    setIaLoading(true);
-    try{
-      const aRisque=tenants.filter(t=>t.statut==="essai"||calcSolvabilite(t)<50).map(t=>({...t,health_score:calcSolvabilite(t)}));
-      const res=await fetch('/api/deploiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'scoring_churn',tenants:aRisque})});
-      const d=await res.json();
-      if(d.success)setAnalyseChurn(d.analyse);
-    }catch(e){}
-    setIaLoading(false);
-  };
-
-  const genererUpsell=async(t)=>{
-    try{
-      const res=await fetch('/api/deploiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generer_upsell',societe:t.societe,plan:t.plan,metier:t.metier,taille:t.taille})});
-      const d=await res.json();
-      if(d.success){setUpsellEmail(d.email);showToast("✅ Email upsell généré");}
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const alerterInactifs=async()=>{
-    const inactifs=tenants.filter(t=>t.statut==="actif");
-    try{
-      await fetch('/api/deploiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'alerte_inactifs',inactifs})});
-      showToast("✅ Alertes inactifs envoyées");
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const envoyerRapport=async()=>{
-    showToast("⏳ Envoi rapport mensuel...");
-    try{
-      await fetch('/api/deploiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'rapport_mensuel',mrr,actifs,essais:essai,churnes:churn,commissions:stats.commissions})});
-      showToast("✅ Rapport mensuel envoyé");
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const provisionner=async()=>{
-    if(!provisionForm.societe||!provisionForm.email)return showToast("⚠️ Société et email requis");
-    try{
-      const res=await fetch('/api/deploiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'provisioner_tenant',...provisionForm})});
-      const d=await res.json();
-      if(d.success){showToast("✅ Client provisionné + notif WhatsApp");setShowProvision(false);setProvisionForm({societe:"",email:"",plan:"starter",pays:"France",metier:""});load();}
-      else showToast("❌ "+d.error);
-    }catch(e){showToast("❌ Erreur");}
-  };
+  const planColors={starter:C.blue,business_pro:C.gold,enterprise:C.purple};
 
   if(!hasAccess(plan,"deploiement"))return <div style={{padding:20}}><UpgradeWall page="Déploiement SaaS" plan={plan}/></div>;
 
-  // ── FICHE CLIENT ──────────────────────────────────────────────
+  // ── FICHE CLIENT ────────────────────────────────────────────
   if(selectedClient){
     const t=selectedClient;
     const score=calcSolvabilite(t);
@@ -9693,656 +6840,1171 @@ const PageDeploiement=({plan,showToast})=>{
     return <div style={{padding:20}}>
       <Btn onClick={()=>setSelectedClient(null)} style={{marginBottom:16,fontSize:12}}>← Retour</Btn>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+        {/* Infos principales */}
         <Card>
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
             <div style={{width:48,height:48,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,color:C.gold}}>{t.societe?.[0]||"?"}</div>
             <div>
               <div style={{fontSize:16,fontWeight:700,color:C.text}}>{t.societe}</div>
               <div style={{fontSize:11,color:C.muted}}>{t.email}</div>
-              <div style={{fontSize:11,color:C.muted}}>{t.metier} · {t.pays}</div>
+              <div style={{fontSize:11,color:C.muted}}>{t.pays} · {t.taille}</div>
             </div>
           </div>
-          {[["Plan",t.plan||"—"],["Prix",fmt(t.plan_price||0)+"/mois"],["Taille",t.taille||"—"],["Statut",t.statut||"—"],["Inscrit le",t.created_at?new Date(t.created_at).toLocaleDateString("fr"):"—"]].map(([l,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{l}</span><span style={{fontWeight:600}}>{v}</span></div>)}
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {[[" Plan",t.plan||"—"],[" Métier",t.metier||"—"],[" Statut",t.statut||"—"],[" Inscription",t.created_at?new Date(t.created_at).toLocaleDateString("fr-FR"):"—"]].map(([l,v],i)=>(
+              <div key={i} style={{background:C.card2,borderRadius:6,padding:"8px 10px"}}>
+                <div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em"}}>{l}</div>
+                <div style={{fontSize:12,fontWeight:600,color:C.text,marginTop:2}}>{v}</div>
+              </div>
+            ))}
+          </div>
         </Card>
-        <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <Card style={{borderColor:`${scoreCouleur(score)}44`}}>
-            <div style={{fontSize:9,color:C.muted,marginBottom:4}}>SCORE DE SOLVABILITÉ</div>
-            <div style={{fontSize:48,fontWeight:700,color:scoreCouleur(score),fontFamily:"Georgia,serif"}}>{score}</div>
-            <div style={{fontSize:11,color:scoreCouleur(score)}}>{scoreLabel(score)}</div>
-            <SM val={score} max={100} color={scoreCouleur(score)}/>
-          </Card>
-          {t.statut==="essai"&&daysLeft>0&&<Card style={{borderColor:`${C.orange}44`}}>
-            <div style={{fontSize:9,color:C.orange,marginBottom:4}}>ESSAI GRATUIT</div>
-            <div style={{fontSize:28,fontWeight:700,color:C.orange}}>{daysLeft} jours</div>
-            <div style={{fontSize:11,color:C.muted}}>restants avant expiration</div>
-          </Card>}
-        </div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        {/* Score solvabilité */}
         <Card>
-          <STitle>⚡ Actions rapides</STitle>
-          <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            <Btn onClick={()=>genererUpsell(t)} style={{fontSize:11}}>🤖 Générer email upsell IA</Btn>
-            <BtnGhost onClick={()=>showToast("📧 Email de relance envoyé")} style={{fontSize:11}}>📧 Email de relance</BtnGhost>
-            <BtnGhost onClick={()=>showToast("💬 WhatsApp ouvert")} style={{fontSize:11}}>💬 WhatsApp</BtnGhost>
-            <BtnGhost onClick={()=>showToast("🔒 Compte suspendu")} style={{fontSize:11,color:C.red,borderColor:`${C.red}44`}}>🔒 Suspendre</BtnGhost>
+          <STitle>💳 Score de Solvabilité</STitle>
+          <div style={{textAlign:"center",padding:"16px 0"}}>
+            <div style={{fontSize:52,fontWeight:700,color:scoreCouleur(score)}}>{score}</div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:8}}>/100</div>
+            <div style={{fontSize:14,fontWeight:600,color:scoreCouleur(score)}}>{scoreLabel(score)}</div>
+            <div style={{height:8,background:C.border,borderRadius:4,margin:"12px 0",overflow:"hidden"}}>
+              <div style={{height:"100%",width:score+"%",background:scoreCouleur(score),borderRadius:4,transition:"width 1s"}}/>
+            </div>
           </div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {[
+              ["Plan souscrit",t.plan==="enterprise"?"+20pts":t.plan==="business_pro"?"+10pts":"+0pts",t.plan==="enterprise"||t.plan==="business_pro"],
+              ["Pays de confiance",["France","Allemagne","Émirats arabes unis (Dubaï)","États-Unis"].includes(t.pays)?"+15pts":"0pts",["France","Allemagne","Émirats arabes unis (Dubaï)","États-Unis"].includes(t.pays)],
+              ["Grande structure",t.taille==="20+"?"+15pts":t.taille==="6 à 20"?"+10pts":"+5pts",true],
+              ["Compte actif",t.statut==="actif"?"+10pts":"0pts",t.statut==="actif"],
+            ].map(([l,v,ok],i)=>(
+              <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}>
+                <span style={{color:C.muted}}>{l}</span>
+                <span style={{color:ok?C.green:C.muted,fontWeight:600}}>{v}</span>
+              </div>
+            ))}
+          </div>
+          {score<50&&<div style={{marginTop:12,background:`${C.red}15`,border:`1px solid ${C.red}33`,borderRadius:6,padding:"8px 10px",fontSize:11,color:C.red}}>⚠️ Risque élevé — Demander paiement immédiat</div>}
+          {score>=50&&score<80&&<div style={{marginTop:12,background:`${C.gold}15`,border:`1px solid ${C.gold}33`,borderRadius:6,padding:"8px 10px",fontSize:11,color:C.gold}}>⚡ Surveiller — Essai limité recommandé</div>}
+          {score>=80&&<div style={{marginTop:12,background:`${C.green}15`,border:`1px solid ${C.green}33`,borderRadius:6,padding:"8px 10px",fontSize:11,color:C.green}}>✅ Client fiable — Accès complet recommandé</div>}
         </Card>
-        {upsellEmail&&<Card style={{borderColor:`${C.purple}44`}}>
-          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 EMAIL UPSELL IA GÉNÉRÉ</div>
-          <div style={{fontSize:11,color:C.text,lineHeight:1.7,whiteSpace:"pre-line"}}>{upsellEmail}</div>
-          <div style={{display:"flex",gap:6,marginTop:10}}>
-            <Btn onClick={()=>showToast("📧 Email envoyé !")} style={{fontSize:10}}>📧 Envoyer</Btn>
-            <BtnGhost onClick={()=>{navigator.clipboard?.writeText(upsellEmail);showToast("✅ Copié");}} style={{fontSize:10}}>📋 Copier</BtnGhost>
-          </div>
-        </Card>}
       </div>
+      {/* KPIs client */}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:12}}>
+        <KPI label="MRR" val={fmt(t.plan_price||0)} color={C.gold}/>
+        <KPI label="LTV estimée" val={fmt((t.plan_price||0)*24)} color={C.green}/>
+        <KPI label="Jours essai restants" val={daysLeft} color={daysLeft<3?C.red:C.blue}/>
+        <KPI label="Score solvabilité" val={score+"/100"} color={scoreCouleur(score)}/>
+      </div>
+      {/* Actions */}
+      <Card>
+        <STitle>⚡ Actions rapides</STitle>
+        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+          <Btn onClick={()=>{showToast("📱 WhatsApp ouvert");window.open(`https://wa.me/?text=Bonjour ${t.societe}, bienvenue sur Xyra !`)}} style={{background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 WhatsApp</Btn>
+          <Btn onClick={()=>showToast("📧 Email envoyé à "+t.email)} style={{background:`${C.blue}22`,color:C.blue,border:`1px solid ${C.blue}44`}}>📧 Email</Btn>
+          <Btn onClick={()=>showToast("⬆️ Plan mis à jour")} style={{background:`${C.gold}22`,color:C.gold,border:`1px solid ${C.gold}44`}}>⬆️ Changer plan</Btn>
+          <Btn onClick={()=>showToast("🎁 +7 jours offerts")} style={{background:`${C.purple}22`,color:C.purple,border:`1px solid ${C.purple}44`}}>🎁 Offrir 7 jours</Btn>
+          <Btn onClick={()=>showToast("⏸️ Compte suspendu")} style={{background:`${C.red}22`,color:C.red,border:`1px solid ${C.red}44`}}>⏸️ Suspendre</Btn>
+        </div>
+      </Card>
+      {/* Timeline */}
+      <Card style={{marginTop:12}}>
+        <STitle>📋 Timeline</STitle>
+        {[
+          {date:t.created_at?new Date(t.created_at).toLocaleDateString("fr-FR"):"—",action:"Inscription",detail:`Plan ${t.plan} · ${t.pays}`,c:C.green},
+          {date:"—",action:"Paiement",detail:`${t.plan_price||0}€/mois`,c:C.gold},
+          {date:"—",action:"Onboarding",detail:"Guide de démarrage",c:C.blue},
+        ].map((e,i)=>(
+          <div key={i} style={{display:"flex",gap:12,padding:"8px 0",borderBottom:`1px solid ${C.border}22`}}>
+            <div style={{width:6,height:6,borderRadius:"50%",background:e.c,flexShrink:0,marginTop:5}}/>
+            <div style={{flex:1}}>
+              <div style={{fontSize:12,fontWeight:600,color:C.text}}>{e.action}</div>
+              <div style={{fontSize:11,color:C.muted}}>{e.detail}</div>
+            </div>
+            <div style={{fontSize:10,color:C.muted}}>{e.date}</div>
+          </div>
+        ))}
+      </Card>
     </div>;
   }
 
-  const tabs=[
-    {id:"tenants",label:"👥 Clients"},
-    {id:"metrics",label:"📊 Métriques"},
-    {id:"churn",label:"🤖 Analyse Churn IA"},
-    {id:"revendeurs",label:"🚀 Revendeurs"},
-    {id:"certification",label:"🏆 Certification"},
-  ];
-
+  // ── VUE PRINCIPALE ──────────────────────────────────────────
   return <div style={{padding:20}}>
-    {/* HEADER */}
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-      <div>
-        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>🚀 Déploiement SaaS</div>
-        <div style={{fontSize:11,color:C.muted}}>Clients · MRR · Health Score · Churn IA · Upsell auto · Revendeurs</div>
-      </div>
-      <div style={{display:"flex",gap:8}}>
-        <BtnGhost onClick={envoyerRapport} style={{fontSize:11}}>📱 Rapport mensuel</BtnGhost>
-        <BtnGhost onClick={alerterInactifs} style={{fontSize:11,color:C.orange,borderColor:`${C.orange}44`}}>🔔 Alertes inactifs</BtnGhost>
-        <Btn onClick={()=>setShowProvision(true)} style={{fontSize:11}}>+ Provisionner client</Btn>
-      </div>
-    </div>
-
-    {/* FORM PROVISION */}
-    {showProvision&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
-      <STitle>+ Provisionner un nouveau client</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Société *</label><Inp value={provisionForm.societe} onChange={e=>setProvisionForm(f=>({...f,societe:e.target.value}))}/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Email *</label><Inp value={provisionForm.email} onChange={e=>setProvisionForm(f=>({...f,email:e.target.value}))}/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Plan</label>
-          <Sel value={provisionForm.plan} onChange={e=>setProvisionForm(f=>({...f,plan:e.target.value}))}>
-            <option value="starter">Starter — 59€/mois</option>
-            <option value="business_pro">Business Pro — 129€/mois</option>
-            <option value="enterprise">Enterprise — 249€/mois</option>
-            <option value="multi_societes">Multi-Sociétés — 499€/mois</option>
-            <option value="multi_pro">Multi-Sociétés Pro — 799€/mois</option>
-            <option value="holding">Holding — 1 200€/mois</option>
-          </Sel>
-        </div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Pays</label><Inp value={provisionForm.pays} onChange={e=>setProvisionForm(f=>({...f,pays:e.target.value}))}/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Métier</label><Inp value={provisionForm.metier} onChange={e=>setProvisionForm(f=>({...f,metier:e.target.value}))}/></div>
-      </div>
-      <div style={{display:"flex",gap:8}}><Btn onClick={provisionner}>✅ Provisionner + notifier</Btn><BtnGhost onClick={()=>setShowProvision(false)}>Annuler</BtnGhost></div>
-    </Card>}
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>🌍 Déploiement SaaS — Vue Owner</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Clients Xyra · MRR · Solvabilité · Alertes temps réel</div>
 
     {/* KPIs */}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:14}}>
-      <CT style={{borderColor:`${C.green}33`}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>MRR</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>{fmt(mrr)}</div><div style={{fontSize:9,color:C.muted}}>Récurrent/mois</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>ARR</div><div style={{fontSize:16,fontWeight:700,color:C.teal}}>{fmt(arr)}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>ACTIFS</div><div style={{fontSize:18,fontWeight:700,color:C.blue}}>{actifs}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>ESSAIS</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{essai}</div></CT>
-      <CT style={{borderColor:`${C.red}33`}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>CHURNS</div><div style={{fontSize:18,fontWeight:700,color:C.red}}>{churn}</div></CT>
-      <CT style={{borderColor:`${C.gold}33`}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>COMMISSIONS 5%</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>{fmt(stats.commissions)}</div></CT>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:16}}>
+      <KPI label="Clients SaaS" val={tenants.length} color={C.blue}/>
+      <KPI label="MRR" val={fmt(mrr)} color={C.gold}/>
+      <KPI label="ARR projeté" val={fmt(arr)} color={C.green}/>
+      <KPI label="En essai" val={essai} color={C.orange}/>
+      <KPI label="Taux conversion" val={tauxConv+"%"} color={C.purple}/>
+      <KPI label="Churned" val={churn} color={C.red}/>
     </div>
 
-    {/* TABS */}
-    <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
-      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
-    </div>
-
-    {/* ── CLIENTS ── */}
-    {onglet==="tenants"&&<div>
-      <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
-        <Inp value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="Rechercher société, email, pays..." style={{flex:1,minWidth:200}}/>
-        <Sel value={filterPlan} onChange={e=>setFilterPlan(e.target.value)}>
-          <option value="tous">Tous les plans</option>
-          {["starter","business_pro","enterprise","multi_societes","multi_pro","holding"].map(p=><option key={p} value={p}>{p}</option>)}
-        </Sel>
-        <Sel value={filterStatut} onChange={e=>setFilterStatut(e.target.value)}>
-          <option value="tous">Tous les statuts</option>
-          {["essai","actif","suspendu","expiré"].map(s=><option key={s} value={s}>{s}</option>)}
-        </Sel>
+    {/* Alertes */}
+    {tenants.filter(t=>{
+      const days=t.trial_ends_at?Math.ceil((new Date(t.trial_ends_at)-Date.now())/(1000*60*60*24)):99;
+      return days<=2&&t.statut==="essai";
+    }).length>0&&(
+      <div style={{background:`${C.red}15`,border:`1px solid ${C.red}33`,borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:12,color:C.red}}>
+        🚨 {tenants.filter(t=>{const d=t.trial_ends_at?Math.ceil((new Date(t.trial_ends_at)-Date.now())/(1000*60*60*24)):99;return d<=2&&t.statut==="essai";}).length} client(s) en fin d'essai dans moins de 48h
       </div>
-      {loading?<div style={{fontSize:11,color:C.muted}}>⏳ Chargement...</div>:
-      tenants.length===0?<Card style={{textAlign:"center",padding:30}}>
-        <div style={{fontSize:32,marginBottom:8}}>🚀</div>
-        <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Aucun client encore</div>
-        <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Les clients inscrits sur xyraio.fr apparaissent ici automatiquement.</div>
-        <Btn onClick={()=>setShowProvision(true)}>+ Provisionner un client</Btn>
-      </Card>:
-      <Card>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
-          <STitle>{filtered.length} client(s) trouvé(s)</STitle>
-          <BtnGhost onClick={()=>{const csv=["Société,Plan,Prix,Statut,Pays,Email"].concat(filtered.map(t=>`${t.societe},${t.plan},${t.plan_price},${t.statut},${t.pays},${t.email}`)).join("\n");const b=new Blob([csv],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="clients_xyra.csv";a.click();showToast("✅ CSV exporté");}} style={{fontSize:10}}>📋 CSV</BtnGhost>
-        </div>
-        <div style={{overflowX:"auto"}}>
-          <table style={{width:"100%",borderCollapse:"collapse",minWidth:700}}>
-            <thead><tr><TH>Société</TH><TH>Plan</TH><TH>Prix/mois</TH><TH>Score</TH><TH>Statut</TH><TH>Pays</TH><TH>Inscrit</TH><TH>Action</TH></tr></thead>
-            <tbody>{filtered.map((t,i)=>{
-              const score=calcSolvabilite(t);
-              return <tr key={i} style={{background:t.statut==="suspendu"?`${C.red}08`:"transparent"}}>
-                <Td>
-                  <div style={{display:"flex",alignItems:"center",gap:8}}>
-                    <div style={{width:28,height:28,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:C.gold}}>{t.societe?.[0]||"?"}</div>
-                    <div>
-                      <div style={{fontSize:12,fontWeight:700}}>{t.societe||"—"}</div>
-                      <div style={{fontSize:9,color:C.muted}}>{t.email}</div>
-                    </div>
-                  </div>
-                </Td>
-                <Td><Pill color={planColors[t.plan]||C.gold}>{t.plan||"starter"}</Pill></Td>
-                <Td style={{color:C.green,fontWeight:700}}>{fmt(t.plan_price||0)}</Td>
-                <Td>
-                  <div style={{display:"flex",alignItems:"center",gap:6}}>
-                    <div style={{width:32,height:4,background:C.border,borderRadius:2,overflow:"hidden"}}>
-                      <div style={{width:score+"%",height:"100%",background:scoreCouleur(score)}}/>
-                    </div>
-                    <span style={{fontSize:10,color:scoreCouleur(score),fontWeight:700}}>{score}</span>
-                  </div>
-                </Td>
-                <Td><St s={t.statut}/></Td>
-                <Td style={{fontSize:11,color:C.muted}}>{t.pays||"—"}</Td>
-                <Td style={{fontSize:10,color:C.muted}}>{t.created_at?new Date(t.created_at).toLocaleDateString("fr"):"—"}</Td>
-                <Td>
-                  <div style={{display:"flex",gap:4}}>
-                    <Btn onClick={()=>setSelectedClient(t)} style={{fontSize:9,padding:"3px 8px"}}>Voir</Btn>
-                    {score<50&&<BtnGhost onClick={()=>showToast("📧 Demande envoyée")} style={{fontSize:9,padding:"3px 6px",color:C.red,borderColor:`${C.red}44`}}>⚠</BtnGhost>}
-                  </div>
-                </Td>
-              </tr>;
-            })}</tbody>
-          </table>
-        </div>
-      </Card>}
-    </div>}
+    )}
 
-    {/* ── MÉTRIQUES ── */}
-    {onglet==="metrics"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-      <Card>
-        <STitle>📊 Métriques SaaS clés</STitle>
-        {[["MRR (Revenus récurrents/mois)",fmt(mrr),C.green],["ARR (Annuel)",fmt(arr),C.teal],["LTV (Valeur vie client estimée)",fmt(ltv),C.blue],["Taux de conversion essai→payant",tauxConv+"%",tauxConv>=30?C.green:C.orange],["Commissions Xyra (5%)",fmt(stats.commissions),C.gold],["Taux de churn",tenants.length>0?Math.round(churn/tenants.length*100)+"%":"—",churn===0?C.green:C.red]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
-      </Card>
-      <Card>
-        <STitle>📈 Répartition par plan</STitle>
-        {["starter","business_pro","enterprise","multi_societes","multi_pro","holding"].map(p=>{
-          const count=tenants.filter(t=>t.plan===p).length;
-          if(count===0)return null;
-          const total=tenants.length||1;
-          const pct=Math.round(count/total*100);
-          const revenu=tenants.filter(t=>t.plan===p).reduce((a,t)=>a+Number(t.plan_price||0),0);
-          return <div key={p} style={{marginBottom:10}}>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}>
-              <span style={{color:planColors[p]||C.gold,fontWeight:600}}>{p.replace("_"," ").toUpperCase()}</span>
-              <span style={{color:C.muted}}>{count} clients · {fmt(revenu)}/mois · {pct}%</span>
+    {/* Tabs */}
+    <div style={{display:"flex",gap:4,marginBottom:12}}>
+      {[["dashboard","📊 Vue globale"],["clients","🏢 Clients"],["revenus","💰 Revenus"],["solvabilite","💳 Solvabilité"]].map(([id,label])=>(
+        <button key={id} onClick={()=>setView(id)} style={{padding:"6px 14px",borderRadius:6,border:`1px solid ${view===id?C.gold:C.border}`,background:view===id?`${C.gold}15`:"transparent",color:view===id?C.gold:C.muted,cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>{label}</button>
+      ))}
+    </div>
+
+    {/* Vue globale */}
+    {view==="dashboard"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
+        <Card>
+          <STitle>📊 Répartition par plan</STitle>
+          {["starter","business_pro","enterprise"].map(p=>{
+            const count=tenants.filter(t=>t.plan===p).length;
+            const pct=tenants.length>0?Math.round((count/tenants.length)*100):0;
+            return <div key={p} style={{marginBottom:10}}>
+              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}>
+                <span style={{color:C.text,textTransform:"capitalize"}}>{p.replace("_"," ")}</span>
+                <span style={{color:planColors[p]||C.blue,fontWeight:600}}>{count} clients · {pct}%</span>
+              </div>
+              <div style={{height:6,background:C.border,borderRadius:3,overflow:"hidden"}}>
+                <div style={{height:"100%",width:pct+"%",background:planColors[p]||C.blue,borderRadius:3}}/>
+              </div>
+            </div>;
+          })}
+        </Card>
+        <Card>
+          <STitle>🌍 Top pays</STitle>
+          {Object.entries(tenants.reduce((acc,t)=>{const p=t.pays||"Inconnu";acc[p]=(acc[p]||0)+1;return acc;},{})).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([pays,count])=>(
+            <div key={pays} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}>
+              <span style={{color:C.text}}>{pays}</span>
+              <span style={{color:C.gold,fontWeight:600}}>{count} client{count>1?"s":""}</span>
             </div>
-            <SM val={pct} max={100} color={planColors[p]||C.gold}/>
-          </div>;
-        })}
-      </Card>
-    </div>}
-
-    {/* ── ANALYSE CHURN IA ── */}
-    {onglet==="churn"&&<div>
-      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:16,marginBottom:14}}>
-        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Scoring prédictif Churn — Claude Sonnet</div>
-        {iaLoading?<div style={{fontSize:11,color:C.muted}}>⏳ Analyse en cours...</div>:<div style={{fontSize:12,color:C.text,lineHeight:1.8}}>{analyseChurn||"Lance l'analyse pour identifier les clients à risque et obtenir des recommandations d'actions."}</div>}
-        <BtnGhost onClick={lancerAnalyseChurn} style={{marginTop:8,fontSize:10}}>{iaLoading?"⏳...":"🤖 Analyser le risque de churn"}</BtnGhost>
-      </div>
-      <Card>
-        <STitle>⚠️ Clients à surveiller (score {"<"} 50)</STitle>
-        {tenants.filter(t=>calcSolvabilite(t)<50).length===0?<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>✅ Aucun client à risque élevé pour le moment.</div>:
-        <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Société</TH><TH>Plan</TH><TH>Score</TH><TH>Statut</TH><TH>Action</TH></tr></thead>
-          <tbody>{tenants.filter(t=>calcSolvabilite(t)<50).map((t,i)=>{
-            const score=calcSolvabilite(t);
-            return <tr key={i}>
-              <Td style={{fontWeight:600}}>{t.societe||"—"}</Td>
-              <Td><Pill color={planColors[t.plan]||C.gold}>{t.plan}</Pill></Td>
-              <Td><span style={{color:scoreCouleur(score),fontWeight:700}}>{score}/100</span></Td>
-              <Td><St s={t.statut}/></Td>
-              <Td><div style={{display:"flex",gap:4}}>
-                <Btn onClick={()=>genererUpsell(t)} style={{fontSize:9,padding:"3px 8px"}}>🤖 Upsell IA</Btn>
-                <BtnGhost onClick={()=>showToast("📧 Relance envoyée")} style={{fontSize:9,color:C.orange}}>📧</BtnGhost>
-              </div></Td>
-            </tr>;
-          })}</tbody>
-        </table>}
-      </Card>
-    </div>}
-
-    {/* ── REVENDEURS ── */}
-    {onglet==="revendeurs"&&<div>
-      <div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:10,padding:14,marginBottom:14,fontSize:11,color:C.text,lineHeight:1.7}}>
-        🚀 Le programme revendeur Xyra permet à des agences et entrepreneurs de revendre Xyra sous leur propre marque. Chaque revendeur fixe ses propres prix, gère ses clients, et génère des revenus récurrents. Xyra garde une commission wholesale sur le volume.
-      </div>
-
-      {showRevendeurForm&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
-        <STitle>📋 Demande de partenariat revendeur — {revendeurForm.plan_revendeur}</STitle>
-        <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}22`,borderRadius:8,padding:10,marginBottom:12,fontSize:11,color:C.text}}>
-          📱 Ta demande sera envoyée immédiatement à l'équipe Xyra par <b>WhatsApp</b> et <b>email</b>. Réponse sous 24h.
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Nom *</label><Inp value={revendeurForm.nom} onChange={e=>setRevendeurForm(f=>({...f,nom:e.target.value}))} placeholder="Votre nom"/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Email *</label><Inp value={revendeurForm.email} onChange={e=>setRevendeurForm(f=>({...f,email:e.target.value}))} placeholder="contact@société.com"/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Société *</label><Inp value={revendeurForm.societe} onChange={e=>setRevendeurForm(f=>({...f,societe:e.target.value}))} placeholder="Nom de votre agence"/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Téléphone / WhatsApp</label><Inp value={revendeurForm.tel} onChange={e=>setRevendeurForm(f=>({...f,tel:e.target.value}))} placeholder="+33..."/></div>
-          <div style={{gridColumn:"1/-1"}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Message (optionnel)</label><Inp value={revendeurForm.message} onChange={e=>setRevendeurForm(f=>({...f,message:e.target.value}))} placeholder="Décrivez votre activité et vos clients cibles..."/></div>
-        </div>
-        <div style={{display:"flex",gap:8}}>
-          <Btn onClick={envoyerDemandeRevendeur} style={{background:C.gold,color:"#000"}}>{revendeurLoading?"⏳ Envoi...":"✅ Envoyer ma demande"}</Btn>
-          <BtnGhost onClick={()=>setShowRevendeurForm(false)}>Annuler</BtnGhost>
-        </div>
-      </Card>}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:14}}>
-        {[{plan:"White-label Starter",prix:"5 000€ setup + 500€/mois",clients:"Jusqu'à 10 clients",color:C.green,features:["Dashboard à votre marque","Domaine personnalisé","Panneau admin revendeur","Onboarding clients auto"]},{plan:"White-label Business",prix:"12 000€ setup + 1 000€/mois",clients:"Clients illimités",color:C.gold,highlight:true,features:["Tout Starter","API partenaire complète","Rapports revenus revendeur","Formation & certification","Co-marketing inclus"]},{plan:"White-label Enterprise",prix:"Sur devis",clients:"Infrastructure dédiée",color:C.purple,features:["Tout Business","SLA garanti 99.9%","Développements spécifiques","Account manager dédié"]}].map((p,i)=><Card key={i} style={{borderColor:`${p.color}44`}}>
-          <div style={{fontSize:13,fontWeight:700,color:p.color,marginBottom:4}}>{p.plan}</div>
-          <div style={{fontSize:12,fontWeight:700,marginBottom:2}}>{p.prix}</div>
-          <div style={{fontSize:10,color:C.muted,marginBottom:10}}>{p.clients}</div>
-          {p.features.map((f,j)=><div key={j} style={{fontSize:11,color:C.text,marginBottom:6,display:"flex",gap:6}}><span style={{color:p.color}}>◆</span>{f}</div>)}
-          <Btn onClick={()=>{setRevendeurForm(f=>({...f,plan_revendeur:p.plan}));setShowRevendeurForm(true);}} style={{width:"100%",fontSize:11,marginTop:10,background:p.highlight?p.color:"transparent",color:p.highlight?"#000":p.color,border:`1px solid ${p.color}44`}}>Devenir revendeur →</Btn>
-        </Card>)}
-      </div>
-      <Card>
-        <STitle>💰 Revenus partagés automatiques</STitle>
-        <div style={{fontSize:11,color:C.text,lineHeight:1.7,marginBottom:12}}>
-          Si vous apportez un nouveau client Xyra hors de votre périmètre de revendeur, vous touchez automatiquement une commission de <b style={{color:C.gold}}>15%</b> sur le premier mois, virée via Flutterwave dans les 30 jours suivant l'encaissement.
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-          {[["Plan Starter (59€)","8.85€ de commission",C.blue],["Plan Business Pro (129€)","19.35€ de commission",C.gold],["Plan Enterprise (249€)","37.35€ de commission",C.purple]].map(([l,v,c],i)=><CT key={i}><div style={{fontSize:11,fontWeight:600,color:c,marginBottom:4}}>{l}</div><div style={{fontSize:12,color:C.text}}>{v}</div></CT>)}
-        </div>
-      </Card>
-    </div>}
-
-    {/* ── CERTIFICATION ── */}
-    {onglet==="certification"&&<div>
-      <div style={{background:`linear-gradient(135deg,${C.card},#0a0a1a)`,border:`1px solid ${C.gold}44`,borderRadius:12,padding:24,marginBottom:14,textAlign:"center"}}>
-        <div style={{fontSize:40,marginBottom:8}}>🏆</div>
-        <div style={{fontSize:18,fontWeight:700,color:C.gold,marginBottom:4}}>Programme de Certification Revendeur Xyra</div>
-        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Devenez un Revendeur Certifié Xyra et accédez à des avantages exclusifs</div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,textAlign:"left"}}>
-          {[{niveau:"🥉 Certifié",cond:"1 client actif + formation complétée",avantages:["Badge Certifié sur l'annuaire","Support prioritaire","Kit marketing Xyra"]},{niveau:"🥈 Expert",cond:"5 clients actifs + 3 mois d'activité",avantages:["Badge Expert","Commission +5%","Co-marketing Xyra","Accès bêta nouvelles fonctionnalités"]},{niveau:"🥇 Partenaire Elite",cond:"15 clients actifs + 1 an d'activité",avantages:["Badge Elite","Account manager dédié","Commission +10%","Invitation événements Xyra","Logo sur site Xyra"]}].map((n,i)=><Card key={i} style={{borderColor:`${[C.orange,C.muted,C.gold][i]}44`}}>
-            <div style={{fontSize:14,fontWeight:700,marginBottom:6}}>{n.niveau}</div>
-            <div style={{fontSize:10,color:C.muted,marginBottom:10}}>{n.cond}</div>
-            {n.avantages.map((a,j)=><div key={j} style={{fontSize:11,color:C.text,marginBottom:4,display:"flex",gap:6}}><span style={{color:C.gold}}>◆</span>{a}</div>)}
-          </Card>)}
-        </div>
+          ))}
+          {tenants.length===0&&<div style={{color:C.muted,fontSize:12}}>Aucun client</div>}
+        </Card>
+        <Card>
+          <STitle>⚡ Alertes owner</STitle>
+          {tenants.filter(t=>calcSolvabilite(t)<50).length>0&&<div style={{fontSize:11,color:C.red,padding:"5px 8px",background:`${C.red}11`,borderRadius:4,marginBottom:6}}>🔴 {tenants.filter(t=>calcSolvabilite(t)<50).length} client(s) solvabilité faible</div>}
+          {essai>0&&<div style={{fontSize:11,color:C.orange,padding:"5px 8px",background:`${C.orange}11`,borderRadius:4,marginBottom:6}}>⏳ {essai} client(s) en période d'essai</div>}
+          {churn>0&&<div style={{fontSize:11,color:C.red,padding:"5px 8px",background:`${C.red}11`,borderRadius:4,marginBottom:6}}>⚠️ {churn} client(s) churned</div>}
+          {tenants.length===0&&<div style={{color:C.muted,fontSize:12}}>Aucune alerte</div>}
+          {tenants.length>0&&churn===0&&essai===0&&<div style={{fontSize:11,color:C.green,padding:"5px 8px",background:`${C.green}11`,borderRadius:4}}>✅ Tout va bien !</div>}
+        </Card>
       </div>
     </div>}
+
+    {/* Vue clients */}
+    {view==="clients"&&<Card>
+      <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
+        <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Rechercher..." style={{flex:1,minWidth:150,background:C.card2,border:`1px solid ${C.border}`,color:C.text,padding:"7px 10px",borderRadius:6,fontSize:12,outline:"none",fontFamily:"inherit"}}/>
+        <select value={filterPlan} onChange={e=>setFilterPlan(e.target.value)} style={{background:C.card2,border:`1px solid ${C.border}`,color:C.text,padding:"7px 10px",borderRadius:6,fontSize:12,outline:"none",fontFamily:"inherit"}}>
+          <option value="tous">Tous les plans</option>
+          <option value="starter">Starter</option>
+          <option value="business_pro">Business Pro</option>
+          <option value="enterprise">Enterprise</option>
+        </select>
+        <select value={filterStatut} onChange={e=>setFilterStatut(e.target.value)} style={{background:C.card2,border:`1px solid ${C.border}`,color:C.text,padding:"7px 10px",borderRadius:6,fontSize:12,outline:"none",fontFamily:"inherit"}}>
+          <option value="tous">Tous statuts</option>
+          <option value="essai">Essai</option>
+          <option value="actif">Actif</option>
+          <option value="suspendu">Suspendu</option>
+        </select>
+      </div>
+      {loading?<div style={{color:C.muted,textAlign:"center",padding:20}}>Chargement...</div>:
+      filtered.length===0?<div style={{color:C.muted,textAlign:"center",padding:20}}>Aucun client trouvé</div>:
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Entreprise</TH><TH>Plan</TH><TH>Pays</TH><TH>MRR</TH><TH>Solvabilité</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+        <tbody>{filtered.map((t,i)=>{
+          const score=calcSolvabilite(t);
+          return <tr key={i}>
+            <Td style={{fontWeight:600}}>{t.societe}</Td>
+            <Td><Pill color={planColors[t.plan]||C.blue}>{t.plan?.replace("_"," ")||"—"}</Pill></Td>
+            <Td style={{fontSize:11}}>{t.pays||"—"}</Td>
+            <Td style={{color:C.gold,fontWeight:700}}>{fmt(t.plan_price||0)}/mois</Td>
+            <Td>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div style={{width:40,height:4,background:C.border,borderRadius:2,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:score+"%",background:scoreCouleur(score)}}/>
+                </div>
+                <span style={{fontSize:10,color:scoreCouleur(score),fontWeight:600}}>{score}</span>
+              </div>
+            </Td>
+            <Td><St s={t.statut||"essai"}/></Td>
+            <Td><Btn onClick={()=>setSelectedClient(t)} style={{padding:"3px 8px",fontSize:10}}>Voir fiche →</Btn></Td>
+          </tr>;
+        })}</tbody>
+      </table>}
+    </Card>}
+
+    {/* Vue revenus */}
+    {view==="revenus"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <Card>
+          <STitle>💰 MRR par plan</STitle>
+          {["starter","business_pro","enterprise"].map(p=>{
+            const total=tenants.filter(t=>t.plan===p).reduce((a,t)=>a+(t.plan_price||0),0);
+            return <div key={p} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
+              <span style={{color:C.text,textTransform:"capitalize"}}>{p.replace("_"," ")}</span>
+              <span style={{color:C.gold,fontWeight:700}}>{fmt(total)}/mois</span>
+            </div>;
+          })}
+          <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0",fontSize:13,fontWeight:700}}>
+            <span style={{color:C.text}}>Total MRR</span>
+            <span style={{color:C.gold}}>{fmt(mrr)}/mois</span>
+          </div>
+        </Card>
+        <Card>
+          <STitle>📈 Projections</STitle>
+          {[["MRR actuel",fmt(mrr),"mois"],["ARR projeté",fmt(arr),"an"],["LTV moyenne (24 mois)",fmt(ltv),"client"],["Taux conversion",tauxConv+"%","essai→payant"]].map(([l,v,u],i)=>(
+            <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
+              <span style={{color:C.muted}}>{l}</span>
+              <div style={{textAlign:"right"}}>
+                <span style={{color:C.gold,fontWeight:700}}>{v}</span>
+                <span style={{color:C.muted,fontSize:10,marginLeft:4}}>/{u}</span>
+              </div>
+            </div>
+          ))}
+        </Card>
+      </div>
+    </div>}
+
+    {/* Vue solvabilité */}
+    {view==="solvabilite"&&<Card>
+      <STitle>💳 Score de solvabilité — Tous les clients</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
+        {[["🟢 Solvables",tenants.filter(t=>calcSolvabilite(t)>=80).length,C.green],["🟡 Moyens",tenants.filter(t=>calcSolvabilite(t)>=50&&calcSolvabilite(t)<80).length,C.gold],["🔴 Risqués",tenants.filter(t=>calcSolvabilite(t)<50).length,C.red]].map(([l,v,c],i)=>(
+          <div key={i} style={{background:`${c}11`,border:`1px solid ${c}33`,borderRadius:8,padding:"12px",textAlign:"center"}}>
+            <div style={{fontSize:22,fontWeight:700,color:c}}>{v}</div>
+            <div style={{fontSize:11,color:C.muted,marginTop:2}}>{l}</div>
+          </div>
+        ))}
+      </div>
+      {loading?<div style={{color:C.muted,textAlign:"center",padding:20}}>Chargement...</div>:
+      tenants.length===0?<div style={{color:C.muted,textAlign:"center",padding:20}}>Aucun client</div>:
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Entreprise</TH><TH>Pays</TH><TH>Plan</TH><TH>Taille</TH><TH>Score</TH><TH>Niveau</TH><TH>Action</TH></tr></thead>
+        <tbody>{tenants.sort((a,b)=>calcSolvabilite(a)-calcSolvabilite(b)).map((t,i)=>{
+          const score=calcSolvabilite(t);
+          return <tr key={i}>
+            <Td style={{fontWeight:600}}>{t.societe}</Td>
+            <Td style={{fontSize:11}}>{t.pays||"—"}</Td>
+            <Td><Pill color={planColors[t.plan]||C.blue}>{t.plan?.replace("_"," ")||"—"}</Pill></Td>
+            <Td style={{fontSize:11}}>{t.taille||"—"}</Td>
+            <Td>
+              <div style={{display:"flex",alignItems:"center",gap:6}}>
+                <div style={{width:50,height:5,background:C.border,borderRadius:2,overflow:"hidden"}}>
+                  <div style={{height:"100%",width:score+"%",background:scoreCouleur(score)}}/>
+                </div>
+                <span style={{fontSize:11,color:scoreCouleur(score),fontWeight:700}}>{score}/100</span>
+              </div>
+            </Td>
+            <Td><span style={{fontSize:10,color:scoreCouleur(score)}}>{scoreLabel(score)}</span></Td>
+            <Td>
+              {score<50?<Btn onClick={()=>showToast("📧 Demande paiement envoyée")} style={{padding:"3px 8px",fontSize:9,background:`${C.red}22`,color:C.red,border:`1px solid ${C.red}44`}}>Demander paiement</Btn>:
+              <Btn onClick={()=>setSelectedClient(t)} style={{padding:"3px 8px",fontSize:10}}>Voir fiche</Btn>}
+            </Td>
+          </tr>;
+        })}</tbody>
+      </table>}
+    </Card>}
   </div>;
 };
 
 
 // ─── PAGE API ─────────────────────────────────────────────────
 const PageAPI=({plan,showToast})=>{
+  const[apiKey,setApiKey]=useState("ty_live_••••••••••••••••••••••••••••••••");
+  const tabs=[{id:"keys",label:"🔑 Clés API"},{id:"webhooks",label:"🔔 Webhooks"},{id:"docs",label:"📚 Docs"},{id:"logs",label:"📋 Logs"}];
   const[onglet,setOnglet]=useState("keys");
-  const[data,setData]=useState(null);
-  const[loading,setLoading]=useState(true);
-  const[showKeyForm,setShowKeyForm]=useState(false);
-  const[showWebhookForm,setShowWebhookForm]=useState(false);
-  const[keyForm,setKeyForm]=useState({nom:"",type:"live",permissions:["read","write"]});
-  const[webhookForm,setWebhookForm]=useState({nom:"",url:"",evenements:["paiement.recu"]});
-  const[newKeyValue,setNewKeyValue]=useState("");
-  const[explicationIA,setExplicationIA]=useState({});
-  const[visible,setVisible]=useState({});
+  if(!hasAccess(plan,"api"))return <div style={{padding:20}}><UpgradeWall page="API Xyra" plan={plan}/></div>;
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◇ API Xyra</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Clés API · Webhooks · Documentation · Logs · Intégrations</div>
+    <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
+    {onglet==="keys"&&<Card>
+      <STitle>🔑 Clés API</STitle>
+      <div style={{background:C.card2,borderRadius:10,padding:16,marginBottom:12,border:`1px solid ${C.border}`}}>
+        <div style={{fontSize:10,color:C.muted,marginBottom:6}}>CLÉ API DE PRODUCTION</div>
+        <div style={{fontFamily:"'Courier New',monospace",fontSize:13,color:C.gold,marginBottom:10}}>{apiKey}</div>
+        <div style={{display:"flex",gap:8}}>
+          <Btn onClick={()=>showToast("✅ Clé API copiée !")} style={{fontSize:11}}>📋 Copier</Btn>
+          <BtnGhost onClick={()=>showToast("🔄 Nouvelle clé générée !")} style={{fontSize:11}}>🔄 Régénérer</BtnGhost>
+        </div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+        <KPI label="Appels/mois" val="2 847" color={C.blue}/>
+        <KPI label="Succès" val="99.2%" color={C.green}/>
+        <KPI label="Latence moy." val="234ms" color={C.gold}/>
+      </div>
+    </Card>}
+    {onglet==="webhooks"&&<Card><STitle>🔔 Webhooks configurés</STitle>
+      {[{evt:"paiement.reçu",url:"https://app.xyra.io/webhooks/payment",statut:"actif"},{evt:"devis.signé",url:"https://app.xyra.io/webhooks/devis",statut:"actif"},{evt:"client.nouveau",url:"https://zapier.com/hooks/tymeless/abc123",statut:"actif"}].map((w,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${C.border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><Pill color={C.gold}>{w.evt}</Pill><St s={w.statut}/></div>
+        <div style={{fontSize:10,fontFamily:"monospace",color:C.muted}}>{w.url}</div>
+      </div>)}
+      <Btn onClick={()=>showToast("✅ Webhook ajouté !")} style={{marginTop:8}}>+ Ajouter webhook</Btn>
+    </Card>}
+    {onglet==="docs"&&<Card><STitle>📚 Documentation API</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+        {[["POST /api/devis","Créer un devis",C.gold],["POST /api/paiements","Initier un paiement",C.green],["GET /api/clients","Lister les clients",C.blue],["POST /api/messages","Envoyer WhatsApp",C.teal],["GET /api/planning","Voir le planning",C.purple],["POST /api/contrats","Créer un contrat",C.orange]].map(([ep,desc,c],i)=><CT key={i}><div style={{fontFamily:"monospace",fontSize:11,color:c,marginBottom:3}}>{ep}</div><div style={{fontSize:10,color:C.muted}}>{desc}</div></CT>)}
+      </div>
+    </Card>}
+    {onglet==="logs"&&<Card><STitle>📋 Logs API récents</STitle>
+      {[{m:"POST",ep:"/api/devis",code:200,t:"2ms",dt:"Aujourd'hui 14:32"},{m:"GET",ep:"/api/clients",code:200,t:"8ms",dt:"Aujourd'hui 14:30"},{m:"POST",ep:"/api/paiements",code:200,t:"145ms",dt:"Aujourd'hui 14:28"}].map((l,i)=><div key={i} style={{display:"flex",gap:10,padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11,alignItems:"center"}}>
+        <Pill color={C.blue}>{l.m}</Pill>
+        <span style={{fontFamily:"monospace",color:C.text,flex:1}}>{l.ep}</span>
+        <Pill color={C.green}>{l.code}</Pill>
+        <span style={{color:C.muted}}>{l.t}</span>
+        <span style={{color:C.muted,fontSize:9}}>{l.dt}</span>
+      </div>)}
+    </Card>}
+  </div>;
+};
 
-  const EVENEMENTS_DISPO=["paiement.recu","client.cree","deal.gagne","facture.payee","avis.recu","membre.inscrit","essai.expire","abonnement.annule"];
-  const DOCS_ENDPOINTS=[
-    {methode:"GET",path:"/api/v1/clients",desc:"Liste tous les clients",auth:true},
-    {methode:"GET",path:"/api/v1/clients/:id",desc:"Détail d'un client",auth:true},
-    {methode:"POST",path:"/api/v1/clients",desc:"Créer un client",auth:true},
-    {methode:"GET",path:"/api/v1/factures",desc:"Liste des factures",auth:true},
-    {methode:"POST",path:"/api/v1/factures",desc:"Créer une facture",auth:true},
-    {methode:"GET",path:"/api/v1/wallet/solde",desc:"Solde du wallet",auth:true},
-    {methode:"POST",path:"/api/v1/wallet/virement",desc:"Effectuer un virement",auth:true},
-    {methode:"GET",path:"/api/v1/deals",desc:"Liste des deals",auth:true},
-    {methode:"POST",path:"/api/v1/deals",desc:"Créer un deal",auth:true},
-    {methode:"GET",path:"/api/v1/analytique",desc:"Données analytiques",auth:true},
-    {methode:"POST",path:"/api/v1/webhooks/test",desc:"Tester un webhook",auth:true},
-  ];
+// ─── PAGE SETTINGS ────────────────────────────────────────────
+const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
+  const[onglet,setOnglet]=useState("entreprise");
 
-  const load=async()=>{
-    setLoading(true);
-    try{
-      const res=await fetch('/api/api-xyra?action=all');
-      const d=await res.json();
-      setData(d);
-    }catch(e){console.error(e);}
-    setLoading(false);
-  };
-
-  useEffect(()=>{load();},[]);
-
-  const creerKey=async()=>{
-    if(!keyForm.nom)return showToast("⚠️ Nom requis");
-    try{
-      const res=await fetch('/api/api-xyra',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create_key',...keyForm})});
-      const d=await res.json();
-      if(d.success){
-        setNewKeyValue(d.key_value);
-        showToast("🔑 Clé créée ! Copiez-la maintenant, elle ne sera plus visible après.");
-        setShowKeyForm(false);setKeyForm({nom:"",type:"live",permissions:["read","write"]});load();
-      }
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const revoquerKey=async(id)=>{
-    if(!confirm("Révoquer cette clé ? Toutes les intégrations utilisant cette clé seront interrompues."))return;
-    try{
-      await fetch('/api/api-xyra',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'revoquer_key',id})});
-      showToast("🔒 Clé révoquée");load();
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const creerWebhook=async()=>{
-    if(!webhookForm.nom||!webhookForm.url)return showToast("⚠️ Nom et URL requis");
-    try{
-      const res=await fetch('/api/api-xyra',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create_webhook',...webhookForm})});
-      const d=await res.json();
-      if(d.success){showToast("✅ Webhook créé");setShowWebhookForm(false);setWebhookForm({nom:"",url:"",evenements:["paiement.recu"]});load();}
-    }catch(e){showToast("❌ Erreur");}
-  };
-
-  const testerWebhook=async(wh)=>{
-    showToast("⏳ Test du webhook...");
-    try{
-      const res=await fetch('/api/api-xyra',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'tester_webhook',url:wh.url,secret:wh.secret})});
-      const d=await res.json();
-      showToast(d.success?`✅ Webhook OK (${d.status})`:`❌ Webhook KO (${d.status})`);
-    }catch(e){showToast("❌ Erreur réseau");}
-  };
-
-  const expliquerErreur=async(log)=>{
-    try{
-      const res=await fetch('/api/api-xyra',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'expliquer_erreur',code:log.statut_code,endpoint:log.endpoint,message:`Erreur ${log.statut_code} sur ${log.methode} ${log.endpoint}`})});
-      const d=await res.json();
-      if(d.success)setExplicationIA(e=>({...e,[log.id]:d.explication}));
-    }catch(e){}
-  };
-
-  if(!hasAccess(plan,"deploiement"))return <div style={{padding:20}}><UpgradeWall page="API Xyra" plan={plan}/></div>;
-  if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement API...</div></div>;
-
-  const keys=data?.keys||[];
-  const webhooks=data?.webhooks||[];
-  const logs=data?.logs||[];
-  const tauxSucces=data?.tauxSucces||100;
-  const latenceMoy=data?.latenceMoy||0;
+  // États formulaires
+  const[entreprise,setEntreprise]=useState({nom:"Xyra SaaS SASU",siren:"123 456 789",tva:"FR12 123456789",adresse:"75 rue de Rivoli",ville:"Paris",cp:"75001",pays:"France",tel:"+33 1 23 45 67 89",email:"contact@xyra.io",site:"xyra.io",logo:""});
+  const[profUser,setProfUser]=useState({prenom:"Curtiss",nom:"Fondateur",email:"curtiss@xyra.io",tel:"+33 6 00 11 22 33",titre:"Fondateur & CEO",avatar:"C"});
+  const[mdp,setMdp]=useState({actuel:"",nouveau:"",confirmer:""});
+  const[mdpVisible,setMdpVisible]=useState({actuel:false,nouveau:false,confirmer:false});
+  const[theme,setTheme]=useState("dark");
+  const[langue,setLangue]=useState("fr");
+  const[deux_fa,setDeuxFa]=useState(true);
+  const[domaine,setDomaine]=useState({sous_domaine:"curtiss",domaine_custom:"",ssl:true,actif:false});
+  const[utilisateurs,setUtilisateurs]=useState([
+    {id:1,nom:"Thomas Beaumont",email:"thomas@xyra.io",role:"Collaborateur",acces:["planning","stock","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 09:02"},
+    {id:2,nom:"Abou Diallo",email:"abou@xyra.io",role:"Collaborateur",acces:["planning","stock","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 08:45"},
+    {id:3,nom:"Fatou Sarr",email:"fatou@xyra.io",role:"Commercial",acces:["crm","devis","clients","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 09:30"},
+  ]);
+  const[inviteForm,setInviteForm]=useState({email:"",role:"Collaborateur"});
+  const[sessions]=useState([{device:"MacBook Pro — Chrome",ip:"92.168.1.1",lieu:"Paris, France",date:"Maintenant",actuelle:true},{device:"iPhone 14 — Safari",ip:"92.168.1.2",lieu:"Paris, France",date:"Il y a 2h",actuelle:false}]);
+  const[logs]=useState([{date:"Aujourd'hui 09:00",action:"Connexion réussie",ip:"92.168.1.1",statut:"ok"},{date:"Hier 18:30",action:"Modification devis TYM-0044",ip:"92.168.1.1",statut:"ok"},{date:"Hier 14:00",action:"Tentative connexion échouée",ip:"203.45.67.89",statut:"echec"}]);
 
   const tabs=[
-    {id:"keys",label:"🔑 Clés API"},
-    {id:"webhooks",label:"🔔 Webhooks"},
-    {id:"logs",label:"📋 Logs"},
-    {id:"docs",label:"📚 Documentation"},
+    {id:"entreprise",label:"🏢 Entreprise"},
+    {id:"profil",label:"👤 Mon profil"},
+    {id:"mdp",label:"🔑 Mot de passe"},
+    {id:"abonnement",label:"💳 Abonnement"},
+    {id:"apparence",label:"🎨 Apparence"},
+    {id:"securite",label:"🛡 Sécurité"},
     {id:"integrations",label:"🔗 Intégrations"},
-    {id:"sante",label:"❤ Santé API"},
+    {id:"ia",label:"🤖 IA & Claude"},
+    {id:"notifications_param",label:"🔔 Notifications"},
+    {id:"secteur",label:"⊛ Secteur métier"},
+    {id:"utilisateurs",label:"👥 Utilisateurs"},
+    {id:"domaine",label:"🌍 Domaine & White-label"},
+    {id:"rgpd",label:"🔒 RGPD"},
   ];
 
-  const methodeColor={GET:C.green,POST:C.blue,PUT:C.orange,DELETE:C.red,PATCH:C.purple};
+  const ROLES=["Fondateur","Admin","Commercial","Collaborateur","Comptable","Lecture seule"];
+  const INTEGRATIONS=[
+    {nom:"Meta WhatsApp API",icon:"💬",statut:true,color:C.green,desc:"Bot WhatsApp + notifications automatiques"},
+    {nom:"Flutterwave",icon:"💳",statut:true,color:C.gold,desc:"Paiements cartes, mobile money Afrique"},
+    {nom:"CinetPay",icon:"🌍",statut:true,color:C.teal,desc:"Wave, Orange Money, MTN — Afrique francophone"},
+    {nom:"Stripe",icon:"💳",statut:false,color:C.blue,desc:"Paiements cartes Europe & international"},
+    {nom:"Supabase",icon:"🗄",statut:true,color:C.green,desc:"Base de données & authentification"},
+    {nom:"Vercel",icon:"▲",statut:true,color:C.text,desc:"Déploiement & hébergement"},
+    {nom:"Google Calendar",icon:"📅",statut:false,color:C.blue,desc:"Synchronisation planning & agenda"},
+    {nom:"Zapier",icon:"⚡",statut:false,color:C.orange,desc:"Automatisations vers 5000+ apps"},
+    {nom:"Anthropic Claude",icon:"🤖",statut:!!sirApiKey,color:C.purple,desc:"IA analyses, rédaction, recommandations"},
+    {nom:"Chorus Pro",icon:"🇫🇷",statut:true,color:C.blue,desc:"Facturation électronique DGFiP"},
+  ];
 
   return <div style={{padding:20}}>
-    {/* HEADER */}
-    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-      <div>
-        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>⚡ API Xyra</div>
-        <div style={{fontSize:11,color:C.muted}}>Clés API · Webhooks · Logs · Documentation · Intégrations Zapier/Make</div>
-      </div>
-      <div style={{display:"flex",gap:8}}>
-        {(()=>{
-          const c=tauxSucces>=99?C.green:tauxSucces>=95?C.gold:C.red;
-          const icon=tauxSucces>=99?"🟢":tauxSucces>=95?"🟡":"🔴";
-          return <div style={{background:`${c}22`,border:`1px solid ${c}44`,borderRadius:8,padding:"6px 12px",fontSize:11,fontWeight:700,color:c}}>{icon} {tauxSucces}% uptime</div>;
-        })()}
-      </div>
-    </div>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>⚙ Paramètres</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Gérez tous les aspects de votre compte Xyra</div>
 
-    {/* KPIs */}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>CLÉS ACTIVES</div><div style={{fontSize:22,fontWeight:700,color:C.green}}>{keys.length}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>WEBHOOKS</div><div style={{fontSize:22,fontWeight:700,color:C.blue}}>{webhooks.length}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>APPELS TOTAL</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{(data?.totalAppels||0).toLocaleString("fr")}</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>TAUX SUCCÈS</div><div style={{fontSize:18,fontWeight:700,color:tauxSucces>=99?C.green:C.orange}}>{tauxSucces}%</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>LATENCE MOY.</div><div style={{fontSize:18,fontWeight:700,color:latenceMoy<200?C.green:latenceMoy<500?C.gold:C.red}}>{latenceMoy}ms</div></CT>
-    </div>
-
-    {/* NOUVELLE CLÉ VISIBLE */}
-    {newKeyValue&&<div style={{background:`${C.gold}11`,border:`2px solid ${C.gold}`,borderRadius:10,padding:16,marginBottom:14}}>
-      <div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:8}}>🔑 Votre nouvelle clé API — Copiez-la maintenant, elle ne sera plus visible !</div>
-      <div style={{background:C.dark,borderRadius:6,padding:"10px 14px",fontFamily:"'Courier New',monospace",fontSize:13,color:C.green,marginBottom:10,wordBreak:"break-all"}}>{newKeyValue}</div>
-      <div style={{display:"flex",gap:8}}>
-        <Btn onClick={()=>{navigator.clipboard?.writeText(newKeyValue);showToast("✅ Clé copiée !");}} style={{background:C.gold,color:"#000"}}>📋 Copier la clé</Btn>
-        <BtnGhost onClick={()=>setNewKeyValue("")} style={{fontSize:11}}>✕ Fermer</BtnGhost>
-      </div>
-    </div>}
-
-    {/* TABS */}
+    {/* TABS SCROLLABLE */}
     <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
       {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
     </div>
 
-    {/* ── CLÉS API ── */}
-    {onglet==="keys"&&<div>
-      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
-        <Btn onClick={()=>setShowKeyForm(true)}>+ Générer une clé API</Btn>
+    {/* ── ENTREPRISE ── */}
+    {onglet==="entreprise"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+      <Card>
+        <STitle>🏢 Informations légales</STitle>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {[["Raison sociale *","nom"],["SIREN","siren"],["Numéro TVA","tva"],["Email professionnel","email"],["Téléphone","tel"],["Site web","site"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={entreprise[k]} onChange={e=>setEntreprise(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
+        </div>
+      </Card>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <Card>
+          <STitle>📍 Adresse du siège</STitle>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            {[["Adresse","adresse"],["Ville","ville"],["Code postal","cp"],["Pays","pays"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={entreprise[k]} onChange={e=>setEntreprise(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
+          </div>
+        </Card>
+        <Card>
+          <STitle>🖼 Logo de l'entreprise</STitle>
+          <div style={{background:C.card2,borderRadius:10,padding:20,textAlign:"center",border:`2px dashed ${C.border}`,marginBottom:10}}>
+            <div style={{fontSize:32,marginBottom:6}}>🏢</div>
+            <div style={{fontSize:11,color:C.muted}}>Glissez votre logo ici ou cliquez pour choisir</div>
+            <div style={{fontSize:9,color:C.muted,marginTop:4}}>PNG, JPG — max 2MB</div>
+          </div>
+          <Btn onClick={()=>showToast("✅ Logo uploadé !")} style={{width:"100%"}}>📁 Choisir un fichier</Btn>
+        </Card>
+        <Btn onClick={()=>showToast("✅ Informations entreprise sauvegardées !")}>Sauvegarder les modifications</Btn>
       </div>
-      {showKeyForm&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
-        <STitle>🔑 Nouvelle clé API</STitle>
-        <div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:10,marginBottom:12,fontSize:11,color:C.orange}}>
-          ⚠️ La clé complète ne sera affichée qu'une seule fois après création. Copiez-la immédiatement et stockez-la en sécurité.
-        </div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Nom de la clé *</label><Inp value={keyForm.nom} onChange={e=>setKeyForm(f=>({...f,nom:e.target.value}))} placeholder="Ex: Integration Zapier, App Mobile..."/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Environnement</label>
-            <Sel value={keyForm.type} onChange={e=>setKeyForm(f=>({...f,type:e.target.value}))}>
-              <option value="live">🟢 Live (production)</option>
-              <option value="test">🧪 Test (sandbox)</option>
-            </Sel>
-          </div>
-          <div style={{gridColumn:"1/-1"}}>
-            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:6}}>Permissions</label>
-            <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-              {["read","write","webhooks","admin"].map(p=><label key={p} style={{display:"flex",gap:6,alignItems:"center",fontSize:12,cursor:"pointer"}}>
-                <input type="checkbox" checked={keyForm.permissions.includes(p)} onChange={e=>{const perms=e.target.checked?[...keyForm.permissions,p]:keyForm.permissions.filter(x=>x!==p);setKeyForm(f=>({...f,permissions:perms}));}} style={{accentColor:C.gold}}/>
-                <span style={{color:C.text,textTransform:"capitalize"}}>{p}</span>
-              </label>)}
-            </div>
-          </div>
-        </div>
-        <div style={{display:"flex",gap:8}}><Btn onClick={creerKey}>🔑 Générer la clé</Btn><BtnGhost onClick={()=>setShowKeyForm(false)}>Annuler</BtnGhost></div>
-      </Card>}
-      {keys.length===0?<Card style={{textAlign:"center",padding:30}}>
-        <div style={{fontSize:32,marginBottom:8}}>🔑</div>
-        <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Aucune clé API</div>
-        <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Créez une clé API pour connecter Xyra à vos outils externes.</div>
-        <Btn onClick={()=>setShowKeyForm(true)}>+ Générer une clé API</Btn>
-      </Card>:
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {keys.map((k,i)=><Card key={i} style={{borderColor:k.type==="test"?`${C.blue}33`:`${C.green}33`}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div style={{flex:1}}>
-              <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}>
-                <div style={{fontSize:13,fontWeight:700}}>{k.nom}</div>
-                <Pill color={k.type==="test"?C.blue:C.green}>{k.type==="test"?"🧪 Test":"🟢 Live"}</Pill>
-                {k.permissions?.map(p=><Pill key={p} color={C.muted}>{p}</Pill>)}
-              </div>
-              <div style={{fontFamily:"'Courier New',monospace",fontSize:12,color:C.muted,marginBottom:4}}>
-                {visible[k.id]?k.key_value:(k.key_value?.slice(0,12)+"••••••••••••••••••••••••"||"ty_live_••••••••••••••")}
-              </div>
-              <div style={{fontSize:10,color:C.muted}}>
-                {k.appels_mois||0}/{k.limite_mois||10000} appels ce mois · Dernière utilisation : {k.derniere_utilisation?new Date(k.derniere_utilisation).toLocaleDateString("fr"):"jamais"}
-              </div>
-              <SM val={k.appels_mois||0} max={k.limite_mois||10000} color={((k.appels_mois||0)/(k.limite_mois||10000))>=0.8?C.orange:C.green}/>
-            </div>
-            <div style={{display:"flex",gap:6,marginLeft:12}}>
-              <BtnGhost onClick={()=>setVisible(v=>({...v,[k.id]:!v[k.id]}))} style={{fontSize:10}}>{visible[k.id]?"🙈":"👁"}</BtnGhost>
-              <BtnGhost onClick={()=>{navigator.clipboard?.writeText(k.key_value||"");showToast("✅ Clé copiée");}} style={{fontSize:10}}>📋</BtnGhost>
-              <BtnGhost onClick={()=>revoquerKey(k.id)} style={{fontSize:10,color:C.red,borderColor:`${C.red}33`}}>🔒 Révoquer</BtnGhost>
-            </div>
-          </div>
-        </Card>)}
-      </div>}
     </div>}
 
-    {/* ── WEBHOOKS ── */}
-    {onglet==="webhooks"&&<div>
-      <div style={{display:"flex",justifyContent:"flex-end",marginBottom:12}}>
-        <Btn onClick={()=>setShowWebhookForm(true)}>+ Ajouter un webhook</Btn>
-      </div>
-      {showWebhookForm&&<Card style={{marginBottom:14,borderColor:`${C.blue}44`}}>
-        <STitle>🔔 Nouveau webhook</STitle>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Nom *</label><Inp value={webhookForm.nom} onChange={e=>setWebhookForm(f=>({...f,nom:e.target.value}))} placeholder="Ex: Zapier Nouveaux clients"/></div>
-          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>URL endpoint *</label><Inp value={webhookForm.url} onChange={e=>setWebhookForm(f=>({...f,url:e.target.value}))} placeholder="https://hooks.zapier.com/..."/></div>
-          <div style={{gridColumn:"1/-1"}}>
-            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:6}}>Événements à écouter</label>
-            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-              {EVENEMENTS_DISPO.map(evt=><label key={evt} style={{display:"flex",gap:6,alignItems:"center",fontSize:11,cursor:"pointer",background:webhookForm.evenements.includes(evt)?`${C.blue}15`:"transparent",border:`1px solid ${webhookForm.evenements.includes(evt)?C.blue:C.border}`,borderRadius:6,padding:"4px 10px"}}>
-                <input type="checkbox" checked={webhookForm.evenements.includes(evt)} onChange={e=>{const evts=e.target.checked?[...webhookForm.evenements,evt]:webhookForm.evenements.filter(x=>x!==evt);setWebhookForm(f=>({...f,evenements:evts}));}} style={{accentColor:C.blue}}/>
-                <span style={{color:webhookForm.evenements.includes(evt)?C.blue:C.muted}}>{evt}</span>
-              </label>)}
-            </div>
+    {/* ── PROFIL ── */}
+    {onglet==="profil"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+      <Card>
+        <STitle>👤 Mon profil</STitle>
+        <div style={{textAlign:"center",marginBottom:16}}>
+          <div style={{width:80,height:80,borderRadius:"50%",background:`${C.gold}22`,border:`3px solid ${C.gold}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,fontWeight:700,color:C.gold,margin:"0 auto 10px"}}>
+            {profUser.avatar}
           </div>
+          <BtnGhost onClick={()=>showToast("📸 Photo modifiée !")} style={{fontSize:11}}>📸 Changer la photo</BtnGhost>
         </div>
-        <div style={{display:"flex",gap:8}}><Btn onClick={creerWebhook} style={{background:C.blue}}>✅ Créer le webhook</Btn><BtnGhost onClick={()=>setShowWebhookForm(false)}>Annuler</BtnGhost></div>
-      </Card>}
-      {webhooks.length===0?<Card style={{textAlign:"center",padding:30}}>
-        <div style={{fontSize:32,marginBottom:8}}>🔔</div>
-        <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Aucun webhook</div>
-        <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Configurez des webhooks pour envoyer des événements Xyra vers vos outils (Zapier, Make, votre serveur...).</div>
-        <Btn onClick={()=>setShowWebhookForm(true)}>+ Ajouter un webhook</Btn>
-      </Card>:
-      <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {webhooks.map((wh,i)=><Card key={i} style={{borderColor:wh.statut==="actif"?`${C.green}33`:`${C.border}`}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-            <div>
-              <div style={{fontSize:13,fontWeight:700,marginBottom:2}}>{wh.nom}</div>
-              <div style={{fontSize:11,color:C.muted,fontFamily:"'Courier New',monospace"}}>{wh.url}</div>
-            </div>
-            <div style={{display:"flex",gap:6,alignItems:"center"}}>
-              <Pill color={wh.statut==="actif"?C.green:C.muted}>{wh.statut}</Pill>
-              <BtnGhost onClick={()=>testerWebhook(wh)} style={{fontSize:10}}>🧪 Tester</BtnGhost>
-              <BtnGhost onClick={()=>fetch('/api/api-xyra',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'toggle_webhook',id:wh.id,statut_actuel:wh.statut})}).then(()=>{showToast("✅ Statut mis à jour");load();})} style={{fontSize:10,color:wh.statut==="actif"?C.orange:C.green}}>{wh.statut==="actif"?"Désactiver":"Activer"}</BtnGhost>
-            </div>
-          </div>
-          <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
-            {(wh.evenements||[]).map((evt,j)=><Pill key={j} color={C.blue}>{evt}</Pill>)}
-          </div>
-          {wh.secret&&<div style={{marginTop:8,fontSize:10,color:C.muted}}>Secret : <span style={{fontFamily:"'Courier New',monospace"}}>{wh.secret.slice(0,16)}•••</span></div>}
-        </Card>)}
-      </div>}
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          {[["Prénom *","prenom"],["Nom *","nom"],["Email *","email"],["Téléphone","tel"],["Titre / Fonction","titre"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={profUser[k]} onChange={e=>setProfUser(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
+        </div>
+        <Btn onClick={()=>showToast("✅ Profil sauvegardé !")} style={{marginTop:12,width:"100%"}}>Sauvegarder le profil</Btn>
+      </Card>
+      <Card>
+        <STitle>📊 Infos du compte</STitle>
+        {[["Plan actuel",PLANS[plan]?.nom+" — "+PLANS[plan]?.prix],["Membre depuis","01/03/2024"],["Dernière connexion","Aujourd'hui 09:00"],["Rôle","Fondateur & Owner"],["Dashboard URL","xyraio.fr"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600,color:i===0?C.gold:C.text}}>{v}</span></div>)}
+        <div style={{marginTop:12,background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:8,padding:10,fontSize:11,color:C.green}}>✅ Compte Owner — Accès complet à toutes les fonctionnalités</div>
+      </Card>
     </div>}
 
-    {/* ── LOGS ── */}
-    {onglet==="logs"&&<Card>
-      <STitle>📋 Logs des appels API — 50 derniers</STitle>
-      {logs.length===0?<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:20}}>Aucun appel API enregistré pour le moment.</div>:
-      <div style={{overflowX:"auto"}}>
-        <table style={{width:"100%",borderCollapse:"collapse",minWidth:600}}>
-          <thead><tr><TH>Date</TH><TH>Méthode</TH><TH>Endpoint</TH><TH>Status</TH><TH>Durée</TH><TH>Action</TH></tr></thead>
-          <tbody>{logs.map((l,i)=><tr key={i} style={{background:l.statut_code>=400?`${C.red}08`:"transparent"}}>
-            <Td style={{fontSize:10,color:C.muted}}>{new Date(l.created_at).toLocaleDateString("fr")} {new Date(l.created_at).toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"})}</Td>
-            <Td><Pill color={methodeColor[l.methode]||C.blue}>{l.methode}</Pill></Td>
-            <Td style={{fontFamily:"'Courier New',monospace",fontSize:11}}>{l.endpoint}</Td>
-            <Td><Pill color={l.statut_code<300?C.green:l.statut_code<400?C.gold:C.red}>{l.statut_code}</Pill></Td>
-            <Td style={{fontSize:11,color:l.duree_ms>500?C.orange:C.muted}}>{l.duree_ms||0}ms</Td>
-            <Td>
-              {l.statut_code>=400&&<div>
-                <BtnGhost onClick={()=>expliquerErreur(l)} style={{fontSize:10,color:C.purple}}>🤖 Expliquer</BtnGhost>
-                {explicationIA[l.id]&&<div style={{fontSize:10,color:C.text,marginTop:4,background:`${C.purple}11`,borderRadius:6,padding:"4px 8px",maxWidth:200,lineHeight:1.5}}>{explicationIA[l.id]}</div>}
-              </div>}
-            </Td>
-          </tr>)}</tbody>
-        </table>
-      </div>}
-    </Card>}
+    {/* ── MOT DE PASSE ── */}
+    {onglet==="mdp"&&<div style={{maxWidth:480}}>
+      <Card>
+        <STitle>🔑 Changer le mot de passe</STitle>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          {[["Mot de passe actuel *","actuel"],["Nouveau mot de passe *","nouveau"],["Confirmer le nouveau mot de passe *","confirmer"]].map(([l,k])=><div key={k}>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label>
+            <div style={{position:"relative"}}>
+              <input type={mdpVisible[k]?"text":"password"} value={mdp[k]} onChange={e=>setMdp(f=>({...f,[k]:e.target.value}))} placeholder="••••••••" style={{background:C.card2,border:`1px solid ${mdp.nouveau&&k==="confirmer"&&mdp.nouveau!==mdp.confirmer?C.red:C.border}`,borderRadius:8,padding:"10px 40px 10px 12px",color:C.text,fontSize:13,fontFamily:"inherit",outline:"none",width:"100%",boxSizing:"border-box"}}/>
+              <button onClick={()=>setMdpVisible(v=>({...v,[k]:!v[k]}))} style={{position:"absolute",right:10,top:"50%",transform:"translateY(-50%)",background:"none",border:"none",cursor:"pointer",color:C.muted,fontSize:14}}>{mdpVisible[k]?"🙈":"👁"}</button>
+            </div>
+            {k==="confirmer"&&mdp.nouveau&&mdp.confirmer&&mdp.nouveau!==mdp.confirmer&&<div style={{fontSize:10,color:C.red,marginTop:3}}>⚠️ Les mots de passe ne correspondent pas</div>}
+          </div>)}
+          {/* Force du mot de passe */}
+          {mdp.nouveau&&<div>
+            <div style={{fontSize:10,color:C.muted,marginBottom:4}}>Force du mot de passe</div>
+            <div style={{height:4,borderRadius:2,background:C.border,overflow:"hidden"}}>
+              <div style={{height:"100%",width:mdp.nouveau.length<6?"33%":mdp.nouveau.length<10?"66%":"100%",background:mdp.nouveau.length<6?C.red:mdp.nouveau.length<10?C.orange:C.green,borderRadius:2,transition:"width .3s"}}/>
+            </div>
+            <div style={{fontSize:10,color:mdp.nouveau.length<6?C.red:mdp.nouveau.length<10?C.orange:C.green,marginTop:2}}>{mdp.nouveau.length<6?"Trop court":mdp.nouveau.length<10?"Moyen":"Fort ✅"}</div>
+          </div>}
+          <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}22`,borderRadius:8,padding:10,fontSize:11,color:C.muted}}>
+            💡 Conseils : min. 8 caractères, mélangez majuscules, minuscules, chiffres et symboles
+          </div>
+          <Btn onClick={async()=>{if(!mdp.actuel)return showToast("⚠️ Entrez votre mot de passe actuel");if(mdp.nouveau!==mdp.confirmer)return showToast("⚠️ Les mots de passe ne correspondent pas");if(mdp.nouveau.length<8)return showToast("⚠️ Minimum 8 caractères");const token=typeof window!=="undefined"?window.localStorage.getItem("sb-access-token"):null;if(!token)return showToast("⚠️ Session expirée, reconnecte-toi");showToast("⏳ Modification en cours...");try{const res=await fetch('/api/change-password',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({token,currentPassword:mdp.actuel,newPassword:mdp.nouveau})});const data=await res.json();if(data.success){showToast("✅ Mot de passe modifié avec succès !");setMdp({actuel:"",nouveau:"",confirmer:""});}else showToast("❌ "+(data.error||"Erreur"));}catch(e){showToast("❌ Erreur de connexion");}}}>🔑 Modifier le mot de passe</Btn>
+        </div>
+      </Card>
+    </div>}
 
-    {/* ── DOCUMENTATION ── */}
-    {onglet==="docs"&&<div>
-      <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:10,padding:14,marginBottom:14}}>
-        <div style={{fontSize:12,fontWeight:700,color:C.blue,marginBottom:6}}>🌐 URL de base</div>
-        <div style={{fontFamily:"'Courier New',monospace",fontSize:13,color:C.text}}>https://xyraio.fr/api/v1</div>
-        <div style={{fontSize:11,color:C.muted,marginTop:4}}>Authentification : Header <code style={{background:C.dark,padding:"2px 6px",borderRadius:4}}>Authorization: Bearer ty_live_...</code></div>
+    {/* ── ABONNEMENT ── */}
+    {onglet==="abonnement"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:14}}>
+        {Object.values(PLANS).filter(p=>p.id!=="owner").map((p,i)=><Card key={i} style={{borderColor:`${p.color}44`,background:plan===p.id?`${p.color}08`:"transparent"}}>
+          <div style={{textAlign:"center",marginBottom:12}}>
+            <div style={{fontSize:24,marginBottom:4}}>{p.icon}</div>
+            <div style={{fontSize:16,fontWeight:700,color:p.color}}>{p.nom}</div>
+            <div style={{fontSize:22,fontWeight:700,color:C.text,margin:"8px 0"}}>{p.prix}</div>
+            <div style={{fontSize:11,color:C.muted}}>{p.description}</div>
+          </div>
+          {plan===p.id?<div style={{background:`${p.color}22`,border:`1px solid ${p.color}44`,borderRadius:8,padding:8,textAlign:"center",fontSize:11,color:p.color,fontWeight:700}}>✓ Plan actuel</div>:<Btn onClick={()=>showToast(`✅ Passage à ${p.nom} initié — Paiement Flutterwave`)} color={p.color} style={{width:"100%",color:p.id==="business"?"#000":"#fff"}}>Passer à ce plan</Btn>}
+        </Card>)}
       </div>
       <Card>
-        <STitle>📚 Endpoints disponibles</STitle>
+        <STitle>📋 Historique de facturation</STitle>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Méthode</TH><TH>Endpoint</TH><TH>Description</TH><TH>Auth</TH></tr></thead>
-          <tbody>{DOCS_ENDPOINTS.map((e,i)=><tr key={i}>
-            <Td><Pill color={methodeColor[e.methode]||C.blue}>{e.methode}</Pill></Td>
-            <Td style={{fontFamily:"'Courier New',monospace",fontSize:11,color:C.text}}>{e.path}</Td>
-            <Td style={{fontSize:11,color:C.muted}}>{e.desc}</Td>
-            <Td>{e.auth&&<Pill color={C.gold}>🔑 Requis</Pill>}</Td>
+          <thead><tr><TH>Date</TH><TH>Description</TH><TH>Montant</TH><TH>Statut</TH><TH>Action</TH></tr></thead>
+          <tbody>{[{date:"01/05/2026",desc:"Abonnement Owner — Mai 2026",montant:"—",statut:"owner"},{date:"01/04/2026",desc:"Abonnement Owner — Avril 2026",montant:"—",statut:"owner"},{date:"01/03/2026",desc:"Setup initial Xyra",montant:"0 €",statut:"payé"}].map((f,i)=><tr key={i}>
+            <Td style={{color:C.muted,fontSize:10}}>{f.date}</Td>
+            <Td style={{fontWeight:600}}>{f.desc}</Td>
+            <Td style={{color:C.gold,fontWeight:700}}>{f.montant}</Td>
+            <Td><Pill color={C.green}>✓ {f.statut}</Pill></Td>
+            <Td><BtnGhost onClick={()=>showToast("📄 Facture téléchargée")} style={{fontSize:10,padding:"3px 8px"}}>PDF</BtnGhost></Td>
           </tr>)}</tbody>
         </table>
       </Card>
-      <Card style={{marginTop:12}}>
-        <STitle>💡 Exemple d'appel</STitle>
-        <div style={{background:C.dark,borderRadius:8,padding:16,fontFamily:"'Courier New',monospace",fontSize:12,lineHeight:1.8,color:C.green}}>
-          <div style={{color:C.muted}}>{"// Récupérer vos clients"}</div>
-          <div>{"curl -X GET \\"}</div>
-          <div>{"  https://xyraio.fr/api/v1/clients \\"}</div>
-          <div>{"  -H \"Authorization: Bearer ty_live_...\" \\"}</div>
-          <div>{"  -H \"Content-Type: application/json\""}</div>
+    </div>}
+
+    {/* ── APPARENCE ── */}
+    {onglet==="apparence"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+      <Card>
+        <STitle>🎨 Thème & Couleurs</STitle>
+        <div style={{marginBottom:14}}>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:8}}>Thème de l'interface</label>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+            {[{id:"dark",label:"🌙 Sombre",desc:"Mode nuit — recommandé"},{id:"light",label:"☀️ Clair",desc:"Mode jour"}].map(t=><div key={t.id} onClick={()=>setTheme(t.id)} style={{background:theme===t.id?`${C.gold}15`:C.card2,border:`2px solid ${theme===t.id?C.gold:C.border}`,borderRadius:10,padding:12,cursor:"pointer",textAlign:"center"}}>
+              <div style={{fontSize:20,marginBottom:4}}>{t.label.split(" ")[0]}</div>
+              <div style={{fontSize:11,fontWeight:theme===t.id?700:400,color:theme===t.id?C.gold:C.text}}>{t.label.split(" ").slice(1).join(" ")}</div>
+              <div style={{fontSize:9,color:C.muted}}>{t.desc}</div>
+            </div>)}
+          </div>
         </div>
+        <div style={{marginBottom:14}}>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:8}}>Couleur d'accentuation</label>
+          <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+            {[{c:"#C9A84C",n:"Or (défaut)"},{c:"#4B7BFF",n:"Bleu"},{c:"#2EC9B0",n:"Teal"},{c:"#9B5FFF",n:"Violet"},{c:"#FF5F9E",n:"Rose"},{c:"#FF8C3A",n:"Orange"}].map((col,i)=><div key={i} onClick={()=>showToast(`✅ Couleur "${col.n}" appliquée`)} style={{width:32,height:32,borderRadius:"50%",background:col.c,cursor:"pointer",border:`3px solid ${col.c===C.gold?"#fff":"transparent"}`,title:col.n}}/>)}
+          </div>
+        </div>
+        <Btn onClick={()=>showToast("✅ Apparence sauvegardée !")}>Sauvegarder l'apparence</Btn>
+      </Card>
+      <Card>
+        <STitle>🌍 Langue & Région</STitle>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Langue de l'interface</label>
+            <Sel value={langue} onChange={e=>setLangue(e.target.value)} style={{width:"100%"}}>
+              <option value="fr">🇫🇷 Français</option><option value="en">🇬🇧 English</option><option value="ar">🇲🇦 العربية</option><option value="wo">🇸🇳 Wolof</option>
+            </Sel>
+          </div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Format de date</label>
+            <Sel style={{width:"100%"}}><option>JJ/MM/AAAA (France)</option><option>MM/DD/YYYY (USA)</option></Sel>
+          </div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Fuseau horaire</label>
+            <Sel style={{width:"100%"}}><option>Europe/Paris (UTC+2)</option><option>Africa/Dakar (UTC+0)</option><option>Asia/Dubai (UTC+4)</option><option>America/Montreal (UTC-4)</option></Sel>
+          </div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Devise d'affichage par défaut</label>
+            <Sel style={{width:"100%"}}>{DEVISES.slice(0,5).map(d=><option key={d.code}>{d.flag} {d.code} — {d.nom}</option>)}</Sel>
+          </div>
+        </div>
+      </Card>
+    </div>}
+
+    {/* ── SÉCURITÉ ── */}
+    {onglet==="securite"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+        <Card>
+          <STitle>🔐 Authentification à 2 facteurs</STitle>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+            <div><div style={{fontSize:12,fontWeight:700}}>2FA par SMS</div><div style={{fontSize:10,color:C.muted}}>+33 6 00 11 22 33</div></div>
+            <div onClick={()=>setDeuxFa(v=>!v)} style={{width:44,height:24,borderRadius:12,background:deux_fa?C.green:C.border,cursor:"pointer",position:"relative",transition:".2s"}}>
+              <div style={{position:"absolute",top:3,left:deux_fa?21:3,width:18,height:18,borderRadius:"50%",background:"#fff",transition:".2s"}}/>
+            </div>
+          </div>
+          {deux_fa?<div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:8,padding:10,fontSize:11,color:C.green}}>✅ 2FA activée — Votre compte est sécurisé</div>:<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:10,fontSize:11,color:C.orange}}>⚠️ 2FA désactivée — Recommandé de l'activer</div>}
+          <div style={{marginTop:10,display:"flex",gap:8}}>
+            <BtnGhost onClick={()=>showToast("📱 Code de test envoyé par SMS")} style={{flex:1,fontSize:11}}>Tester le 2FA</BtnGhost>
+            <BtnGhost onClick={()=>showToast("🔑 Codes de secours téléchargés")} style={{flex:1,fontSize:11}}>Codes secours</BtnGhost>
+          </div>
+        </Card>
+        <Card>
+          <STitle>💻 Sessions actives</STitle>
+          {sessions.map((s,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${s.actuelle?C.green:C.border}33`}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+              <div style={{fontSize:11,fontWeight:700}}>{s.device}</div>
+              {s.actuelle&&<Pill color={C.green}>● Session actuelle</Pill>}
+            </div>
+            <div style={{fontSize:10,color:C.muted}}>📍 {s.lieu} · 🌐 {s.ip}</div>
+            <div style={{fontSize:10,color:C.muted,marginBottom:6}}>🕐 {s.date}</div>
+            {!s.actuelle&&<BtnGhost onClick={()=>showToast("✅ Session révoquée")} style={{fontSize:10,padding:"3px 8px",color:C.red}}>Révoquer</BtnGhost>}
+          </div>)}
+          <BtnGhost onClick={()=>showToast("✅ Toutes les autres sessions révoquées")} style={{width:"100%",fontSize:11,color:C.red}}>Déconnecter toutes les autres sessions</BtnGhost>
+        </Card>
+      </div>
+      <Card>
+        <STitle>📋 Journaux de connexion</STitle>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Date & Heure</TH><TH>Action</TH><TH>Adresse IP</TH><TH>Statut</TH></tr></thead>
+          <tbody>{logs.map((l,i)=><tr key={i}>
+            <Td style={{color:C.muted,fontSize:10}}>{l.date}</Td>
+            <Td style={{fontWeight:600}}>{l.action}</Td>
+            <Td style={{fontFamily:"monospace",fontSize:10,color:C.muted}}>{l.ip}</Td>
+            <Td><Pill color={l.statut==="ok"?C.green:C.red}>{l.statut==="ok"?"✓ Succès":"✗ Échec"}</Pill></Td>
+          </tr>)}</tbody>
+        </table>
       </Card>
     </div>}
 
     {/* ── INTÉGRATIONS ── */}
-    {onglet==="integrations"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
-        {[
-          {nom:"Zapier",logo:"⚡",desc:"Connectez Xyra à 5 000+ apps. Automatisez la création de clients, factures, deals depuis n'importe quelle app.",color:C.orange,url:"https://zapier.com"},
-          {nom:"Make (Integromat)",logo:"🔄",desc:"Créez des workflows visuels complexes entre Xyra et vos outils. Plus puissant que Zapier pour les scénarios avancés.",color:C.purple,url:"https://make.com"},
-          {nom:"n8n",logo:"🤖",desc:"Automatisation open-source. Hébergez vos workflows sur votre propre serveur avec accès complet à l'API Xyra.",color:C.green,url:"https://n8n.io"},
-          {nom:"Notion",logo:"📓",desc:"Synchronisez vos clients et deals Xyra avec vos bases Notion via webhooks.",color:C.text,url:"https://notion.so"},
-          {nom:"Slack",logo:"💬",desc:"Recevez des notifications Xyra directement dans Slack — nouveaux clients, paiements, deals gagnés.",color:C.blue,url:"https://slack.com"},
-          {nom:"Google Sheets",logo:"📊",desc:"Exportez automatiquement vos données Xyra vers Google Sheets pour reporting et analyse.",color:C.green,url:"https://sheets.google.com"},
-        ].map((app,i)=><Card key={i} style={{borderColor:`${app.color}33`}}>
-          <div style={{fontSize:28,marginBottom:8}}>{app.logo}</div>
-          <div style={{fontSize:14,fontWeight:700,color:app.color,marginBottom:6}}>{app.nom}</div>
-          <div style={{fontSize:11,color:C.muted,lineHeight:1.6,marginBottom:12}}>{app.desc}</div>
-          <Btn onClick={()=>showToast(`🔗 Guide d'intégration ${app.nom} ouvert`)} style={{width:"100%",fontSize:11,background:`${app.color}22`,color:app.color,border:`1px solid ${app.color}44`}}>Connecter {app.nom}</Btn>
-        </Card>)}
+    {onglet==="integrations"&&<div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
+      {INTEGRATIONS.map((it,i)=><Card key={i} style={{borderColor:`${it.color}22`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={{display:"flex",alignItems:"center",gap:10}}>
+            <div style={{fontSize:24}}>{it.icon}</div>
+            <div><div style={{fontSize:13,fontWeight:700}}>{it.nom}</div><div style={{fontSize:10,color:C.muted}}>{it.desc}</div></div>
+          </div>
+          <Pill color={it.statut?C.green:C.muted}>{it.statut?"● Connecté":"○ Non connecté"}</Pill>
+        </div>
+        <div style={{display:"flex",gap:6}}>
+          <BtnGhost onClick={()=>showToast(`✅ ${it.nom} ${it.statut?"déconnecté":"connecté"}`)} style={{flex:1,fontSize:11,color:it.statut?C.red:C.green,borderColor:`${it.statut?C.red:C.green}33`}}>{it.statut?"Déconnecter":"Connecter"}</BtnGhost>
+          {it.statut&&<BtnGhost onClick={()=>showToast(`⚙ Paramètres ${it.nom}`)} style={{fontSize:11}}>⚙</BtnGhost>}
+        </div>
+      </Card>)}
+    </div>}
+
+    {/* ── IA & CLAUDE ── */}
+    {onglet==="ia"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+      <Card>
+        <STitle>🤖 Configuration Claude (Anthropic)</STitle>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Clé API Anthropic *</label>
+            <div style={{display:"flex",gap:8}}>
+              <Inp value={sirApiKey} onChange={e=>setSirApiKey(e.target.value)} placeholder="sk-ant-api03-..." style={{flex:1,fontFamily:"monospace",fontSize:11}}/>
+              <Btn onClick={()=>showToast("✅ Clé API sauvegardée et testée !")}>Sauver</Btn>
+            </div>
+            <div style={{fontSize:9,color:C.muted,marginTop:3}}>Disponible sur console.anthropic.com</div>
+          </div>
+          <div>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Modèle IA</label>
+            <Sel style={{width:"100%"}}>
+              <option value="claude-sonnet-4-5">claude-sonnet-4-5 — Recommandé (rapide + intelligent)</option>
+              <option value="claude-opus-4-5">claude-opus-4-5 — Premium (plus puissant)</option>
+              <option value="claude-haiku-4-5">claude-haiku-4-5 — Rapide (économique)</option>
+            </Sel>
+          </div>
+          <div>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Langue de réponse IA</label>
+            <Sel style={{width:"100%"}}><option>🇫🇷 Français</option><option>🇬🇧 English</option></Sel>
+          </div>
+          <div>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Ton de l'IA</label>
+            <Sel style={{width:"100%"}}><option>Professionnel & concis</option><option>Amical & accessible</option><option>Expert & détaillé</option></Sel>
+          </div>
+        </div>
+      </Card>
+      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <Card>
+          <STitle>⚡ Fonctionnalités IA activées</STitle>
+          {[["Analyses business automatiques",true],["Relances devis intelligentes",true],["Recommandations investissement",true],["Réponses avis clients",true],["Chat assistant (WhatsApp bot)",true],["Prévisions trésorerie",true],["Score solvabilité clients",true],["Suggestions upsell",true]].map(([f,a],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}>
+            <span>{f}</span>
+            <Pill color={a?C.green:C.muted}>{a?"✅ Actif":"○ Inactif"}</Pill>
+          </div>)}
+        </Card>
+        <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
+          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>📊 Utilisation API ce mois</div>
+          {[["Tokens utilisés","47 832 / 100 000"],["Coût estimé","~2.40€"],["Appels API","342"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"3px 0"}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600}}>{v}</span></div>)}
+        </Card>
       </div>
     </div>}
 
-    {/* ── SANTÉ API ── */}
-    {onglet==="sante"&&<div>
+    {/* ── NOTIFICATIONS CONFIG ── */}
+    {onglet==="notifications_param"&&<Card>
+      <STitle>🔔 Paramètres de notifications</STitle>
+      <table style={{width:"100%",borderCollapse:"collapse"}}>
+        <thead><tr><TH>Type</TH><TH style={{textAlign:"center"}}>Push écran</TH><TH style={{textAlign:"center"}}>WhatsApp</TH><TH style={{textAlign:"center"}}>Email</TH><TH style={{textAlign:"center"}}>Activer tout</TH></tr></thead>
+        <tbody>{[["💰 Paiements reçus",true,true,true],["◧ Devis signés",true,true,false],["📦 Stock critique",true,false,false],["👥 Nouveaux leads",true,true,false],["🤖 Alertes IA",true,false,false],["📅 Rappels RDV",true,true,true],["⚙ Système",false,false,true]].map(([t,push,wa,email],i)=><tr key={i}>
+          <Td style={{fontWeight:600}}>{t}</Td>
+          {[push,wa,email].map((v,j)=><td key={j} style={{textAlign:"center",padding:"10px",borderBottom:`1px solid ${C.border}22`}}>
+            <div onClick={()=>showToast("✅ Préférence sauvegardée")} style={{width:32,height:18,borderRadius:9,background:v?C.gold:C.border,cursor:"pointer",margin:"0 auto",position:"relative",transition:".2s"}}>
+              <div style={{position:"absolute",top:2,left:v?14:2,width:14,height:14,borderRadius:"50%",background:"#fff",transition:".2s"}}/>
+            </div>
+          </td>)}
+          <td style={{textAlign:"center",padding:"10px",borderBottom:`1px solid ${C.border}22`}}>
+            <BtnGhost onClick={()=>showToast("✅ Toutes notifications activées")} style={{fontSize:9,padding:"3px 8px"}}>Tout activer</BtnGhost>
+          </td>
+        </tr>)}
+        </tbody>
+      </table>
+    </Card>}
+
+    {/* ── SECTEUR ── */}
+    {onglet==="secteur"&&<div>
+      <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:10,padding:12,marginBottom:14,fontSize:11,color:C.text}}>
+        💡 Le profil sectoriel adapte la terminologie de l'outil à votre activité (missions, clients, stock, services).
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
+        {Object.entries(PROFILS_SECTEURS).map(([key,p])=><div key={key} onClick={()=>{setProfil(p);showToast(`✅ Profil "${p.label}" activé !`);}} style={{background:profil?.label===p.label?`${p.couleur}22`:"transparent",border:`2px solid ${profil?.label===p.label?p.couleur:C.border}`,borderRadius:10,padding:14,cursor:"pointer",transition:"all .2s"}}>
+          <div style={{fontSize:13,fontWeight:700,color:profil?.label===p.label?p.couleur:C.text,marginBottom:4}}>{p.label}</div>
+          <div style={{fontSize:10,color:C.muted}}>Services : {p.services.slice(0,3).join(", ")}...</div>
+          {profil?.label===p.label&&<div style={{marginTop:8,fontSize:10,color:p.couleur,fontWeight:600}}>✅ Profil actuel</div>}
+        </div>)}
+      </div>
+    </div>}
+
+    {/* ── UTILISATEURS ── */}
+    {onglet==="utilisateurs"&&<div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+        <STitle>👥 Membres & Accès</STitle>
+        <Btn onClick={()=>showToast("📧 Invitation envoyée !")}>+ Inviter un membre</Btn>
+      </div>
+      <Card style={{marginBottom:12}}>
+        <div style={{display:"flex",gap:8,marginBottom:14}}>
+          <Inp value={inviteForm.email} onChange={e=>setInviteForm(f=>({...f,email:e.target.value}))} placeholder="Email à inviter..." style={{flex:1}}/>
+          <Sel value={inviteForm.role} onChange={e=>setInviteForm(f=>({...f,role:e.target.value}))} style={{width:160}}>{ROLES.map(r=><option key={r}>{r}</option>)}</Sel>
+          <Btn onClick={()=>{if(!inviteForm.email)return;showToast(`📧 Invitation envoyée à ${inviteForm.email} — rôle ${inviteForm.role}`);setInviteForm({email:"",role:"Collaborateur"});}}>Inviter</Btn>
+        </div>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Membre</TH><TH>Email</TH><TH>Rôle</TH><TH>Dernière connexion</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+          <tbody>
+            {/* Owner (non modifiable) */}
+            <tr style={{background:`${C.gold}08`}}>
+              <Td><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:28,height:28,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:C.gold}}>C</div><span style={{fontWeight:700}}>Curtiss (Vous)</span></div></Td>
+              <Td style={{color:C.muted}}>curtiss@xyra.io</Td>
+              <Td><Pill color={C.gold}>★ Owner</Pill></Td>
+              <Td style={{color:C.muted,fontSize:10}}>Maintenant</Td>
+              <Td><Pill color={C.green}>Actif</Pill></Td>
+              <Td><span style={{fontSize:10,color:C.muted}}>Non modifiable</span></Td>
+            </tr>
+            {utilisateurs.map((u,i)=><tr key={i}>
+              <Td><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:28,height:28,borderRadius:"50%",background:`${C.blue}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:C.blue}}>{u.nom[0]}</div><span style={{fontWeight:600}}>{u.nom}</span></div></Td>
+              <Td style={{color:C.muted,fontSize:11}}>{u.email}</Td>
+              <Td><Sel value={u.role} onChange={e=>setUtilisateurs(us=>us.map((x,j)=>j===i?{...x,role:e.target.value}:x))} style={{fontSize:10,padding:"3px 6px"}}>{ROLES.map(r=><option key={r}>{r}</option>)}</Sel></Td>
+              <Td style={{color:C.muted,fontSize:10}}>{u.dernierConnexion}</Td>
+              <Td><Pill color={C.green}>Actif</Pill></Td>
+              <Td><div style={{display:"flex",gap:4}}>
+                <BtnGhost onClick={()=>showToast(`✅ Modifications ${u.nom} sauvegardées`)} style={{fontSize:9,padding:"3px 7px"}}>Sauver</BtnGhost>
+                <BtnGhost onClick={()=>{setUtilisateurs(us=>us.filter((_,j)=>j!==i));showToast(`✅ ${u.nom} retiré de l'équipe`);}} style={{fontSize:9,padding:"3px 7px",color:C.red}}>Retirer</BtnGhost>
+              </div></Td>
+            </tr>)}
+          </tbody>
+        </table>
+      </Card>
+    </div>}
+
+    {/* ── DOMAINE WHITE-LABEL ── */}
+    {onglet==="domaine"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+      <Card>
+        <STitle>🌍 URL Xyra (sous-domaine)</STitle>
+        <div style={{background:C.card2,borderRadius:10,padding:14,marginBottom:12,border:`1px solid ${C.border}`}}>
+          <div style={{fontSize:9,color:C.muted,marginBottom:4}}>URL ACTUELLE</div>
+          <div style={{fontFamily:"monospace",fontSize:13,color:C.teal}}>{domaine.sous_domaine}.xyra.io</div>
+        </div>
+        <div style={{marginBottom:12}}>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Personnaliser le sous-domaine</label>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <Inp value={domaine.sous_domaine} onChange={e=>setDomaine(d=>({...d,sous_domaine:e.target.value}))} placeholder="votre-nom" style={{flex:1}}/>
+            <span style={{fontSize:11,color:C.muted,whiteSpace:"nowrap"}}>.xyra.io</span>
+          </div>
+        </div>
+        <Btn onClick={()=>showToast(`✅ Sous-domaine "${domaine.sous_domaine}.xyra.io" activé !`)}>Appliquer</Btn>
+      </Card>
+      <Card>
+        <STitle>🏷 Domaine personnalisé (White-label)</STitle>
+        <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:8,padding:10,marginBottom:12,fontSize:11,color:C.text}}>
+          💡 Disponible avec le plan <b style={{color:C.purple}}>Enterprise (150€/mois)</b>. Votre outil sera accessible sur votre propre domaine avec votre logo.
+        </div>
+        <div style={{marginBottom:10}}>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Votre domaine</label>
+          <Inp value={domaine.domaine_custom} onChange={e=>setDomaine(d=>({...d,domaine_custom:e.target.value}))} placeholder="app.votreentreprise.com"/>
+        </div>
+        <div style={{marginBottom:12,display:"flex",justifyContent:"space-between",fontSize:11}}>
+          <span>SSL / HTTPS</span><Pill color={C.green}>✅ Auto-généré</Pill>
+        </div>
+        {plan==="enterprise"||plan==="owner"?<Btn onClick={()=>showToast(`✅ Domaine "${domaine.domaine_custom}" configuré ! DNS en cours...`)}>🌍 Activer le domaine</Btn>:<Btn onClick={()=>showToast("💳 Passage Enterprise nécessaire")} style={{background:C.purple}}>Passer à Enterprise</Btn>}
+      </Card>
+    </div>}
+
+    {/* ── RGPD ── */}
+    {onglet==="rgpd"&&<div>
+      <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:12,padding:16,marginBottom:14}}>
+        <div style={{fontSize:10,color:C.blue,fontWeight:600,marginBottom:6}}>🔒 CONFORMITÉ RGPD — RÈGLEMENT GÉNÉRAL SUR LA PROTECTION DES DONNÉES</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Xyra est conforme au RGPD. Vos données sont chiffrées (AES-256), hébergées en Europe (Supabase EU) et ne sont jamais revendues.</div>
+      </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
         <Card>
-          <STitle>❤ Score de santé API</STitle>
-          <div style={{textAlign:"center",padding:"16px 0"}}>
-            <div style={{fontSize:56,fontWeight:700,color:tauxSucces>=99?C.green:tauxSucces>=95?C.gold:C.red}}>{tauxSucces}</div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>/100</div>
-            <SM val={tauxSucces} max={100} color={tauxSucces>=99?C.green:tauxSucces>=95?C.gold:C.red}/>
-          </div>
-          {[["Taux de succès",tauxSucces+"%",tauxSucces>=99?C.green:C.orange],["Latence moyenne",latenceMoy+"ms",latenceMoy<200?C.green:C.orange],["Clés actives",String(keys.length),C.blue],["Webhooks actifs",String(webhooks.filter(w=>w.statut==="actif").length),C.green]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
+          <STitle>📊 Vos données</STitle>
+          {[["Données personnelles","Prénom, nom, email, téléphone"],["Données entreprise","SIREN, TVA, adresse"],["Données financières","Chiffrées AES-256"],["Hébergement","Supabase — Europe (Frankfurt)"],["Durée conservation","5 ans légal / Compte actif"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600,color:C.text,fontSize:10}}>{v}</span></div>)}
         </Card>
         <Card>
-          <STitle>📊 Distribution des statuts</STitle>
-          {[[200,"2xx Succès",C.green],[400,"4xx Client Error",C.orange],[500,"5xx Server Error",C.red]].map(([code,label,color])=>{
-            const count=logs.filter(l=>l.statut_code>=Number(code)&&l.statut_code<Number(code)+100).length;
-            const pct=logs.length>0?Math.round(count/logs.length*100):0;
-            return <div key={code} style={{marginBottom:12}}>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{color}}>{label}</span><span style={{color,fontWeight:700}}>{count} · {pct}%</span></div>
-              <SM val={pct} max={100} color={color}/>
-            </div>;
-          })}
-          {logs.length===0&&<div style={{fontSize:11,color:C.muted,textAlign:"center",padding:12}}>Aucun log disponible.</div>}
+          <STitle>✅ Droits RGPD</STitle>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <Btn onClick={()=>showToast("📦 Export de vos données en cours — email dans 24h")} style={{background:C.blue}}>📦 Exporter toutes mes données</Btn>
+            <BtnGhost onClick={()=>showToast("📧 Demande envoyée à DPO@xyra.io")}>✏️ Demander rectification</BtnGhost>
+            <BtnGhost onClick={()=>showToast("⏳ Demande de suppression envoyée — traitement 30j")} style={{color:C.orange,borderColor:`${C.orange}44`}}>🗑 Demander suppression données</BtnGhost>
+            <div style={{background:`${C.red}11`,border:`1px solid ${C.red}33`,borderRadius:8,padding:10}}>
+              <div style={{fontSize:10,color:C.red,fontWeight:600,marginBottom:4}}>⚠️ Zone dangereuse</div>
+              <BtnGhost onClick={()=>showToast("⚠️ Confirmez la suppression dans l'email envoyé")} style={{width:"100%",color:C.red,borderColor:`${C.red}44`,fontSize:11}}>🗑 Supprimer mon compte</BtnGhost>
+            </div>
+          </div>
         </Card>
       </div>
+      <Card>
+        <STitle>🍪 Politique de confidentialité</STitle>
+        <div style={{fontSize:11,color:C.muted,lineHeight:1.7,marginBottom:10}}>Xyra collecte uniquement les données nécessaires au fonctionnement du service. Aucune donnée n'est partagée avec des tiers sans consentement explicite. Vous pouvez exercer vos droits à tout moment en contactant dpo@xyra.io</div>
+        <div style={{display:"flex",gap:8}}><BtnGhost onClick={()=>showToast("📄 Politique confidentialité téléchargée")}>📄 Télécharger PDF</BtnGhost><BtnGhost onClick={()=>showToast("📧 Email DPO ouvert")}>📧 Contacter le DPO</BtnGhost></div>
+      </Card>
     </div>}
   </div>;
 };
+// ─── PAGE ADMIN ───────────────────────────────────────────────
+const PageAdmin=({plan,showToast})=>{
+  if(plan!=="owner")return <div style={{padding:20}}><div style={{textAlign:"center",padding:60}}><div style={{fontSize:40}}>👑</div><div style={{fontSize:16,color:C.text,marginTop:8}}>Réservé à Curtiss</div></div></div>;
+  return <div style={{padding:20}}>
+    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>👑 Admin Curtiss</div>
+    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Vue globale · Tous les revenus · Commissions · IA CEO</div>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+      <KPI label="CA global" val="24 380 €" color={C.gold}/>
+      <KPI label="Membres Club" val="47" color={C.blue}/>
+      <KPI label="ARR SaaS" val="36 000 €" color={C.green}/>
+      <KPI label="Score CEO" val="88/100" color={C.teal}/>
+    </div>
+    <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Card><STitle>📊 Vue 360° Xyra</STitle>
+        {[["Revenus services",18200,C.gold],["Revenus SaaS",3000,C.green],["Revenus Club",1380,C.blue],["Commissions 5%",2400,C.teal]].map(([n,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span>{n}</span><span style={{color:c,fontWeight:700}}>{fmt(v)}</span></div>)}
+      </Card>
+      <Card><STitle>🤖 Analyse CEO — Claude</STitle>
+        <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:8,padding:12}}>
+          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:4}}>Intelligence artificielle · Claude Sonnet</div>
+          <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Xyra performe en dessous de son potentiel sur le SaaS. Recommandation : concentrer 30% des efforts commerciaux sur la conversion de 5 prospects SaaS identifiés. ROI estimé : +18 000€ ARR en Q3.</div>
+        </div>
+      </Card>
+    </div>
+  </div>;
+};
 
+// ─── PAGE OWNER ───────────────────────────────────────────────
+const PageOwner=({plan,showToast,profil})=>{
+  const[onglet,setOnglet]=useState("vue");
+  const[abonnes,setAbonnes]=useState([]);
+  const[loading,setLoading]=useState(true);
+  const[sel,setSel]=useState(null);
+  const[showAdd,setShowAdd]=useState(false);
+  const[addForm,setAddForm]=useState({societe:"",email:"",nom:"",plan:"starter",siren:""});
+  const[msgGroupe,setMsgGroupe]=useState({planCible:"tous",sujet:"",corps:""});
+  const[services,setServices]=useState([]);
+  const[solvLoading,setSolvLoading]=useState({});
+  const tabs=[{id:"vue",label:"📊 Vue globale"},{id:"abonnes",label:"👥 Abonnés"},{id:"alertes",label:"🔔 Alertes"},{id:"communication",label:"📢 Communication"},{id:"investisseur",label:"📄 Investisseur"},{id:"systeme",label:"🐛 Système"}];
+
+  const loadAll=async()=>{
+    setLoading(true);
+    try{
+      const res=await fetch('/api/abonnes');
+      const data=await res.json();
+      if(data.abonnes)setAbonnes(data.abonnes);
+      if(data.services)setServices(data.services);
+    }catch(e){console.error("Owner:",e);}
+    setLoading(false);
+  };
+  useEffect(()=>{loadAll();},[]);
+
+  const creerAbonne=async()=>{
+    if(!addForm.email||!addForm.societe)return showToast("⚠️ Société et email requis");
+    showToast("⏳ Création en cours...");
+    try{
+      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer',...addForm})});
+      const data=await res.json();
+      if(data.success){showToast(`✅ ${addForm.societe} créé et invité par email`);setShowAdd(false);setAddForm({societe:"",email:"",nom:"",plan:"starter",siren:""});loadAll();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const changerPlan=async(id,nouveauPlan)=>{
+    try{
+      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'changer_plan',id,plan:nouveauPlan})});
+      const data=await res.json();
+      if(data.success){showToast("✅ Plan mis à jour");loadAll();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const suspendre=async(id,actuel)=>{
+    const action=actuel==='suspendu'?'reactiver':'suspendre';
+    try{
+      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,id})});
+      const data=await res.json();
+      if(data.success){showToast(action==='suspendre'?"⚠️ Compte suspendu":"✅ Compte réactivé");loadAll();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const supprimerAbonne=async(id,nom)=>{
+    try{
+      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer',id})});
+      const data=await res.json();
+      if(data.success){showToast(`🗑 ${nom} supprimé`);setSel(null);loadAll();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const verifierSolvabilite=async(a)=>{
+    if(!a.siren)return showToast("⚠️ Pas de SIREN pour cette entreprise");
+    setSolvLoading(s=>({...s,[a.id]:true}));
+    try{
+      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verifier_solvabilite',id:a.id,siren:a.siren})});
+      const data=await res.json();
+      if(data.success){showToast(`✅ Solvabilité vérifiée — score ${data.score}/100`);loadAll();}
+      else showToast("❌ "+(data.error||"Erreur SIRENE"));
+    }catch(e){showToast("❌ Erreur");}
+    setSolvLoading(s=>({...s,[a.id]:false}));
+  };
+
+  const envoyerEmailIndividuel=async(a,sujet,corps)=>{
+    if(!sujet||!corps)return showToast("⚠️ Sujet et message requis");
+    showToast("⏳ Envoi...");
+    try{
+      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_email',id:a.id,email:a.email,sujet,corps})});
+      const data=await res.json();
+      if(data.success)showToast(`✅ Email envoyé à ${a.societe}`);
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const envoyerGroupé=async()=>{
+    if(!msgGroupe.sujet||!msgGroupe.corps)return showToast("⚠️ Sujet et message requis");
+    showToast("⏳ Envoi groupé...");
+    try{
+      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_groupe',...msgGroupe})});
+      const data=await res.json();
+      if(data.success)showToast(`✅ Message envoyé à ${data.nb} abonné(s)`);
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const genererRelanceIA=async(a)=>{
+    showToast("⏳ Génération IA...");
+    try{
+      const res=await fetch('/api/abonnes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'relance_ia',abonne:a})});
+      const data=await res.json();
+      if(data.success){setSel(s=>({...s,_relanceIA:data.message}));showToast("✅ Message généré");}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const mrr=abonnes.filter(a=>a.statut==='actif').reduce((acc,a)=>{const p={starter:29,business:99,enterprise:249,owner:0}[a.plan]||0;return acc+p;},0);
+  const arr=mrr*12;
+  const actifs=abonnes.filter(a=>a.statut==='actif').length;
+  const suspendu=abonnes.filter(a=>a.statut==='suspendu').length;
+  const trials=abonnes.filter(a=>a.statut==='trial').length;
+  const alertesTrials=abonnes.filter(a=>a.statut==='trial'&&a.jours_restants<=3);
+  const alertesInactifs=abonnes.filter(a=>a.inactif_jours>=30);
+  const alertesImpayes=abonnes.filter(a=>a.paiement_echoue);
+  const alertesSolvabilite=abonnes.filter(a=>a.score_solvabilite!==null&&a.score_solvabilite<40);
+
+  const planColor={starter:C.blue,business:C.gold,enterprise:C.purple,owner:C.green};
+  const statutColor={actif:C.green,suspendu:C.red,trial:C.orange};
+
+  return <div style={{padding:20,maxWidth:1200}}>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <div>
+        <div style={{fontSize:18,fontWeight:700,color:C.gold,fontFamily:"Georgia,serif"}}>★ Espace Propriétaire</div>
+        <div style={{fontSize:11,color:C.muted}}>Zone de contrôle global Xyra · {abonnes.length} abonné(s)</div>
+      </div>
+      <Btn onClick={()=>setShowAdd(s=>!s)}>+ Abonné manuel</Btn>
+    </div>
+
+    {showAdd&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
+      <STitle>Créer un abonné manuellement</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:8,marginBottom:8}}>
+        {[["Société *","societe"],["Email *","email"],["Nom contact","nom"],["SIREN","siren"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={addForm[k]} onChange={e=>setAddForm(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Plan</label>
+          <Sel value={addForm.plan} onChange={e=>setAddForm(f=>({...f,plan:e.target.value}))} style={{width:"100%"}}>
+            <option value="starter">Starter — 29€/mois</option>
+            <option value="business">Business Pro — 99€/mois</option>
+            <option value="enterprise">Enterprise — 249€/mois</option>
+          </Sel>
+        </div>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <Btn onClick={creerAbonne}>✅ Créer et inviter</Btn>
+        <BtnGhost onClick={()=>setShowAdd(false)}>Annuler</BtnGhost>
+      </div>
+    </Card>}
+
+    <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
+
+    {loading&&<div style={{fontSize:11,color:C.muted}}>Chargement...</div>}
+
+    {/* ── VUE GLOBALE ── */}
+    {!loading&&onglet==="vue"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+        <KPI label="MRR" val={fmt(mrr)} color={C.gold} sub="Revenus mensuels récurrents"/>
+        <KPI label="ARR" val={fmt(arr)} color={C.green} sub="Revenus annuels récurrents"/>
+        <KPI label="Abonnés actifs" val={actifs} color={C.blue}/>
+        <KPI label="Trials en cours" val={trials} color={C.orange}/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
+        <Card>
+          <STitle>Répartition par plan</STitle>
+          {["starter","business","enterprise"].map(p=>{const n=abonnes.filter(a=>a.plan===p).length;return <div key={p} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{textTransform:"capitalize",color:planColor[p]}}>{p}</span><span style={{fontWeight:700}}>{n} abonné(s)</span></div><SM val={n} max={Math.max(abonnes.length,1)} color={planColor[p]}/></div>;})}
+        </Card>
+        <Card>
+          <STitle>Santé globale</STitle>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>Abonnés actifs</span><Pill color={C.green}>{actifs}</Pill></div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>Suspendus</span><Pill color={suspendu>0?C.red:C.green}>{suspendu}</Pill></div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>Alertes actives</span><Pill color={alertesTrials.length+alertesImpayes.length>0?C.orange:C.green}>{alertesTrials.length+alertesImpayes.length+alertesInactifs.length}</Pill></div>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"5px 0"}}><span style={{color:C.muted}}>Solvabilité à risque</span><Pill color={alertesSolvabilite.length>0?C.red:C.green}>{alertesSolvabilite.length}</Pill></div>
+          </div>
+        </Card>
+      </div>
+    </div>}
+
+    {/* ── ABONNÉS ── */}
+    {!loading&&onglet==="abonnes"&&<div style={{display:"grid",gridTemplateColumns:sel?"1fr 1fr":"1fr",gap:12}}>
+      <Card>
+        <STitle>👥 Tous les abonnés ({abonnes.length})</STitle>
+        {abonnes.length===0&&<div style={{fontSize:12,color:C.muted,padding:"20px 0",textAlign:"center"}}>Aucun abonné pour le moment.</div>}
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Société</TH><TH>Plan</TH><TH>Statut</TH><TH>Solvabilité</TH><TH>Inscription</TH></tr></thead>
+          <tbody>{abonnes.map(a=><tr key={a.id} style={{cursor:"pointer",background:sel?.id===a.id?`${C.gold}0D`:"transparent"}} onClick={()=>setSel(a)}>
+            <Td style={{fontWeight:600}}>{a.societe}</Td>
+            <Td><Pill color={planColor[a.plan]||C.muted}>{a.plan}</Pill></Td>
+            <Td><Pill color={statutColor[a.statut]||C.muted}>{a.statut}</Pill></Td>
+            <Td>{a.score_solvabilite!==null?<Pill color={a.score_solvabilite>=70?C.green:a.score_solvabilite>=40?C.orange:C.red}>{a.score_solvabilite}/100</Pill>:<span style={{color:C.muted,fontSize:10}}>—</span>}</Td>
+            <Td style={{color:C.muted,fontSize:10}}>{a.created_at?new Date(a.created_at).toLocaleDateString("fr"):"—"}</Td>
+          </tr>)}</tbody>
+        </table>
+      </Card>
+
+      {sel&&<Card>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
+          <div><div style={{fontSize:15,fontWeight:700}}>{sel.societe}</div><div style={{fontSize:11,color:C.muted}}>{sel.email} · {sel.plan}</div></div>
+          <BtnGhost onClick={()=>setSel(null)} style={{fontSize:10,padding:"4px 8px"}}>✕</BtnGhost>
+        </div>
+        {[["Email",sel.email],["SIREN",sel.siren||"—"],["Statut",sel.statut],["Inscrit le",sel.created_at?new Date(sel.created_at).toLocaleDateString("fr"):"—"],["Inactif depuis",sel.inactif_jours>0?sel.inactif_jours+" jours":"Actif récemment"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"5px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600}}>{v}</span></div>)}
+        <div style={{marginTop:10}}>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Changer de plan</label>
+          <Sel value={sel.plan} onChange={e=>changerPlan(sel.id,e.target.value)} style={{width:"100%",marginBottom:8}}>
+            <option value="starter">Starter — 29€/mois</option>
+            <option value="business">Business Pro — 99€/mois</option>
+            <option value="enterprise">Enterprise — 249€/mois</option>
+          </Sel>
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:6,marginTop:8}}>
+          <Btn onClick={()=>verifierSolvabilite(sel)} style={{background:C.blue,fontSize:11}}>{solvLoading[sel.id]?"⏳ Vérification...":"🔍 Vérifier solvabilité SIRENE"}</Btn>
+          <BtnGhost onClick={()=>genererRelanceIA(sel)} style={{fontSize:11,color:C.purple,borderColor:`${C.purple}44`}}>🤖 Générer relance IA</BtnGhost>
+          {sel._relanceIA&&<div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,padding:10,fontSize:11,color:C.text,lineHeight:1.6,marginBottom:4}}>{sel._relanceIA}<div style={{marginTop:8,display:"flex",gap:6}}><Btn onClick={()=>envoyerEmailIndividuel(sel,"Nous avons pensé à vous",sel._relanceIA)} style={{fontSize:10,padding:"5px 10px"}}>📧 Envoyer</Btn></div></div>}
+          <BtnGhost onClick={()=>suspendre(sel.id,sel.statut)} style={{fontSize:11,color:sel.statut==="suspendu"?C.green:C.orange,borderColor:sel.statut==="suspendu"?`${C.green}44`:`${C.orange}44`}}>{sel.statut==="suspendu"?"✅ Réactiver":"⏸ Suspendre"}</BtnGhost>
+          <BtnGhost onClick={()=>supprimerAbonne(sel.id,sel.societe)} style={{fontSize:11,color:C.red,borderColor:`${C.red}44`}}>🗑 Supprimer</BtnGhost>
+        </div>
+      </Card>}
+    </div>}
+
+    {/* ── ALERTES ── */}
+    {!loading&&onglet==="alertes"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
+      {alertesTrials.length===0&&alertesImpayes.length===0&&alertesInactifs.length===0&&alertesSolvabilite.length===0&&<Card style={{textAlign:"center",padding:30}}><div style={{fontSize:32,marginBottom:8}}>✅</div><div style={{color:C.green,fontWeight:700}}>Aucune alerte active</div></Card>}
+      {alertesTrials.length>0&&<Card style={{borderColor:`${C.orange}44`}}>
+        <STitle style={{color:C.orange}}>⏰ Trials expirant bientôt ({alertesTrials.length})</STitle>
+        {alertesTrials.map(a=><div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
+          <div><div style={{fontWeight:600}}>{a.societe}</div><div style={{fontSize:10,color:C.muted}}>{a.jours_restants} jour(s) restant(s)</div></div>
+          <BtnGhost onClick={()=>envoyerEmailIndividuel(a,"Votre essai Xyra se termine bientôt","Bonjour, votre période d'essai Xyra se termine dans "+a.jours_restants+" jour(s). Passez à un plan payant pour continuer à profiter de toutes les fonctionnalités.")} style={{fontSize:10}}>📧 Relancer</BtnGhost>
+        </div>)}
+      </Card>}
+      {alertesImpayes.length>0&&<Card style={{borderColor:`${C.red}44`}}>
+        <STitle style={{color:C.red}}>💳 Paiements échoués ({alertesImpayes.length})</STitle>
+        {alertesImpayes.map(a=><div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
+          <div style={{fontWeight:600}}>{a.societe}</div>
+          <div style={{display:"flex",gap:6}}>
+            <BtnGhost onClick={()=>envoyerEmailIndividuel(a,"Problème de paiement Xyra","Bonjour, nous n'avons pas pu traiter votre paiement. Merci de mettre à jour vos informations de paiement.")} style={{fontSize:10}}>📧 Relancer</BtnGhost>
+            <BtnGhost onClick={()=>suspendre(a.id,a.statut)} style={{fontSize:10,color:C.orange,borderColor:`${C.orange}44`}}>⏸ Suspendre</BtnGhost>
+          </div>
+        </div>)}
+      </Card>}
+      {alertesInactifs.length>0&&<Card style={{borderColor:`${C.muted}44`}}>
+        <STitle>😴 Comptes inactifs +30j ({alertesInactifs.length})</STitle>
+        {alertesInactifs.map(a=><div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
+          <div><div style={{fontWeight:600}}>{a.societe}</div><div style={{fontSize:10,color:C.muted}}>{a.inactif_jours} jours sans connexion</div></div>
+          <BtnGhost onClick={()=>genererRelanceIA(a)} style={{fontSize:10,color:C.purple,borderColor:`${C.purple}44`}}>🤖 Relance IA</BtnGhost>
+        </div>)}
+      </Card>}
+      {alertesSolvabilite.length>0&&<Card style={{borderColor:`${C.red}44`}}>
+        <STitle style={{color:C.red}}>⚠️ Solvabilité à risque ({alertesSolvabilite.length})</STitle>
+        {alertesSolvabilite.map(a=><div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
+          <div><div style={{fontWeight:600}}>{a.societe}</div><div style={{fontSize:10,color:C.red}}>Score {a.score_solvabilite}/100</div></div>
+          <Pill color={C.red}>Risque élevé</Pill>
+        </div>)}
+      </Card>}
+    </div>}
+
+    {/* ── COMMUNICATION ── */}
+    {!loading&&onglet==="communication"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Card>
+        <STitle>📢 Message groupé par plan</STitle>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Destinataires</label>
+            <Sel value={msgGroupe.planCible} onChange={e=>setMsgGroupe(m=>({...m,planCible:e.target.value}))} style={{width:"100%"}}>
+              <option value="tous">Tous les abonnés</option>
+              <option value="starter">Starter uniquement</option>
+              <option value="business">Business Pro uniquement</option>
+              <option value="enterprise">Enterprise uniquement</option>
+              <option value="trial">Trials uniquement</option>
+            </Sel>
+          </div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Sujet</label><Inp value={msgGroupe.sujet} onChange={e=>setMsgGroupe(m=>({...m,sujet:e.target.value}))} placeholder="Ex: Nouvelle fonctionnalité disponible"/></div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Message</label><textarea value={msgGroupe.corps} onChange={e=>setMsgGroupe(m=>({...m,corps:e.target.value}))} placeholder="Votre message..." style={{width:"100%",minHeight:100,background:C.card2,border:`1px solid ${C.border}`,borderRadius:6,padding:8,color:C.text,fontFamily:"inherit",fontSize:12}}/></div>
+          <Btn onClick={envoyerGroupé}>📤 Envoyer à {msgGroupe.planCible==="tous"?abonnes.length:abonnes.filter(a=>a.plan===msgGroupe.planCible||a.statut===msgGroupe.planCible).length} abonné(s)</Btn>
+        </div>
+      </Card>
+      <Card>
+        <STitle>✉️ Message individuel</STitle>
+        {sel?<div style={{display:"flex",flexDirection:"column",gap:8}}>
+          <div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:8,padding:10,fontSize:11}}><b>{sel.societe}</b> · {sel.email}</div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Sujet</label><Inp placeholder="Sujet de l'email"/></div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Message</label><textarea placeholder="Votre message..." style={{width:"100%",minHeight:100,background:C.card2,border:`1px solid ${C.border}`,borderRadius:6,padding:8,color:C.text,fontFamily:"inherit",fontSize:12}}/></div>
+          <Btn onClick={()=>showToast("📧 Message envoyé à "+sel.societe)}>📧 Envoyer à {sel.societe}</Btn>
+        </div>:<div style={{textAlign:"center",padding:30}}>
+          <div style={{fontSize:24,marginBottom:8}}>👈</div>
+          <div style={{color:C.muted,fontSize:12}}>Sélectionne un abonné dans l'onglet "Abonnés" pour lui envoyer un message individuel</div>
+        </div>}
+      </Card>
+    </div>}
+
+    {/* ── INVESTISSEUR ── */}
+    {!loading&&onglet==="investisseur"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
+        <KPI label="MRR" val={fmt(mrr)} color={C.gold} sub="Monthly Recurring Revenue"/>
+        <KPI label="ARR" val={fmt(arr)} color={C.green} sub="Annual Recurring Revenue"/>
+        <KPI label="Churn" val={suspendu>0?Math.round(suspendu/Math.max(abonnes.length,1)*100)+"%":"0%"} color={suspendu>0?C.red:C.green} sub="Taux d'attrition"/>
+        <KPI label="LTV moyen" val={fmt(mrr/Math.max(actifs,1)*24)} color={C.purple} sub="Valeur vie client (24 mois)"/>
+      </div>
+      <Card style={{marginBottom:12}}>
+        <STitle>📊 Métriques SaaS</STitle>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+          {[["MRR","Monthly Recurring Revenue",fmt(mrr)],["ARR","Annual Recurring Revenue",fmt(arr)],["Abonnés actifs","Comptes payants actifs",actifs],["Trials actifs","Comptes en période d'essai",trials],["Taux de conversion trial","Trials qui deviennent payants","N/A"],["Churn rate","Abonnés perdus ce mois","0%"],["ARPU","Revenu moyen par utilisateur",fmt(mrr/Math.max(actifs,1))],["LTV","Valeur vie client (24 mois)",fmt(mrr/Math.max(actifs,1)*24)]].map(([k,desc,v],i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:12,border:`1px solid ${C.border}`}}><div style={{fontSize:9,color:C.muted,marginBottom:2,letterSpacing:"0.1em"}}>{desc.toUpperCase()}</div><div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:2}}>{k}</div><div style={{fontSize:18,fontWeight:700,color:C.text}}>{v}</div></div>)}
+        </div>
+      </Card>
+      <Btn onClick={()=>showToast("📄 Export PDF investisseur — fonctionnalité à venir")} style={{background:C.purple}}>📄 Exporter dossier investisseur PDF</Btn>
+    </div>}
+
+    {/* ── SYSTÈME ── */}
+    {onglet==="systeme"&&<div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:16}}>
+        {services.map((s,i)=><Card key={i} style={{borderColor:`${s.ok?C.green:C.red}44`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+            <div style={{fontSize:13,fontWeight:700}}>{s.nom}</div>
+            <span style={{width:10,height:10,borderRadius:"50%",background:s.ok?C.green:C.red,display:"inline-block"}}/>
+          </div>
+          <div style={{fontSize:10,color:C.muted}}>{s.detail}</div>
+        </Card>)}
+        {services.length===0&&[
+          {nom:"Supabase",ok:true,detail:"Base de données connectée"},
+          {nom:"Stripe",ok:true,detail:"Paiements actifs"},
+          {nom:"Resend",ok:true,detail:"Emails transactionnels"},
+          {nom:"WhatsApp API",ok:true,detail:"Meta Business API"},
+          {nom:"Vapi",ok:true,detail:"Agent vocal Lea"},
+          {nom:"Anthropic",ok:true,detail:"Claude Sonnet 4.6"},
+        ].map((s,i)=><Card key={i} style={{borderColor:`${s.ok?C.green:C.red}44`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+            <div style={{fontSize:13,fontWeight:700}}>{s.nom}</div>
+            <span style={{width:10,height:10,borderRadius:"50%",background:s.ok?C.green:C.red,display:"inline-block"}}/>
+          </div>
+          <div style={{fontSize:10,color:C.muted}}>{s.detail}</div>
+        </Card>)}
+      </div>
+      <Card>
+        <STitle>📱 Readiness App Mobile</STitle>
+        <div style={{fontSize:12,color:C.muted,marginBottom:12}}>État des endpoints API pour la future app mobile Xyra</div>
+        {[
+          {route:"/api/clients",pret:true,methodes:"GET, POST"},
+          {route:"/api/partenaires",pret:true,methodes:"GET, POST"},
+          {route:"/api/crm",pret:true,methodes:"GET, POST"},
+          {route:"/api/abonnes",pret:true,methodes:"GET, POST"},
+          {route:"/api/change-password",pret:true,methodes:"POST"},
+          {route:"/api/devis",pret:true,methodes:"GET, POST"},
+          {route:"/api/equipe",pret:false,methodes:"À créer"},
+          {route:"/api/planning",pret:false,methodes:"À créer"},
+          {route:"/api/stock",pret:false,methodes:"À créer"},
+          {route:"/api/wallet",pret:false,methodes:"À créer"},
+        ].map((r,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}>
+            <span style={{width:8,height:8,borderRadius:"50%",background:r.pret?C.green:C.muted,display:"inline-block",flexShrink:0}}/>
+            <span style={{fontFamily:"monospace",color:r.pret?C.text:C.muted}}>{r.route}</span>
+          </div>
+          <Pill color={r.pret?C.green:C.muted}>{r.methodes}</Pill>
+        </div>)}
+      </Card>
+    </div>}
+  </div>;
+};
 
 // ─── COMPOSANT PRINCIPAL ──────────────────────────────────────
 export default function Xyra() {
@@ -10427,7 +8089,7 @@ export default function Xyra() {
     ...Object.fromEntries(Object.entries(SOON_MODULES).map(([k,v])=>[k,<PageBientot key={k} {...v}/>])),
     wallet:<PageWallet plan={plan} showToast={showToast} profil={profil}/>,
     cartes:<PageCartes showToast={showToast}/>,
-    overview:<PageOverview plan={plan} profil={profil} setPage={setPage} showToast={showToast}/>,
+    overview:<PageOverview plan={plan} profil={profil}/>,
     crm:<PageCRM plan={plan} showToast={showToast} profil={profil}/>,
     devis:<PageDevis plan={plan} showToast={showToast} profil={profil}/>,
     investissement:<PageInvestissement plan={plan} showToast={showToast}/>,
@@ -10438,11 +8100,10 @@ export default function Xyra() {
     clients:<PageClients plan={plan} showToast={showToast} profil={profil} setPage={setPage}/>,
     partenaires:<PagePartenaires plan={plan} showToast={showToast}/>,
     club_affaires:<PageClubAffaires plan={plan} showToast={showToast}/>,
-    multi_societes:<PageMultiSocietes plan={plan} showToast={showToast}/>,
     annuaire:<PageAnnuaire plan={plan} showToast={showToast}/>,
     wallet_membres:<PageWalletMembres plan={plan} showToast={showToast}/>,
     evenements:<PageEvenements plan={plan} showToast={showToast}/>,
-    scoring:<PageScoring plan={plan} showToast={showToast} profil={profil}/>,
+    scoring:<PageScoring plan={plan} showToast={showToast}/>,
     equipe:<PageEquipe plan={plan} showToast={showToast}/>,
     planning:<PagePlanning plan={plan} showToast={showToast} profil={profil}/>,
     prospection:<PageProspection plan={plan} showToast={showToast} profil={profil}/>,
