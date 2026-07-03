@@ -9555,41 +9555,72 @@ const PageDeploiement=({plan,showToast})=>{
   const[filterPlan,setFilterPlan]=useState("tous");
   const[filterStatut,setFilterStatut]=useState("tous");
   const[mrr,setMrr]=useState(0);
+  const[stats,setStats]=useState({actifs:0,essais:0,churnes:0,inactifs:0,commissions:0,arr:0});
+  const[analyseChurn,setAnalyseChurn]=useState("");
+  const[iaLoading,setIaLoading]=useState(false);
+  const[upsellEmail,setUpsellEmail]=useState("");
+  const[showProvision,setShowProvision]=useState(false);
+  const[provisionForm,setProvisionForm]=useState({societe:"",email:"",plan:"starter",pays:"France",metier:""});
+  const[showRevendeurForm,setShowRevendeurForm]=useState(false);
+  const[revendeurForm,setRevendeurForm]=useState({nom:"",email:"",societe:"",tel:"",message:"",plan_revendeur:""});
+  const[revendeurLoading,setRevendeurLoading]=useState(false);
+
+  const envoyerDemandeRevendeur=async()=>{
+    if(!revendeurForm.nom||!revendeurForm.email||!revendeurForm.societe)return showToast("⚠️ Nom, email et société requis");
+    setRevendeurLoading(true);
+    try{
+      const res=await fetch('/api/deploiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'demande_revendeur',...revendeurForm})});
+      const d=await res.json();
+      if(d.success){showToast("✅ Demande envoyée ! WhatsApp + email reçus par l'équipe Xyra");setShowRevendeurForm(false);setRevendeurForm({nom:"",email:"",societe:"",tel:"",message:"",plan_revendeur:""});}
+      else showToast("❌ Erreur");
+    }catch(e){showToast("❌ Erreur");}
+    setRevendeurLoading(false);
+  };
 
   const calcSolvabilite=(t)=>{
     let score=50;
     if(t.plan==="enterprise")score+=20;
-    else if(t.plan==="business_pro")score+=10;
+    else if(t.plan==="business_pro"||t.plan==="business")score+=10;
     if(t.pays&&["France","Allemagne","Royaume-Uni","Émirats arabes unis (Dubaï)","États-Unis","Canada"].includes(t.pays))score+=15;
     if(t.taille==="20+")score+=15;
     else if(t.taille==="6 à 20")score+=10;
     else if(t.taille==="2 à 5")score+=5;
     if(t.statut==="actif")score+=10;
-    if(t.created_at){
-      const days=(Date.now()-new Date(t.created_at).getTime())/(1000*60*60*24);
-      if(days>30)score+=5;
-    }
+    if(t.created_at){const days=(Date.now()-new Date(t.created_at).getTime())/(1000*60*60*24);if(days>30)score+=5;}
     return Math.min(100,score);
   };
 
   const scoreCouleur=(s)=>s>=80?C.green:s>=50?C.gold:C.red;
   const scoreLabel=(s)=>s>=80?"🟢 Solvable":s>=50?"🟡 Moyen":"🔴 Risqué";
 
-  useEffect(()=>{
-    const load=async()=>{
+  const load=async()=>{
+    setLoading(true);
+    try{
+      const res=await fetch('/api/deploiement?action=dashboard');
+      const d=await res.json();
+      if(d.tenants){
+        setTenants(d.tenants);
+        setMrr(d.mrr||0);
+        setStats({actifs:d.actifs||0,essais:d.essais||0,churnes:d.churnes||0,inactifs:d.inactifs||0,commissions:d.commissions||0,arr:d.arr||0});
+      }
+    }catch(e){
+      // Fallback Supabase direct
       try{
         const {createClient}=await import('@supabase/supabase-js');
         const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
         const{data}=await sb.from('tenants').select('*').order('created_at',{ascending:false});
         if(data){
           setTenants(data);
-          setMrr(data.reduce((a,t)=>a+(t.plan_price||0),0));
+          const m=data.reduce((a,t)=>a+(t.plan_price||0),0);
+          setMrr(m);
+          setStats({actifs:data.filter(t=>t.statut==="actif").length,essais:data.filter(t=>t.statut==="essai").length,churnes:data.filter(t=>t.statut==="suspendu").length,inactifs:0,commissions:m*0.05,arr:m*12});
         }
-      }catch(e){console.error(e);}
-      setLoading(false);
-    };
-    load();
-  },[]);
+      }catch(e2){console.error(e2);}
+    }
+    setLoading(false);
+  };
+
+  useEffect(()=>{load();},[]);
 
   const filtered=tenants.filter(t=>{
     const q=searchQ.toLowerCase();
@@ -9599,18 +9630,62 @@ const PageDeploiement=({plan,showToast})=>{
     return matchQ&&matchPlan&&matchStatut;
   });
 
-  const churn=tenants.filter(t=>t.statut==="suspendu").length;
-  const essai=tenants.filter(t=>t.statut==="essai").length;
-  const actifs=tenants.filter(t=>t.statut==="actif").length;
-  const arr=mrr*12;
+  const churn=stats.churnes;
+  const essai=stats.essais;
+  const actifs=stats.actifs;
+  const arr=stats.arr;
   const ltv=mrr>0?mrr*24:0;
   const tauxConv=tenants.length>0?Math.round((actifs/tenants.length)*100):0;
+  const planColors={starter:C.blue,business:C.gold,business_pro:C.gold,enterprise:C.purple,multi_societes:C.teal,multi_pro:C.orange,holding:C.gold};
 
-  const planColors={starter:C.blue,business_pro:C.gold,enterprise:C.purple};
+  const lancerAnalyseChurn=async()=>{
+    setIaLoading(true);
+    try{
+      const aRisque=tenants.filter(t=>t.statut==="essai"||calcSolvabilite(t)<50).map(t=>({...t,health_score:calcSolvabilite(t)}));
+      const res=await fetch('/api/deploiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'scoring_churn',tenants:aRisque})});
+      const d=await res.json();
+      if(d.success)setAnalyseChurn(d.analyse);
+    }catch(e){}
+    setIaLoading(false);
+  };
+
+  const genererUpsell=async(t)=>{
+    try{
+      const res=await fetch('/api/deploiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generer_upsell',societe:t.societe,plan:t.plan,metier:t.metier,taille:t.taille})});
+      const d=await res.json();
+      if(d.success){setUpsellEmail(d.email);showToast("✅ Email upsell généré");}
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const alerterInactifs=async()=>{
+    const inactifs=tenants.filter(t=>t.statut==="actif");
+    try{
+      await fetch('/api/deploiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'alerte_inactifs',inactifs})});
+      showToast("✅ Alertes inactifs envoyées");
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const envoyerRapport=async()=>{
+    showToast("⏳ Envoi rapport mensuel...");
+    try{
+      await fetch('/api/deploiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'rapport_mensuel',mrr,actifs,essais:essai,churnes:churn,commissions:stats.commissions})});
+      showToast("✅ Rapport mensuel envoyé");
+    }catch(e){showToast("❌ Erreur");}
+  };
+
+  const provisionner=async()=>{
+    if(!provisionForm.societe||!provisionForm.email)return showToast("⚠️ Société et email requis");
+    try{
+      const res=await fetch('/api/deploiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'provisioner_tenant',...provisionForm})});
+      const d=await res.json();
+      if(d.success){showToast("✅ Client provisionné + notif WhatsApp");setShowProvision(false);setProvisionForm({societe:"",email:"",plan:"starter",pays:"France",metier:""});load();}
+      else showToast("❌ "+d.error);
+    }catch(e){showToast("❌ Erreur");}
+  };
 
   if(!hasAccess(plan,"deploiement"))return <div style={{padding:20}}><UpgradeWall page="Déploiement SaaS" plan={plan}/></div>;
 
-  // ── FICHE CLIENT ────────────────────────────────────────────
+  // ── FICHE CLIENT ──────────────────────────────────────────────
   if(selectedClient){
     const t=selectedClient;
     const score=calcSolvabilite(t);
@@ -9618,279 +9693,290 @@ const PageDeploiement=({plan,showToast})=>{
     return <div style={{padding:20}}>
       <Btn onClick={()=>setSelectedClient(null)} style={{marginBottom:16,fontSize:12}}>← Retour</Btn>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
-        {/* Infos principales */}
         <Card>
           <div style={{display:"flex",alignItems:"center",gap:12,marginBottom:16}}>
             <div style={{width:48,height:48,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:20,fontWeight:700,color:C.gold}}>{t.societe?.[0]||"?"}</div>
             <div>
               <div style={{fontSize:16,fontWeight:700,color:C.text}}>{t.societe}</div>
               <div style={{fontSize:11,color:C.muted}}>{t.email}</div>
-              <div style={{fontSize:11,color:C.muted}}>{t.pays} · {t.taille}</div>
+              <div style={{fontSize:11,color:C.muted}}>{t.metier} · {t.pays}</div>
             </div>
           </div>
-          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {[[" Plan",t.plan||"—"],[" Métier",t.metier||"—"],[" Statut",t.statut||"—"],[" Inscription",t.created_at?new Date(t.created_at).toLocaleDateString("fr-FR"):"—"]].map(([l,v],i)=>(
-              <div key={i} style={{background:C.card2,borderRadius:6,padding:"8px 10px"}}>
-                <div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em"}}>{l}</div>
-                <div style={{fontSize:12,fontWeight:600,color:C.text,marginTop:2}}>{v}</div>
-              </div>
-            ))}
-          </div>
+          {[["Plan",t.plan||"—"],["Prix",fmt(t.plan_price||0)+"/mois"],["Taille",t.taille||"—"],["Statut",t.statut||"—"],["Inscrit le",t.created_at?new Date(t.created_at).toLocaleDateString("fr"):"—"]].map(([l,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{l}</span><span style={{fontWeight:600}}>{v}</span></div>)}
         </Card>
-        {/* Score solvabilité */}
-        <Card>
-          <STitle>💳 Score de Solvabilité</STitle>
-          <div style={{textAlign:"center",padding:"16px 0"}}>
-            <div style={{fontSize:52,fontWeight:700,color:scoreCouleur(score)}}>{score}</div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:8}}>/100</div>
-            <div style={{fontSize:14,fontWeight:600,color:scoreCouleur(score)}}>{scoreLabel(score)}</div>
-            <div style={{height:8,background:C.border,borderRadius:4,margin:"12px 0",overflow:"hidden"}}>
-              <div style={{height:"100%",width:score+"%",background:scoreCouleur(score),borderRadius:4,transition:"width 1s"}}/>
-            </div>
-          </div>
-          <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {[
-              ["Plan souscrit",t.plan==="enterprise"?"+20pts":t.plan==="business_pro"?"+10pts":"+0pts",t.plan==="enterprise"||t.plan==="business_pro"],
-              ["Pays de confiance",["France","Allemagne","Émirats arabes unis (Dubaï)","États-Unis"].includes(t.pays)?"+15pts":"0pts",["France","Allemagne","Émirats arabes unis (Dubaï)","États-Unis"].includes(t.pays)],
-              ["Grande structure",t.taille==="20+"?"+15pts":t.taille==="6 à 20"?"+10pts":"+5pts",true],
-              ["Compte actif",t.statut==="actif"?"+10pts":"0pts",t.statut==="actif"],
-            ].map(([l,v,ok],i)=>(
-              <div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}>
-                <span style={{color:C.muted}}>{l}</span>
-                <span style={{color:ok?C.green:C.muted,fontWeight:600}}>{v}</span>
-              </div>
-            ))}
-          </div>
-          {score<50&&<div style={{marginTop:12,background:`${C.red}15`,border:`1px solid ${C.red}33`,borderRadius:6,padding:"8px 10px",fontSize:11,color:C.red}}>⚠️ Risque élevé — Demander paiement immédiat</div>}
-          {score>=50&&score<80&&<div style={{marginTop:12,background:`${C.gold}15`,border:`1px solid ${C.gold}33`,borderRadius:6,padding:"8px 10px",fontSize:11,color:C.gold}}>⚡ Surveiller — Essai limité recommandé</div>}
-          {score>=80&&<div style={{marginTop:12,background:`${C.green}15`,border:`1px solid ${C.green}33`,borderRadius:6,padding:"8px 10px",fontSize:11,color:C.green}}>✅ Client fiable — Accès complet recommandé</div>}
-        </Card>
-      </div>
-      {/* KPIs client */}
-      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:12}}>
-        <KPI label="MRR" val={fmt(t.plan_price||0)} color={C.gold}/>
-        <KPI label="LTV estimée" val={fmt((t.plan_price||0)*24)} color={C.green}/>
-        <KPI label="Jours essai restants" val={daysLeft} color={daysLeft<3?C.red:C.blue}/>
-        <KPI label="Score solvabilité" val={score+"/100"} color={scoreCouleur(score)}/>
-      </div>
-      {/* Actions */}
-      <Card>
-        <STitle>⚡ Actions rapides</STitle>
-        <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-          <Btn onClick={()=>{showToast("📱 WhatsApp ouvert");window.open(`https://wa.me/?text=Bonjour ${t.societe}, bienvenue sur Xyra !`)}} style={{background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 WhatsApp</Btn>
-          <Btn onClick={()=>showToast("📧 Email envoyé à "+t.email)} style={{background:`${C.blue}22`,color:C.blue,border:`1px solid ${C.blue}44`}}>📧 Email</Btn>
-          <Btn onClick={()=>showToast("⬆️ Plan mis à jour")} style={{background:`${C.gold}22`,color:C.gold,border:`1px solid ${C.gold}44`}}>⬆️ Changer plan</Btn>
-          <Btn onClick={()=>showToast("🎁 +7 jours offerts")} style={{background:`${C.purple}22`,color:C.purple,border:`1px solid ${C.purple}44`}}>🎁 Offrir 7 jours</Btn>
-          <Btn onClick={()=>showToast("⏸️ Compte suspendu")} style={{background:`${C.red}22`,color:C.red,border:`1px solid ${C.red}44`}}>⏸️ Suspendre</Btn>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <Card style={{borderColor:`${scoreCouleur(score)}44`}}>
+            <div style={{fontSize:9,color:C.muted,marginBottom:4}}>SCORE DE SOLVABILITÉ</div>
+            <div style={{fontSize:48,fontWeight:700,color:scoreCouleur(score),fontFamily:"Georgia,serif"}}>{score}</div>
+            <div style={{fontSize:11,color:scoreCouleur(score)}}>{scoreLabel(score)}</div>
+            <SM val={score} max={100} color={scoreCouleur(score)}/>
+          </Card>
+          {t.statut==="essai"&&daysLeft>0&&<Card style={{borderColor:`${C.orange}44`}}>
+            <div style={{fontSize:9,color:C.orange,marginBottom:4}}>ESSAI GRATUIT</div>
+            <div style={{fontSize:28,fontWeight:700,color:C.orange}}>{daysLeft} jours</div>
+            <div style={{fontSize:11,color:C.muted}}>restants avant expiration</div>
+          </Card>}
         </div>
-      </Card>
-      {/* Timeline */}
-      <Card style={{marginTop:12}}>
-        <STitle>📋 Timeline</STitle>
-        {[
-          {date:t.created_at?new Date(t.created_at).toLocaleDateString("fr-FR"):"—",action:"Inscription",detail:`Plan ${t.plan} · ${t.pays}`,c:C.green},
-          {date:"—",action:"Paiement",detail:`${t.plan_price||0}€/mois`,c:C.gold},
-          {date:"—",action:"Onboarding",detail:"Guide de démarrage",c:C.blue},
-        ].map((e,i)=>(
-          <div key={i} style={{display:"flex",gap:12,padding:"8px 0",borderBottom:`1px solid ${C.border}22`}}>
-            <div style={{width:6,height:6,borderRadius:"50%",background:e.c,flexShrink:0,marginTop:5}}/>
-            <div style={{flex:1}}>
-              <div style={{fontSize:12,fontWeight:600,color:C.text}}>{e.action}</div>
-              <div style={{fontSize:11,color:C.muted}}>{e.detail}</div>
-            </div>
-            <div style={{fontSize:10,color:C.muted}}>{e.date}</div>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+        <Card>
+          <STitle>⚡ Actions rapides</STitle>
+          <div style={{display:"flex",flexDirection:"column",gap:8}}>
+            <Btn onClick={()=>genererUpsell(t)} style={{fontSize:11}}>🤖 Générer email upsell IA</Btn>
+            <BtnGhost onClick={()=>showToast("📧 Email de relance envoyé")} style={{fontSize:11}}>📧 Email de relance</BtnGhost>
+            <BtnGhost onClick={()=>showToast("💬 WhatsApp ouvert")} style={{fontSize:11}}>💬 WhatsApp</BtnGhost>
+            <BtnGhost onClick={()=>showToast("🔒 Compte suspendu")} style={{fontSize:11,color:C.red,borderColor:`${C.red}44`}}>🔒 Suspendre</BtnGhost>
           </div>
-        ))}
-      </Card>
+        </Card>
+        {upsellEmail&&<Card style={{borderColor:`${C.purple}44`}}>
+          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 EMAIL UPSELL IA GÉNÉRÉ</div>
+          <div style={{fontSize:11,color:C.text,lineHeight:1.7,whiteSpace:"pre-line"}}>{upsellEmail}</div>
+          <div style={{display:"flex",gap:6,marginTop:10}}>
+            <Btn onClick={()=>showToast("📧 Email envoyé !")} style={{fontSize:10}}>📧 Envoyer</Btn>
+            <BtnGhost onClick={()=>{navigator.clipboard?.writeText(upsellEmail);showToast("✅ Copié");}} style={{fontSize:10}}>📋 Copier</BtnGhost>
+          </div>
+        </Card>}
+      </div>
     </div>;
   }
 
-  // ── VUE PRINCIPALE ──────────────────────────────────────────
+  const tabs=[
+    {id:"tenants",label:"👥 Clients"},
+    {id:"metrics",label:"📊 Métriques"},
+    {id:"churn",label:"🤖 Analyse Churn IA"},
+    {id:"revendeurs",label:"🚀 Revendeurs"},
+    {id:"certification",label:"🏆 Certification"},
+  ];
+
   return <div style={{padding:20}}>
-    <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>🌍 Déploiement SaaS — Vue Owner</div>
-    <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Clients Xyra · MRR · Solvabilité · Alertes temps réel</div>
+    {/* HEADER */}
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
+      <div>
+        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>🚀 Déploiement SaaS</div>
+        <div style={{fontSize:11,color:C.muted}}>Clients · MRR · Health Score · Churn IA · Upsell auto · Revendeurs</div>
+      </div>
+      <div style={{display:"flex",gap:8}}>
+        <BtnGhost onClick={envoyerRapport} style={{fontSize:11}}>📱 Rapport mensuel</BtnGhost>
+        <BtnGhost onClick={alerterInactifs} style={{fontSize:11,color:C.orange,borderColor:`${C.orange}44`}}>🔔 Alertes inactifs</BtnGhost>
+        <Btn onClick={()=>setShowProvision(true)} style={{fontSize:11}}>+ Provisionner client</Btn>
+      </div>
+    </div>
+
+    {/* FORM PROVISION */}
+    {showProvision&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
+      <STitle>+ Provisionner un nouveau client</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:10}}>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Société *</label><Inp value={provisionForm.societe} onChange={e=>setProvisionForm(f=>({...f,societe:e.target.value}))}/></div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Email *</label><Inp value={provisionForm.email} onChange={e=>setProvisionForm(f=>({...f,email:e.target.value}))}/></div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Plan</label>
+          <Sel value={provisionForm.plan} onChange={e=>setProvisionForm(f=>({...f,plan:e.target.value}))}>
+            <option value="starter">Starter — 59€/mois</option>
+            <option value="business_pro">Business Pro — 129€/mois</option>
+            <option value="enterprise">Enterprise — 249€/mois</option>
+            <option value="multi_societes">Multi-Sociétés — 499€/mois</option>
+            <option value="multi_pro">Multi-Sociétés Pro — 799€/mois</option>
+            <option value="holding">Holding — 1 200€/mois</option>
+          </Sel>
+        </div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Pays</label><Inp value={provisionForm.pays} onChange={e=>setProvisionForm(f=>({...f,pays:e.target.value}))}/></div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Métier</label><Inp value={provisionForm.metier} onChange={e=>setProvisionForm(f=>({...f,metier:e.target.value}))}/></div>
+      </div>
+      <div style={{display:"flex",gap:8}}><Btn onClick={provisionner}>✅ Provisionner + notifier</Btn><BtnGhost onClick={()=>setShowProvision(false)}>Annuler</BtnGhost></div>
+    </Card>}
 
     {/* KPIs */}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:16}}>
-      <KPI label="Clients SaaS" val={tenants.length} color={C.blue}/>
-      <KPI label="MRR" val={fmt(mrr)} color={C.gold}/>
-      <KPI label="ARR projeté" val={fmt(arr)} color={C.green}/>
-      <KPI label="En essai" val={essai} color={C.orange}/>
-      <KPI label="Taux conversion" val={tauxConv+"%"} color={C.purple}/>
-      <KPI label="Churned" val={churn} color={C.red}/>
+    <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:14}}>
+      <CT style={{borderColor:`${C.green}33`}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>MRR</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>{fmt(mrr)}</div><div style={{fontSize:9,color:C.muted}}>Récurrent/mois</div></CT>
+      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>ARR</div><div style={{fontSize:16,fontWeight:700,color:C.teal}}>{fmt(arr)}</div></CT>
+      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>ACTIFS</div><div style={{fontSize:18,fontWeight:700,color:C.blue}}>{actifs}</div></CT>
+      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>ESSAIS</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{essai}</div></CT>
+      <CT style={{borderColor:`${C.red}33`}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>CHURNS</div><div style={{fontSize:18,fontWeight:700,color:C.red}}>{churn}</div></CT>
+      <CT style={{borderColor:`${C.gold}33`}}><div style={{fontSize:9,color:C.muted,marginBottom:3}}>COMMISSIONS 5%</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>{fmt(stats.commissions)}</div></CT>
     </div>
 
-    {/* Alertes */}
-    {tenants.filter(t=>{
-      const days=t.trial_ends_at?Math.ceil((new Date(t.trial_ends_at)-Date.now())/(1000*60*60*24)):99;
-      return days<=2&&t.statut==="essai";
-    }).length>0&&(
-      <div style={{background:`${C.red}15`,border:`1px solid ${C.red}33`,borderRadius:8,padding:"10px 14px",marginBottom:12,fontSize:12,color:C.red}}>
-        🚨 {tenants.filter(t=>{const d=t.trial_ends_at?Math.ceil((new Date(t.trial_ends_at)-Date.now())/(1000*60*60*24)):99;return d<=2&&t.statut==="essai";}).length} client(s) en fin d'essai dans moins de 48h
-      </div>
-    )}
-
-    {/* Tabs */}
-    <div style={{display:"flex",gap:4,marginBottom:12}}>
-      {[["dashboard","📊 Vue globale"],["clients","🏢 Clients"],["revenus","💰 Revenus"],["solvabilite","💳 Solvabilité"]].map(([id,label])=>(
-        <button key={id} onClick={()=>setView(id)} style={{padding:"6px 14px",borderRadius:6,border:`1px solid ${view===id?C.gold:C.border}`,background:view===id?`${C.gold}15`:"transparent",color:view===id?C.gold:C.muted,cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>{label}</button>
-      ))}
+    {/* TABS */}
+    <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
+      {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
     </div>
 
-    {/* Vue globale */}
-    {view==="dashboard"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr",gap:12,marginBottom:12}}>
-        <Card>
-          <STitle>📊 Répartition par plan</STitle>
-          {["starter","business_pro","enterprise"].map(p=>{
-            const count=tenants.filter(t=>t.plan===p).length;
-            const pct=tenants.length>0?Math.round((count/tenants.length)*100):0;
-            return <div key={p} style={{marginBottom:10}}>
-              <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}>
-                <span style={{color:C.text,textTransform:"capitalize"}}>{p.replace("_"," ")}</span>
-                <span style={{color:planColors[p]||C.blue,fontWeight:600}}>{count} clients · {pct}%</span>
-              </div>
-              <div style={{height:6,background:C.border,borderRadius:3,overflow:"hidden"}}>
-                <div style={{height:"100%",width:pct+"%",background:planColors[p]||C.blue,borderRadius:3}}/>
-              </div>
-            </div>;
-          })}
-        </Card>
-        <Card>
-          <STitle>🌍 Top pays</STitle>
-          {Object.entries(tenants.reduce((acc,t)=>{const p=t.pays||"Inconnu";acc[p]=(acc[p]||0)+1;return acc;},{})).sort((a,b)=>b[1]-a[1]).slice(0,5).map(([pays,count])=>(
-            <div key={pays} style={{display:"flex",justifyContent:"space-between",fontSize:12,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}>
-              <span style={{color:C.text}}>{pays}</span>
-              <span style={{color:C.gold,fontWeight:600}}>{count} client{count>1?"s":""}</span>
-            </div>
-          ))}
-          {tenants.length===0&&<div style={{color:C.muted,fontSize:12}}>Aucun client</div>}
-        </Card>
-        <Card>
-          <STitle>⚡ Alertes owner</STitle>
-          {tenants.filter(t=>calcSolvabilite(t)<50).length>0&&<div style={{fontSize:11,color:C.red,padding:"5px 8px",background:`${C.red}11`,borderRadius:4,marginBottom:6}}>🔴 {tenants.filter(t=>calcSolvabilite(t)<50).length} client(s) solvabilité faible</div>}
-          {essai>0&&<div style={{fontSize:11,color:C.orange,padding:"5px 8px",background:`${C.orange}11`,borderRadius:4,marginBottom:6}}>⏳ {essai} client(s) en période d'essai</div>}
-          {churn>0&&<div style={{fontSize:11,color:C.red,padding:"5px 8px",background:`${C.red}11`,borderRadius:4,marginBottom:6}}>⚠️ {churn} client(s) churned</div>}
-          {tenants.length===0&&<div style={{color:C.muted,fontSize:12}}>Aucune alerte</div>}
-          {tenants.length>0&&churn===0&&essai===0&&<div style={{fontSize:11,color:C.green,padding:"5px 8px",background:`${C.green}11`,borderRadius:4}}>✅ Tout va bien !</div>}
-        </Card>
-      </div>
-    </div>}
-
-    {/* Vue clients */}
-    {view==="clients"&&<Card>
+    {/* ── CLIENTS ── */}
+    {onglet==="tenants"&&<div>
       <div style={{display:"flex",gap:8,marginBottom:12,flexWrap:"wrap"}}>
-        <input value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="🔍 Rechercher..." style={{flex:1,minWidth:150,background:C.card2,border:`1px solid ${C.border}`,color:C.text,padding:"7px 10px",borderRadius:6,fontSize:12,outline:"none",fontFamily:"inherit"}}/>
-        <select value={filterPlan} onChange={e=>setFilterPlan(e.target.value)} style={{background:C.card2,border:`1px solid ${C.border}`,color:C.text,padding:"7px 10px",borderRadius:6,fontSize:12,outline:"none",fontFamily:"inherit"}}>
+        <Inp value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="Rechercher société, email, pays..." style={{flex:1,minWidth:200}}/>
+        <Sel value={filterPlan} onChange={e=>setFilterPlan(e.target.value)}>
           <option value="tous">Tous les plans</option>
-          <option value="starter">Starter</option>
-          <option value="business_pro">Business Pro</option>
-          <option value="enterprise">Enterprise</option>
-        </select>
-        <select value={filterStatut} onChange={e=>setFilterStatut(e.target.value)} style={{background:C.card2,border:`1px solid ${C.border}`,color:C.text,padding:"7px 10px",borderRadius:6,fontSize:12,outline:"none",fontFamily:"inherit"}}>
-          <option value="tous">Tous statuts</option>
-          <option value="essai">Essai</option>
-          <option value="actif">Actif</option>
-          <option value="suspendu">Suspendu</option>
-        </select>
+          {["starter","business_pro","enterprise","multi_societes","multi_pro","holding"].map(p=><option key={p} value={p}>{p}</option>)}
+        </Sel>
+        <Sel value={filterStatut} onChange={e=>setFilterStatut(e.target.value)}>
+          <option value="tous">Tous les statuts</option>
+          {["essai","actif","suspendu","expiré"].map(s=><option key={s} value={s}>{s}</option>)}
+        </Sel>
       </div>
-      {loading?<div style={{color:C.muted,textAlign:"center",padding:20}}>Chargement...</div>:
-      filtered.length===0?<div style={{color:C.muted,textAlign:"center",padding:20}}>Aucun client trouvé</div>:
-      <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Entreprise</TH><TH>Plan</TH><TH>Pays</TH><TH>MRR</TH><TH>Solvabilité</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
-        <tbody>{filtered.map((t,i)=>{
-          const score=calcSolvabilite(t);
-          return <tr key={i}>
-            <Td style={{fontWeight:600}}>{t.societe}</Td>
-            <Td><Pill color={planColors[t.plan]||C.blue}>{t.plan?.replace("_"," ")||"—"}</Pill></Td>
-            <Td style={{fontSize:11}}>{t.pays||"—"}</Td>
-            <Td style={{color:C.gold,fontWeight:700}}>{fmt(t.plan_price||0)}/mois</Td>
-            <Td>
-              <div style={{display:"flex",alignItems:"center",gap:6}}>
-                <div style={{width:40,height:4,background:C.border,borderRadius:2,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:score+"%",background:scoreCouleur(score)}}/>
-                </div>
-                <span style={{fontSize:10,color:scoreCouleur(score),fontWeight:600}}>{score}</span>
-              </div>
-            </Td>
-            <Td><St s={t.statut||"essai"}/></Td>
-            <Td><Btn onClick={()=>setSelectedClient(t)} style={{padding:"3px 8px",fontSize:10}}>Voir fiche →</Btn></Td>
-          </tr>;
-        })}</tbody>
-      </table>}
-    </Card>}
-
-    {/* Vue revenus */}
-    {view==="revenus"&&<div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
-        <Card>
-          <STitle>💰 MRR par plan</STitle>
-          {["starter","business_pro","enterprise"].map(p=>{
-            const total=tenants.filter(t=>t.plan===p).reduce((a,t)=>a+(t.plan_price||0),0);
-            return <div key={p} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
-              <span style={{color:C.text,textTransform:"capitalize"}}>{p.replace("_"," ")}</span>
-              <span style={{color:C.gold,fontWeight:700}}>{fmt(total)}/mois</span>
-            </div>;
-          })}
-          <div style={{display:"flex",justifyContent:"space-between",padding:"8px 0",fontSize:13,fontWeight:700}}>
-            <span style={{color:C.text}}>Total MRR</span>
-            <span style={{color:C.gold}}>{fmt(mrr)}/mois</span>
-          </div>
-        </Card>
-        <Card>
-          <STitle>📈 Projections</STitle>
-          {[["MRR actuel",fmt(mrr),"mois"],["ARR projeté",fmt(arr),"an"],["LTV moyenne (24 mois)",fmt(ltv),"client"],["Taux conversion",tauxConv+"%","essai→payant"]].map(([l,v,u],i)=>(
-            <div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
-              <span style={{color:C.muted}}>{l}</span>
-              <div style={{textAlign:"right"}}>
-                <span style={{color:C.gold,fontWeight:700}}>{v}</span>
-                <span style={{color:C.muted,fontSize:10,marginLeft:4}}>/{u}</span>
-              </div>
-            </div>
-          ))}
-        </Card>
-      </div>
+      {loading?<div style={{fontSize:11,color:C.muted}}>⏳ Chargement...</div>:
+      tenants.length===0?<Card style={{textAlign:"center",padding:30}}>
+        <div style={{fontSize:32,marginBottom:8}}>🚀</div>
+        <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Aucun client encore</div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Les clients inscrits sur xyraio.fr apparaissent ici automatiquement.</div>
+        <Btn onClick={()=>setShowProvision(true)}>+ Provisionner un client</Btn>
+      </Card>:
+      <Card>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <STitle>{filtered.length} client(s) trouvé(s)</STitle>
+          <BtnGhost onClick={()=>{const csv=["Société,Plan,Prix,Statut,Pays,Email"].concat(filtered.map(t=>`${t.societe},${t.plan},${t.plan_price},${t.statut},${t.pays},${t.email}`)).join("\n");const b=new Blob([csv],{type:"text/csv"});const a=document.createElement("a");a.href=URL.createObjectURL(b);a.download="clients_xyra.csv";a.click();showToast("✅ CSV exporté");}} style={{fontSize:10}}>📋 CSV</BtnGhost>
+        </div>
+        <div style={{overflowX:"auto"}}>
+          <table style={{width:"100%",borderCollapse:"collapse",minWidth:700}}>
+            <thead><tr><TH>Société</TH><TH>Plan</TH><TH>Prix/mois</TH><TH>Score</TH><TH>Statut</TH><TH>Pays</TH><TH>Inscrit</TH><TH>Action</TH></tr></thead>
+            <tbody>{filtered.map((t,i)=>{
+              const score=calcSolvabilite(t);
+              return <tr key={i} style={{background:t.statut==="suspendu"?`${C.red}08`:"transparent"}}>
+                <Td>
+                  <div style={{display:"flex",alignItems:"center",gap:8}}>
+                    <div style={{width:28,height:28,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:C.gold}}>{t.societe?.[0]||"?"}</div>
+                    <div>
+                      <div style={{fontSize:12,fontWeight:700}}>{t.societe||"—"}</div>
+                      <div style={{fontSize:9,color:C.muted}}>{t.email}</div>
+                    </div>
+                  </div>
+                </Td>
+                <Td><Pill color={planColors[t.plan]||C.gold}>{t.plan||"starter"}</Pill></Td>
+                <Td style={{color:C.green,fontWeight:700}}>{fmt(t.plan_price||0)}</Td>
+                <Td>
+                  <div style={{display:"flex",alignItems:"center",gap:6}}>
+                    <div style={{width:32,height:4,background:C.border,borderRadius:2,overflow:"hidden"}}>
+                      <div style={{width:score+"%",height:"100%",background:scoreCouleur(score)}}/>
+                    </div>
+                    <span style={{fontSize:10,color:scoreCouleur(score),fontWeight:700}}>{score}</span>
+                  </div>
+                </Td>
+                <Td><St s={t.statut}/></Td>
+                <Td style={{fontSize:11,color:C.muted}}>{t.pays||"—"}</Td>
+                <Td style={{fontSize:10,color:C.muted}}>{t.created_at?new Date(t.created_at).toLocaleDateString("fr"):"—"}</Td>
+                <Td>
+                  <div style={{display:"flex",gap:4}}>
+                    <Btn onClick={()=>setSelectedClient(t)} style={{fontSize:9,padding:"3px 8px"}}>Voir</Btn>
+                    {score<50&&<BtnGhost onClick={()=>showToast("📧 Demande envoyée")} style={{fontSize:9,padding:"3px 6px",color:C.red,borderColor:`${C.red}44`}}>⚠</BtnGhost>}
+                  </div>
+                </Td>
+              </tr>;
+            })}</tbody>
+          </table>
+        </div>
+      </Card>}
     </div>}
 
-    {/* Vue solvabilité */}
-    {view==="solvabilite"&&<Card>
-      <STitle>💳 Score de solvabilité — Tous les clients</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:16}}>
-        {[["🟢 Solvables",tenants.filter(t=>calcSolvabilite(t)>=80).length,C.green],["🟡 Moyens",tenants.filter(t=>calcSolvabilite(t)>=50&&calcSolvabilite(t)<80).length,C.gold],["🔴 Risqués",tenants.filter(t=>calcSolvabilite(t)<50).length,C.red]].map(([l,v,c],i)=>(
-          <div key={i} style={{background:`${c}11`,border:`1px solid ${c}33`,borderRadius:8,padding:"12px",textAlign:"center"}}>
-            <div style={{fontSize:22,fontWeight:700,color:c}}>{v}</div>
-            <div style={{fontSize:11,color:C.muted,marginTop:2}}>{l}</div>
-          </div>
-        ))}
+    {/* ── MÉTRIQUES ── */}
+    {onglet==="metrics"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
+      <Card>
+        <STitle>📊 Métriques SaaS clés</STitle>
+        {[["MRR (Revenus récurrents/mois)",fmt(mrr),C.green],["ARR (Annuel)",fmt(arr),C.teal],["LTV (Valeur vie client estimée)",fmt(ltv),C.blue],["Taux de conversion essai→payant",tauxConv+"%",tauxConv>=30?C.green:C.orange],["Commissions Xyra (5%)",fmt(stats.commissions),C.gold],["Taux de churn",tenants.length>0?Math.round(churn/tenants.length*100)+"%":"—",churn===0?C.green:C.red]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
+      </Card>
+      <Card>
+        <STitle>📈 Répartition par plan</STitle>
+        {["starter","business_pro","enterprise","multi_societes","multi_pro","holding"].map(p=>{
+          const count=tenants.filter(t=>t.plan===p).length;
+          if(count===0)return null;
+          const total=tenants.length||1;
+          const pct=Math.round(count/total*100);
+          const revenu=tenants.filter(t=>t.plan===p).reduce((a,t)=>a+Number(t.plan_price||0),0);
+          return <div key={p} style={{marginBottom:10}}>
+            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}>
+              <span style={{color:planColors[p]||C.gold,fontWeight:600}}>{p.replace("_"," ").toUpperCase()}</span>
+              <span style={{color:C.muted}}>{count} clients · {fmt(revenu)}/mois · {pct}%</span>
+            </div>
+            <SM val={pct} max={100} color={planColors[p]||C.gold}/>
+          </div>;
+        })}
+      </Card>
+    </div>}
+
+    {/* ── ANALYSE CHURN IA ── */}
+    {onglet==="churn"&&<div>
+      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:16,marginBottom:14}}>
+        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Scoring prédictif Churn — Claude Sonnet</div>
+        {iaLoading?<div style={{fontSize:11,color:C.muted}}>⏳ Analyse en cours...</div>:<div style={{fontSize:12,color:C.text,lineHeight:1.8}}>{analyseChurn||"Lance l'analyse pour identifier les clients à risque et obtenir des recommandations d'actions."}</div>}
+        <BtnGhost onClick={lancerAnalyseChurn} style={{marginTop:8,fontSize:10}}>{iaLoading?"⏳...":"🤖 Analyser le risque de churn"}</BtnGhost>
       </div>
-      {loading?<div style={{color:C.muted,textAlign:"center",padding:20}}>Chargement...</div>:
-      tenants.length===0?<div style={{color:C.muted,textAlign:"center",padding:20}}>Aucun client</div>:
-      <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Entreprise</TH><TH>Pays</TH><TH>Plan</TH><TH>Taille</TH><TH>Score</TH><TH>Niveau</TH><TH>Action</TH></tr></thead>
-        <tbody>{tenants.sort((a,b)=>calcSolvabilite(a)-calcSolvabilite(b)).map((t,i)=>{
-          const score=calcSolvabilite(t);
-          return <tr key={i}>
-            <Td style={{fontWeight:600}}>{t.societe}</Td>
-            <Td style={{fontSize:11}}>{t.pays||"—"}</Td>
-            <Td><Pill color={planColors[t.plan]||C.blue}>{t.plan?.replace("_"," ")||"—"}</Pill></Td>
-            <Td style={{fontSize:11}}>{t.taille||"—"}</Td>
-            <Td>
-              <div style={{display:"flex",alignItems:"center",gap:6}}>
-                <div style={{width:50,height:5,background:C.border,borderRadius:2,overflow:"hidden"}}>
-                  <div style={{height:"100%",width:score+"%",background:scoreCouleur(score)}}/>
-                </div>
-                <span style={{fontSize:11,color:scoreCouleur(score),fontWeight:700}}>{score}/100</span>
-              </div>
-            </Td>
-            <Td><span style={{fontSize:10,color:scoreCouleur(score)}}>{scoreLabel(score)}</span></Td>
-            <Td>
-              {score<50?<Btn onClick={()=>showToast("📧 Demande paiement envoyée")} style={{padding:"3px 8px",fontSize:9,background:`${C.red}22`,color:C.red,border:`1px solid ${C.red}44`}}>Demander paiement</Btn>:
-              <Btn onClick={()=>setSelectedClient(t)} style={{padding:"3px 8px",fontSize:10}}>Voir fiche</Btn>}
-            </Td>
-          </tr>;
-        })}</tbody>
-      </table>}
-    </Card>}
+      <Card>
+        <STitle>⚠️ Clients à surveiller (score {"<"} 50)</STitle>
+        {tenants.filter(t=>calcSolvabilite(t)<50).length===0?<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>✅ Aucun client à risque élevé pour le moment.</div>:
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Société</TH><TH>Plan</TH><TH>Score</TH><TH>Statut</TH><TH>Action</TH></tr></thead>
+          <tbody>{tenants.filter(t=>calcSolvabilite(t)<50).map((t,i)=>{
+            const score=calcSolvabilite(t);
+            return <tr key={i}>
+              <Td style={{fontWeight:600}}>{t.societe||"—"}</Td>
+              <Td><Pill color={planColors[t.plan]||C.gold}>{t.plan}</Pill></Td>
+              <Td><span style={{color:scoreCouleur(score),fontWeight:700}}>{score}/100</span></Td>
+              <Td><St s={t.statut}/></Td>
+              <Td><div style={{display:"flex",gap:4}}>
+                <Btn onClick={()=>genererUpsell(t)} style={{fontSize:9,padding:"3px 8px"}}>🤖 Upsell IA</Btn>
+                <BtnGhost onClick={()=>showToast("📧 Relance envoyée")} style={{fontSize:9,color:C.orange}}>📧</BtnGhost>
+              </div></Td>
+            </tr>;
+          })}</tbody>
+        </table>}
+      </Card>
+    </div>}
+
+    {/* ── REVENDEURS ── */}
+    {onglet==="revendeurs"&&<div>
+      <div style={{background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:10,padding:14,marginBottom:14,fontSize:11,color:C.text,lineHeight:1.7}}>
+        🚀 Le programme revendeur Xyra permet à des agences et entrepreneurs de revendre Xyra sous leur propre marque. Chaque revendeur fixe ses propres prix, gère ses clients, et génère des revenus récurrents. Xyra garde une commission wholesale sur le volume.
+      </div>
+
+      {showRevendeurForm&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`}}>
+        <STitle>📋 Demande de partenariat revendeur — {revendeurForm.plan_revendeur}</STitle>
+        <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}22`,borderRadius:8,padding:10,marginBottom:12,fontSize:11,color:C.text}}>
+          📱 Ta demande sera envoyée immédiatement à l'équipe Xyra par <b>WhatsApp</b> et <b>email</b>. Réponse sous 24h.
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Nom *</label><Inp value={revendeurForm.nom} onChange={e=>setRevendeurForm(f=>({...f,nom:e.target.value}))} placeholder="Votre nom"/></div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Email *</label><Inp value={revendeurForm.email} onChange={e=>setRevendeurForm(f=>({...f,email:e.target.value}))} placeholder="contact@société.com"/></div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Société *</label><Inp value={revendeurForm.societe} onChange={e=>setRevendeurForm(f=>({...f,societe:e.target.value}))} placeholder="Nom de votre agence"/></div>
+          <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Téléphone / WhatsApp</label><Inp value={revendeurForm.tel} onChange={e=>setRevendeurForm(f=>({...f,tel:e.target.value}))} placeholder="+33..."/></div>
+          <div style={{gridColumn:"1/-1"}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Message (optionnel)</label><Inp value={revendeurForm.message} onChange={e=>setRevendeurForm(f=>({...f,message:e.target.value}))} placeholder="Décrivez votre activité et vos clients cibles..."/></div>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <Btn onClick={envoyerDemandeRevendeur} style={{background:C.gold,color:"#000"}}>{revendeurLoading?"⏳ Envoi...":"✅ Envoyer ma demande"}</Btn>
+          <BtnGhost onClick={()=>setShowRevendeurForm(false)}>Annuler</BtnGhost>
+        </div>
+      </Card>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:14}}>
+        {[{plan:"White-label Starter",prix:"5 000€ setup + 500€/mois",clients:"Jusqu'à 10 clients",color:C.green,features:["Dashboard à votre marque","Domaine personnalisé","Panneau admin revendeur","Onboarding clients auto"]},{plan:"White-label Business",prix:"12 000€ setup + 1 000€/mois",clients:"Clients illimités",color:C.gold,highlight:true,features:["Tout Starter","API partenaire complète","Rapports revenus revendeur","Formation & certification","Co-marketing inclus"]},{plan:"White-label Enterprise",prix:"Sur devis",clients:"Infrastructure dédiée",color:C.purple,features:["Tout Business","SLA garanti 99.9%","Développements spécifiques","Account manager dédié"]}].map((p,i)=><Card key={i} style={{borderColor:`${p.color}44`}}>
+          <div style={{fontSize:13,fontWeight:700,color:p.color,marginBottom:4}}>{p.plan}</div>
+          <div style={{fontSize:12,fontWeight:700,marginBottom:2}}>{p.prix}</div>
+          <div style={{fontSize:10,color:C.muted,marginBottom:10}}>{p.clients}</div>
+          {p.features.map((f,j)=><div key={j} style={{fontSize:11,color:C.text,marginBottom:6,display:"flex",gap:6}}><span style={{color:p.color}}>◆</span>{f}</div>)}
+          <Btn onClick={()=>{setRevendeurForm(f=>({...f,plan_revendeur:p.plan}));setShowRevendeurForm(true);}} style={{width:"100%",fontSize:11,marginTop:10,background:p.highlight?p.color:"transparent",color:p.highlight?"#000":p.color,border:`1px solid ${p.color}44`}}>Devenir revendeur →</Btn>
+        </Card>)}
+      </div>
+      <Card>
+        <STitle>💰 Revenus partagés automatiques</STitle>
+        <div style={{fontSize:11,color:C.text,lineHeight:1.7,marginBottom:12}}>
+          Si vous apportez un nouveau client Xyra hors de votre périmètre de revendeur, vous touchez automatiquement une commission de <b style={{color:C.gold}}>15%</b> sur le premier mois, virée via Flutterwave dans les 30 jours suivant l'encaissement.
+        </div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
+          {[["Plan Starter (59€)","8.85€ de commission",C.blue],["Plan Business Pro (129€)","19.35€ de commission",C.gold],["Plan Enterprise (249€)","37.35€ de commission",C.purple]].map(([l,v,c],i)=><CT key={i}><div style={{fontSize:11,fontWeight:600,color:c,marginBottom:4}}>{l}</div><div style={{fontSize:12,color:C.text}}>{v}</div></CT>)}
+        </div>
+      </Card>
+    </div>}
+
+    {/* ── CERTIFICATION ── */}
+    {onglet==="certification"&&<div>
+      <div style={{background:`linear-gradient(135deg,${C.card},#0a0a1a)`,border:`1px solid ${C.gold}44`,borderRadius:12,padding:24,marginBottom:14,textAlign:"center"}}>
+        <div style={{fontSize:40,marginBottom:8}}>🏆</div>
+        <div style={{fontSize:18,fontWeight:700,color:C.gold,marginBottom:4}}>Programme de Certification Revendeur Xyra</div>
+        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>Devenez un Revendeur Certifié Xyra et accédez à des avantages exclusifs</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,textAlign:"left"}}>
+          {[{niveau:"🥉 Certifié",cond:"1 client actif + formation complétée",avantages:["Badge Certifié sur l'annuaire","Support prioritaire","Kit marketing Xyra"]},{niveau:"🥈 Expert",cond:"5 clients actifs + 3 mois d'activité",avantages:["Badge Expert","Commission +5%","Co-marketing Xyra","Accès bêta nouvelles fonctionnalités"]},{niveau:"🥇 Partenaire Elite",cond:"15 clients actifs + 1 an d'activité",avantages:["Badge Elite","Account manager dédié","Commission +10%","Invitation événements Xyra","Logo sur site Xyra"]}].map((n,i)=><Card key={i} style={{borderColor:`${[C.orange,C.muted,C.gold][i]}44`}}>
+            <div style={{fontSize:14,fontWeight:700,marginBottom:6}}>{n.niveau}</div>
+            <div style={{fontSize:10,color:C.muted,marginBottom:10}}>{n.cond}</div>
+            {n.avantages.map((a,j)=><div key={j} style={{fontSize:11,color:C.text,marginBottom:4,display:"flex",gap:6}}><span style={{color:C.gold}}>◆</span>{a}</div>)}
+          </Card>)}
+        </div>
+      </div>
+    </div>}
   </div>;
 };
 
