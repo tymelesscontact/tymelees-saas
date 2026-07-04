@@ -193,7 +193,7 @@ const PARTENAIRES=[{id:1,nom:"Thomas Beaumont",role:"Apporteur d'affaires",comm:
 const ANNUAIRE=[{id:1,nom:"Isabelle Moreau",metier:"Gestion Airbnb",ville:"Paris",pays:"🇫🇷",plan:"Starter",score:72},{id:2,nom:"Marc Dupont",metier:"Immobilier",ville:"Lyon",pays:"🇫🇷",plan:"Business Pro",score:88},{id:3,nom:"Sofia Al-Rashid",metier:"Aviation d'affaires",ville:"Dubaï",pays:"🇦🇪",plan:"Enterprise",score:98},{id:4,nom:"Groupe Prestige SARL",metier:"Syndic",ville:"Paris",pays:"🇫🇷",plan:"Enterprise",score:94},{id:5,nom:"Fatoumata Diop",metier:"Finance Afrique",ville:"Dakar",pays:"🇸🇳",plan:"Business Pro",score:89}];
 const STOCK=[{art:"Produit vitres Pro",cat:"Nettoyage",qte:3,min:5,u:"L",four:"CleanPro"},{art:"Microfibre premium",cat:"Nettoyage",qte:24,min:20,u:"pcs",four:"TextilePro"},{art:"Désinfectant surfaces",cat:"Nettoyage",qte:8,min:6,u:"L",four:"CleanPro"},{art:"Housses rapatriement",cat:"Rapatriement",qte:2,min:4,u:"pcs",four:"MedSupply"},{art:"Kit bord jet privé",cat:"Jet/Yacht",qte:5,min:3,u:"kits",four:"LuxEquip"},{art:"Produit nacre bois",cat:"Yacht",qte:1,min:3,u:"L",four:"YachtCare"}];
 const PLANNING=[{date:"15/04",h:"09:00",client:"Isabelle Moreau",service:"Nettoyage Airbnb – Montmartre",collab:"Abou",statut:"confirmé",duree:"3h",type:"mission"},{date:"15/04",h:"14:00",client:"Marc Dupont",service:"Nettoyage bureaux – La Défense",collab:"Thomas",statut:"confirmé",duree:"4h",type:"mission"},{date:"17/04",h:"14:00",client:"Isabelle Moreau",service:"RDV client – Suivi contrat",collab:"Béné",statut:"confirmé",duree:"1h",type:"rdv"},{date:"18/04",h:"10:00",client:"Sofia Al-Rashid",service:"RDV VIP – Renouvellement",collab:"Béné",statut:"confirmé",duree:"2h",type:"rdv"}];
-const CHARGES=[{cat:"Fournitures nettoyage",mois:420},{cat:"Transport & carburant",mois:380},{cat:"Commissions partenaires",mois:6425},{cat:"Salaires collaborateurs",mois:3200},{cat:"Logiciels & abonnements",mois:180},{cat:"Frais divers",mois:150}];
+const CHARGES=[{cat:"Fournitures nettoyage",mois:420},{cat:"Transport & carburant",mois:380},{cat:"Commissions partenaires",mois:6425},{cat:"Salaires collaborateur",mois:3200},{cat:"Logiciels & abonnements",mois:180},{cat:"Frais divers",mois:150}];
 const TRESORERIE_90J=[{sem:"S16 (15 avr)",e:6480,s:3200,sol:8240},{sem:"S17 (22 avr)",e:5200,s:4100,sol:9340},{sem:"S18 (29 avr)",e:7800,s:3500,sol:13640},{sem:"S19 (6 mai)",e:6100,s:6800,sol:12940},{sem:"S20 (13 mai)",e:8400,s:3200,sol:18140},{sem:"S21 (20 mai)",e:9200,s:4400,sol:22940,pred:true},{sem:"S22 (27 mai)",e:7600,s:3100,sol:27440,pred:true},{sem:"S23 (3 juin)",e:10200,s:5200,sol:32440,pred:true}];
 const INIT_NOTIFS=[{id:1,type:"urgent",icon:"⚠",titre:"2 devis en attente de validation",heure:"09:00",lu:false},{id:2,type:"urgent",icon:"📦",titre:"Stock critique — Produit vitres + 2 articles",heure:"08:30",lu:false},{id:3,type:"info",icon:"💬",titre:"Abou : produit vitres épuisé",heure:"13:20",lu:false},{id:4,type:"money",icon:"💰",titre:"Commission Leila Mansouri : 1 305€ à payer",heure:"Hier",lu:true},{id:5,type:"good",icon:"⭐",titre:"Nouvel avis 5★ — Sofia Al-Rashid",heure:"Hier",lu:true}];
 const CONTRATS=[{id:"CTR-001",type:"Partenaire",nom:"Thomas Beaumont",comm:"20%",statut:"signé",date:"01/03",expire:"28/02/2027"},{id:"CTR-002",type:"Partenaire",nom:"Leila Mansouri",comm:"15%",statut:"signé",date:"15/02",expire:"14/02/2027"},{id:"CTR-003",type:"Prestation",nom:"Groupe Prestige SARL",comm:"12%",statut:"signé",date:"01/04",expire:"31/03/2027"}];
@@ -1104,7 +1104,7 @@ const PageCartes=({plan,showToast})=>{
         <div style={{fontSize:11,color:C.muted}}>Toutes les transactions ont été traitées.</div>
       </Card>:<div style={{display:"flex",flexDirection:"column",gap:10}}>
         <div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:10,padding:12,fontSize:11,color:C.text}}>
-          ⏳ Ces transactions ont été soumises par vos collaborateurs et attendent votre validation. Une notification WhatsApp vous a été envoyée pour chaque demande.
+          ⏳ Ces transactions ont été soumises par vos collaborateur et attendent votre validation. Une notification WhatsApp vous a été envoyée pour chaque demande.
         </div>
         {enAttente.map((t,i)=><Card key={i} style={{borderColor:`${C.orange}44`}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
@@ -1259,7 +1259,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
         try{
           const{createClient}=await import('@supabase/supabase-js');
           const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-          const{data:pl}=await sb.from('planning').select('date,heure,client,service,collab').gte('date',now.toISOString().slice(0,10)).order('date',{ascending:true}).limit(1);
+          const{data:pl}=await sb.from('planning').select('date_mission,heure_debut,client_nom,service,collaborateur').gte('date_mission',now.toISOString().slice(0,10)).order('date_mission',{ascending:true}).limit(1);
           if(pl&&pl[0])setProchainRdv(pl[0]);
         }catch(e){}
         const derniers7j=[];
@@ -1285,9 +1285,9 @@ const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
   const genererAnalyseIA=async()=>{
     setAiLoading(true);
     try{
-      const res=await fetch("https://api.anthropic.com/v1/messages",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({model:"claude-sonnet-4-6",max_tokens:200,messages:[{role:"user",content:`Données réelles dashboard : CA ce mois ${fmt(caReel)}, CA mois dernier ${fmt(caMoisDernier)}, tendance ${tendance}, marge ${margeNette}%, commissions à virer ${fmt(commissionsAVirer)}, leads CRM ${leadsEnAttente}, charges ${fmt(totalCharges)}, score ${scoreBusiness}/100. Brief morning 2-3 phrases max, français, actionnable, priorité n°1 en premier.`}]})});
+      const res=await fetch("/api/ia",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({max_tokens:200,prompt:`Données réelles dashboard : CA ce mois ${fmt(caReel)}, CA mois dernier ${fmt(caMoisDernier)}, tendance ${tendance}, marge ${margeNette}%, commissions à virer ${fmt(commissionsAVirer)}, leads CRM ${leadsEnAttente}, charges ${fmt(totalCharges)}, score ${scoreBusiness}/100. Brief morning 2-3 phrases max, français, actionnable, priorité n°1 en premier.`})});
       const data=await res.json();
-      if(data.content?.[0]?.text)setAiMsg(data.content[0].text);
+      if(data.text)setAiMsg(data.text);
       else setAiMsg("Enregistre tes premières transactions pour activer l'analyse IA.");
     }catch(e){setAiMsg("Analyse IA indisponible.");}
     setAiLoading(false);
@@ -1326,7 +1326,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
       <Card>
         <STitle>🔥 Priorités du jour (calculées)</STitle>
         {priorites.map((p,i)=><div key={i} onClick={()=>p.act&&setPage(p.act)} style={{display:"flex",gap:8,padding:"7px 8px",borderRadius:6,marginBottom:5,cursor:p.act?"pointer":"default",background:C.card2,border:`1px solid ${C.border}`}}><span>{p.icon}</span><span style={{fontSize:11,flex:1}}>{p.txt}</span>{p.act&&<span style={{fontSize:10,color:C.gold,fontWeight:600}}>→</span>}</div>)}
-        {prochainRdv&&<div style={{marginTop:8,background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:8,padding:"8px 10px",fontSize:11}}><div style={{color:C.blue,fontWeight:600,marginBottom:2}}>📅 Prochain RDV</div><div style={{color:C.text}}>{prochainRdv.client} — {prochainRdv.service}</div><div style={{color:C.muted,fontSize:10}}>{prochainRdv.date} à {prochainRdv.heure} · {prochainRdv.collab}</div></div>}
+        {prochainRdv&&<div style={{marginTop:8,background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:8,padding:"8px 10px",fontSize:11}}><div style={{color:C.blue,fontWeight:600,marginBottom:2}}>📅 Prochain RDV</div><div style={{color:C.text}}>{prochainRdv.client_nom} — {prochainRdv.service}</div><div style={{color:C.muted,fontSize:10}}>{prochainRdv.date_mission} à {prochainRdv.heure_debut} · {prochainRdv.collaborateur}</div></div>}
       </Card>
       <Card>
         <STitle>📊 Métriques clés (réelles)</STitle>
@@ -1361,9 +1361,9 @@ const PageOverview=({plan,profil,setPage,showToast})=>{
     setLoading(true);
     try{
       const[walletRes,facturesRes,devisRes,clientsRes,dealsRes,chargesRes,partnersRes]=await Promise.all([
-        fetch('/api/wallet').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/factures').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/devis').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/wallet?action=list').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/factures?action=list').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/devis?action=list').then(r=>r.json()).catch(()=>({})),
         fetch('/api/clients').then(r=>r.json()).catch(()=>({})),
         fetch('/api/deals').then(r=>r.json()).catch(()=>({})),
         fetch('/api/tresorerie').then(r=>r.json()).catch(()=>({})),
@@ -1436,16 +1436,16 @@ const PageOverview=({plan,profil,setPage,showToast})=>{
   useEffect(()=>{
     if(data&&!briefing){
       setBriefingLoading(true);
-      fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
-        model:'claude-sonnet-4-6',max_tokens:400,
-        messages:[{role:'user',content:`Tu es l'assistant IA de Xyra. Génère un briefing matinal professionnel (4-5 phrases, français, ton coach business) basé sur ces données réelles :
+      fetch('/api/ia',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        max_tokens:400,
+        prompt:`Tu es l'assistant IA de Xyra. Génère un briefing matinal professionnel (4-5 phrases, français, ton coach business) basé sur ces données réelles :
 Score santé : ${data.scoreGlobal}/100 | CA ce mois : ${data.caMois}€ | Solde : ${data.solde}€
 Commissions dues : ${data.commissionsDues}€ | Factures en attente : ${data.montantEnAttente}€ (${data.facturesEnAttente?.length} factures)
 Devis en cours : ${data.devisEnCours?.length} | Pipeline deals : ${data.valeurPipeline}€
 Clients actifs : ${data.clients?.length}
 
-Donne : 1 constat positif, 1 point de vigilance, et 3 priorités concrètes pour aujourd'hui. Commence par "Bonjour ! Voici votre briefing du jour —"`}]
-      })}).then(r=>r.json()).then(d=>{setBriefing(d.content?.[0]?.text||"");setBriefingLoading(false);}).catch(()=>setBriefingLoading(false));
+Donne : 1 constat positif, 1 point de vigilance, et 3 priorités concrètes pour aujourd'hui. Commence par "Bonjour ! Voici votre briefing du jour —"`
+      })}).then(r=>r.json()).then(d=>{setBriefing(d.text||"");setBriefingLoading(false);}).catch(()=>setBriefingLoading(false));
     }
   },[data]);
 
@@ -6592,7 +6592,7 @@ const PageEquipe=({plan,showToast})=>{
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
       <div>
         <div style={{fontSize:18,fontWeight:700,color:"#EAE6DE",fontFamily:"Georgia,serif"}}>⊞ RH & Équipe</div>
-        <div style={{fontSize:11,color:"#5A5A7A"}}>Gestion complète des ressources humaines · {equipe.length} collaborateurs</div>
+        <div style={{fontSize:11,color:"#5A5A7A"}}>Gestion complète des ressources humaines · {equipe.length} collaborateur</div>
       </div>
       <div style={{display:"flex",gap:8}}>
         <button onClick={()=>setShowAdd(s=>!s)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>+ Ajouter</button>
@@ -7002,7 +7002,7 @@ const PageEquipe=({plan,showToast})=>{
         {[
           {niveau:"critique",icon:"🚨",titre:"CDD Abou Diallo — Expire dans 2 mois",detail:"Contrat CDD expire le 15/09/2025. Décision requise avant le 15/07. Options : conversion CDI ou fin de contrat.",action:"Convertir en CDI",couleur:"#FF5252"},
           {niveau:"urgent",icon:"⚠️",titre:"Visite médicale obligatoire — Thomas Beaumont",detail:"Dernière visite : 01/03/2024. Renouvellement obligatoire avant le 30/04/2026. Médecin du travail à contacter.",action:"Planifier visite",couleur:"#FF8C3A"},
-          {niveau:"urgent",icon:"📋",titre:"Entretien professionnel — Tous les collaborateurs",detail:"Les entretiens professionnels doivent être réalisés tous les 2 ans. Fatou Sarr : à planifier avant septembre 2026.",action:"Planifier entretien",couleur:"#FF8C3A"},
+          {niveau:"urgent",icon:"📋",titre:"Entretien professionnel — Tous les collaborateur",detail:"Les entretiens professionnels doivent être réalisés tous les 2 ans. Fatou Sarr : à planifier avant septembre 2026.",action:"Planifier entretien",couleur:"#FF8C3A"},
           {niveau:"info",icon:"📅",titre:"Solde congés — Abou Diallo",detail:"Abou a 15 jours de congés. Encourager la prise avant fin juin pour éviter le report.",action:"Contacter Abou",couleur:"#4B7BFF"},
           {niveau:"info",icon:"🎓",titre:"Formation Abou — Nettoyage yacht à compléter",detail:"Module 'Nettoyage yacht — produits nacrés' assigné et non commencé. Deadline suggérée : 30/04.",action:"Relancer",couleur:"#9B5FFF"},
           {niveau:"good",icon:"✅",titre:"Formation SST — Thomas et Abou à jour",detail:"Certifications Secourisme au Travail valides jusqu'en 2027.",action:null,couleur:"#2EC9B0"},
@@ -7036,7 +7036,7 @@ const PageEquipe=({plan,showToast})=>{
     {/* ─── JURIDIQUE ─────────────────────────────────────────── */}
     {onglet==="juridique"&&<div>
       <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
-        {[["DPAE (Déclaration préalable à l'embauche)","✅ Faite à chaque embauche","Permanent","#2EC9B0"],["Registre du personnel","✅ À jour — 3 collaborateurs","Permanent","#2EC9B0"],["Affichage obligatoire (conventions, harcèlement...)","✅ Conforme","Vérifié 01/04/2026","#2EC9B0"],["Visite médicale — Thomas Beaumont","⚠️ Renouvellement obligatoire","Avant 30/04/2026","#FF8C3A"],["Visite médicale — Abou et Fatou","✅ Effectuées","Valides 12 mois","#2EC9B0"],["Formation sécurité SST — Thomas & Abou","✅ Certifiés","Valide jusqu'en 2027","#2EC9B0"],["Entretien professionnel — Fatou Sarr","⏳ À planifier","Avant 01/09/2026","#4B7BFF"],["Document unique d'évaluation des risques (DUER)","⚠️ À mettre à jour","Avant 30/06/2026","#FF8C3A"],["Mutuelle d'entreprise obligatoire (>1 salarié)","✅ Souscrite — Alan","Active","#2EC9B0"],["Prévoyance collective","✅ Souscrite","Active","#2EC9B0"]].map(([o,s,d,c],i)=><div key={i} style={{background:"#0C0C1A",borderRadius:8,padding:12,border:`1px solid ${c}22`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+        {[["DPAE (Déclaration préalable à l'embauche)","✅ Faite à chaque embauche","Permanent","#2EC9B0"],["Registre du personnel","✅ À jour — 3 collaborateur","Permanent","#2EC9B0"],["Affichage obligatoire (conventions, harcèlement...)","✅ Conforme","Vérifié 01/04/2026","#2EC9B0"],["Visite médicale — Thomas Beaumont","⚠️ Renouvellement obligatoire","Avant 30/04/2026","#FF8C3A"],["Visite médicale — Abou et Fatou","✅ Effectuées","Valides 12 mois","#2EC9B0"],["Formation sécurité SST — Thomas & Abou","✅ Certifiés","Valide jusqu'en 2027","#2EC9B0"],["Entretien professionnel — Fatou Sarr","⏳ À planifier","Avant 01/09/2026","#4B7BFF"],["Document unique d'évaluation des risques (DUER)","⚠️ À mettre à jour","Avant 30/06/2026","#FF8C3A"],["Mutuelle d'entreprise obligatoire (>1 salarié)","✅ Souscrite — Alan","Active","#2EC9B0"],["Prévoyance collective","✅ Souscrite","Active","#2EC9B0"]].map(([o,s,d,c],i)=><div key={i} style={{background:"#0C0C1A",borderRadius:8,padding:12,border:`1px solid ${c}22`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <div><div style={{fontSize:12,fontWeight:600}}>{o}</div><div style={{fontSize:10,color:"#5A5A7A"}}>Échéance : {d}</div></div>
           <span style={{background:c+"22",color:c,padding:"2px 10px",borderRadius:10,fontSize:10,fontWeight:600,border:`1px solid ${c}44`,flexShrink:0,marginLeft:10}}>{s}</span>
         </div>)}

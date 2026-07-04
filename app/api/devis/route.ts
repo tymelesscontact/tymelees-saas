@@ -132,3 +132,26 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+export async function GET(req: NextRequest) {
+  try {
+    const supabase = getSupabase()
+    const { searchParams } = new URL(req.url)
+    const action = searchParams.get('action')
+
+    if (action === 'list') {
+      const { data, error } = await supabase
+        .from('devis')
+        .select('*')
+        .order('created_at', { ascending: false })
+      if (error) {
+        return NextResponse.json({ error: error.message }, { status: 500 })
+      }
+      return NextResponse.json({ devis: data || [] })
+    }
+
+    return NextResponse.json({ error: 'action invalide' }, { status: 400 })
+  } catch (e: any) {
+    console.error('GET /api/devis error:', e)
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+  }
+}
