@@ -9547,7 +9547,7 @@ const PageDeals=({plan,showToast})=>{
 const PageDeploiement=({plan,showToast})=>{
   const[tenants,setTenants]=useState([]);
   const[loading,setLoading]=useState(true);
-  const[view,setView]=useState("dashboard");
+  const[onglet,setOnglet]=useState("tenants");
   const[selectedClient,setSelectedClient]=useState(null);
   const[searchQ,setSearchQ]=useState("");
   const[filterPlan,setFilterPlan]=useState("tous");
