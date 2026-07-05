@@ -48,6 +48,8 @@ export async function POST(req: NextRequest) {
       clientEmail,
       lignes,
       notes,
+      taux_tva,
+      statut,
     } = body
 
     const numeroDevis = `TYM-${Date.now().toString().slice(-6)}`
@@ -79,7 +81,8 @@ export async function POST(req: NextRequest) {
       montant,
       lignes: lignes || null,
       notes: notes || null,
-      statut: "en_attente",
+      taux_tva: taux_tva ?? 20,
+      statut: statut || "brouillon",
       html: htmlContent,
     })
 

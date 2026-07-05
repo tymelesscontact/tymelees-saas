@@ -224,7 +224,7 @@ const BtnGhost=({children,onClick,style={}})=><button onClick={onClick} style={{
 const Inp=({value,onChange,placeholder,style={}})=><input value={value} onChange={onChange} placeholder={placeholder} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:7,padding:"8px 12px",color:C.text,fontSize:13,fontFamily:"inherit",outline:"none",width:"100%",...style}}/>;
 const Sel=({value,onChange,children,style={}})=><select value={value} onChange={onChange} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:7,padding:"7px 12px",color:C.text,fontSize:12,fontFamily:"inherit",...style}}>{children}</select>;
 const TH=({children,style={}})=><th style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:C.muted,fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:`1px solid ${C.border}`,...style}}>{children}</th>;
-const Td=({children,style={}})=><td style={{padding:"9px 10px",fontSize:12,borderBottom:`1px solid ${C.border}22`,color:C.text,...style}}>{children}</td>;
+const Td=({children,style={},onClick})=><td onClick={onClick} style={{padding:"9px 10px",fontSize:12,borderBottom:`1px solid ${C.border}22`,color:C.text,...style}}>{children}</td>;
 const STitle=({children})=><div style={{fontSize:9,color:C.muted,letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:10,fontWeight:600}}>{children}</div>;
 const KPI=({label,val,sub,color=C.gold,icon=""})=><CT><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:8}}>{icon} {label}</div><div style={{fontSize:22,fontWeight:700,color,fontFamily:"Georgia,serif",lineHeight:1.1}}>{val}</div>{sub&&<div style={{fontSize:10,color:C.muted,marginTop:3}}>{sub}</div>}</CT>;
 const Tabs=({tabs,active,onChange})=><div style={{display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>{tabs.map(t=><button key={t.id} onClick={()=>onChange(t.id)} style={{background:active===t.id?C.card:"transparent",color:active===t.id?C.gold:C.muted,border:active===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:active===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}</div>;
@@ -1825,6 +1825,7 @@ const PageDevis=({plan,showToast,profil})=>{
         service:d.service,montant:Number(d.montant),statut:d.statut,
         date:new Date(d.created_at).toLocaleDateString("fr"),
         lignes:d.lignes||[],remise:0,note:d.notes||"",vu:!!d.validé_at,
+        tauxTva:Number(d.taux_tva ?? 20),description:d.description||"",
       })));
     }catch(e){console.error("Devis:",e);}
     setLoadingDevis(false);
@@ -1863,13 +1864,14 @@ const PageDevis=({plan,showToast,profil})=>{
     const serviceLabel=form.objet||MODELES.find(m=>m.id===modeleId)?.label||"Devis";
     const descriptionResume=lignes.map(l=>`${l.desc||"Ligne"} x${l.qte} — ${l.pu}€`).join("; ");
     try{
+      const tauxTvaMoyen=totalHT>0?Math.round((totalTVA/totalHT)*100):20;
       const res=await fetch('/api/devis',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
           clientName:form.client,clientPhone:form.tel,clientEmail:form.email,
           service:serviceLabel,description:descriptionResume,
-          montant:Math.round(totalTTC),lignes,notes:form.note,
+          montant:Math.round(totalTTC),lignes,notes:form.note,taux_tva:tauxTvaMoyen,statut,
         }),
       });
       const data=await res.json();
@@ -1948,6 +1950,26 @@ const PageDevis=({plan,showToast,profil})=>{
       else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
   };
+  const convertirEnFacture=async(d)=>{
+    const taux=d.tauxTva||20;
+    const montantHT=Math.round((d.montant/(1+taux/100))*100)/100;
+    try{
+      const res=await fetch('/api/factures',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          action:'creer',client_nom:d.client,client_email:d.email,client_tel:d.tel,
+          description:d.description||d.service,montant_ht:montantHT,taux_tva:taux,
+        }),
+      });
+      const data=await res.json();
+      if(data.success&&data.facture){
+        await majStatutDevis(d.dbId,{statut:"payé"},"✅ Facture "+data.facture.numero+" creee, devis marque paye");
+      }else{
+        showToast("❌ Erreur creation facture: "+(data.error||"inconnue"));
+      }
+    }catch(e){showToast("❌ Erreur de connexion facture");}
+  };
   const sauverEditDevis=async()=>{
     if(!editDevis)return;
     await majStatutDevis(editDevis.dbId,{client_nom:editDevis.client,client_email:editDevis.email,client_tel:editDevis.tel,service:editDevis.service,montant:editDevis.montant,notes:editDevis.note},"✅ Devis mis à jour");
@@ -2002,7 +2024,7 @@ const PageDevis=({plan,showToast,profil})=>{
             <Td onClick={e=>e.stopPropagation()}><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
               {d.statut==="brouillon"&&<Btn onClick={()=>majStatutDevis(d.dbId,{statut:"envoyé"},`📤 Devis ${d.id} marqué envoyé`)} style={{fontSize:9,padding:"3px 7px"}}>📤 Envoyer</Btn>}
               {(d.statut==="envoyé"||d.statut==="vu")&&<Btn onClick={()=>setSignEtape({id:d.id,dbId:d.dbId,client:d.client,etape:1})} style={{fontSize:9,padding:"3px 7px",background:C.green}}>✒ Signer</Btn>}
-              {d.statut==="signé"&&<Btn onClick={()=>majStatutDevis(d.dbId,{statut:"payé"},"✅ Paiement enregistré !")} style={{fontSize:9,padding:"3px 7px",background:C.teal}}>💳 Payé</Btn>}
+              {d.statut==="signé"&&<Btn onClick={()=>convertirEnFacture(d)} style={{fontSize:9,padding:"3px 7px",background:C.teal}}>💳 Payé</Btn>}
               <BtnGhost onClick={()=>showToast(`📄 PDF ${d.id} généré`)} style={{fontSize:9,padding:"3px 7px"}}>PDF</BtnGhost>
               <BtnGhost onClick={()=>showToast(`📱 Relance envoyée à ${d.client}`)} style={{fontSize:9,padding:"3px 7px"}}>WA</BtnGhost>
             </div></Td>
@@ -2028,7 +2050,7 @@ const PageDevis=({plan,showToast,profil})=>{
             <div style={{fontSize:14,fontWeight:700,color:C.green,marginBottom:4}}>Devis signé !</div>
             <div style={{fontSize:11,color:C.muted,marginBottom:12}}>Signé le {new Date().toLocaleDateString("fr")} — eIDAS conforme</div>
             <div style={{display:"flex",gap:8,justifyContent:"center"}}>
-              <Btn onClick={()=>{setDevis(ds=>ds.map(d=>d.id===signEtape.id?{...d,statut:"signé"}:d));showToast("✅ Signé ! PDF envoyé par email et WhatsApp");setSignEtape(null);}}>📄 Télécharger PDF signé</Btn>
+              <Btn onClick={async()=>{await majStatutDevis(signEtape.dbId,{statut:"signé"},"✅ Signe ! PDF envoye par email et WhatsApp");setSignEtape(null);}}>📄 Télécharger PDF signé</Btn>
             </div>
           </div>}
         </Card>
