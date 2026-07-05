@@ -1814,7 +1814,22 @@ const PageDevis=({plan,showToast,profil})=>{
     {id:"custom",label:"Personnalisé",lignes:[{desc:"",qte:1,pu:0,tva:20}]},
   ];
 
-  const[devis,setDevis]=useState(INIT_DEVIS);
+  const[devis,setDevis]=useState([]);
+  const[loadingDevis,setLoadingDevis]=useState(true);
+  const loadDevis=async()=>{
+    try{
+      const res=await fetch('/api/devis?action=list');
+      const data=await res.json();
+      if(data.devis)setDevis(data.devis.map(d=>({
+        id:d.reference,dbId:d.id,client:d.client_nom,email:d.client_email,tel:d.client_tel,
+        service:d.service,montant:Number(d.montant),statut:d.statut,
+        date:new Date(d.created_at).toLocaleDateString("fr"),
+        lignes:d.lignes||[],remise:0,note:d.notes||"",vu:!!d.validé_at,
+      })));
+    }catch(e){console.error("Devis:",e);}
+    setLoadingDevis(false);
+  };
+  useEffect(()=>{loadDevis();},[]);
   const[onglet,setOnglet]=useState("liste");
   const[showCreate,setShowCreate]=useState(false);
   const[modeleId,setModeleId]=useState("airbnb");
@@ -1843,12 +1858,26 @@ const PageDevis=({plan,showToast,profil})=>{
   const supprimerLigne=(i)=>setLignes(ls=>ls.filter((_,j)=>j!==i));
   const updateLigne=(i,k,v)=>setLignes(ls=>ls.map((l,j)=>j===i?{...l,[k]:v}:l));
 
-  const creerDevis=(statut="brouillon")=>{
+  const creerDevis=async(statut="brouillon")=>{
     if(!form.client)return showToast("⚠️ Remplissez le nom du client");
-    const id=`TYM-${String(50+devis.length).padStart(4,"0")}`;
-    const nd={id,client:form.client,email:form.email,tel:form.tel,service:form.objet||MODELES.find(m=>m.id===modeleId)?.label,montant:Math.round(totalTTC),statut,date:new Date().toLocaleDateString("fr"),lignes:[...lignes],remise:form.remise,note:form.note,vu:false};
-    setDevis(d=>[nd,...d]);
-    return nd;
+    const serviceLabel=form.objet||MODELES.find(m=>m.id===modeleId)?.label||"Devis";
+    const descriptionResume=lignes.map(l=>`${l.desc||"Ligne"} x${l.qte} — ${l.pu}€`).join("; ");
+    try{
+      const res=await fetch('/api/devis',{
+        method:'POST',
+        headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          clientName:form.client,clientPhone:form.tel,clientEmail:form.email,
+          service:serviceLabel,description:descriptionResume,
+          montant:Math.round(totalTTC),lignes,notes:form.note,
+        }),
+      });
+      const data=await res.json();
+      if(!data.success)return null;
+      const nd={id:data.numeroDevis,client:form.client,email:form.email,tel:form.tel,service:serviceLabel,montant:Math.round(totalTTC),statut,date:new Date().toLocaleDateString("fr"),lignes:[...lignes],remise:form.remise,note:form.note,vu:false};
+      loadDevis();
+      return nd;
+    }catch(e){showToast("❌ Erreur de connexion");return null;}
   };
 
   const resetForm=()=>{
@@ -1885,7 +1914,7 @@ const PageDevis=({plan,showToast,profil})=>{
   const creerEtEnvoyer=async()=>{
     if(!form.client)return showToast("⚠️ Remplissez le nom du client");
     if(!form.email&&!form.tel)return showToast("⚠️ Ajoutez un email ou un téléphone pour envoyer le devis");
-    const nd=creerDevis("envoyé");
+    const nd=await creerDevis("envoyé");
     if(!nd)return;
     showToast("📤 Envoi en cours...");
     try{
@@ -1910,6 +1939,30 @@ const PageDevis=({plan,showToast,profil})=>{
   };
 
   const filtred=filtreStatut==="tous"?devis:devis.filter(d=>d.statut===filtreStatut);
+  const[editDevis,setEditDevis]=useState(null);
+  const majStatutDevis=async(dbId,champs,msgSucces)=>{
+    try{
+      const res=await fetch('/api/devis',{method:'PATCH',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:dbId,...champs})});
+      const data=await res.json();
+      if(data.success){showToast(msgSucces);loadDevis();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const sauverEditDevis=async()=>{
+    if(!editDevis)return;
+    await majStatutDevis(editDevis.dbId,{client_nom:editDevis.client,client_email:editDevis.email,client_tel:editDevis.tel,service:editDevis.service,montant:editDevis.montant,notes:editDevis.note},"✅ Devis mis à jour");
+    setEditDevis(null);
+  };
+  const supprimerDevis=async()=>{
+    if(!editDevis)return;
+    if(!window.confirm("Supprimer definitivement le devis "+editDevis.id+" ?"))return;
+    try{
+      const res=await fetch("/api/devis?id="+editDevis.dbId,{method:"DELETE"});
+      const data=await res.json();
+      if(data.success){showToast("🗑 Devis "+editDevis.id+" supprime");setEditDevis(null);loadDevis();}
+      else showToast("❌ "+(data.error||"Erreur inconnue"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
 
   if(!hasAccess(plan,"devis"))return <div style={{padding:20}}><UpgradeWall page="devis" plan={plan}/></div>;
 
@@ -1939,17 +1992,17 @@ const PageDevis=({plan,showToast,profil})=>{
       <Card>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead><tr><TH>N° Devis</TH><TH>Client</TH><TH>Service</TH><TH>Montant TTC</TH><TH>Date</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
-          <tbody>{filtred.map((d,i)=><tr key={i}>
+          <tbody>{filtred.map((d,i)=><tr key={i} onClick={()=>setEditDevis({...d})} style={{cursor:"pointer"}}>
             <Td style={{color:C.gold,fontWeight:700}}>{d.id}</Td>
             <Td style={{fontWeight:600}}>{d.client}</Td>
             <Td style={{color:C.muted,fontSize:11}}>{d.service}</Td>
             <Td style={{color:C.green,fontWeight:700,fontSize:14}}>{fmt(d.montant)}</Td>
             <Td style={{color:C.muted,fontSize:10}}>{d.date}</Td>
             <Td><Pill color={statutColor[d.statut]||C.muted}>{d.statut}</Pill></Td>
-            <Td><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
-              {d.statut==="brouillon"&&<Btn onClick={()=>{setDevis(ds=>ds.map((x,j)=>j===i?{...x,statut:"envoyé"}:x));showToast(`📱 Devis ${d.id} envoyé par WhatsApp & Email à ${d.client} !`);}} style={{fontSize:9,padding:"3px 7px"}}>📤 Envoyer</Btn>}
-              {(d.statut==="envoyé"||d.statut==="vu")&&<Btn onClick={()=>setSignEtape({id:d.id,client:d.client,etape:1})} style={{fontSize:9,padding:"3px 7px",background:C.green}}>✒ Signer</Btn>}
-              {d.statut==="signé"&&<Btn onClick={()=>{setDevis(ds=>ds.map((x,j)=>j===i?{...x,statut:"payé"}:x));showToast("✅ Paiement enregistré !");}} style={{fontSize:9,padding:"3px 7px",background:C.teal}}>💳 Payé</Btn>}
+            <Td onClick={e=>e.stopPropagation()}><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+              {d.statut==="brouillon"&&<Btn onClick={()=>majStatutDevis(d.dbId,{statut:"envoyé"},`📤 Devis ${d.id} marqué envoyé`)} style={{fontSize:9,padding:"3px 7px"}}>📤 Envoyer</Btn>}
+              {(d.statut==="envoyé"||d.statut==="vu")&&<Btn onClick={()=>setSignEtape({id:d.id,dbId:d.dbId,client:d.client,etape:1})} style={{fontSize:9,padding:"3px 7px",background:C.green}}>✒ Signer</Btn>}
+              {d.statut==="signé"&&<Btn onClick={()=>majStatutDevis(d.dbId,{statut:"payé"},"✅ Paiement enregistré !")} style={{fontSize:9,padding:"3px 7px",background:C.teal}}>💳 Payé</Btn>}
               <BtnGhost onClick={()=>showToast(`📄 PDF ${d.id} généré`)} style={{fontSize:9,padding:"3px 7px"}}>PDF</BtnGhost>
               <BtnGhost onClick={()=>showToast(`📱 Relance envoyée à ${d.client}`)} style={{fontSize:9,padding:"3px 7px"}}>WA</BtnGhost>
             </div></Td>
@@ -1978,6 +2031,27 @@ const PageDevis=({plan,showToast,profil})=>{
               <Btn onClick={()=>{setDevis(ds=>ds.map(d=>d.id===signEtape.id?{...d,statut:"signé"}:d));showToast("✅ Signé ! PDF envoyé par email et WhatsApp");setSignEtape(null);}}>📄 Télécharger PDF signé</Btn>
             </div>
           </div>}
+        </Card>
+      </div>}
+      {editDevis&&<div style={{position:"fixed",inset:0,background:"#000000AA",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}}>
+        <Card style={{width:480,maxWidth:"90vw",maxHeight:"85vh",overflowY:"auto"}}>
+          <div style={{fontSize:14,fontWeight:700,marginBottom:4}}>✏ Modifier le devis {editDevis.id}</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Statut actuel : <Pill color={statutColor[editDevis.statut]||C.muted}>{editDevis.statut}</Pill></div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Client</label><Inp value={editDevis.client} onChange={e=>setEditDevis(d=>({...d,client:e.target.value}))}/></div>
+            <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+              <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Email</label><Inp value={editDevis.email||""} onChange={e=>setEditDevis(d=>({...d,email:e.target.value}))}/></div>
+              <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Téléphone</label><Inp value={editDevis.tel||""} onChange={e=>setEditDevis(d=>({...d,tel:e.target.value}))}/></div>
+            </div>
+            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Service / Objet</label><Inp value={editDevis.service||""} onChange={e=>setEditDevis(d=>({...d,service:e.target.value}))}/></div>
+            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Montant TTC (€)</label><Inp value={editDevis.montant} onChange={e=>setEditDevis(d=>({...d,montant:Number(e.target.value)||0}))}/></div>
+            <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Note</label><Inp value={editDevis.note||""} onChange={e=>setEditDevis(d=>({...d,note:e.target.value}))} placeholder="Conditions, précisions..."/></div>
+          </div>
+          <div style={{display:"flex",gap:8,marginTop:16}}>
+            <Btn onClick={sauverEditDevis}>💾 Enregistrer</Btn>
+            <BtnGhost onClick={()=>setEditDevis(null)}>Annuler</BtnGhost>
+            <BtnGhost onClick={supprimerDevis} style={{color:C.red,borderColor:C.red+"44"}}>🗑 Supprimer</BtnGhost>
+          </div>
         </Card>
       </div>}
     </div>}
@@ -2014,7 +2088,7 @@ const PageDevis=({plan,showToast,profil})=>{
           <div style={{marginTop:8}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Note / conditions</label><Inp value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="Conditions de paiement, délais..."/></div>
         </Card>
         <div style={{display:"flex",gap:8}}>
-          <Btn onClick={()=>{const nd=creerDevis("brouillon");if(nd){showToast(`✅ Devis ${nd.id} créé en brouillon`);resetForm();}}} style={{flex:1}}>✅ Créer le devis</Btn>
+          <Btn onClick={async()=>{const nd=await creerDevis("brouillon");if(nd){showToast(`✅ Devis ${nd.id} créé en brouillon`);resetForm();}}} style={{flex:1}}>✅ Créer le devis</Btn>
           <BtnGhost onClick={apercuPDF} style={{flex:1}}>👁 Aperçu PDF</BtnGhost>
           <BtnGhost onClick={creerEtEnvoyer} style={{flex:1}}>📤 Créer & Envoyer</BtnGhost>
         </div>

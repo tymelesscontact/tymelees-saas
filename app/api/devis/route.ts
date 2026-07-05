@@ -20,7 +20,7 @@ function getSupabase() {
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
 
   const supabaseKey =
-    process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
 
   if (!supabaseUrl || !supabaseKey) {
     throw new Error("Supabase env manquantes")
@@ -46,6 +46,8 @@ export async function POST(req: NextRequest) {
       montant,
       clientName,
       clientEmail,
+      lignes,
+      notes,
     } = body
 
     const numeroDevis = `TYM-${Date.now().toString().slice(-6)}`
@@ -68,16 +70,17 @@ export async function POST(req: NextRequest) {
 })
 
     const { error: insertError } = await supabase.from("devis").insert({
-      numero: numeroDevis,
-      client_phone: clientPhone,
-      client_name: clientName || "Client",
+      reference: numeroDevis,
+      client_tel: clientPhone,
+      client_nom: clientName || "Client",
       client_email: clientEmail || null,
       service,
       description,
       montant,
+      lignes: lignes || null,
+      notes: notes || null,
       statut: "en_attente",
       html: htmlContent,
-      date_devis: dateDevis,
     })
 
     if (insertError) {
@@ -132,6 +135,54 @@ export async function POST(req: NextRequest) {
     )
   }
 }
+export async function PATCH(req: NextRequest) {
+  try {
+    const supabase = getSupabase()
+    const body = await req.json()
+    const { id, ...champs } = body
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: "id manquant" }, { status: 400 })
+    }
+
+    const { error } = await supabase.from("devis").update(champs).eq("id", id)
+
+    if (error) {
+      console.error("Erreur modification devis:", error)
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (e: any) {
+    console.error("PATCH /api/devis error:", e)
+    return NextResponse.json({ success: false, error: "Erreur serveur" }, { status: 500 })
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  try {
+    const supabase = getSupabase()
+    const { searchParams } = new URL(req.url)
+    const id = searchParams.get('id')
+
+    if (!id) {
+      return NextResponse.json({ success: false, error: "id manquant" }, { status: 400 })
+    }
+
+    const { error } = await supabase.from("devis").delete().eq("id", id)
+
+    if (error) {
+      console.error("Erreur suppression devis:", error)
+      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    }
+
+    return NextResponse.json({ success: true })
+  } catch (e: any) {
+    console.error("DELETE /api/devis error:", e)
+    return NextResponse.json({ success: false, error: "Erreur serveur" }, { status: 500 })
+  }
+}
+
 export async function GET(req: NextRequest) {
   try {
     const supabase = getSupabase()
