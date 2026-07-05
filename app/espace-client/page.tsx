@@ -6,6 +6,10 @@ const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
+async function updateViaApi(path: string, body: any, method: string = "PATCH") {
+  const res = await fetch(path, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+  return res.json();
+}
 
 const C = {
   dark:"#06060E", card:"#0C0C1A", card2:"#121222",
@@ -14,6 +18,18 @@ const C = {
   blue:"#4B7BFF", purple:"#9B5FFF", orange:"#FF8C3A",
 };
 
+const Card = ({ children, style = {} }: any) => (
+  <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18, ...style }}>{children}</div>
+);
+const Pill = ({ children, color = C.gold }: any) => (
+  <span style={{ background: color + "22", color, border: `1px solid ${color}44`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>{children}</span>
+);
+const Btn = ({ children, onClick, color = C.gold, style = {} }: any) => (
+  <button onClick={onClick} style={{ background: color, color: color === C.gold ? "#000" : "#fff", border: "none", borderRadius: 7, padding: "8px 16px", cursor: "pointer", fontWeight: 600, fontSize: 13, fontFamily: "inherit", ...style }}>{children}</button>
+);
+const BtnGhost = ({ children, onClick, style = {} }: any) => (
+  <button onClick={onClick} style={{ background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 7, padding: "7px 14px", cursor: "pointer", fontSize: 12, fontFamily: "inherit", ...style }}>{children}</button>
+);
 export default function EspaceClient() {
   const [page, setPage] = useState("dashboard");
   const [user, setUser] = useState<any>(null);
@@ -70,22 +86,6 @@ export default function EspaceClient() {
     { id: "fidelite", icon: "⭐", label: "Fidélité" },
     { id: "profil", icon: "👤", label: "Mon profil" },
   ];
-
-  const Card = ({ children, style = {} }: any) => (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18, ...style }}>{children}</div>
-  );
-
-  const Pill = ({ children, color = C.gold }: any) => (
-    <span style={{ background: color + "22", color, border: `1px solid ${color}44`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>{children}</span>
-  );
-
-  const Btn = ({ children, onClick, color = C.gold, style = {} }: any) => (
-    <button onClick={onClick} style={{ background: color, color: color === C.gold ? "#000" : "#fff", border: "none", borderRadius: 7, padding: "8px 16px", cursor: "pointer", fontWeight: 600, fontSize: 13, fontFamily: "inherit", ...style }}>{children}</button>
-  );
-
-  const BtnGhost = ({ children, onClick, style = {} }: any) => (
-    <button onClick={onClick} style={{ background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 7, padding: "7px 14px", cursor: "pointer", fontSize: 12, fontFamily: "inherit", ...style }}>{children}</button>
-  );
 
   const statutColor: Record<string, string> = {
     en_attente: C.orange, envoyé: C.blue, signé: C.green,
@@ -233,16 +233,18 @@ export default function EspaceClient() {
               <div style={{ display: "flex", gap: 8 }}>
                 <Btn onClick={async () => {
                   if (!devisForm.service) return showToast("⚠️ Remplissez le service");
-                  await sb.from("devis").insert([{
-                    client_email: user?.email,
-                    client: tenant?.societe,
-                    service: devisForm.service,
-                    description: devisForm.description,
-                    budget: devisForm.budget,
-                    date_souhaitee: devisForm.date,
-                    statut: "en_attente",
-                    created_at: new Date().toISOString(),
-                  }]);
+                  await fetch("/api/devis", {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({
+                      clientEmail: user?.email,
+                      clientName: tenant?.societe || user?.email,
+                      service: devisForm.service,
+                      description: devisForm.description + (devisForm.budget ? (" | Budget souhaite: " + devisForm.budget + " EUR") : "") + (devisForm.date ? (" | Date souhaitee: " + devisForm.date) : ""),
+                      montant: Number(devisForm.budget) || 0,
+                      statut: "en_attente",
+                    }),
+                  });
                   setShowDevisForm(false);
                   setDevisForm({ service: "", description: "", budget: "", date: "" });
                   showToast("✅ Demande envoyée ! Vous recevrez votre devis sous 24h.");
@@ -309,9 +311,9 @@ export default function EspaceClient() {
                   <div style={{ fontSize: 14, fontWeight: 700, color: C.green, marginBottom: 4 }}>Devis signé !</div>
                   <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>Signé le {new Date().toLocaleDateString("fr")} · eIDAS conforme</div>
                   <Btn onClick={async () => {
-                    await sb.from("devis").update({ statut: "signé" }).eq("id", signEtape.id);
+                    await fetch("/api/devis", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: signEtape.id, statut: "signé" }) });
                     setDevis(ds => ds.map((d: any) => d.id === signEtape.id ? { ...d, statut: "signé" } : d));
-                    showToast("✅ Devis signé ! PDF envoyé par email.");
+                    showToast("✅ Devis signe ! PDF envoye par email.");
                     setSignEtape(null);
                   }}>📄 Télécharger PDF signé</Btn>
                 </div>}
