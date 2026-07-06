@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 
 const sb = createClient(
@@ -6,8 +7,11 @@ const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-export async function GET() {
-  const { data, error } = await sb.from('charges').select('*').order('created_at', { ascending: false });
+export async function GET(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
+  let query = sb.from('charges').select('*').order('created_at', { ascending: false });
+  if (tenantId) query = query.eq('tenant_id', tenantId);
+  const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ charges: data });
 }
