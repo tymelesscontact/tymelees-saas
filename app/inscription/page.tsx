@@ -113,7 +113,7 @@ export default function Inscription() {
 
       const userId = authData.user?.id;
 
-      await supabase.from("tenants").insert([{
+      const { data: tenantRow } = await supabase.from("tenants").insert([{
         user_id: userId,
         societe: form.societe,
         email: form.email,
@@ -125,7 +125,15 @@ export default function Inscription() {
         plan_price: form.planPrice,
         statut: "essai",
         trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-      }]);
+      }]).select().single();
+
+      if (tenantRow && userId) {
+        await supabase.from("tenant_membres").insert([{
+          user_id: userId,
+          tenant_id: tenantRow.id,
+          role: "owner",
+        }]);
+      }
 
       await supabase.from("inscriptions").insert([{
         societe: form.societe,
