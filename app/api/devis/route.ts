@@ -1,9 +1,7 @@
 export const dynamic = "force-dynamic"
-
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { generateDevisHTML } from "../../lib/generateDevis"
-
 type DevisData = {
   clientName: string
   clientPhone: string
@@ -14,31 +12,23 @@ type DevisData = {
   dateDevis: string
   numeroDevis: string
 }
-
 function getSupabase() {
   const supabaseUrl =
     process.env.SUPABASE_URL || process.env.NEXT_PUBLIC_SUPABASE_URL
-
   const supabaseKey =
     process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-
   if (!supabaseUrl || !supabaseKey) {
     throw new Error("Supabase env manquantes")
   }
-
   return createClient(supabaseUrl, supabaseKey)
 }
-
 export async function POST(req: NextRequest) {
   try {
     const supabase = getSupabase()
-
     const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
     const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
     const OWNER_PHONE = process.env.OWNER_PHONE
-
     const body = await req.json()
-
     const {
       clientPhone,
       service,
@@ -51,10 +41,8 @@ export async function POST(req: NextRequest) {
       taux_tva,
       statut,
     } = body
-
     const numeroDevis = `TYM-${Date.now().toString().slice(-6)}`
     const dateDevis = new Date().toLocaleDateString("fr-FR")
-
     const devisData: DevisData = {
       clientName: clientName || "Client",
       clientPhone,
@@ -65,12 +53,10 @@ export async function POST(req: NextRequest) {
       dateDevis,
       numeroDevis,
     }
-
     const htmlContent = generateDevisHTML({
-  ...devisData,
-  montant: String(devisData.montant)
-})
-
+      ...devisData,
+      montant: String(devisData.montant)
+    })
     const { error: insertError } = await supabase.from("devis").insert({
       reference: numeroDevis,
       client_tel: clientPhone,
@@ -85,7 +71,6 @@ export async function POST(req: NextRequest) {
       statut: statut || "brouillon",
       html: htmlContent,
     })
-
     if (insertError) {
       console.error("Erreur insertion Supabase:", insertError)
       return NextResponse.json(
@@ -93,18 +78,16 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       )
     }
-
     if (WHATSAPP_TOKEN && PHONE_NUMBER_ID && OWNER_PHONE) {
       const messageOwner =
-        `📄 *Nouveau devis à valider*\n\n` +
-        `N° ${numeroDevis}\n` +
-        `👤 Client : ${clientName || clientPhone}\n` +
-        `📁 Service : ${service}\n` +
-        `💰 Montant : ${montant}\n` +
-        `📝 ${description}\n\n` +
-        `Répondez *OUI ${numeroDevis}* pour envoyer au client\n` +
-        `Répondez *NON ${numeroDevis}* pour annuler`
-
+        `Nouveau devis a valider\n\n` +
+        `N ${numeroDevis}\n` +
+        `Client : ${clientName || clientPhone}\n` +
+        `Service : ${service}\n` +
+        `Montant : ${montant}\n` +
+        `${description}\n\n` +
+        `Repondez OUI ${numeroDevis} pour envoyer au client\n` +
+        `Repondez NON ${numeroDevis} pour annuler`
       await fetch(
         `https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`,
         {
@@ -121,14 +104,12 @@ export async function POST(req: NextRequest) {
         }
       )
     }
-
     return NextResponse.json({
       success: true,
       numeroDevis,
     })
   } catch (error) {
     console.error("Erreur API /api/devis:", error)
-
     return NextResponse.json(
       {
         success: false,
@@ -143,85 +124,44 @@ export async function PATCH(req: NextRequest) {
     const supabase = getSupabase()
     const body = await req.json()
     const { id, ...champs } = body
-
     if (!id) {
       return NextResponse.json({ success: false, error: "id manquant" }, { status: 400 })
     }
-
     const { error } = await supabase.from("devis").update(champs).eq("id", id)
-
     if (error) {
       console.error("Erreur modification devis:", error)
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
-
     return NextResponse.json({ success: true })
   } catch (e: any) {
     console.error("PATCH /api/devis error:", e)
     return NextResponse.json({ success: false, error: "Erreur serveur" }, { status: 500 })
   }
 }
-
 export async function DELETE(req: NextRequest) {
   try {
     const supabase = getSupabase()
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
-
     if (!id) {
       return NextResponse.json({ success: false, error: "id manquant" }, { status: 400 })
     }
-
     const { error } = await supabase.from("devis").delete().eq("id", id)
-
     if (error) {
       console.error("Erreur suppression devis:", error)
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
-
     return NextResponse.json({ success: true })
   } catch (e: any) {
     console.error("DELETE /api/devis error:", e)
     return NextResponse.json({ success: false, error: "Erreur serveur" }, { status: 500 })
   }
 }
-
 export async function GET(req: NextRequest) {
   try {
     const supabase = getSupabase()
     const { searchParams } = new URL(req.url)
     const action = searchParams.get('action')
-
-    if (action === 'test_minimal') { return NextResponse.json({ok:true}); }
-
-    if (action === 'test_bullet') {
-      const checks: any = {}
-      const varsToCheck = ['NEXT_PUBLIC_SUPABASE_URL','SUPABASE_URL','NEXT_PUBLIC_SUPABASE_ANON_KEY','SUPABASE_ANON_KEY','SUPABASE_SERVICE_ROLE_KEY']
-      for (const v of varsToCheck) {
-        const val = process.env[v] || ''
-        const idx = val.indexOf(String.fromCharCode(8226))
-        checks[v] = { length: val.length, bulletAt: idx }
-      }
-      return NextResponse.json(checks)
-    }
-
-    if (action === 'test_env') {
-      const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
-      const key = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
-      return NextResponse.json({
-        urlLength: url.length,
-        urlLastChar: url.length ? url.charCodeAt(url.length - 1) : null,
-        keyLength: key.length,
-        keyLastChar: key.length ? key.charCodeAt(key.length - 1) : null,
-        keyFirstChar: key.length ? key.charCodeAt(0) : null,
-      })
-    }
-
-    if (action === 'test_count') {
-      const { data, error } = await supabase.from('devis').select('id')
-      return NextResponse.json({ count: data ? data.length : 0, err: error ? error.message : null })
-    }
-
     if (action === 'list') {
       const { data, error } = await supabase
         .from('devis')
@@ -232,7 +172,6 @@ export async function GET(req: NextRequest) {
       }
       return NextResponse.json({ devis: data || [] })
     }
-
     if (action === 'public') {
       const reference = searchParams.get('reference')
       if (!reference) {
@@ -248,10 +187,9 @@ export async function GET(req: NextRequest) {
       }
       return NextResponse.json({ devis: data })
     }
-
     return NextResponse.json({ error: 'action invalide' }, { status: 400 })
   } catch (e: any) {
     console.error('GET /api/devis error:', e)
-    return NextResponse.json({ error: 'Erreur serveur', debug: String(e && e.message), stack: String(e && e.stack) }, { status: 500 })
+    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
   }
 }
