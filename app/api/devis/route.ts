@@ -222,6 +222,6 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'action invalide' }, { status: 400 })
   } catch (e: any) {
     console.error('GET /api/devis error:', e)
-    return NextResponse.json({ error: 'Erreur serveur' }, { status: 500 })
+    return NextResponse.json({ error: 'Erreur serveur', debug: String(e && e.message), stack: String(e && e.stack) }, { status: 500 })
   }
 }
