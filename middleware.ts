@@ -20,6 +20,10 @@ export async function middleware(req: NextRequest) {
     return NextResponse.redirect(new URL('/login', req.url))
   }
 
+  if (req.nextUrl.pathname.startsWith('/mon-espace')) {
+    return NextResponse.next()
+  }
+
   // Seul le compte owner (toi) peut accéder au dashboard, même si
   // d'autres comptes (clients, partenaires) existent maintenant.
   const ownerEmail = process.env.OWNER_EMAIL
@@ -31,5 +35,5 @@ export async function middleware(req: NextRequest) {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*']
+  matcher: ['/dashboard/:path*', '/mon-espace/:path*']
 }

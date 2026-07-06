@@ -40,7 +40,7 @@ export default function LoginPage() {
         if (who.isOwner) {
           window.location.replace("/dashboard");
         } else {
-          window.location.replace("/espace-client");
+          window.location.replace("/mon-espace");
         }
       }
     } catch (e: any) {
