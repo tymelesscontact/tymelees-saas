@@ -11237,7 +11237,15 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
 };
 export default function Xyra() {
   const[page,setPage]=useState("accueil");
-  const[plan,setPlan]=useState("owner");
+  const[plan,setPlan]=useState("starter");
+  const[tenantStatut,setTenantStatut]=useState(null);
+  useEffect(()=>{
+    fetch("/api/tenant-info").then(r=>r.json()).then(d=>{
+      if(d.statut)setTenantStatut(d.statut);
+      if(d.statut==="essai"){setPlan("enterprise");}
+      else if(d.plan){setPlan(d.plan);}
+    }).catch(()=>{});
+  },[]);
 
   // ── SUPABASE — Chargement vraies données ──────────────────
   const[sbLoading,setSbLoading]=useState(true);
