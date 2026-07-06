@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 
 const sb = createClient(
@@ -33,8 +34,11 @@ function calculerPaie(salaireBrut: number) {
   return { salaireBrut, chargesSalariales, chargesPatronales, salaireNet, coutTotal };
 }
 
-export async function GET() {
-  const { data: membres, error } = await sb.from('equipe').select('*').order('created_at', { ascending: false });
+export async function GET(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
+  let membresQuery = sb.from('equipe').select('*').order('created_at', { ascending: false });
+  if (tenantId) membresQuery = membresQuery.eq('tenant_id', tenantId);
+  const { data: membres, error } = await membresQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const { data: pointages } = await sb.from('pointages').select('*').order('date', { ascending: false });
