@@ -34,7 +34,14 @@ export default function LoginPage() {
         document.cookie = `sb-access-token=${token}; path=/; expires=${expires}; SameSite=Lax`;
         document.cookie = `sb-jigwcrybfhvlmzoclbih-auth-token=${token}; path=/; expires=${expires}; SameSite=Lax`;
         localStorage.setItem("sb-access-token", token);
-        window.location.replace("/dashboard");
+
+        const res = await fetch("/api/whoami");
+        const who = await res.json();
+        if (who.isOwner) {
+          window.location.replace("/dashboard");
+        } else {
+          window.location.replace("/espace-client");
+        }
       }
     } catch (e: any) {
       setError("Erreur de connexion");
