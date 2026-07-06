@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 import PDFDocument from 'pdfkit';
 
@@ -93,8 +94,11 @@ function genererPdfContrat(p: any): Promise<Buffer> {
   });
 }
 
-export async function GET() {
-  const { data: parts, error } = await sb.from('partenaires').select('*').order('created_at', { ascending: false });
+export async function GET(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
+  let partsQuery = sb.from('partenaires').select('*').order('created_at', { ascending: false });
+  if (tenantId) partsQuery = partsQuery.eq('tenant_id', tenantId);
+  const { data: parts, error } = await partsQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const { data: leads } = await sb.from('leads_partenaires').select('*').order('created_at', { ascending: false });
