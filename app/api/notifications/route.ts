@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 
 const sb = createClient(
@@ -72,8 +73,11 @@ async function genererNotificationsAuto() {
   return notifs;
 }
 
-export async function GET() {
-  const { data: notifs, error } = await sb.from('notifications').select('*').order('created_at', { ascending: false }).limit(100);
+export async function GET(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
+  let notifsQuery = sb.from('notifications').select('*').order('created_at', { ascending: false }).limit(100);
+  if (tenantId) notifsQuery = notifsQuery.eq('tenant_id', tenantId);
+  const { data: notifs, error } = await notifsQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const { data: prefs } = await sb.from('notif_preferences').select('*');
