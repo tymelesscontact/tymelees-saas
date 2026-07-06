@@ -47,7 +47,9 @@ export async function GET(req: NextRequest) {
   const { data: acomptes } = await sb.from('acomptes').select('*').order('created_at', { ascending: false });
   const { data: evaluations } = await sb.from('evaluations').select('*').order('created_at', { ascending: false });
   const { data: formations } = await sb.from('formations_equipe').select('*').order('created_at', { ascending: false });
-  const { data: missions } = await sb.from('missions').select('*').order('date_mission', { ascending: false });
+  let missionsQuery = sb.from('missions').select('*').order('date_mission', { ascending: false });
+  if (tenantId) missionsQuery = missionsQuery.eq('tenant_id', tenantId);
+  const { data: missions } = await missionsQuery;
 
   const enriched = (membres || []).map((m: any) => {
     const mId = m.user_id || m.id;
