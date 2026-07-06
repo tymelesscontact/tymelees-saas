@@ -6,11 +6,16 @@ export const getUser = async () => {
   const { data: { user } } = await supabase.auth.getUser()
   return user
 }
-export const getTenant = async () => {
+export const getTenants = async () => {
   const user = await getUser()
-  if (!user) return null
-  const { data } = await supabase.from('tenants').select('*').eq('user_id', user.id).single()
-  return data
+  if (!user) return []
+  const { data } = await supabase.from('tenant_membres').select('tenant_id, role, tenants(*)').eq('user_id', user.id)
+  if (!data) return []
+  return data.map((m: any) => ({ ...m.tenants, role: m.role }))
+}
+export const getTenant = async () => {
+  const tenants = await getTenants()
+  return tenants[0] || null
 }
 export const getTenantId = async () => {
   const tenant = await getTenant()
