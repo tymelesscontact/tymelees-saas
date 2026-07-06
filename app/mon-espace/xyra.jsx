@@ -11239,13 +11239,37 @@ export default function Xyra() {
   const[page,setPage]=useState("accueil");
   const[plan,setPlan]=useState("starter");
   const[tenantStatut,setTenantStatut]=useState(null);
+  const[essaiExpire,setEssaiExpire]=useState(false);
+  const[paiementLoading,setPaiementLoading]=useState(false);
   useEffect(()=>{
     fetch("/api/tenant-info").then(r=>r.json()).then(d=>{
       if(d.statut)setTenantStatut(d.statut);
-      if(d.statut==="essai"){setPlan("enterprise");}
-      else if(d.plan){setPlan(d.plan);}
+      const trialFini=d.trial_ends_at&&new Date(d.trial_ends_at).getTime()<Date.now();
+      if(d.statut==="essai"&&trialFini){
+        setEssaiExpire(true);
+        if(d.plan)setPlan(d.plan);
+      }else if(d.statut==="essai"){
+        setPlan("enterprise");
+      }else if(d.plan){
+        setPlan(d.plan);
+      }
     }).catch(()=>{});
   },[]);
+  const demarrerPaiement=async()=>{
+    setPaiementLoading(true);
+    try{
+      const infoRes=await fetch("/api/tenant-info");
+      const info=await infoRes.json();
+      const res=await fetch("/api/create-checkout",{
+        method:"POST",
+        headers:{"Content-Type":"application/json"},
+        body:JSON.stringify({plan:info.plan,email:info.email,societe:info.societe}),
+      });
+      const data=await res.json();
+      if(data.url)window.location.href=data.url;
+    }catch(e){console.error(e);}
+    setPaiementLoading(false);
+  };
 
   // ── SUPABASE — Chargement vraies données ──────────────────
   const[sbLoading,setSbLoading]=useState(true);
@@ -11463,6 +11487,16 @@ export default function Xyra() {
         <div><div style={{fontWeight:700,fontSize:11}}>{n.titre}</div><div style={{fontSize:9,color:C.muted}}>{n.heure}</div></div>
       </div>)}
 
+      {essaiExpire&&<div style={{position:"fixed",inset:0,background:"#000000EE",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99999}}>
+        <div style={{background:C.card,border:`1px solid ${C.gold}44`,borderRadius:16,padding:36,maxWidth:440,textAlign:"center"}}>
+          <div style={{fontSize:40,marginBottom:12}}>⏳</div>
+          <div style={{fontSize:20,fontWeight:700,color:C.gold,marginBottom:8,fontFamily:"Georgia,serif"}}>Votre essai gratuit est termine</div>
+          <div style={{fontSize:13,color:C.muted,marginBottom:24,lineHeight:1.6}}>Pour continuer a utiliser Xyra et acceder a vos donnees, activez votre abonnement.</div>
+          <button onClick={demarrerPaiement} disabled={paiementLoading} style={{width:"100%",background:C.gold,color:"#000",border:"none",borderRadius:8,padding:"14px",fontWeight:700,fontSize:14,cursor:"pointer",opacity:paiementLoading?0.6:1}}>
+            {paiementLoading?"Redirection...":"Activer mon abonnement"}
+          </button>
+        </div>
+      </div>}
       <style>{`
         *{box-sizing:border-box;}
         ::-webkit-scrollbar{width:4px;height:4px;}

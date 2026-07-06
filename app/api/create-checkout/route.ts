@@ -39,8 +39,8 @@ export async function POST(req: NextRequest) {
         },
         quantity: 1,
       }],
-      success_url: `https://tymelees-saas-yzel.vercel.app/dashboard?payment=success&plan=${plan}`,
-      cancel_url: `https://tymelees-saas-yzel.vercel.app/inscription?payment=cancelled`,
+      success_url: `https://xyraio.fr/mon-espace?payment=success&plan=${plan}`,
+      cancel_url: `https://xyraio.fr/mon-espace?payment=cancelled`,
     });
 
     return NextResponse.json({ url: session.url });

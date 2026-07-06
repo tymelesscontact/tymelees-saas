@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
               <p style="color:#A0A0C0;font-size:14px;">Votre abonnement <strong style="color:#C9A84C;">${planNom} — ${planPrix}/mois</strong> est actif.</p>
             </div>
             <div style="text-align:center;margin:24px 0;">
-              <a href="https://xyraio.fr/dashboard" style="background:linear-gradient(135deg,#C9A84C,#a07c45);color:#000;padding:14px 32px;text-decoration:none;font-weight:700;font-size:14px;display:inline-block;border-radius:8px;">
+              <a href="https://xyraio.fr/mon-espace" style="background:linear-gradient(135deg,#C9A84C,#a07c45);color:#000;padding:14px 32px;text-decoration:none;font-weight:700;font-size:14px;display:inline-block;border-radius:8px;">
                 Accéder à mon dashboard →
               </a>
             </div>
@@ -140,7 +140,7 @@ export async function POST(req: NextRequest) {
               <div><span style="color:#5A5A7A;">Plan :</span> <strong style="color:#C9A84C;">${planNom}</strong></div>
             </div>
             <div style="text-align:center;margin-top:16px;">
-              <a href="https://xyraio.fr/dashboard" style="background:#C9A84C;color:#000;padding:10px 20px;text-decoration:none;font-weight:700;border-radius:6px;display:inline-block;">
+              <a href="https://xyraio.fr/mon-espace" style="background:#C9A84C;color:#000;padding:10px 20px;text-decoration:none;font-weight:700;border-radius:6px;display:inline-block;">
                 Voir dans le dashboard →
               </a>
             </div>

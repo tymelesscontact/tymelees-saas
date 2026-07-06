@@ -11,5 +11,6 @@ export async function GET(req: NextRequest) {
     statut: tenant.statut,
     societe: tenant.societe,
     trial_ends_at: tenant.trial_ends_at,
+    email: tenant.email,
   })
 }
