@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,11 +27,10 @@ export async function GET(req: NextRequest) {
   const action = searchParams.get('action');
 
   if (action === 'list') {
-    const { data, error } = await sb
-      .from('wallet_transactions')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(100);
+    const tenantId = await getTenantIdFromRequest(req);
+    let query = sb.from('wallet_transactions').select('*').order('created_at', { ascending: false }).limit(100);
+    if (tenantId) query = query.eq('tenant_id', tenantId);
+    const { data, error } = await query;
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
