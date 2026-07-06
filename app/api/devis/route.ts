@@ -2,6 +2,7 @@ export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { generateDevisHTML } from "../../lib/generateDevis"
+import { getTenantIdFromRequest } from "../../lib/supabaseServer"
 type DevisData = {
   clientName: string
   clientPhone: string
@@ -163,10 +164,12 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const action = searchParams.get('action')
     if (action === 'list') {
-      const { data, error } = await supabase
-        .from('devis')
-        .select('*')
-        .order('created_at', { ascending: false })
+      const tenantId = await getTenantIdFromRequest(req)
+      let query = supabase.from('devis').select('*').order('created_at', { ascending: false })
+      if (tenantId) {
+        query = query.eq('tenant_id', tenantId)
+      }
+      const { data, error } = await query
       if (error) {
         return NextResponse.json({ error: error.message }, { status: 500 })
       }
