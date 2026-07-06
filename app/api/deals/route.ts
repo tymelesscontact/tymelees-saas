@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 
 const sb = createClient(
@@ -21,8 +22,11 @@ async function sendEmail(to: string, subject: string, html: string) {
   return resend.emails.send({ from: 'Xyra <notifications@xyraio.fr>', to, subject, html });
 }
 
-export async function GET() {
-  const { data: deals, error } = await sb.from('deals').select('*').order('updated_at', { ascending: false });
+export async function GET(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
+  let dealsQuery = sb.from('deals').select('*').order('updated_at', { ascending: false });
+  if (tenantId) dealsQuery = dealsQuery.eq('tenant_id', tenantId);
+  const { data: deals, error } = await dealsQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const { data: timeline } = await sb.from('deals_timeline').select('*').order('created_at', { ascending: false });
