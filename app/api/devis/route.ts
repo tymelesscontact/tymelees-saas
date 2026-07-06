@@ -194,6 +194,18 @@ export async function GET(req: NextRequest) {
 
     if (action === 'test_minimal') { return NextResponse.json({ok:true}); }
 
+    if (action === 'test_env') {
+      const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
+      const key = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
+      return NextResponse.json({
+        urlLength: url.length,
+        urlLastChar: url.length ? url.charCodeAt(url.length - 1) : null,
+        keyLength: key.length,
+        keyLastChar: key.length ? key.charCodeAt(key.length - 1) : null,
+        keyFirstChar: key.length ? key.charCodeAt(0) : null,
+      })
+    }
+
     if (action === 'test_count') {
       const { data, error } = await supabase.from('devis').select('id')
       return NextResponse.json({ count: data ? data.length : 0, err: error ? error.message : null })
