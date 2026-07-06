@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 
 const sb = createClient(
@@ -21,8 +22,11 @@ async function sendWhatsApp(to: string, message: string) {
   });
 }
 
-export async function GET() {
-  const { data: clients, error } = await sb.from('clients').select('*').order('created_at', { ascending: false });
+export async function GET(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
+  let clientsQuery = sb.from('clients').select('*').order('created_at', { ascending: false });
+  if (tenantId) clientsQuery = clientsQuery.eq('tenant_id', tenantId);
+  const { data: clients, error } = await clientsQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const { data: factures } = await sb.from('factures').select('client_email,client_nom,montant_ttc,statut');
