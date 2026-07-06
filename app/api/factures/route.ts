@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 
 const sb = createClient(
@@ -66,11 +67,10 @@ export async function GET(req: NextRequest) {
   const action = searchParams.get('action');
 
   if (action === 'list') {
-    const { data, error } = await sb
-      .from('factures')
-      .select('*')
-      .order('created_at', { ascending: false })
-      .limit(200);
+    const tenantId = await getTenantIdFromRequest(req);
+    let query = sb.from('factures').select('*').order('created_at', { ascending: false }).limit(200);
+    if (tenantId) query = query.eq('tenant_id', tenantId);
+    const { data, error } = await query;
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ factures: data });
@@ -102,8 +102,10 @@ export async function POST(req: NextRequest) {
 
     const statutDgfip = type_client === 'administration' ? 'a_transmettre' : 'non_applicable';
 
+    const tenantId = await getTenantIdFromRequest(req);
     const { data: row, error } = await sb.from('factures').insert({
       numero,
+      tenant_id: tenantId,
       client_nom,
       client_email: client_email || null,
       client_tel: client_tel || null,
