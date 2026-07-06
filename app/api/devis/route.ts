@@ -194,6 +194,17 @@ export async function GET(req: NextRequest) {
 
     if (action === 'test_minimal') { return NextResponse.json({ok:true}); }
 
+    if (action === 'test_bullet') {
+      const checks: any = {}
+      const varsToCheck = ['NEXT_PUBLIC_SUPABASE_URL','SUPABASE_URL','NEXT_PUBLIC_SUPABASE_ANON_KEY','SUPABASE_ANON_KEY','SUPABASE_SERVICE_ROLE_KEY']
+      for (const v of varsToCheck) {
+        const val = process.env[v] || ''
+        const idx = val.indexOf(String.fromCharCode(8226))
+        checks[v] = { length: val.length, bulletAt: idx }
+      }
+      return NextResponse.json(checks)
+    }
+
     if (action === 'test_env') {
       const url = process.env.NEXT_PUBLIC_SUPABASE_URL || ''
       const key = process.env.SUPABASE_SERVICE_ROLE_KEY || ''
