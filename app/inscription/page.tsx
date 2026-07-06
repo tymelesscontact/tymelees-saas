@@ -209,19 +209,18 @@ export default function Inscription() {
     setLoading(false);
   };
 
-  const handlePay = () => {
+  const handleInscriptionGratuite = async () => {
     setError("");
-    const method = PAYMENT_METHODS.find(m => m.id === selectedPayment);
-    if (!method) return;
-    if (method.type === "stripe") handleStripe();
-    else handleFlw();
+    setLoading(true);
+    const result = await createAccount(`ESSAI-${Date.now()}`, "essai_gratuit");
+    setLoading(false);
+    if (result.success) setSuccess(true);
   };
 
   const canNext = () => {
     if (step === 1) return form.societe && form.email && form.password && form.pays && form.taille;
     if (step === 2) return !!form.metier;
     if (step === 3) return !!form.plan;
-    if (step === 4) return selectedPayment !== "";
     return true;
   };
 
@@ -479,13 +478,13 @@ export default function Inscription() {
 
         <div style={{ display: "flex", gap: 12, marginTop: 36 }}>
           {step > 1 && <button className="btn-back" onClick={() => setStep(s => s - 1)}>← Retour</button>}
-          {step < 4 ? (
+          {step < 3 ? (
             <button className="btn-primary" disabled={!canNext()} onClick={() => setStep(s => s + 1)}>
-              {step === 3 ? "Continuer vers le paiement →" : "Continuer →"}
+              Continuer →
             </button>
           ) : (
-            <button className="btn-primary" disabled={!canNext() || loading} onClick={handlePay}>
-              {loading ? "Création du compte en cours..." : `🚀 Payer ${form.planPrice}€ et accéder au dashboard`}
+            <button className="btn-primary" disabled={!canNext() || loading} onClick={handleInscriptionGratuite}>
+              {loading ? "Création du compte en cours..." : `🚀 Démarrer mon essai gratuit de 14 jours`}
             </button>
           )}
         </div>
