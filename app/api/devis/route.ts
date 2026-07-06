@@ -203,6 +203,22 @@ export async function GET(req: NextRequest) {
       return NextResponse.json({ devis: data || [] })
     }
 
+    if (action === 'public') {
+      const reference = searchParams.get('reference')
+      if (!reference) {
+        return NextResponse.json({ error: 'reference manquante' }, { status: 400 })
+      }
+      const { data, error } = await supabase
+        .from('devis')
+        .select('reference,client_nom,client_email,service,description,montant,taux_tva,devise,statut,lignes,notes,created_at')
+        .eq('reference', reference)
+        .single()
+      if (error || !data) {
+        return NextResponse.json({ error: 'Devis introuvable' }, { status: 404 })
+      }
+      return NextResponse.json({ devis: data })
+    }
+
     return NextResponse.json({ error: 'action invalide' }, { status: 400 })
   } catch (e: any) {
     console.error('GET /api/devis error:', e)
