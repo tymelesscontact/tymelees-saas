@@ -194,6 +194,11 @@ export async function GET(req: NextRequest) {
 
     if (action === 'test_minimal') { return NextResponse.json({ok:true}); }
 
+    if (action === 'test_count') {
+      const { data, error } = await supabase.from('devis').select('id')
+      return NextResponse.json({ count: data ? data.length : 0, err: error ? error.message : null })
+    }
+
     if (action === 'list') {
       const { data, error } = await supabase
         .from('devis')
