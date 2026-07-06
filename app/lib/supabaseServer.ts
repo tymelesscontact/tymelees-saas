@@ -7,38 +7,45 @@ function getAdminClient() {
   return createClient(url, key)
 }
 
-export async function getTenantIdFromRequest(req: NextRequest): Promise<string | null> {
+async function getUserFromRequest(req: NextRequest) {
   const token = req.cookies.get("sb-access-token")?.value
   if (!token) return null
+  const sb = getAdminClient()
+  const { data: userData, error } = await sb.auth.getUser(token)
+  if (error || !userData?.user) return null
+  return userData.user
+}
+
+export async function getTenantsForRequest(req: NextRequest): Promise<any[]> {
+  const user = await getUserFromRequest(req)
+  if (!user) return []
 
   const sb = getAdminClient()
-  const { data: userData, error: userError } = await sb.auth.getUser(token)
-  if (userError || !userData?.user) return null
+  const { data: membres, error } = await sb
+    .from("tenant_membres")
+    .select("tenant_id, role, tenants(*)")
+    .eq("user_id", user.id)
 
-  const { data: tenant, error: tenantError } = await sb
-    .from("tenants")
-    .select("id")
-    .eq("user_id", userData.user.id)
-    .single()
+  if (error || !membres) return []
+  return membres.map((m: any) => ({ ...m.tenants, role: m.role }))
+}
 
-  if (tenantError || !tenant) return null
-  return tenant.id
+export async function getTenantIdFromRequest(req: NextRequest): Promise<string | null> {
+  const activeCookie = req.cookies.get("active_tenant_id")?.value
+  const tenants = await getTenantsForRequest(req)
+  if (tenants.length === 0) return null
+
+  if (activeCookie && tenants.some(t => t.id === activeCookie)) {
+    return activeCookie
+  }
+
+  return tenants[0].id
 }
 
 export async function getTenantFromRequest(req: NextRequest): Promise<any | null> {
-  const token = req.cookies.get("sb-access-token")?.value
-  if (!token) return null
+  const tenantId = await getTenantIdFromRequest(req)
+  if (!tenantId) return null
 
-  const sb = getAdminClient()
-  const { data: userData, error: userError } = await sb.auth.getUser(token)
-  if (userError || !userData?.user) return null
-
-  const { data: tenant, error: tenantError } = await sb
-    .from("tenants")
-    .select("*")
-    .eq("user_id", userData.user.id)
-    .single()
-
-  if (tenantError || !tenant) return null
-  return tenant
+  const tenants = await getTenantsForRequest(req)
+  return tenants.find(t => t.id === tenantId) || null
 }
