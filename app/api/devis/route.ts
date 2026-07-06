@@ -192,6 +192,8 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const action = searchParams.get('action')
 
+    if (action === 'test_minimal') { return NextResponse.json({ok:true}); }
+
     if (action === 'list') {
       const { data, error } = await supabase
         .from('devis')
