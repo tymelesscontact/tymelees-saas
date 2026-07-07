@@ -18,7 +18,7 @@ export default function ResetPassword() {
       const { error: err } = await supabase.auth.updateUser({ password });
       if (err) throw err;
       setSuccess(true);
-      setTimeout(() => window.location.href = "/dashboard", 2000);
+      setTimeout(() => window.location.href = "/login", 2000);
     } catch (e: any) {
       setError(e.message || "Erreur");
     }

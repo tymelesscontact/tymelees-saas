@@ -8,6 +8,27 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+  const handleResetPassword = async () => {
+    if (!email) { setError("Entrez votre email d'abord"); return; }
+    setResetLoading(true);
+    setError("");
+    try {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { error: err } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (err) throw err;
+      setResetSent(true);
+    } catch (e: any) {
+      setError("Erreur lors de l'envoi de l'email");
+    }
+    setResetLoading(false);
+  };
 
   const handleLogin = async () => {
     if (!email || !password) return setError("Remplissez tous les champs");
@@ -92,6 +113,15 @@ export default function LoginPage() {
             <button className="btn" onClick={handleLogin} disabled={loading} style={{ marginTop:6 }}>
               {loading ? "Connexion..." : "Se connecter →"}
             </button>
+            <div style={{ textAlign:"center", marginTop:4 }}>
+              {resetSent ? (
+                <span style={{ fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"#2EC9B0" }}>Email envoye ! Verifiez votre boite mail.</span>
+              ) : (
+                <button onClick={handleResetPassword} disabled={resetLoading} style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"rgba(240,234,214,0.4)", textDecoration:"underline" }}>
+                  {resetLoading ? "Envoi..." : "Mot de passe oublie ?"}
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
