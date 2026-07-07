@@ -7154,7 +7154,7 @@ const PagePlanning=({plan,showToast,profil})=>{
   return <div style={{padding:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
       <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>⊡ Planning & {profil?.termes?.rdv||"Agenda"}</div><div style={{fontSize:11,color:C.muted}}>5 vues · IA auto-planifier · Booking · Règles horaires</div></div>
-      <div style={{display:"flex",gap:8}}><Btn onClick={()=>showToast("🤖 IA a optimisé le planning !")}>🤖 Auto-planifier</Btn><BtnGhost onClick={()=>showToast("✅ Mission ajoutée")}>+ Mission</BtnGhost></div>
+      <div style={{display:"flex",gap:8}}><Btn onClick={()=>showToast("🤖 IA a optimisé le planning !")}>🤖 Auto-planifier</Btn><BtnGhost onClick={()=>showToast("✅ "+(profil?.termes?.mission||"Mission")+" ajoutee")}>+ {profil?.termes?.mission||"Mission"}</BtnGhost></div>
     </div>
     <div style={{marginBottom:16}}><Tabs tabs={vues} active={vue} onChange={setVue}/></div>
     <Card>
@@ -7893,7 +7893,7 @@ const PageStock=({plan,showToast,profil})=>{
 
   return <div style={{padding:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>⊟ Stock & Fournitures</div>
+      <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>⊟ {profil?.termes?.stock||"Stock"}</div>
         <div style={{fontSize:11,color:C.muted}}>Inventaire · Mouvements · Commandes auto · IA prédictive · QR Code</div></div>
       <div style={{display:"flex",gap:8}}>
         <BtnGhost onClick={()=>setQrScan(s=>!s)}>📱 QR Scan</BtnGhost>
