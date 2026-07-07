@@ -11253,6 +11253,10 @@ export default function Xyra() {
       }else if(d.plan){
         setPlan(d.plan);
       }
+      if(d.secteur){
+        const p=PROFILS_SECTEURS[d.secteur];
+        if(p)setProfil(p);
+      }
     }).catch(()=>{});
   },[]);
   const[mesSocietes,setMesSocietes]=useState([]);
@@ -11438,7 +11442,7 @@ export default function Xyra() {
         <div style={{padding:"14px 14px 10px",borderBottom:`1px solid ${C.border}`}}>
           <div style={{fontSize:17,fontWeight:700,color:C.gold,letterSpacing:"0.1em",fontFamily:"Georgia,serif"}}>XYRA</div>
           <div style={{fontSize:9,color:"#9090B8",letterSpacing:"0.2em",marginTop:2}}>OS · OWNER DASHBOARD</div>
-          <select value={profil?.label||PROFIL_DEFAUT.label} onChange={e=>{const p=Object.values(PROFILS_SECTEURS).find(s=>s.label===e.target.value);if(p)setProfil(p);}} style={{marginTop:8,background:C.card2,border:`1px solid ${C.gold}44`,borderRadius:5,padding:"4px 6px",color:C.gold,fontSize:10,width:"100%",fontFamily:"inherit"}}>
+          <select value={profil?.label||PROFIL_DEFAUT.label} onChange={e=>{const entry=Object.entries(PROFILS_SECTEURS).find(([k,s])=>s.label===e.target.value);if(entry){setProfil(entry[1]);fetch("/api/save-secteur",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({secteur:entry[0]})}).catch(()=>{});}}} style={{marginTop:8,background:C.card2,border:`1px solid ${C.gold}44`,borderRadius:5,padding:"4px 6px",color:C.gold,fontSize:10,width:"100%",fontFamily:"inherit"}}>
             {Object.values(PROFILS_SECTEURS).map(p=><option key={p.label} value={p.label}>{p.label}</option>)}
           </select>
           {mesSocietes.length>0&&<div style={{marginTop:8}}>
