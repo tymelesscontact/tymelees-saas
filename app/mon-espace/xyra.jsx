@@ -11353,8 +11353,10 @@ export default function Xyra() {
         // Charger le profil métier depuis le tenant
         const{data:{user}}=await sb.auth.getUser();
         if(user){
-          const{data:tenant}=await sb.from('tenants').select('metier,plan').eq('user_id',user.id).single();
-          if(tenant?.metier){
+          const{data:tenant}=await sb.from('tenants').select('metier,plan,secteur').eq('user_id',user.id).single();
+          if(tenant?.secteur&&PROFILS_SECTEURS[tenant.secteur]){
+            setProfil(PROFILS_SECTEURS[tenant.secteur]);
+          }else if(tenant?.metier){
             const metierKey=Object.keys(PROFILS_SECTEURS).find(k=>{
               const p=PROFILS_SECTEURS[k];
               return p.label.toLowerCase().includes(tenant.metier.toLowerCase())||
