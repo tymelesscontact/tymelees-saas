@@ -11239,10 +11239,12 @@ export default function Xyra() {
   const[page,setPage]=useState("accueil");
   const[plan,setPlan]=useState("starter");
   const[tenantStatut,setTenantStatut]=useState(null);
+  const[tenantInfo,setTenantInfo]=useState(null);
   const[essaiExpire,setEssaiExpire]=useState(false);
   const[paiementLoading,setPaiementLoading]=useState(false);
   useEffect(()=>{
     fetch("/api/tenant-info").then(r=>r.json()).then(d=>{
+      setTenantInfo(d);
       if(d.statut)setTenantStatut(d.statut);
       const trialFini=d.trial_ends_at&&new Date(d.trial_ends_at).getTime()<Date.now();
       if(d.statut==="essai"&&trialFini){
@@ -11504,14 +11506,20 @@ export default function Xyra() {
         {/* User */}
         <div onClick={()=>setPage("owner")} style={{padding:"10px 13px",borderTop:`1px solid ${C.border}`,cursor:"pointer",background:page==="owner"?`${C.gold}0E`:"transparent",borderLeft:`2px solid ${page==="owner"?C.gold:"transparent"}`}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
-            <div style={{width:30,height:30,borderRadius:"50%",background:`${C.gold}22`,border:`1px solid ${C.gold}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:C.gold,flexShrink:0}}>C</div>
+            <div style={{width:30,height:30,borderRadius:"50%",background:`${C.gold}22`,border:`1px solid ${C.gold}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:C.gold,flexShrink:0}}>{(tenantInfo&&tenantInfo.societe?tenantInfo.societe[0]:"X")}</div>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:11,fontWeight:600,color:page==="owner"?C.gold:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>Curtiss</div>
-              <div style={{fontSize:9,color:C.gold}}>★ Propriétaire · Xyra</div>
+              <div style={{fontSize:11,fontWeight:600,color:page==="owner"?C.gold:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{tenantInfo&&tenantInfo.societe?tenantInfo.societe:"Mon compte"}</div>
+              <div style={{fontSize:9,color:C.gold}}>{plan==="owner"?"Proprietaire Xyra":(tenantInfo&&tenantInfo.email?tenantInfo.email:"")}</div>
             </div>
             {notifs.filter(n=>!n.lu).length>0&&<span style={{background:C.red,color:"#fff",borderRadius:20,padding:"0 5px",fontSize:9,fontWeight:700}}>{notifs.filter(n=>!n.lu).length}</span>}
           </div>
         </div>
+        <button onClick={async()=>{
+          document.cookie="sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          document.cookie="active_tenant_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          localStorage.removeItem("sb-access-token");
+          window.location.href="/login";
+        }} style={{width:"100%",padding:"9px 13px",background:"transparent",border:"none",borderTop:`1px solid ${C.border}`,color:C.red,cursor:"pointer",fontFamily:"inherit",fontSize:11,textAlign:"left"}}>Deconnexion</button>
       </div>
 
       {/* ── MAIN ── */}
