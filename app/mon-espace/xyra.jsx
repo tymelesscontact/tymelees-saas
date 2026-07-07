@@ -2013,7 +2013,7 @@ const PageDevis=({plan,showToast,profil})=>{
       </div>
       <Card>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>N° Devis</TH><TH>Client</TH><TH>Service</TH><TH>Montant TTC</TH><TH>Date</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+          <thead><tr><TH>N° {profil?.termes?.devis||"Devis"}</TH><TH>{profil?.termes?.client||"Client"}</TH><TH>Service</TH><TH>Montant TTC</TH><TH>Date</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
           <tbody>{filtred.map((d,i)=><tr key={i} onClick={()=>setEditDevis({...d})} style={{cursor:"pointer"}}>
             <Td style={{color:C.gold,fontWeight:700}}>{d.id}</Td>
             <Td style={{fontWeight:600}}>{d.client}</Td>
