@@ -11458,7 +11458,12 @@ export default function Xyra() {
 
         {/* Nav */}
         <div style={{flex:1,overflowY:"auto",padding:"6px 0"}}>
-          {(()=>{const modulesAutorises=getModulesBySecteur(profil?.label||PROFIL_DEFAUT.label,plan==="owner");return NAV.map((grpOrig,gi)=>{
+          {(()=>{const modulesAutorises=getModulesBySecteur(profil?.label||PROFIL_DEFAUT.label,plan==="owner");
+          const labelDynamique=(item)=>{
+            if(item.id==="devis")return profil?.termes?.devis||item.label;
+            return item.label;
+          };
+          return NAV.map((grpOrig,gi)=>{
             const grp=modulesAutorises?{...grpOrig,items:grpOrig.items.filter(it=>modulesAutorises.includes(it.id))}:grpOrig;
             if(grp.items.length===0)return null;
             return <div key={gi}>
@@ -11470,14 +11475,14 @@ export default function Xyra() {
               if(item.soon) return (
                 <button key={item.id} onClick={()=>setPage(item.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 13px",cursor:"pointer",color:"#5A5A7A",background:"transparent",border:"none",borderLeft:"2px solid transparent",width:"100%",textAlign:"left",fontFamily:"inherit",fontSize:12,opacity:0.6}}>
                   <span style={{fontSize:14,flexShrink:0}}>⏳</span>
-                  <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.label}</span>
+                  <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{labelDynamique(item)}</span>
                   <span style={{fontSize:8,background:"#1E1E36",color:"#5A5A7A",borderRadius:4,padding:"1px 5px",flexShrink:0}}>BIENTÔT</span>
                 </button>
               );
               return (
                 <button key={item.id} onClick={()=>setPage(item.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 13px",cursor:"pointer",color:active?C.gold:locked?"#7A7A9A":"#C0C0D8",background:active?`${C.gold}0E`:locked?`${C.card2}`:"transparent",border:"none",borderLeft:`2px solid ${active?C.gold:locked?"#3A3A5A66":"transparent"}`,width:"100%",textAlign:"left",fontFamily:"inherit",fontSize:12,fontWeight:active?600:400}}>
                   <span style={{fontSize:14,flexShrink:0}}>{locked?"🔒":item.icon}</span>
-                  <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{item.label}</span>
+                  <span style={{flex:1,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>{labelDynamique(item)}</span>
                   {locked
                     ?<span style={{fontSize:8,background:`${C.gold}22`,color:C.gold,borderRadius:4,padding:"1px 5px",flexShrink:0,border:`1px solid ${C.gold}44`}}>{MODULE_PRICES[item.id]?MODULE_PRICES[item.id]+"€":"PRO"}</span>
                     :badge>0&&<span style={{background:C.red,color:"#fff",borderRadius:20,padding:"0 5px",fontSize:9,fontWeight:700,flexShrink:0}}>{badge}</span>
