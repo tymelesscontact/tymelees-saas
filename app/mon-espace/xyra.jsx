@@ -11452,7 +11452,10 @@ export default function Xyra() {
 
         {/* Nav */}
         <div style={{flex:1,overflowY:"auto",padding:"6px 0"}}>
-          {NAV.map((grp,gi)=><div key={gi}>
+          {(()=>{const modulesAutorises=getModulesBySecteur(profil?.label||PROFIL_DEFAUT.label,plan==="owner");return NAV.map((grpOrig,gi)=>{
+            const grp=modulesAutorises?{...grpOrig,items:grpOrig.items.filter(it=>modulesAutorises.includes(it.id))}:grpOrig;
+            if(grp.items.length===0)return null;
+            return <div key={gi}>
             <div style={{fontSize:9,color:"#9090B8",letterSpacing:"0.2em",textTransform:"uppercase",padding:"10px 13px 3px",marginTop:gi>0?4:0,fontWeight:600}}>{grp.group}</div>
             {grp.items.map((item)=>{
               const active=page===item.id;
@@ -11476,7 +11479,7 @@ export default function Xyra() {
                 </button>
               );
             })}
-          </div>)}
+          </div>;});})()}
         </div>
 
         {/* Plan switcher */}
