@@ -1,6 +1,7 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 
 const C = {
   dark: "#0a0a0a", card: "#0f0f0f", card2: "#141414",
@@ -113,6 +114,23 @@ export default function Pricing() {
   const [billing, setBilling] = useState<"month" | "year">("month");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [section, setSection] = useState<"solo" | "multi" | "saas">("solo");
+  const searchParams = useSearchParams();
+  const upgradeFrom = searchParams.get("upgrade_from");
+  useEffect(()=>{
+    if(upgradeFrom==="multi_societes"||upgradeFrom==="multi_societes_pro"||upgradeFrom==="holding"){
+      setSection("multi");
+    }
+  },[upgradeFrom]);
+  const PRIX_PLAN_ACTUEL:Record<string,number>={
+    starter:59,business:129,business_pro:129,enterprise:249,
+    multi_societes:499,multi_societes_pro:799,holding:1200,
+  };
+  const filtrerParUpgrade=(plans:any[])=>{
+    if(!upgradeFrom)return plans;
+    const prixActuel=PRIX_PLAN_ACTUEL[upgradeFrom];
+    if(prixActuel===undefined)return plans;
+    return plans.filter((p:any)=>p.price>prixActuel);
+  };
 
   return (
     <div style={{ fontFamily: "'Segoe UI', Georgia, sans-serif", background: C.dark, color: C.text, minHeight: "100vh" }}>
@@ -255,7 +273,7 @@ export default function Pricing() {
             </p>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
-            {PLANS_MULTI.map((plan, i) => (
+            {filtrerParUpgrade(PLANS_MULTI).map((plan, i) => (
               <div key={i} className="fade" style={{ background: plan.highlight ? `linear-gradient(135deg, ${C.card}, #0a0f1a)` : C.card, border: `1px solid ${plan.highlight ? plan.color + "66" : C.border}`, borderRadius: 16, padding: 28, position: "relative", animationDelay: `${i * 0.1}s` }}>
                 {plan.highlight && (
                   <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: plan.color, color: "#000", fontSize: 10, fontWeight: 700, padding: "4px 16px", textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>⭐ Recommandé</div>

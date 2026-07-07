@@ -11255,6 +11255,44 @@ export default function Xyra() {
       }
     }).catch(()=>{});
   },[]);
+  const[mesSocietes,setMesSocietes]=useState([]);
+  const[societeActiveId,setSocieteActiveId]=useState(null);
+  const[showAjoutSociete,setShowAjoutSociete]=useState(false);
+  const[nouvelleSocieteForm,setNouvelleSocieteForm]=useState({societe:"",metier:"",pays:""});
+  const[erreurQuota,setErreurQuota]=useState("");
+  const chargerSocietes=async()=>{
+    try{
+      const res=await fetch("/api/mes-societes");
+      const data=await res.json();
+      if(data.tenants){
+        setMesSocietes(data.tenants);
+        if(data.tenants.length>0&&!societeActiveId)setSocieteActiveId(data.tenants[0].id);
+      }
+    }catch(e){}
+  };
+  useEffect(()=>{chargerSocietes();},[]);
+  const changerSociete=async(id)=>{
+    try{
+      const res=await fetch("/api/changer-societe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tenant_id:id})});
+      const data=await res.json();
+      if(data.success){setSocieteActiveId(id);window.location.reload();}
+    }catch(e){}
+  };
+  const ajouterSociete=async()=>{
+    setErreurQuota("");
+    if(!nouvelleSocieteForm.societe)return;
+    try{
+      const res=await fetch("/api/ajouter-societe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(nouvelleSocieteForm)});
+      const data=await res.json();
+      if(data.success){
+        setShowAjoutSociete(false);
+        setNouvelleSocieteForm({societe:"",metier:"",pays:""});
+        chargerSocietes();
+      }else{
+        setErreurQuota(data.message||data.error||"Erreur");
+      }
+    }catch(e){setErreurQuota("Erreur de connexion");}
+  };
   const demarrerPaiement=async()=>{
     setPaiementLoading(true);
     try{
@@ -11403,6 +11441,13 @@ export default function Xyra() {
           <select value={profil?.label||PROFIL_DEFAUT.label} onChange={e=>{const p=Object.values(PROFILS_SECTEURS).find(s=>s.label===e.target.value);if(p)setProfil(p);}} style={{marginTop:8,background:C.card2,border:`1px solid ${C.gold}44`,borderRadius:5,padding:"4px 6px",color:C.gold,fontSize:10,width:"100%",fontFamily:"inherit"}}>
             {Object.values(PROFILS_SECTEURS).map(p=><option key={p.label} value={p.label}>{p.label}</option>)}
           </select>
+          {mesSocietes.length>0&&<div style={{marginTop:8}}>
+            <select value={societeActiveId||""} onChange={e=>changerSociete(e.target.value)} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:5,padding:"4px 6px",color:C.text,fontSize:10,width:"100%",fontFamily:"inherit"}}>
+              {mesSocietes.map(s=><option key={s.id} value={s.id}>🏢 {s.societe}</option>)}
+            </select>
+            {mesSocietes.length>1&&<div style={{fontSize:8,color:"#9090B8",marginTop:3}}>{mesSocietes.length} societes</div>}
+            <button onClick={()=>setShowAjoutSociete(true)} style={{marginTop:4,width:"100%",background:"transparent",border:`1px dashed ${C.gold}44`,borderRadius:5,padding:"4px 6px",color:C.gold,fontSize:9,cursor:"pointer",fontFamily:"inherit"}}>+ Ajouter une societe</button>
+          </div>}
         </div>
 
         {/* Nav */}
@@ -11487,6 +11532,25 @@ export default function Xyra() {
         <div><div style={{fontWeight:700,fontSize:11}}>{n.titre}</div><div style={{fontSize:9,color:C.muted}}>{n.heure}</div></div>
       </div>)}
 
+      {showAjoutSociete&&<div style={{position:"fixed",inset:0,background:"#000000CC",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99998}}>
+        <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:28,maxWidth:400,width:"90%"}}>
+          <div style={{fontSize:16,fontWeight:700,color:C.gold,marginBottom:16,fontFamily:"Georgia,serif"}}>+ Nouvelle societe</div>
+          <div style={{display:"flex",flexDirection:"column",gap:10}}>
+            <input value={nouvelleSocieteForm.societe} onChange={e=>setNouvelleSocieteForm(f=>({...f,societe:e.target.value}))} placeholder="Nom de la societe" style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:6,padding:"10px",color:C.text,fontSize:13,fontFamily:"inherit"}}/>
+            <input value={nouvelleSocieteForm.metier} onChange={e=>setNouvelleSocieteForm(f=>({...f,metier:e.target.value}))} placeholder="Metier / Secteur" style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:6,padding:"10px",color:C.text,fontSize:13,fontFamily:"inherit"}}/>
+            <input value={nouvelleSocieteForm.pays} onChange={e=>setNouvelleSocieteForm(f=>({...f,pays:e.target.value}))} placeholder="Pays" style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:6,padding:"10px",color:C.text,fontSize:13,fontFamily:"inherit"}}/>
+          </div>
+          {erreurQuota&&<div style={{marginTop:10,fontSize:12,color:C.red,background:`${C.red}11`,padding:"8px 10px",borderRadius:6}}>{erreurQuota}</div>}
+          <div style={{display:"flex",gap:8,marginTop:20}}>
+            {erreurQuota&&erreurQuota.includes("limite")?(
+              <a href={`/pricing?upgrade_from=${plan}`} style={{flex:1,background:C.gold,color:"#000",border:"none",borderRadius:8,padding:"10px",fontWeight:700,fontSize:13,textAlign:"center",textDecoration:"none",display:"block"}}>Changer de forfait</a>
+            ):(
+              <button onClick={ajouterSociete} style={{flex:1,background:C.gold,color:"#000",border:"none",borderRadius:8,padding:"10px",fontWeight:700,fontSize:13,cursor:"pointer"}}>Creer</button>
+            )}
+            <button onClick={()=>{setShowAjoutSociete(false);setErreurQuota("");}} style={{flex:1,background:"transparent",color:C.muted,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px",fontSize:13,cursor:"pointer"}}>Fermer</button>
+          </div>
+        </div>
+      </div>}
       {essaiExpire&&<div style={{position:"fixed",inset:0,background:"#000000EE",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99999}}>
         <div style={{background:C.card,border:`1px solid ${C.gold}44`,borderRadius:16,padding:36,maxWidth:440,textAlign:"center"}}>
           <div style={{fontSize:40,marginBottom:12}}>⏳</div>
