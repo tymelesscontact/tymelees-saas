@@ -1,6 +1,6 @@
 "use client";
 export const dynamic = "force-dynamic";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 
 const C = {
@@ -110,7 +110,7 @@ const FAQ = [
   { q: "Qu'est-ce que le Club d'affaires Xyra ?", r: "Le Club d'affaires est un réseau privé de membres Xyra — deals exclusifs -10% entre membres, IA Match business, événements VIP, annuaire mondial. Disponible en option à 2 000€/an ou inclus dans le plan Enterprise." },
 ];
 
-export default function Pricing() {
+function PricingContent() {
   const [billing, setBilling] = useState<"month" | "year">("month");
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [section, setSection] = useState<"solo" | "multi" | "saas">("solo");
@@ -496,5 +496,12 @@ export default function Pricing() {
         </div>
       </div>
     </div>
+  );
+}
+export default function Pricing() {
+  return (
+    <Suspense fallback={<div style={{minHeight:"100vh",background:"#0a0a0a"}}></div>}>
+      <PricingContent />
+    </Suspense>
   );
 }
