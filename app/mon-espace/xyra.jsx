@@ -11366,10 +11366,7 @@ export default function Xyra() {
             });
             if(metierKey)setProfil(PROFILS_SECTEURS[metierKey]);
           }
-          if(tenant?.plan){
-            const planNorm=tenant.plan.replace('business_pro','business').replace('_pro','');
-            setPlan(planNorm);
-          }
+          // plan gere par le useEffect tenant-info (respecte le statut essai)
         }
       }catch(e){console.error('Supabase:',e);}
       finally{setSbLoading(false);}
