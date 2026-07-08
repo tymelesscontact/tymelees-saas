@@ -134,19 +134,13 @@ for (const cle of Object.keys(MAPPING_CATEGORIE_SECTEUR)) {
 
 if (!secteurDetecte) {
   try {
-    const secteursDisponibles = "conciergerie, restaurant, hotel, btp, medical, beaute, transport, immobilier, formation, autre";
-    const iaRes = await fetch("/api/ia", {
+    const genRes = await fetch("/api/generer-secteur", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        prompt: "Voici une liste de secteurs disponibles: " + secteursDisponibles + ". Le metier de l'utilisateur est: " + form.metier + ". Reponds UNIQUEMENT avec la cle exacte du secteur le plus proche parmi la liste, sans aucun autre texte.",
-        max_tokens: 20,
-      }),
+      body: JSON.stringify({ metier: form.metier }),
     });
-    const iaData = await iaRes.json();
-    const reponse = (iaData.text || "").trim().toLowerCase();
-    const secteursValides = secteursDisponibles.split(", ");
-    secteurDetecte = secteursValides.find(function(s) { return reponse.includes(s); }) || "autre";
+    const genData = await genRes.json();
+    secteurDetecte = genData.profil?.cle || "autre";
   } catch (e) {
     secteurDetecte = "autre";
   }
