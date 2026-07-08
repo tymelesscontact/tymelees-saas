@@ -11395,21 +11395,9 @@ export default function Xyra() {
         if(m.data?.length)setMissions(m.data);
         if(s.data?.length)setStock(s.data);
         if(dl.data?.length)setDeals(dl.data);
-        // Charger le profil métier depuis le tenant
+        // profil et plan geres par le useEffect tenant-info (respecte essai + secteurs generes)
         const{data:{user}}=await sb.auth.getUser();
         if(user){
-          const{data:tenant}=await sb.from('tenants').select('metier,plan,secteur').eq('user_id',user.id).single();
-          if(tenant?.secteur&&PROFILS_SECTEURS[tenant.secteur]){
-            setProfil(PROFILS_SECTEURS[tenant.secteur]);
-          }else if(tenant?.metier){
-            const metierKey=Object.keys(PROFILS_SECTEURS).find(k=>{
-              const p=PROFILS_SECTEURS[k];
-              return p.label.toLowerCase().includes(tenant.metier.toLowerCase())||
-                     tenant.metier.toLowerCase().includes(p.label.toLowerCase().replace(/[^a-z]/g,''));
-            });
-            if(metierKey)setProfil(PROFILS_SECTEURS[metierKey]);
-          }
-          // plan gere par le useEffect tenant-info (respecte le statut essai)
         }
       }catch(e){console.error('Supabase:',e);}
       finally{setSbLoading(false);}
