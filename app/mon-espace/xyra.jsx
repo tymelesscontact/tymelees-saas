@@ -11257,7 +11257,23 @@ export default function Xyra() {
       }
       if(d.secteur){
         const p=PROFILS_SECTEURS[d.secteur];
-        if(p)setProfil(p);
+        if(p){
+          setProfil(p);
+        }else{
+          fetch("/api/get-secteur?cle="+d.secteur).then(r=>r.json()).then(gd=>{
+            if(gd.profil){
+              setProfil({
+                label:gd.profil.label,
+                termes:gd.profil.termes,
+                services:gd.profil.services,
+                stockCategories:gd.profil.stock_categories,
+                kpiMission:gd.profil.kpi_mission,
+                couleur:gd.profil.couleur,
+                normes:gd.profil.normes,
+              });
+            }
+          }).catch(()=>{});
+        }
       }
     }).catch(()=>{});
   },[]);
