@@ -11280,6 +11280,33 @@ export default function Xyra() {
   const[mesSocietes,setMesSocietes]=useState([]);
   const[societeActiveId,setSocieteActiveId]=useState(null);
   const[showAjoutSociete,setShowAjoutSociete]=useState(false);
+  const[showAutreMetier,setShowAutreMetier]=useState(false);
+  const[metierLibre,setMetierLibre]=useState("");
+  const[genererLoading,setGenererLoading]=useState(false);
+  const genererNouveauMetier=async()=>{
+    if(!metierLibre.trim())return;
+    setGenererLoading(true);
+    try{
+      const res=await fetch("/api/generer-secteur",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({metier:metierLibre})});
+      const data=await res.json();
+      if(data.profil){
+        setProfil({
+          label:data.profil.label,
+          termes:data.profil.termes,
+          services:data.profil.services,
+          stockCategories:data.profil.stock_categories,
+          kpiMission:data.profil.kpi_mission,
+          couleur:data.profil.couleur,
+          normes:data.profil.normes,
+        });
+        await fetch("/api/save-secteur",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({secteur:data.profil.cle})});
+        setShowAutreMetier(false);
+        setMetierLibre("");
+        showToast("Profil "+data.profil.label+" active !");
+      }
+    }catch(e){showToast("Erreur lors de la generation");}
+    setGenererLoading(false);
+  };
   const[nouvelleSocieteForm,setNouvelleSocieteForm]=useState({societe:"",metier:"",pays:""});
   const[erreurQuota,setErreurQuota]=useState("");
   const chargerSocietes=async()=>{
@@ -11462,6 +11489,7 @@ export default function Xyra() {
           <select value={profil?.label||PROFIL_DEFAUT.label} onChange={e=>{const entry=Object.entries(PROFILS_SECTEURS).find(([k,s])=>s.label===e.target.value);if(entry){setProfil(entry[1]);fetch("/api/save-secteur",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({secteur:entry[0]})}).catch(()=>{});}}} style={{marginTop:8,background:C.card2,border:`1px solid ${C.gold}44`,borderRadius:5,padding:"4px 6px",color:C.gold,fontSize:10,width:"100%",fontFamily:"inherit"}}>
             {Object.values(PROFILS_SECTEURS).map(p=><option key={p.label} value={p.label}>{p.label}</option>)}
           </select>
+          <button onClick={()=>setShowAutreMetier(true)} style={{marginTop:4,width:"100%",background:"transparent",border:`1px dashed ${C.gold}44`,borderRadius:5,padding:"3px 6px",color:C.gold,fontSize:9,cursor:"pointer",fontFamily:"inherit"}}>Mon metier n'est pas liste</button>
           {mesSocietes.length>0&&<div style={{marginTop:8}}>
             <select value={societeActiveId||""} onChange={e=>changerSociete(e.target.value)} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:5,padding:"4px 6px",color:C.text,fontSize:10,width:"100%",fontFamily:"inherit"}}>
               {mesSocietes.map(s=><option key={s.id} value={s.id}>🏢 {s.societe}</option>)}
@@ -11567,6 +11595,19 @@ export default function Xyra() {
         <div><div style={{fontWeight:700,fontSize:11}}>{n.titre}</div><div style={{fontSize:9,color:C.muted}}>{n.heure}</div></div>
       </div>)}
 
+      {showAutreMetier&&<div style={{position:"fixed",inset:0,background:"#000000CC",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99998}}>
+        <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:28,maxWidth:400,width:"90%"}}>
+          <div style={{fontSize:16,fontWeight:700,color:C.gold,marginBottom:8,fontFamily:"Georgia,serif"}}>Quel est votre metier ?</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Notre IA va creer un profil complet adapte a votre activite.</div>
+          <input value={metierLibre} onChange={e=>setMetierLibre(e.target.value)} placeholder="Ex: Veterinaire, Traiteur, Agence de voyage..." style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:6,padding:"10px",color:C.text,fontSize:13,fontFamily:"inherit",width:"100%",boxSizing:"border-box"}}/>
+          <div style={{display:"flex",gap:8,marginTop:20}}>
+            <button onClick={genererNouveauMetier} disabled={genererLoading||!metierLibre.trim()} style={{flex:1,background:C.gold,color:"#000",border:"none",borderRadius:8,padding:"10px",fontWeight:700,fontSize:13,cursor:"pointer",opacity:genererLoading?0.6:1}}>
+              {genererLoading?"Generation...":"Generer mon profil"}
+            </button>
+            <button onClick={()=>{setShowAutreMetier(false);setMetierLibre("");}} style={{flex:1,background:"transparent",color:C.muted,border:`1px solid ${C.border}`,borderRadius:8,padding:"10px",fontSize:13,cursor:"pointer"}}>Annuler</button>
+          </div>
+        </div>
+      </div>}
       {showAjoutSociete&&<div style={{position:"fixed",inset:0,background:"#000000CC",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99998}}>
         <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:28,maxWidth:400,width:"90%"}}>
           <div style={{fontSize:16,fontWeight:700,color:C.gold,marginBottom:16,fontFamily:"Georgia,serif"}}>+ Nouvelle societe</div>
