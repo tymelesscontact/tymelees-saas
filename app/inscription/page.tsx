@@ -112,6 +112,46 @@ export default function Inscription() {
       if (authError) throw authError;
 
       const userId = authData.user?.id;
+const MAPPING_CATEGORIE_SECTEUR: Record<string, string> = {
+  "Services a domicile": "conciergerie",
+  "BTP & Artisanat": "btp",
+  "Restauration & Food": "restaurant",
+  "Conciergerie Premium": "conciergerie",
+  "Beaute & Esthetique": "beaute",
+  "Hotellerie & Tourisme": "hotel",
+  "Immobilier": "immobilier",
+  "Formation & Coaching": "formation",
+  "Transport & Logistique": "transport",
+};
+
+let secteurDetecte = "";
+for (const cle of Object.keys(MAPPING_CATEGORIE_SECTEUR)) {
+  if (form.categorie.includes(cle) || cle.includes(form.categorie.replace(/[^a-zA-Z ]/g, "").trim())) {
+    secteurDetecte = MAPPING_CATEGORIE_SECTEUR[cle];
+    break;
+  }
+}
+
+if (!secteurDetecte) {
+  try {
+    const secteursDisponibles = "conciergerie, restaurant, hotel, btp, medical, beaute, transport, immobilier, formation, autre";
+    const iaRes = await fetch("/api/ia", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        prompt: "Voici une liste de secteurs disponibles: " + secteursDisponibles + ". Le metier de l'utilisateur est: " + form.metier + ". Reponds UNIQUEMENT avec la cle exacte du secteur le plus proche parmi la liste, sans aucun autre texte.",
+        max_tokens: 20,
+      }),
+    });
+    const iaData = await iaRes.json();
+    const reponse = (iaData.text || "").trim().toLowerCase();
+    const secteursValides = secteursDisponibles.split(", ");
+    secteurDetecte = secteursValides.find(function(s) { return reponse.includes(s); }) || "autre";
+  } catch (e) {
+    secteurDetecte = "autre";
+  }
+}
+
 
       const { data: tenantRow } = await supabase.from("tenants").insert([{
         user_id: userId,
@@ -124,6 +164,7 @@ export default function Inscription() {
         plan: form.plan.toLowerCase().replace(" ", "_"),
         plan_price: form.planPrice,
         statut: "essai",
+        secteur: secteurDetecte,
         trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
       }]).select().single();
 
