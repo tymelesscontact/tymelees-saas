@@ -1305,7 +1305,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
   return <div style={{padding:20}}>
     <div style={{background:`linear-gradient(135deg,${C.card},#0A1A14)`,border:`1px solid ${C.gold}33`,borderRadius:16,padding:24,marginBottom:16}}>
       <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:6}}>XYRA · OWNER DASHBOARD</div>
-      <div style={{fontSize:26,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>Bonjour Curtiss ✦</div>
+      <div style={{fontSize:26,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>Bonjour ✦</div>
       <div style={{fontSize:11,color:C.muted,marginBottom:16,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
         {new Date().toLocaleDateString("fr-FR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})} · Paris
         <span style={{background:`${meteo.color}22`,color:meteo.color,border:`1px solid ${meteo.color}44`,borderRadius:20,padding:"2px 10px",fontSize:10,fontWeight:600}}>{meteo.icon} {meteo.txt}</span>
