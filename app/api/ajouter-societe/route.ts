@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getTenantsForRequest } from "../../lib/supabaseServer"
+import { normaliserPlan } from "../../lib/plans"
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -31,7 +32,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: false, error: "Aucune societe existante" }, { status: 400 })
   }
 
-  const planActuel = tenants[0].plan
+  const planActuel = normaliserPlan(tenants[0].plan)
   const quota = QUOTAS[planActuel] || 1
 
   if (tenants.length >= quota) {
@@ -59,7 +60,8 @@ export async function POST(req: NextRequest) {
     taille: taille || "",
     plan: planActuel,
     plan_price: 0,
-    statut: "actif",
+    statut: "essai",
+    trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
   }]).select().single()
 
   if (insertError || !tenantRow) {

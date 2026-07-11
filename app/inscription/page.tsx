@@ -1,4 +1,5 @@
 "use client";
+import { normaliserPlan } from "../lib/plans";
 
 import { useState } from "react";
 import { useFlutterwave, closePaymentModal } from "flutterwave-react-v3";
@@ -155,7 +156,7 @@ if (!secteurDetecte) {
         metier: form.metier,
         categorie: form.categorie,
         taille: form.taille,
-        plan: form.plan.toLowerCase().replace(" ", "_"),
+        plan: normaliserPlan(form.plan),
         plan_price: form.planPrice,
         statut: "essai",
         secteur: secteurDetecte,
