@@ -115,7 +115,13 @@ function PricingContent() {
   const [openFaq, setOpenFaq] = useState<number | null>(null);
   const [section, setSection] = useState<"solo" | "multi" | "saas">("solo");
   const searchParams = useSearchParams();
-  const upgradeFrom = searchParams.get("upgrade_from");
+  const MAPPING_PLANS_LOCAL:Record<string,string>={"starter":"starter","démarreur":"starter","demarreur":"starter","business pro":"business","business_pro":"business","business":"business","enterprise":"enterprise","multi-sociétés":"multi_societes","multisociétés":"multi_societes","multi_societes":"multi_societes","multi-sociétés pro":"multi_societes_pro","multi_societes_pro":"multi_societes_pro","holding":"holding","owner":"owner"};
+  const normaliserPlanLocal=(p:string|null)=>{
+    if(!p)return "starter";
+    const cle=p.toLowerCase().trim();
+    return MAPPING_PLANS_LOCAL[cle]||cle.replace(/[^a-z]+/g,"_").replace(/^_|_$/g,"")||"starter";
+  };
+  const upgradeFrom = normaliserPlanLocal(searchParams.get("upgrade_from"));
   useEffect(()=>{
     if(upgradeFrom==="multi_societes"||upgradeFrom==="multi_societes_pro"||upgradeFrom==="holding"){
       setSection("multi");
@@ -238,7 +244,7 @@ function PricingContent() {
                 <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: C.muted, marginTop: 8 }}>{plan.desc}</div>
               </div>
               <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, marginBottom: 20 }}>
-                {plan.modules.map((m, j) => (
+                {plan.modules.map((m: string, j: number) => (
                   <div key={j} style={{ display: "flex", gap: 10, fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: C.text, marginBottom: 10 }}>
                     <span style={{ color: plan.color, flexShrink: 0 }}>◆</span>{m}
                   </div>
@@ -287,7 +293,7 @@ function PricingContent() {
                   <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: C.muted, marginTop: 8 }}>{plan.desc}</div>
                 </div>
                 <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, marginBottom: 20 }}>
-                  {plan.modules.map((m, j) => (
+                  {plan.modules.map((m: string, j: number) => (
                     <div key={j} style={{ display: "flex", gap: 10, fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: C.text, marginBottom: 10 }}>
                       <span style={{ color: plan.color, flexShrink: 0 }}>◆</span>{m}
                     </div>
@@ -340,7 +346,7 @@ function PricingContent() {
                   <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: C.muted, marginTop: 8 }}>{plan.desc}</div>
                 </div>
                 <div style={{ borderTop: `1px solid ${C.border}`, paddingTop: 20, marginBottom: 20 }}>
-                  {plan.modules.map((m, j) => (
+                  {plan.modules.map((m: string, j: number) => (
                     <div key={j} style={{ display: "flex", gap: 10, fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: C.text, marginBottom: 10 }}>
                       <span style={{ color: plan.color, flexShrink: 0 }}>◆</span>{m}
                     </div>
