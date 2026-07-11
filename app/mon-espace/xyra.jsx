@@ -11499,12 +11499,7 @@ export default function Xyra() {
         </div>
 
         {/* Plan switcher */}
-        <div style={{padding:"8px 12px",borderTop:`1px solid ${C.border}`}}>
-          <div style={{fontSize:9,color:C.muted,marginBottom:4,letterSpacing:"0.1em"}}>SIMULER UN FORFAIT</div>
-          <select value={plan} onChange={e=>setPlan(e.target.value)} style={{background:C.card2,border:`1px solid ${C.gold}44`,borderRadius:6,padding:"5px 8px",color:C.gold,fontSize:11,width:"100%",fontFamily:"inherit"}}>
-            {Object.values(PLANS).map(p=><option key={p.id} value={p.id}>{p.icon} {p.nom} {p.prix!=="—"?"— "+p.prix:""}</option>)}
-          </select>
-        </div>
+
 
         {/* User */}
         <div onClick={()=>setPage("owner")} style={{padding:"10px 13px",borderTop:`1px solid ${C.border}`,cursor:"pointer",background:page==="owner"?`${C.gold}0E`:"transparent",borderLeft:`2px solid ${page==="owner"?C.gold:"transparent"}`}}>
