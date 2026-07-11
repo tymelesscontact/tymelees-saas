@@ -132,6 +132,12 @@ const NAV = [
   ]},
 ];
 
+const MAPPING_PLANS={"starter":"starter","démarreur":"starter","demarreur":"starter","business pro":"business","business_pro":"business","business":"business","enterprise":"enterprise","multi-sociétés":"multi_societes","multisociétés":"multi_societes","multi_societes":"multi_societes","multi-sociétés pro":"multi_societes_pro","multi_societes_pro":"multi_societes_pro","holding":"holding","club d'affaires":"club_affaires","club_affaires":"club_affaires","owner":"owner","propriétaire":"owner","proprietaire":"owner"};
+function normaliserPlan(planBrut){
+  if(!planBrut)return "starter";
+  const cle=planBrut.toLowerCase().trim();
+  return MAPPING_PLANS[cle]||cle.replace(/[^a-z]+/g,"_").replace(/^_|_$/g,"")||"starter";
+}
 const PROFILS_SECTEURS={
   conciergerie:{label:"🏠 Conciergerie / Services",termes:{mission:"Mission",missions:"Missions",client:"Client",clients:"Clients",service:"Service",services:"Services",collaborateur:"Collaborateur",stock:"Fournitures",commande:"Commande",rdv:"RDV",produit:"Produit",devis:"Devis"},services:["Airbnb","Résidentiel","Bureaux","Jet Privé","Yacht","Rapatriement"],stockCategories:["Nettoyage","Protection","Maritime","Aviation","Textile","Consommables"],kpiMission:"Missions",couleur:"#C9A84C"},
   restaurant:{label:"🍽️ Restaurant / Restauration",termes:{mission:"Service",missions:"Services",client:"Client",clients:"Clients",service:"Prestation",services:"Prestations",collaborateur:"Employé",stock:"Ingrédients",commande:"Commande",rdv:"Réservation",produit:"Plat",devis:"Devis"},services:["Déjeuner","Dîner","Brunch","Livraison","Traiteur","Banquet","Room Service"],stockCategories:["Viandes","Poissons","Légumes","Laitiers","Épices","Boissons","Emballages","Hygiène"],kpiMission:"Couverts",couleur:"#FF8C3A",normes:["HACCP","Chaîne du froid","Températures","DLC/DLUO","Plan de nettoyage","Traçabilité alimentaire"]},
@@ -11249,11 +11255,11 @@ export default function Xyra() {
       const trialFini=d.trial_ends_at&&new Date(d.trial_ends_at).getTime()<Date.now();
       if(d.statut==="essai"&&trialFini){
         setEssaiExpire(true);
-        if(d.plan)setPlan(d.plan);
+        if(d.plan)setPlan(normaliserPlan(d.plan));
       }else if(d.statut==="essai"){
         setPlan("enterprise");
       }else if(d.plan){
-        setPlan(d.plan);
+        setPlan(normaliserPlan(d.plan));
       }
       if(d.secteur){
         console.log("DEBUG secteur recu:", d.secteur, "trouve dans fixes:", !!PROFILS_SECTEURS[d.secteur]);
