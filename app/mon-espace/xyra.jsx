@@ -63,7 +63,7 @@ const PAGE_ACCESS = {
   // Club d'affaires — option séparée ou inclus Enterprise
   club_affaires:  ["enterprise","club_affaires","owner"],
   // Multi-Sociétés — plans multi uniquement
-  multi_societes: ["multi_societes","multi_pro","holding","owner"],
+  multi_societes: ["multi_societes","multi_pro","multi_societes_pro","holding","enterprise","owner"],
   signature:      ["business","enterprise","owner"],
   formation:      ["business","enterprise","owner"],
   // Enterprise (249€)
