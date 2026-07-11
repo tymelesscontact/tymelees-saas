@@ -309,74 +309,38 @@ const SOON_MODULES={
   centre_appels:{titre:"Centre d'appels IA",icon:"📞",desc:"Un agent vocal IA appelle automatiquement vos prospects, qualifie les leads et planifie les RDV dans votre agenda.",features:["Agent vocal IA (Vapi)","Qualification automatique","Prise de RDV auto","Résumé CRM auto","Multi-langues","Scripts personnalisés","Statistiques appels","Intégration SIRENE"]},
 };
 
-const UpgradeWall=({page,plan,onUpgrade})=>{
+const UpgradeWall=({page,plan})=>{
+  const[vraiPlan,setVraiPlan]=useState(null);
+  useEffect(()=>{
+    fetch("/api/tenant-info").then(r=>r.json()).then(d=>{
+      if(d.plan)setVraiPlan(d.plan);
+    }).catch(()=>{});
+  },[]);
   const preview=MODULE_PREVIEWS[page]||{icon:"📦",desc:page,features:["Fonctionnalités avancées","Analyses IA","Automatisations","Rapports détaillés"]};
-  const plans=[
-    {id:"business",nom:"Business Pro",prix:"99€",prixMois:"/mois",color:C.gold,icon:"✦",desc:"Accès complet à tous les modules",features:["CRM & Pipeline","Devis & Signatures","Trésorerie 90j","Équipe & RH","Prospection Auto","Analytique & CA"]},
-    {id:"enterprise",nom:"Enterprise",prix:"150€",prixMois:"/mois",color:C.purple,icon:"◈",desc:"Business Pro + Bot WhatsApp + Support dédié",features:["Tout Business Pro","Bot WhatsApp IA","White-label SaaS","Support 24h dédié","API complète","Déploiement SaaS"]},
-  ];
   const modulePrice=MODULE_PRICES[page];
-  return <div style={{padding:24,maxWidth:900,margin:"0 auto"}}>
-    {/* Header */}
+  const planPourRedirection=vraiPlan||plan;
+  return <div style={{padding:24,maxWidth:700,margin:"0 auto"}}>
     <div style={{textAlign:"center",marginBottom:24}}>
       <div style={{fontSize:48,marginBottom:8}}>{preview.icon||"🔒"}</div>
       <div style={{fontSize:22,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>{preview.desc}</div>
       {modulePrice&&<div style={{display:"inline-flex",alignItems:"center",gap:8,background:`${C.gold}15`,border:`1px solid ${C.gold}44`,borderRadius:20,padding:"6px 16px",marginBottom:8}}>
-        <span style={{fontSize:11,color:C.muted}}>Module à la carte :</span>
+        <span style={{fontSize:11,color:C.muted}}>Module a la carte :</span>
         <span style={{fontSize:16,fontWeight:700,color:C.gold}}>{modulePrice}€/mois</span>
       </div>}
-      <div style={{fontSize:12,color:C.muted}}>Votre plan actuel : <b style={{color:PLANS[plan]?.color}}>{PLANS[plan]?.icon} {PLANS[plan]?.nom} — {PLANS[plan]?.prix}</b></div>
     </div>
-
-    {/* Features du module */}
     <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:20,marginBottom:20}}>
-      <div style={{fontSize:11,color:C.muted,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:12}}>Ce que vous débloquez</div>
+      <div style={{fontSize:11,color:C.muted,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:12}}>Ce que vous debloquez</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:8}}>
         {preview.features.map((f,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.text,display:"flex",alignItems:"center",gap:8,border:`1px solid ${C.border}`}}>
           <span style={{color:C.gold,fontSize:14}}>✦</span>{f}
         </div>)}
       </div>
     </div>
-
-    {/* Options de déblocage */}
-    <div style={{display:"grid",gridTemplateColumns:`${modulePrice?"1fr ":""}1fr 1fr`,gap:12,marginBottom:16}}>
-      {/* Option 1 : Module seul */}
-      {modulePrice&&<div style={{background:C.card,border:`2px solid ${C.gold}66`,borderRadius:16,padding:20,textAlign:"center"}}>
-        <div style={{fontSize:11,color:C.gold,fontWeight:700,letterSpacing:"0.1em",marginBottom:8}}>MODULE SEUL</div>
-        <div style={{fontSize:32,fontWeight:700,color:C.gold,marginBottom:2}}>{modulePrice}€</div>
-        <div style={{fontSize:11,color:C.muted,marginBottom:16}}>/mois · Sans engagement</div>
-        <div style={{fontSize:11,color:C.muted,marginBottom:12}}>Ajoutez uniquement ce module à votre plan actuel</div>
-        <button onClick={()=>onUpgrade&&onUpgrade("module_"+page)} style={{background:`linear-gradient(135deg,${C.gold},#a07c45)`,color:"#000",border:"none",borderRadius:8,padding:"10px 0",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit",width:"100%"}}>+ Ajouter ce module</button>
-      </div>}
-      {/* Option 2 : Business Pro */}
-      <div style={{background:C.card,border:`2px solid ${C.gold}44`,borderRadius:16,padding:20,textAlign:"center",position:"relative"}}>
-        <div style={{position:"absolute",top:-10,left:"50%",transform:"translateX(-50%)",background:C.gold,color:"#000",borderRadius:20,padding:"3px 12px",fontSize:10,fontWeight:700,whiteSpace:"nowrap"}}>⭐ RECOMMANDÉ</div>
-        <div style={{fontSize:11,color:C.gold,fontWeight:700,letterSpacing:"0.1em",marginBottom:8}}>BUSINESS PRO</div>
-        <div style={{fontSize:32,fontWeight:700,color:C.gold,marginBottom:2}}>129€</div>
-        <div style={{fontSize:11,color:C.muted,marginBottom:16}}>/mois · Tous les modules inclus</div>
-        <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12,textAlign:"left"}}>
-          {["CRM · Devis · Facturation","Équipe & RH · Planning","Analytique · Trésorerie","Prospection · Clients","Stock · Services · Deals"].map((f,i)=><div key={i} style={{fontSize:11,color:C.muted}}><span style={{color:C.gold}}>✓</span> {f}</div>)}
-        </div>
-        <button onClick={()=>onUpgrade&&onUpgrade("business")} style={{background:`linear-gradient(135deg,${C.gold},#a07c45)`,color:"#000",border:"none",borderRadius:8,padding:"10px 0",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit",width:"100%"}}>⚡ Passer à Business Pro</button>
-      </div>
-      {/* Option 3 : Enterprise */}
-      <div style={{background:C.card,border:`2px solid ${C.purple}44`,borderRadius:16,padding:20,textAlign:"center"}}>
-        <div style={{fontSize:11,color:C.purple,fontWeight:700,letterSpacing:"0.1em",marginBottom:8}}>ENTERPRISE</div>
-        <div style={{fontSize:32,fontWeight:700,color:C.purple,marginBottom:2}}>249€</div>
-        <div style={{fontSize:11,color:C.muted,marginBottom:16}}>/mois · Tout inclus</div>
-        <div style={{display:"flex",flexDirection:"column",gap:4,marginBottom:12,textAlign:"left"}}>
-          {["Tout Business Pro","Bot WhatsApp IA","API complète","Déploiement SaaS","Support 24h dédié"].map((f,i)=><div key={i} style={{fontSize:11,color:C.muted}}><span style={{color:C.purple}}>✓</span> {f}</div>)}
-        </div>
-        <button onClick={()=>onUpgrade&&onUpgrade("enterprise")} style={{background:`linear-gradient(135deg,${C.purple},#6B3FCC)`,color:"#fff",border:"none",borderRadius:8,padding:"10px 0",cursor:"pointer",fontWeight:700,fontSize:13,fontFamily:"inherit",width:"100%"}}>◈ Passer à Enterprise</button>
-      </div>
-    </div>
-
-    <div style={{textAlign:"center",fontSize:12,color:C.muted}}>
-      💬 Des questions ? <span style={{color:C.gold,cursor:"pointer"}} onClick={()=>window.open("https://wa.me/33765189527")}>Contactez-nous sur WhatsApp →</span>
-    </div>
+    <a href={`/pricing?upgrade_from=${planPourRedirection}`} style={{display:"block",textAlign:"center",background:`linear-gradient(135deg,${C.gold},#a07c45)`,color:"#000",border:"none",borderRadius:8,padding:"14px 0",fontWeight:700,fontSize:14,fontFamily:"inherit",textDecoration:"none"}}>
+      Voir les forfaits disponibles →
+    </a>
   </div>;
 };
-
 // ─── CHAT COMPONENT ───────────────────────────────────────────
 const Chat=({msgs,onSend,title="Chat",subtitle=""})=>{
   const[msg,setMsg]=useState("");
@@ -4630,7 +4594,7 @@ const PageMultiSocietes=({plan,showToast})=>{
   const[newTransfer,setNewTransfer]=useState({from_company_id:"",to_company_id:"",montant:"",devise:"EUR",libelle:""});
   const[selectedCompany,setSelectedCompany]=useState(null);
 
-  const MULTI_PLANS=["multi_societes","multi_pro","holding","owner"];
+  const MULTI_PLANS=["multi_societes","multi_pro","multi_societes_pro","holding","enterprise","owner"];
   if(!MULTI_PLANS.includes(plan))return <div style={{padding:20}}><UpgradeWall page="Multi-Sociétés" plan={plan}/></div>;
 
   const load=async()=>{
