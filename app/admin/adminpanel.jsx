@@ -11454,16 +11454,16 @@ export default function Xyra() {
         </div>
 
         {/* User */}
-        <div onClick={()=>setPage("owner")} style={{padding:"10px 13px",borderTop:`1px solid ${C.border}`,cursor:"pointer",background:page==="owner"?`${C.gold}0E`:"transparent",borderLeft:`2px solid ${page==="owner"?C.gold:"transparent"}`}}>
+        <a href="/dashboard" style={{display:"block",textDecoration:"none",padding:"10px 13px",borderTop:`1px solid ${C.border}`,cursor:"pointer"}}>
           <div style={{display:"flex",alignItems:"center",gap:8}}>
             <div style={{width:30,height:30,borderRadius:"50%",background:`${C.gold}22`,border:`1px solid ${C.gold}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:C.gold,flexShrink:0}}>C</div>
             <div style={{flex:1,minWidth:0}}>
-              <div style={{fontSize:11,fontWeight:600,color:page==="owner"?C.gold:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>Curtiss</div>
-              <div style={{fontSize:9,color:C.gold}}>★ Propriétaire · Xyra</div>
+              <div style={{fontSize:11,fontWeight:600,color:C.text,whiteSpace:"nowrap",overflow:"hidden",textOverflow:"ellipsis"}}>Curtiss</div>
+              <div style={{fontSize:9,color:C.gold}}>← Retour au Dashboard Tymeless</div>
             </div>
             {notifs.filter(n=>!n.lu).length>0&&<span style={{background:C.red,color:"#fff",borderRadius:20,padding:"0 5px",fontSize:9,fontWeight:700}}>{notifs.filter(n=>!n.lu).length}</span>}
           </div>
-        </div>
+        </a>
       </div>
 
       {/* ── MAIN ── */}
