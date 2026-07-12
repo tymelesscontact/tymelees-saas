@@ -1,7 +1,9 @@
 export const C = {
-  dark:"#080810", card:"#0F0F1A", card2:"#161622", border:"#252538",
-  text:"#EAE6DE", muted:"#7A7A9A", gold:"#C9A84C", green:"#2EC9B0",
-  red:"#FF5252", orange:"#FF8C3A", blue:"#4B7BFF", purple:"#9B5FFF", teal:"#2EC9B0",
+  dark:"#06060E", card:"#0C0C1A", card2:"#121222",
+  border:"#1E1E36", gold:"#C9A84C", text:"#EAE6DE",
+  muted:"#5A5A7A", green:"#2EC9B0", red:"#FF5252",
+  blue:"#4B7BFF", purple:"#9B5FFF", orange:"#FF8C3A",
+  teal:"#2ECDC4", pink:"#FF5F9E",
 };
 
 export const DEVISES = [
