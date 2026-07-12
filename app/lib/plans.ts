@@ -57,3 +57,44 @@ export const PLAN_LABELS: Record<string, string> = {
   white_label_enterprise: "White-label Enterprise",
   owner: "Owner",
 }
+export const MULTI_PLANS = ["multi_societes", "multi_societes_pro", "holding", "enterprise", "owner"]
+
+export const PAGE_ACCESS: Record<string, string[]> = {
+  wallet: ["starter", "business", "enterprise", ...MULTI_PLANS, "owner"],
+  cartes: ["starter", "business", "enterprise", ...MULTI_PLANS, "owner"],
+  crm: ["starter", "business", "enterprise", ...MULTI_PLANS, "owner"],
+  devis: ["starter", "business", "enterprise", ...MULTI_PLANS, "owner"],
+  facturation: ["starter", "business", "enterprise", ...MULTI_PLANS, "owner"],
+  settings: ["starter", "business", "enterprise", ...MULTI_PLANS, "club_affaires", "owner"],
+  notefrais: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  overview: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  investissement: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  compta: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  tresorerie: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  analytique: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  clients: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  partenaires: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  annuaire: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  wallet_membres: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  evenements: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  scoring: ["starter", "business", "enterprise", ...MULTI_PLANS, "owner"],
+  equipe: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  planning: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  deals: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  stock: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  services: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  notifications: ["starter", "business", "enterprise", ...MULTI_PLANS, "club_affaires", "owner"],
+  prospection: ["enterprise", "owner"],
+  club_affaires: ["enterprise", "club_affaires", "owner"],
+  multi_societes: ["multi_societes", "multi_societes_pro", "holding", "enterprise", "owner"],
+  signature: ["business", "enterprise", "owner"],
+  formation: ["business", "enterprise", "owner"],
+  deploiement: ["enterprise", "owner"],
+  api: ["enterprise", "owner"],
+}
+
+export function hasAccess(plan: string, page: string): boolean {
+  const allowed = PAGE_ACCESS[page]
+  if (!allowed) return true
+  return allowed.includes(plan)
+}
