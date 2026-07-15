@@ -28,6 +28,7 @@ import PageProspectionModule from "../modules/PageProspection";
 import PageStockModule from "../modules/PageStock";
 import PageServicesModule from "../modules/PageServices";
 import PageChatModule from "../modules/PageChat";
+import PageConversationsWhatsapp from "../modules/PageConversationsWhatsapp";
 import PageNotificationsModule from "../modules/PageNotifications";
 import PageSignaturesModule from "../modules/PageSignatures";
 import PageFacturationModule from "../modules/PageFacturation";
@@ -142,6 +143,7 @@ const NAV = [
   ]},
   { group:"DÉVELOPPEMENT", items:[
     { id:"chat",          icon:"💬", label:"Chat",                badge:"chat_eq"},
+    { id:"conversations_whatsapp", icon:"💬", label:"WhatsApp — Lea" },
     { id:"notifications", icon:"🔔", label:"Notifications",       badge:"notifs" },
     { id:"signature",     icon:"✦",  label:"Contrats & Signatures" },
     { id:"facturation",   icon:"🧾", label:"Facturation Électronique"},
@@ -743,6 +745,7 @@ export default function Xyra() {
     stock:<PageStockModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
     services:<PageServicesModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
     chat:<PageChatModule plan={plan} showToast={showToast} Chat={Chat}/>,
+    conversations_whatsapp:<PageConversationsWhatsapp/>,
     notifications:<PageNotificationsModule notifs={notifs} setNotifs={setNotifs} showToast={showToast}/>,
     signature:<PageSignaturesModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
     facturation:<PageFacturationModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
