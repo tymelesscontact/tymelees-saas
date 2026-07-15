@@ -261,6 +261,10 @@ export async function POST(req: NextRequest) {
     client = newClient
   }
 
+  // Si owner a pris la main manuellement, Lea ne repond pas automatiquement
+  if (client?.ia_pausee) {
+    return NextResponse.json({ status: 'ok' })
+  }
   let conversationHistory: { role: string; content: string }[] = []
   if (client?.historique) {
     try {
