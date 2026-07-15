@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import PageConversationsWhatsapp from "../modules/PageConversationsWhatsapp";
 
 const C = {
   dark:"#06060E", card:"#0C0C1A", card2:"#121222",
@@ -109,6 +110,7 @@ const NAV = [
   ]},
   { group:"DÉVELOPPEMENT", items:[
     { id:"chat",          icon:"💬", label:"Chat",                badge:"chat_eq"},
+    { id:"conversations_whatsapp", icon:"💬", label:"WhatsApp — Lea" },
     { id:"notifications", icon:"🔔", label:"Notifications",       badge:"notifs" },
     { id:"signature",     icon:"✦",  label:"Contrats & Signatures" },
     { id:"facturation",   icon:"🧾", label:"Facturation Électronique"},
@@ -10965,6 +10967,7 @@ export default function Xyra() {
     stock:<PageStock plan={plan} showToast={showToast} profil={profil}/>,
     services:<PageServices plan={plan} showToast={showToast} profil={profil}/>,
     chat:<PageChat plan={plan} showToast={showToast}/>,
+    conversations_whatsapp:<PageConversationsWhatsapp/>,
     notifications:<PageNotifications notifs={notifs} setNotifs={setNotifs} showToast={showToast}/>,
     signature:<PageSignatures plan={plan} showToast={showToast}/>,
     facturation:<PageFacturation plan={plan} showToast={showToast}/>,
