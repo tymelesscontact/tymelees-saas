@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { C, Card, CT, Btn, BtnGhost, TH, Td, KPI } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
+import PageConversationsWhatsapp from "./PageConversationsWhatsapp";
 
 const PageLea=({showToast,leads,profil})=>{
   const ASSISTANT_ID="715e757d-93e7-423a-a6f1-18a77bb19e94";
@@ -226,6 +227,52 @@ const PageLea=({showToast,leads,profil})=>{
 };
 
 
+const BotWhatsAppTab=()=>{
+  const[stats,setStats]=useState<any>(null);
+  const[loading,setLoading]=useState(true);
+  const[vue,setVue]=useState("resume");
+
+  useEffect(()=>{
+    fetch("/api/prospection").then(r=>r.json()).then(d=>{
+      setStats(d);
+      setLoading(false);
+    }).catch(()=>setLoading(false));
+  },[]);
+
+  return <div>
+    <div style={{display:"flex",gap:6,marginBottom:14}}>
+      <button onClick={()=>setVue("resume")} style={{flex:1,background:vue==="resume"?C.card:"transparent",color:vue==="resume"?C.purple:C.muted,border:`1px solid ${vue==="resume"?C.border:"transparent"}`,borderRadius:6,padding:"8px",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:vue==="resume"?700:400}}>📊 Resume</button>
+      <button onClick={()=>setVue("conversations")} style={{flex:1,background:vue==="conversations"?C.card:"transparent",color:vue==="conversations"?C.purple:C.muted,border:`1px solid ${vue==="conversations"?C.border:"transparent"}`,borderRadius:6,padding:"8px",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:vue==="conversations"?700:400}}>💬 Conversations</button>
+    </div>
+    {vue==="resume"&&<Card><STitle>🤖 Bot WhatsApp — Lea</STitle>
+      {loading?<div style={{padding:20,textAlign:"center",color:C.muted,fontSize:12}}>Chargement...</div>:(
+        <>
+          <div style={{background:stats?.statutConnexion?`${C.green}11`:`${C.red}11`,border:`1px solid ${stats?.statutConnexion?C.green:C.red}33`,borderRadius:10,padding:14,marginBottom:14}}>
+            <div style={{fontSize:11,color:stats?.statutConnexion?C.green:C.red,fontWeight:600,marginBottom:4}}>
+              {stats?.statutConnexion?"● Bot actif · Connecte a Meta API":"○ Bot non connecte"}
+            </div>
+            {stats?.conversationsEnAttente>0&&(
+              <div style={{fontSize:12,color:C.orange,marginTop:6}}>
+                ⚠ {stats.conversationsEnAttente} conversation{stats.conversationsEnAttente>1?"s":""} en attente de reponse
+              </div>
+            )}
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+            <KPI label="Conversations" val={stats?.totalConversations||0} color={C.blue}/>
+            <KPI label="Taux reponse Lea" val={(stats?.tauxReponse||0)+"%"} color={C.green}/>
+            <KPI label="Devis generes" val={stats?.devisGeneres||0} color={C.gold}/>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
+            <KPI label="Devis acceptes" val={stats?.devisAcceptes||0} color={C.purple}/>
+            <KPI label="Montant total genere" val={(stats?.montantTotal||0)+" €"} color={C.teal}/>
+          </div>
+        </>
+      )}
+    </Card>}
+    {vue==="conversations"&&<PageConversationsWhatsapp/>}
+  </div>;
+};
+
 // ─── PAGE PROSPECTION ─────────────────────────────────────────
 const PageProspection=({plan,showToast,profil=null,UpgradeWall})=>{
   const[onglet,setOnglet]=useState("sirene");
@@ -273,19 +320,7 @@ const PageProspection=({plan,showToast,profil=null,UpgradeWall})=>{
         <Btn onClick={()=>showToast("✅ Séquence activée !")} style={{marginTop:8,fontSize:11}}>▶ Activer</Btn>
       </div>)}
     </Card>}
-    {onglet==="bot"&&<Card><STitle>🤖 Bot WhatsApp — Prospection automatique</STitle>
-      <div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:10,padding:14,marginBottom:14}}>
-        <div style={{fontSize:11,color:C.green,fontWeight:600,marginBottom:4}}>● Bot actif · Connecté à Meta API</div>
-        <div style={{fontSize:12,color:C.text}}>Modèle : claude-sonnet-4-5 · Webhook : actif · Réponse moyenne : 2.3s</div>
-      </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
-        <KPI label="Messages envoyés" val="247" color={C.blue}/>
-        <KPI label="Taux réponse" val="67%" color={C.green}/>
-        <KPI label="RDV générés" val="8" color={C.gold}/>
-      </div>
-      <STitle>📧 Séquences RelanceIA</STitle>
-      <RelanceIAWidget showToast={showToast}/>
-    </Card>}
+    {onglet==="bot"&&<BotWhatsAppTab/>}
     {onglet==="vocal"&&<PageLea showToast={showToast} leads={leads} profil={profil}/>}
     {onglet==="linkedin"&&<Card><STitle>💼 Prospection LinkedIn</STitle>
       <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Envoi de messages LinkedIn automatiques via extension Chrome</div>
