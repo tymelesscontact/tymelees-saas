@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI } from "../lib/ui";
+import { PLANNING, CONTRATS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
 const PageEquipe=({plan,showToast,UpgradeWall})=>{

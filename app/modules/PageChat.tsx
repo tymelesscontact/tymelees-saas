@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { C, Card, Btn, BtnGhost, Pill, Inp, Sel } from "../lib/ui";
+import { CLIENTS, PARTENAIRES } from "../lib/seedData";
 
 const PageChat=({plan,showToast,Chat})=>{
   const[espace,setEspace]=useState("equipe");

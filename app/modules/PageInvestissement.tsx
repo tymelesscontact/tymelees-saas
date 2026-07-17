@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, SM } from "../lib/ui";
+import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, SM, Tabs } from "../lib/ui";
+import { CHARGES } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
 const PageInvestissement=({plan,showToast,UpgradeWall})=>{

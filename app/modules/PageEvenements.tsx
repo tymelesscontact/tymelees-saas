@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM } from "../lib/ui";
+import { EVENEMENTS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
 const PageEvenements=({plan,showToast,UpgradeWall})=>{

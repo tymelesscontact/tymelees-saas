@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel } from "../lib/ui";
+import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, conv } from "../lib/ui";
+import { CHARGES } from "../lib/seedData";
 
 const PageMultiSocietes=({plan,showToast,UpgradeWall})=>{
   const[onglet,setOnglet]=useState("consolidee");

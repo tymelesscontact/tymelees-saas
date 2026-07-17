@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, SM } from "../lib/ui";
+import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, SM, St } from "../lib/ui";
+import { CONTRATS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
 const PageSignatures=({plan,showToast,UpgradeWall})=>{

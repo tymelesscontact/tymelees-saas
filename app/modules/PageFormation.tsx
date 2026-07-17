@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { C, Card, Btn, TH, Td, KPI, STitle } from "../lib/ui";
+import { C, Card, Btn, TH, Td, KPI, STitle, St } from "../lib/ui";
+import { FORMATION } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
 const PageFormation=({plan,showToast,UpgradeWall})=>{

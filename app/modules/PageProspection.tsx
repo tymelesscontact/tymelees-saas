@@ -1,6 +1,7 @@
 "use client";
 import { useState, useEffect } from "react";
-import { C, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM } from "../lib/ui";
+import { C, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM, Tabs } from "../lib/ui";
+import { STOCK } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 import PageConversationsWhatsapp from "./PageConversationsWhatsapp";
 
