@@ -706,6 +706,24 @@ function fmtPrice(price, lang) {
 
 export default function XyraLanding() {
   const [lang, setLang] = useState("fr");
+  useEffect(() => {
+    fetch('https://ipapi.co/json/')
+      .then(r => r.json())
+      .then(data => {
+        const country = data.country_code;
+        const countryToLang = {
+          FR: 'fr', SN: 'fr', CI: 'fr', MA: 'fr', CM: 'fr', BE: 'fr', CH: 'fr', CA: 'fr', DZ: 'fr', TN: 'fr',
+          US: 'en', GB: 'en', AU: 'en', IE: 'en', NG: 'en', GH: 'en', KE: 'en', ZA: 'en',
+          SA: 'ar', AE: 'ar', EG: 'ar', QA: 'ar', KW: 'ar', OM: 'ar', BH: 'ar', JO: 'ar', LB: 'ar',
+          BR: 'pt', PT: 'pt', AO: 'pt', MZ: 'pt',
+          CN: 'zh', HK: 'zh', TW: 'zh', SG: 'zh',
+          JP: 'ja',
+        };
+        const detected = countryToLang[country];
+        if (detected) setLang(detected);
+      })
+      .catch(() => {});
+  }, []);
   const [langOpen, setLangOpen] = useState(false);
   const [billingAnnual, setBillingAnnual] = useState(false);
   const [statsVisible, setStatsVisible] = useState(false);
