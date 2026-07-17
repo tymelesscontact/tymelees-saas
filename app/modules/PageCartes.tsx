@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td } from "../lib/ui";
+import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM } from "../lib/ui";
 
 const PageCartes=({plan,showToast})=>{
   const[cartes,setCartes]=useState([]);

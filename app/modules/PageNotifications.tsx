@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { C, Card, Btn, BtnGhost, TH, Td, KPI } from "../lib/ui";
+import { C, Card, Btn, BtnGhost, TH, Td, KPI, STitle, Pill } from "../lib/ui";
 
 const PageNotifications=({notifs,setNotifs,showToast})=>{
   const[_notifsReal,setNotifsReal]=useState([]);

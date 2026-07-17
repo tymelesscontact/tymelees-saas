@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { C, fmt, Card, CT } from "../lib/ui";
+import { C, fmt, Card, CT, STitle } from "../lib/ui";
 
 const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
   const nonLus=notifs.filter(n=>!n.lu).length;
