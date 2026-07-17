@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { C, Card, Btn, BtnGhost, TH, Td, KPI, STitle, Pill } from "../lib/ui";
 import { STOCK, CONTRATS } from "../lib/seedData";
+import { SwipeableNotif } from "./PageChat";
 
 const PageNotifications=({notifs,setNotifs,showToast})=>{
   const[_notifsReal,setNotifsReal]=useState([]);

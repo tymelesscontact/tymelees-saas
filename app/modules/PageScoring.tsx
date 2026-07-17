@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { C, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM, St } from "../lib/ui";
+import { C, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM, St, inits } from "../lib/ui";
 import { AVIS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 

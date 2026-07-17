@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { C, Card, Btn, BtnGhost, Pill, Inp, Sel } from "../lib/ui";
 import { CLIENTS, PARTENAIRES } from "../lib/seedData";
 
@@ -285,7 +285,7 @@ const PageChat=({plan,showToast,Chat})=>{
   </div>;
 };
 
-const SwipeableNotif=({n,i,onOpen,onDelete,typeColor})=>{
+export const SwipeableNotif=({n,i,onOpen,onDelete,typeColor})=>{
   const[dragX,setDragX]=useState(0);
   const[dragging,setDragging]=useState(false);
   const startX=useRef(0);

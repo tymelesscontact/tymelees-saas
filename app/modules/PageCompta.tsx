@@ -2,6 +2,7 @@
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, BtnGhost, TH, Td, KPI, STitle, Pill, Tabs } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
+import { TabCharges, TabFournisseurs } from "./PageInvestissement";
 
 const PageCompta=({plan,showToast,UpgradeWall})=>{
   const[onglet,setOnglet]=useState("journal");

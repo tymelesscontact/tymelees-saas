@@ -59,7 +59,7 @@ const PageInvestissement=({plan,showToast,UpgradeWall})=>{
 };
 
 // ─── TAB CHARGES ──────────────────────────────────────────────
-const TabCharges=({showToast})=>{
+export const TabCharges=({showToast})=>{
   const[charges,setCharges]=useState([]);
   const[loading,setLoading]=useState(true);
   const[showForm,setShowForm]=useState(false);
@@ -132,7 +132,7 @@ const TabCharges=({showToast})=>{
 };
 
 // ─── TAB FOURNISSEURS ─────────────────────────────────────────
-const TabFournisseurs=({showToast})=>{
+export const TabFournisseurs=({showToast})=>{
   const[fours,setFours]=useState([]);
   const[loading,setLoading]=useState(true);
   const[showForm,setShowForm]=useState(false);
