@@ -12,7 +12,7 @@ export async function GET(req: NextRequest) {
   const { data, error } = await sb
     .from("notes_frais")
     .select("*")
-    .order("créé_à", { ascending: false })
+    .order("date", { ascending: false })
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
