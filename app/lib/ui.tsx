@@ -49,3 +49,23 @@ export const KPI = ({ label, val, sub, color = C.gold, icon = "" }: any) => (
     {sub && <div style={{ fontSize: 10, color: C.muted, marginTop: 3 }}>{sub}</div>}
   </CT>
 );
+
+export const STitle = ({ children }: any) => (
+  <div style={{ fontSize: 9, color: C.muted, letterSpacing: "0.15em", textTransform: "uppercase", marginBottom: 10, fontWeight: 600 }}>{children}</div>
+);
+
+export const Pill = ({ children, color = C.gold, bg }: any) => (
+  <span style={{ background: bg || color + "22", color, border: `1px solid ${color}44`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>{children}</span>
+);
+
+export const Inp = ({ value, onChange, placeholder, style = {} }: any) => (
+  <input value={value} onChange={onChange} placeholder={placeholder} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 12px", color: C.text, fontSize: 13, fontFamily: "inherit", outline: "none", width: "100%", ...style }}/>
+);
+
+export const Sel = ({ value, onChange, children, style = {} }: any) => (
+  <select value={value} onChange={onChange} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 7, padding: "7px 12px", color: C.text, fontSize: 12, fontFamily: "inherit", ...style }}>{children}</select>
+);
+
+export const SM = ({ val, max, color = C.green }: any) => (
+  <div style={{ height: 4, borderRadius: 2, background: C.border, overflow: "hidden" }}><div style={{ height: "100%", width: `${Math.min(100, (val / max) * 100)}%`, background: color, borderRadius: 2 }}/></div>
+);
