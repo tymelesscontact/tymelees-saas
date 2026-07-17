@@ -15,12 +15,12 @@ const LANGS = [
 ];
 
 const PRICES = {
-  fr: { symbol: "€", pos: "after", starter: "59", business: "129", enterprise: "249", duo: "499", groupe: "799", holding: "1200", per: "/mois" },
-  en: { symbol: "$", pos: "before", starter: "65", business: "140", enterprise: "270", duo: "540", groupe: "865", holding: "1300", per: "/month" },
-  ar: { symbol: "ر.س", pos: "after", starter: "245", business: "525", enterprise: "1010", duo: "2025", groupe: "3245", holding: "4875", per: "/شهر" },
-  pt: { symbol: "R$", pos: "before", starter: "325", business: "700", enterprise: "1350", duo: "2710", groupe: "4340", holding: "6520", per: "/mês" },
-  zh: { symbol: "¥", pos: "before", starter: "425", business: "915", enterprise: "1765", duo: "3545", groupe: "5675", holding: "8530", per: "/月" },
-  ja: { symbol: "¥", pos: "before", starter: "9800", business: "21000", enterprise: "40500", duo: "81500", groupe: "130500", holding: "196000", per: "/月" },
+  fr: { symbol: "€", pos: "after", starter: "59", business: "129", enterprise: "249", duo: "499", groupe: "799", holding: "1200", club: "2000", perAn: "/an", per: "/mois" },
+  en: { symbol: "$", pos: "before", starter: "65", business: "140", enterprise: "270", duo: "540", groupe: "865", holding: "1300", club: "2170", perAn: "/year", per: "/month" },
+  ar: { symbol: "ر.س", pos: "after", starter: "245", business: "525", enterprise: "1010", duo: "2025", groupe: "3245", holding: "4875", club: "8130", perAn: "/سنة", per: "/شهر" },
+  pt: { symbol: "R$", pos: "before", starter: "325", business: "700", enterprise: "1350", duo: "2710", groupe: "4340", holding: "6520", club: "10860", perAn: "/ano", per: "/mês" },
+  zh: { symbol: "¥", pos: "before", starter: "425", business: "915", enterprise: "1765", duo: "3545", groupe: "5675", holding: "8530", club: "15530", perAn: "/年", per: "/月" },
+  ja: { symbol: "¥", pos: "before", starter: "9800", business: "21000", enterprise: "40500", duo: "81500", groupe: "130500", holding: "196000", club: "327000", perAn: "/年", per: "/月" },
 };
 
 const T = {
@@ -94,6 +94,11 @@ const T = {
       "Pour les holdings et grands groupes. Gouvernance complète multi-entités.",
     ],
     multiCta: "Nous contacter",
+    clubTitle: "Club d'Affaires",
+    clubH2a: "Rejoignez un réseau",
+    clubH2b: "d'entrepreneurs d'exception.",
+    clubDesc: "Un cercle privé de dirigeants et entrepreneurs triés sur le volet. Événements exclusifs, mise en relation qualifiée, opportunités d'affaires premium.",
+    clubCta: "Rejoindre le Club",
     modules: [
       { icon: "📊", label: "Vue d'ensemble", desc: "KPIs, score santé, missions du jour" },
       { icon: "📋", label: "Devis validés", desc: "Workflow approbation propriétaire" },
@@ -193,6 +198,11 @@ const T = {
       "For holdings and large groups. Full multi-entity governance.",
     ],
     multiCta: "Contact us",
+    clubTitle: "Business Club",
+    clubH2a: "Join a network of",
+    clubH2b: "exceptional entrepreneurs.",
+    clubDesc: "A private circle of hand-picked executives and entrepreneurs. Exclusive events, qualified networking, premium business opportunities.",
+    clubCta: "Join the Club",
     modules: [
       { icon: "📊", label: "Overview", desc: "KPIs, health score, daily missions" },
       { icon: "📋", label: "Validated Quotes", desc: "Owner approval workflow" },
@@ -292,6 +302,11 @@ const T = {
       "للشركات القابضة والمجموعات الكبرى. حوكمة كاملة متعددة الكيانات.",
     ],
     multiCta: "اتصل بنا",
+    clubTitle: "نادي الأعمال",
+    clubH2a: "انضم إلى شبكة من",
+    clubH2b: "رواد الأعمال المتميزين.",
+    clubDesc: "دائرة خاصة من القادة ورواد الأعمال المختارين بعناية. فعاليات حصرية، تواصل مؤهل، فرص أعمال متميزة.",
+    clubCta: "انضم إلى النادي",
     modules: [
       { icon: "📊", label: "نظرة عامة", desc: "مؤشرات الأداء، درجة الصحة، مهام اليوم" },
       { icon: "📋", label: "عروض الأسعار", desc: "سير عمل موافقة المالك" },
@@ -391,6 +406,11 @@ const T = {
       "Para holdings e grandes grupos. Governança completa multi-entidades.",
     ],
     multiCta: "Fale conosco",
+    clubTitle: "Clube de Negócios",
+    clubH2a: "Junte-se a uma rede de",
+    clubH2b: "empreendedores excepcionais.",
+    clubDesc: "Um círculo privado de executivos e empreendedores selecionados. Eventos exclusivos, networking qualificado, oportunidades de negócios premium.",
+    clubCta: "Junte-se ao Clube",
     modules: [
       { icon: "📊", label: "Visão geral", desc: "KPIs, score de saúde, missões do dia" },
       { icon: "📋", label: "Orçamentos validados", desc: "Fluxo de aprovação do proprietário" },
@@ -490,6 +510,11 @@ const T = {
       "适合控股公司和大型集团。完整的多实体治理。",
     ],
     multiCta: "联系我们",
+    clubTitle: "商业俱乐部",
+    clubH2a: "加入一个由",
+    clubH2b: "杰出企业家组成的网络。",
+    clubDesc: "由精选高管和企业家组成的私人圈子。专属活动、优质人脉、高端商业机会。",
+    clubCta: "加入俱乐部",
     modules: [
       { icon: "📊", label: "总览", desc: "KPI、健康评分、今日任务" },
       { icon: "📋", label: "已确认报价", desc: "业主审批流程" },
@@ -589,6 +614,11 @@ const T = {
       "ホールディングと大規模グループ向け。完全なマルチエンティティガバナンス。",
     ],
     multiCta: "お問い合わせ",
+    clubTitle: "ビジネスクラブ",
+    clubH2a: "選ばれた起業家の",
+    clubH2b: "ネットワークに参加。",
+    clubDesc: "厳選された経営者・起業家による非公開コミュニティ。限定イベント、質の高い人脈づくり、プレミアムなビジネス機会。",
+    clubCta: "クラブに参加する",
     modules: [
       { icon: "📊", label: "ダッシュボード", desc: "KPI、健全性スコア、本日の業務" },
       { icon: "📋", label: "承認済み見積", desc: "オーナー承認ワークフロー" },
@@ -965,6 +995,53 @@ export default function XyraLanding() {
         </div>
       </section>
 
+      {/* MULTI-SOCIETES */}
+      <section id="multi" style={{ padding: "100px 24px", background: "rgba(255,255,255,0.015)" }}>
+        <div style={{ maxWidth: 1000, margin: "0 auto" }}>
+          <div style={{ textAlign: "center", marginBottom: 56 }}>
+            <p className="section-label">{t.multiTitle}</p>
+            <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", fontWeight: 300, letterSpacing: "-0.02em" }}>
+              {t.multiH2a}<br />
+              <span className="gold-gradient" style={{ fontStyle: "italic" }}>{t.multiH2b}</span>
+            </h2>
+          </div>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2 }}>
+            {t.multiNames.map((name, i) => (
+              <div key={name} className="plan-card">
+                <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, letterSpacing: "0.15em", textTransform: "uppercase", color: "#c9a96e", marginBottom: 12 }}>{name}</div>
+                <div style={{ fontSize: "clamp(32px, 4vw, 44px)", fontWeight: 300, letterSpacing: "-0.03em", lineHeight: 1 }}>
+                  {fmtPrice([p.duo, p.groupe, p.holding][i], lang)}
+                </div>
+                <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "rgba(240,234,214,0.4)", marginBottom: 16 }}>{p.per}</div>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "rgba(240,234,214,0.55)", lineHeight: 1.6, marginBottom: 20 }}>{t.multiDesc[i]}</p>
+                <a href="/inscription" className="btn-outline" style={{ display: "block", textAlign: "center", padding: "12px" }}>
+                  {t.multiCta}
+                </a>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+      {/* CLUB AFFAIRES */}
+      <section id="club" style={{ padding: "100px 24px" }}>
+        <div style={{ maxWidth: 640, margin: "0 auto", textAlign: "center" }}>
+          <p className="section-label">{t.clubTitle}</p>
+          <h2 style={{ fontSize: "clamp(32px, 4.5vw, 52px)", fontWeight: 300, letterSpacing: "-0.02em", marginBottom: 32 }}>
+            {t.clubH2a}<br />
+            <span className="gold-gradient" style={{ fontStyle: "italic" }}>{t.clubH2b}</span>
+          </h2>
+          <div className="plan-card featured" style={{ padding: "48px 40px" }}>
+            <div style={{ fontSize: "clamp(36px, 5vw, 48px)", fontWeight: 300, letterSpacing: "-0.03em", marginBottom: 8 }}>
+              {fmtPrice(p.club, lang)}
+            </div>
+            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "rgba(240,234,214,0.4)", marginBottom: 24 }}>{p.perAn}</div>
+            <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15, color: "rgba(240,234,214,0.6)", lineHeight: 1.7, marginBottom: 28 }}>{t.clubDesc}</p>
+            <a href="/inscription" className="btn-primary" style={{ display: "inline-block", padding: "14px 40px" }}>
+              {t.clubCta}
+            </a>
+          </div>
+        </div>
+      </section>
       {/* TESTIMONIALS */}
       <section style={{ padding: "80px 24px", background: "rgba(201,169,110,0.02)", borderTop: "1px solid rgba(201,169,110,0.08)" }}>
         <div style={{ maxWidth: 760, margin: "0 auto", textAlign: "center" }}>
