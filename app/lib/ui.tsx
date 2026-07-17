@@ -6,10 +6,22 @@ export const C = {
   teal:"#2ECDC4", pink:"#FF5F9E",
 };
 
-export const DEVISES = [
-  { code:"EUR", symbol:"€" },
-  { code:"XOF", symbol:"₣" },
-  { code:"USD", symbol:"$" },
+export const DEVISES=[
+  {code:"EUR",symbol:"€",flag:"🇪🇺",nom:"Euro",taux:1},
+  {code:"XOF",symbol:"₣",flag:"🌍",nom:"Franc CFA",taux:655.96},
+  {code:"USD",symbol:"$",flag:"🇺🇸",nom:"Dollar US",taux:1.08},
+  {code:"GBP",symbol:"£",flag:"🇬🇧",nom:"Livre Sterling",taux:0.86},
+  {code:"MAD",symbol:"د",flag:"🇲🇦",nom:"Dirham",taux:10.82},
+  {code:"AED",symbol:"د.إ",flag:"🇦🇪",nom:"Dirham UAE",taux:3.97},
+  {code:"CAD",symbol:"$",flag:"🇨🇦",nom:"Dollar CA",taux:1.46},
+  {code:"CHF",symbol:"₣",flag:"🇨🇭",nom:"Franc Suisse",taux:0.96},
+  {code:"JPY",symbol:"¥",flag:"🇯🇵",nom:"Yen",taux:161.5},
+  {code:"CNY",symbol:"¥",flag:"🇨🇳",nom:"Yuan",taux:7.83},
+  {code:"NGN",symbol:"₦",flag:"🇳🇬",nom:"Naira",taux:1580},
+  {code:"KES",symbol:"Ksh",flag:"🇰🇪",nom:"Shilling Kenya",taux:139},
+  {code:"GHS",symbol:"₵",flag:"🇬🇭",nom:"Cedi Ghana",taux:15.6},
+  {code:"BRL",symbol:"R$",flag:"🇧🇷",nom:"Real Brésil",taux:5.42},
+  {code:"SAR",symbol:"﷼",flag:"🇸🇦",nom:"Riyal SA",taux:4.05},
 ];
 
 export const fmt = (m: number, d: string = "EUR") => {
@@ -69,3 +81,6 @@ export const Sel = ({ value, onChange, children, style = {} }: any) => (
 export const SM = ({ val, max, color = C.green }: any) => (
   <div style={{ height: 4, borderRadius: 2, background: C.border, overflow: "hidden" }}><div style={{ height: "100%", width: `${Math.min(100, (val / max) * 100)}%`, background: color, borderRadius: 2 }}/></div>
 );
+export const conv=(m,de,ve)=>{const f=DEVISES.find(x=>x.code===de),t=DEVISES.find(x=>x.code===ve);return(!f||!t)?m:(m/f.taux)*t.taux;};
+export const Tabs=({tabs,active,onChange})=><div style={{display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>{tabs.map(t=><button key={t.id} onClick={()=>onChange(t.id)} style={{background:active===t.id?C.card:"transparent",color:active===t.id?C.gold:C.muted,border:active===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:12,fontFamily:"inherit",fontWeight:active===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}</div>;
+export const St=({s})=>{const map={validé:[C.green,"✓ Validé"],signé:[C.green,"✓ Signé"],confirmé:[C.green,"✓ Confirmé"],envoyé:[C.blue,"→ Envoyé"],en_attente:[C.orange,"⏳ En attente"],actif:[C.green,"● Actif"],critique:[C.red,"⚠ Critique"],ouvert:[C.green,"Ouvert"],complet:[C.red,"Complet"],"en cours":[C.blue,"En cours"],"à faire":[C.muted,"À faire"],complété:[C.green,"✓ Complété"]};const[c,l]=map[s]||[C.muted,s];return <Pill color={c}>{l}</Pill>;};
