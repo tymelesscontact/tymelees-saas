@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { C, fmt, Card, CT, BtnGhost, STitle, Sel, SM } from "../lib/ui";
+import { C, fmt, Card, CT, BtnGhost, STitle, Sel, SM, DEVISES } from "../lib/ui";
 import { CLIENTS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 

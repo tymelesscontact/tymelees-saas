@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM, Tabs, St, conv } from "../lib/ui";
+import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM, Tabs, St, conv, DEVISES } from "../lib/ui";
 import { INIT_HISTO } from "../lib/seedData";
 
 const PageWallet=({plan,showToast,profil})=>{

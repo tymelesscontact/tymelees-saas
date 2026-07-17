@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { C, fmt, Card, CT, BtnGhost, STitle, Pill, Sel, SM, conv } from "../lib/ui";
+import { C, fmt, Card, CT, BtnGhost, STitle, Pill, Sel, SM, conv, DEVISES } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
 const PageOverview=({plan,profil,setPage,showToast,UpgradeWall})=>{

@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { C, Card, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel } from "../lib/ui";
+import { C, Card, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, DEVISES } from "../lib/ui";
 
 const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
   const[onglet,setOnglet]=useState("entreprise");
