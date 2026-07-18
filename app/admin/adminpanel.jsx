@@ -10558,6 +10558,15 @@ const PageOwner=({plan,showToast,profil})=>{
       else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur");}
   };
+  const seConnecterComme=async(email,societe)=>{
+    showToast("⏳ Génération du lien...");
+    try{
+      const res=await fetch("/api/impersonate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email})});
+      const data=await res.json();
+      if(data.url){window.open(data.url,"_blank");showToast(`🔐 Connexion en tant que ${societe}...`);}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
 
   const verifierSolvabilite=async(a)=>{
     if(!a.siren)return showToast("⚠️ Pas de SIREN pour cette entreprise");
@@ -10707,6 +10716,7 @@ const PageOwner=({plan,showToast,profil})=>{
           <Btn onClick={()=>verifierSolvabilite(sel)} style={{background:C.blue,fontSize:11}}>{solvLoading[sel.id]?"⏳ Vérification...":"🔍 Vérifier solvabilité SIRENE"}</Btn>
           <BtnGhost onClick={()=>genererRelanceIA(sel)} style={{fontSize:11,color:C.purple,borderColor:`${C.purple}44`}}>🤖 Générer relance IA</BtnGhost>
           {sel._relanceIA&&<div style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:8,padding:10,fontSize:11,color:C.text,lineHeight:1.6,marginBottom:4}}>{sel._relanceIA}<div style={{marginTop:8,display:"flex",gap:6}}><Btn onClick={()=>envoyerEmailIndividuel(sel,"Nous avons pensé à vous",sel._relanceIA)} style={{fontSize:10,padding:"5px 10px"}}>📧 Envoyer</Btn></div></div>}
+          <Btn onClick={()=>seConnecterComme(sel.email,sel.societe)} style={{background:C.purple,fontSize:11}}>🔐 Se connecter en tant que</Btn>
           <BtnGhost onClick={()=>suspendre(sel.id,sel.statut)} style={{fontSize:11,color:sel.statut==="suspendu"?C.green:C.orange,borderColor:sel.statut==="suspendu"?`${C.green}44`:`${C.orange}44`}}>{sel.statut==="suspendu"?"✅ Réactiver":"⏸ Suspendre"}</BtnGhost>
           <BtnGhost onClick={()=>supprimerAbonne(sel.id,sel.societe)} style={{fontSize:11,color:C.red,borderColor:`${C.red}44`}}>🗑 Supprimer</BtnGhost>
         </div>
