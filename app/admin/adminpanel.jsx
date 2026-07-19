@@ -9724,9 +9724,48 @@ const PageBusinessAdmin=({showToast})=>{
 };
 
 const PageParametresAdmin=({showToast})=>{
+  const[status,setStatus]=useState(null);
+  const[loading,setLoading]=useState(true);
+  useEffect(()=>{
+    fetch('/api/config-status').then(r=>r.json()).then(d=>{if(d.status)setStatus(d.status);setLoading(false);}).catch(()=>setLoading(false));
+  },[]);
+  const services=[
+    {key:"stripe",label:"Stripe (paiements EUR)"},
+    {key:"flutterwave",label:"Flutterwave (Wave/Orange/MTN)"},
+    {key:"whatsapp",label:"WhatsApp Business (bot Lea)"},
+    {key:"ownerWhatsapp",label:"Alertes WhatsApp proprietaire"},
+    {key:"resend",label:"Emails (Resend)"},
+    {key:"supabaseServiceRole",label:"Supabase Service Role (impersonation)"},
+    {key:"anthropic",label:"IA Claude (analyses)"},
+  ];
   return <div style={{padding:20}}>
     <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:16}}>⚙ Parametres Admin</div>
-    <Card><div style={{fontSize:12,color:C.muted}}>Parametres globaux de la plateforme — a venir.</div></Card>
+    <div style={{display:"flex",flexDirection:"column",gap:14}}>
+      <Card>
+        <STitle>👤 Mon compte</STitle>
+        <div style={{display:"flex",alignItems:"center",gap:12}}>
+          <div style={{width:44,height:44,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18,fontWeight:700,color:C.gold}}>C</div>
+          <div>
+            <div style={{fontSize:14,fontWeight:600,color:C.text}}>Curtiss</div>
+            <div style={{fontSize:11,color:C.muted}}>tymeless.contact@gmail.com · Fondateur Xyra</div>
+          </div>
+        </div>
+      </Card>
+      <Card>
+        <STitle>🔌 Etat des integrations</STitle>
+        {loading?<div style={{textAlign:"center",padding:16,color:C.muted}}>Verification...</div>:services.map(s=><div key={s.key} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`}}>
+          <span style={{fontSize:12,color:C.text}}>{s.label}</span>
+          <Pill color={status?.[s.key]?C.green:C.red}>{status?.[s.key]?"✅ Connecte":"❌ Manquant"}</Pill>
+        </div>)}
+      </Card>
+      <Card>
+        <STitle>💰 Prix des plans</STitle>
+        <div style={{fontSize:11,color:C.muted,marginBottom:10}}>Pour modifier ces prix, contactez le developpeur — ils sont geres dans le code pour garantir la coherence partout sur Xyra.</div>
+        {[["Starter","59€/mois"],["Business Pro","129€/mois"],["Enterprise","249€/mois"],["Duo","499€/mois"],["Groupe","799€/mois"],["Holding","1200€/mois"],["Club d'Affaires","2000€/an"]].map(([n,p],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
+          <span style={{color:C.muted}}>{n}</span><span style={{fontWeight:600}}>{p}</span>
+        </div>)}
+      </Card>
+    </div>
   </div>;
 };
 
