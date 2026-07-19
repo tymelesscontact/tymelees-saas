@@ -9861,8 +9861,9 @@ const PageDeploiement=({plan,showToast})=>{
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
             <Btn onClick={()=>genererUpsell(t)} style={{fontSize:11}}>🤖 Générer email upsell IA</Btn>
             <BtnGhost onClick={()=>showToast("📧 Email de relance envoyé")} style={{fontSize:11}}>📧 Email de relance</BtnGhost>
-            <BtnGhost onClick={()=>showToast("💬 WhatsApp ouvert")} style={{fontSize:11}}>💬 WhatsApp</BtnGhost>
-            <BtnGhost onClick={()=>showToast("🔒 Compte suspendu")} style={{fontSize:11,color:C.red,borderColor:`${C.red}44`}}>🔒 Suspendre</BtnGhost>
+            <Btn onClick={async()=>{showToast("⏳ Génération du lien...");try{const res=await fetch("/api/impersonate",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({email:t.email})});const data=await res.json();if(data.url){window.open(data.url,"_blank");showToast(`🔐 Connexion en tant que ${t.societe}...`);}else showToast("❌ "+(data.error||"Erreur"));}catch(e){showToast("❌ Erreur de connexion");}}} style={{background:C.purple,fontSize:11}}>🔐 Se connecter en tant que</Btn>
+            <BtnGhost onClick={()=>window.open(`https://wa.me/${(t.telephone||"").replace(/\\D/g,"")}`,"_blank")} style={{fontSize:11}}>💬 WhatsApp</BtnGhost>
+            <BtnGhost onClick={async()=>{if(!confirm("Suspendre "+t.societe+" ?"))return;const res=await fetch("/api/moderer-tenant",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({tenant_id:t.id,action:"suspendre"})});const d=await res.json();if(d.success){showToast("⏸ "+t.societe+" suspendu");setSelectedClient(null);}else showToast("❌ "+d.error);}} style={{fontSize:11,color:C.red,borderColor:`${C.red}44`}}>🔒 Suspendre</BtnGhost>
           </div>
         </Card>
         {upsellEmail&&<Card style={{borderColor:`${C.purple}44`}}>
