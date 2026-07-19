@@ -9698,6 +9698,8 @@ const PageDeploiement=({plan,showToast})=>{
   const[upsellEmail,setUpsellEmail]=useState("");
   const[showProvision,setShowProvision]=useState(false);
   const[provisionForm,setProvisionForm]=useState({societe:"",email:"",plan:"starter",pays:"France",metier:""});
+  const[paiementsHisto,setPaiementsHisto]=useState([]);
+  const[loadingPaiements,setLoadingPaiements]=useState(true);
   const[showRevendeurForm,setShowRevendeurForm]=useState(false);
   const[revendeurForm,setRevendeurForm]=useState({nom:"",email:"",societe:"",tel:"",message:"",plan_revendeur:""});
   const[revendeurLoading,setRevendeurLoading]=useState(false);
@@ -9756,6 +9758,15 @@ const PageDeploiement=({plan,showToast})=>{
     }
     setLoading(false);
   };
+  const loadPaiements=async()=>{
+    try{
+      const resP=await fetch("/api/paiements-historique");
+      const dataP=await resP.json();
+      if(dataP.paiements)setPaiementsHisto(dataP.paiements);
+    }catch(e){console.error("Paiements:",e);}
+    setLoadingPaiements(false);
+  };
+  useEffect(()=>{loadPaiements();},[]);
 
   useEffect(()=>{load();},[]);
 
@@ -9884,6 +9895,7 @@ const PageDeploiement=({plan,showToast})=>{
     {id:"churn",label:"🤖 Analyse Churn IA"},
     {id:"revendeurs",label:"🚀 Revendeurs"},
     {id:"certification",label:"🏆 Certification"},
+    {id:"paiements",label:"💳 Paiements"},
   ];
 
   return <div style={{padding:20}}>
@@ -10101,6 +10113,27 @@ const PageDeploiement=({plan,showToast})=>{
           {[["Plan Starter (59€)","8.85€ de commission",C.blue],["Plan Business Pro (129€)","19.35€ de commission",C.gold],["Plan Enterprise (249€)","37.35€ de commission",C.purple]].map(([l,v,c],i)=><CT key={i}><div style={{fontSize:11,fontWeight:600,color:c,marginBottom:4}}>{l}</div><div style={{fontSize:12,color:C.text}}>{v}</div></CT>)}
         </div>
       </Card>
+    </div>}
+    {onglet==="paiements"&&<div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <STitle>💳 Historique complet des paiements</STitle>
+        <span style={{fontSize:11,color:C.muted}}>{paiementsHisto.length} paiement(s)</span>
+      </div>
+      {loadingPaiements?<div style={{textAlign:"center",padding:20,color:C.muted}}>Chargement...</div>:(
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr>
+            <TH>Date</TH><TH>Catégorie</TH><TH>Entité</TH><TH>Montant</TH><TH>Méthode</TH><TH>Statut</TH>
+          </tr></thead>
+          <tbody>{paiementsHisto.map((p,i)=><tr key={i}>
+            <Td>{new Date(p.date).toLocaleDateString("fr")}</Td>
+            <Td><Pill color={p.categorie==="Abonnement Xyra"?C.gold:C.blue}>{p.categorie}</Pill></Td>
+            <Td>{p.entite}</Td>
+            <Td>{p.montant} {p.devise}</Td>
+            <Td>{p.methode}</Td>
+            <Td>{p.statut}</Td>
+          </tr>)}</tbody>
+        </table>
+      )}
     </div>}
 
     {/* ── CERTIFICATION ── */}
