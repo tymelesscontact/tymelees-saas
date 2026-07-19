@@ -27,6 +27,11 @@ export async function POST(req: NextRequest) {
       statut: 'actif',
       flutterwave_tx_ref: payload.data.tx_ref,
     }).eq('email', email);
+    const montantNum = plan === 'starter' ? 59 : plan === 'business' ? 129 : 249;
+    await sb.from('abonnements_paiements').insert({
+      tenant_email: email, societe, plan, montant: montantNum, devise: 'EUR',
+      provider: 'flutterwave', reference: payload.data.tx_ref,
+    });
 
     const { Resend } = await import('resend');
     const resend = new Resend(process.env.RESEND_API_KEY);
