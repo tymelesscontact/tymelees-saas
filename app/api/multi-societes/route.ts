@@ -82,8 +82,8 @@ export async function POST(req: NextRequest) {
   const { action } = body;
 
   if (action === 'create_company') {
-    const { nom, pays, metier, devise, couleur } = body;
-    const { data, error } = await sb.from('companies').insert({ nom, pays, metier, devise: devise || 'EUR', couleur: couleur || '#C9A84C' }).select().single();
+    const { nom, pays, metier, devise, couleur, owner_id } = body;
+    const { data, error } = await sb.from('companies').insert({ nom, pays, metier, devise: devise || 'EUR', couleur: couleur || '#C9A84C', owner_id }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, company: data });
   }

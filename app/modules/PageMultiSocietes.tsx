@@ -42,7 +42,10 @@ const PageMultiSocietes=({plan,showToast,UpgradeWall})=>{
   const ajouterSociete=async()=>{
     if(!newCompany.nom)return showToast("⚠️ Nom requis");
     try{
-      const res=await fetch('/api/multi-societes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create_company',...newCompany})});
+      const{createClient}=await import('@supabase/supabase-js');
+      const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+      const{data:{user}}=await sb.auth.getUser();
+      const res=await fetch('/api/multi-societes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create_company',...newCompany,owner_id:user?.id})});
       const d=await res.json();
       if(d.success){showToast("✅ Société ajoutée");setShowAddForm(false);setNewCompany({nom:"",pays:"France",metier:"",devise:"EUR",couleur:"#C9A84C"});load();}
       else showToast("❌ "+d.error);
