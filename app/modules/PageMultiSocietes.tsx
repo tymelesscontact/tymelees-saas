@@ -86,7 +86,7 @@ const PageMultiSocietes=({plan,showToast,UpgradeWall})=>{
       </div>
       <div style={{display:"flex",gap:8}}>
         <Sel value={devise} onChange={e=>setDevise(e.target.value)}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel>
-        <Btn onClick={()=>setShowAddForm(true)} style={{fontSize:11}}>+ Ajouter une société</Btn>
+        <Btn onClick={()=>setShowAddForm(true)} style={{fontSize:11}}>+ Ajouter une autre société</Btn>
       </div>
     </div>
 
@@ -161,7 +161,7 @@ const PageMultiSocietes=({plan,showToast,UpgradeWall})=>{
         <div style={{fontSize:32,marginBottom:8}}>🏢</div>
         <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Aucune société encore</div>
         <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Ajoutez votre première société pour voir la vue consolidée.</div>
-        <Btn onClick={()=>setShowAddForm(true)}>+ Ajouter une société</Btn>
+        <Btn onClick={()=>setShowAddForm(true)}>+ Ajouter une autre société</Btn>
       </Card>:<div>
         {/* Graphique comparatif */}
         <Card style={{marginBottom:12}}>
@@ -204,7 +204,7 @@ const PageMultiSocietes=({plan,showToast,UpgradeWall})=>{
     {/* ── MES SOCIÉTÉS ── */}
     {!loading&&onglet==="societes"&&<div>
       <div style={{display:"flex",justifyContent:"flex-end",marginBottom:10}}>
-        <Btn onClick={()=>setShowAddForm(true)} style={{fontSize:11}}>+ Ajouter une société</Btn>
+        <Btn onClick={()=>setShowAddForm(true)} style={{fontSize:11}}>+ Ajouter une autre société</Btn>
       </div>
       {companies.length===0?<Card style={{textAlign:"center",padding:30}}>
         <div style={{fontSize:11,color:C.muted}}>Aucune société. Ajoutez-en une pour commencer.</div>
