@@ -10506,7 +10506,9 @@ const PageOwner=({plan,showToast,profil})=>{
   const[msgGroupe,setMsgGroupe]=useState({planCible:"tous",sujet:"",corps:""});
   const[services,setServices]=useState([]);
   const[solvLoading,setSolvLoading]=useState({});
-  const tabs=[{id:"vue",label:"📊 Vue globale"},{id:"abonnes",label:"👥 Abonnés"},{id:"alertes",label:"🔔 Alertes"},{id:"communication",label:"📢 Communication"},{id:"investisseur",label:"📄 Investisseur"},{id:"systeme",label:"🐛 Système"}];
+  const[paiementsHisto,setPaiementsHisto]=useState([]);
+  const[loadingPaiements,setLoadingPaiements]=useState(true);
+  const tabs=[{id:"vue",label:"📊 Vue globale"},{id:"abonnes",label:"👥 Abonnés"},{id:"paiements",label:"💳 Paiements"},{id:"alertes",label:"🔔 Alertes"},{id:"communication",label:"📢 Communication"},{id:"investisseur",label:"📄 Investisseur"},{id:"systeme",label:"🐛 Système"}];
 
   const loadAll=async()=>{
     setLoading(true);
@@ -10517,6 +10519,12 @@ const PageOwner=({plan,showToast,profil})=>{
       if(data.services)setServices(data.services);
     }catch(e){console.error("Owner:",e);}
     setLoading(false);
+    try{
+      const resP=await fetch('/api/paiements-historique');
+      const dataP=await resP.json();
+      if(dataP.paiements)setPaiementsHisto(dataP.paiements);
+    }catch(e){console.error("Paiements:",e);}
+    setLoadingPaiements(false);
   };
   useEffect(()=>{loadAll();},[]);
 
@@ -10724,6 +10732,27 @@ const PageOwner=({plan,showToast,profil})=>{
     </div>}
 
     {/* ── ALERTES ── */}
+    {onglet==="paiements"&&<div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <STitle>💳 Historique complet des paiements</STitle>
+        <span style={{fontSize:11,color:C.muted}}>{paiementsHisto.length} paiement(s)</span>
+      </div>
+      {loadingPaiements?<div style={{textAlign:"center",padding:20,color:C.muted}}>Chargement...</div>:(
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr>
+            <TH>Date</TH><TH>Catégorie</TH><TH>Entité</TH><TH>Montant</TH><TH>Méthode</TH><TH>Statut</TH>
+          </tr></thead>
+          <tbody>{paiementsHisto.map((p,i)=><tr key={i}>
+            <Td>{new Date(p.date).toLocaleDateString("fr")}</Td>
+            <Td><Pill color={p.categorie==="Abonnement Xyra"?C.gold:C.blue}>{p.categorie}</Pill></Td>
+            <Td>{p.entite}</Td>
+            <Td>{p.montant} {p.devise}</Td>
+            <Td>{p.methode}</Td>
+            <Td>{p.statut}</Td>
+          </tr>)}</tbody>
+        </table>
+      )}
+    </div>}
     {!loading&&onglet==="alertes"&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
       {alertesTrials.length===0&&alertesImpayes.length===0&&alertesInactifs.length===0&&alertesSolvabilite.length===0&&<Card style={{textAlign:"center",padding:30}}><div style={{fontSize:32,marginBottom:8}}>✅</div><div style={{color:C.green,fontWeight:700}}>Aucune alerte active</div></Card>}
       {alertesTrials.length>0&&<Card style={{borderColor:`${C.orange}44`}}>
