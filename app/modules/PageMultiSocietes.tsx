@@ -44,8 +44,8 @@ const PageMultiSocietes=({plan,showToast,UpgradeWall})=>{
     try{
       const{createClient}=await import('@supabase/supabase-js');
       const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-      const{data:{user}}=await sb.auth.getUser();
-      const res=await fetch('/api/multi-societes',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create_company',...newCompany,owner_id:user?.id})});
+      const{data:{session}}=await sb.auth.getSession();
+      const res=await fetch('/api/multi-societes',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${session?.access_token}`},body:JSON.stringify({action:'create_company',...newCompany})});
       const d=await res.json();
       if(d.success){showToast("✅ Société ajoutée");setShowAddForm(false);setNewCompany({nom:"",pays:"France",metier:"",devise:"EUR",couleur:"#C9A84C"});load();}
       else showToast("❌ "+d.error);
