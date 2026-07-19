@@ -8,6 +8,10 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
   // États formulaires
   const[entreprise,setEntreprise]=useState({nom:"Xyra SaaS SASU",siren:"123 456 789",tva:"FR12 123456789",adresse:"75 rue de Rivoli",ville:"Paris",cp:"75001",pays:"France",tel:"+33 1 23 45 67 89",email:"contact@xyra.io",site:"xyra.io",logo:""});
   const[profUser,setProfUser]=useState({prenom:"Curtiss",nom:"Fondateur",email:"curtiss@xyra.io",tel:"+33 6 00 11 22 33",titre:"Fondateur & CEO",avatar:"C"});
+  const[ticketForm,setTicketForm]=useState({sujet:"",message:"",priorite:"normale"});
+  const[mesTickets,setMesTickets]=useState([]);
+  const[loadingTickets,setLoadingTickets]=useState(true);
+  const[envoiTicket,setEnvoiTicket]=useState(false);
   const[mdp,setMdp]=useState({actuel:"",nouveau:"",confirmer:""});
   const[mdpVisible,setMdpVisible]=useState({actuel:false,nouveau:false,confirmer:false});
   const[theme,setTheme]=useState("dark");
@@ -36,10 +40,31 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
     {id:"secteur",label:"⊛ Secteur métier"},
     {id:"utilisateurs",label:"👥 Utilisateurs"},
     {id:"domaine",label:"🌍 Domaine & White-label"},
+    {id:"support",label:"🎫 Support"},
     {id:"rgpd",label:"🔒 RGPD"},
   ];
 
   const ROLES=["Fondateur","Admin","Commercial","Collaborateur","Comptable","Lecture seule"];
+  const loadTickets=async()=>{
+    try{
+      const res=await fetch(`/api/tickets?email=${profil?.email||profUser.email}`);
+      const data=await res.json();
+      if(data.tickets)setMesTickets(data.tickets);
+    }catch(e){console.error("Tickets:",e);}
+    setLoadingTickets(false);
+  };
+  useEffect(()=>{loadTickets();},[]);
+  const envoyerTicket=async()=>{
+    if(!ticketForm.sujet||!ticketForm.message)return showToast("⚠️ Sujet et message requis");
+    setEnvoiTicket(true);
+    try{
+      const res=await fetch("/api/tickets",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"creer",societe:entreprise.nom,email:profil?.email||profUser.email,sujet:ticketForm.sujet,message:ticketForm.message,priorite:ticketForm.priorite})});
+      const data=await res.json();
+      if(data.success){showToast("✅ Ticket envoyé — nous revenons vers vous rapidement");setTicketForm({sujet:"",message:"",priorite:"normale"});loadTickets();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setEnvoiTicket(false);
+  };
   const INTEGRATIONS=[
     {nom:"Meta WhatsApp API",icon:"💬",statut:true,color:C.green,desc:"Bot WhatsApp + notifications automatiques"},
     {nom:"Flutterwave",icon:"💳",statut:true,color:C.gold,desc:"Paiements cartes, mobile money Afrique"},
@@ -428,6 +453,36 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
     </div>}
 
     {/* ── RGPD ── */}
+    {onglet==="support"&&<div>
+      <Card>
+        <STitle>🎫 Signaler un problème</STitle>
+        <div style={{marginBottom:10}}>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Sujet</label>
+          <Inp value={ticketForm.sujet} onChange={e=>setTicketForm({...ticketForm,sujet:e.target.value})} placeholder="Résumé du problème"/>
+        </div>
+        <div style={{marginBottom:10}}>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Priorité</label>
+          <Sel value={ticketForm.priorite} onChange={e=>setTicketForm({...ticketForm,priorite:e.target.value})}>
+            <option value="basse">Basse</option>
+            <option value="normale">Normale</option>
+            <option value="haute">Haute — bloquant</option>
+          </Sel>
+        </div>
+        <div style={{marginBottom:10}}>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Description</label>
+          <textarea value={ticketForm.message} onChange={e=>setTicketForm({...ticketForm,message:e.target.value})} placeholder="Décrivez le problème en détail" rows={5} style={{width:"100%",background:C.card2,border:`1px solid ${C.border}`,borderRadius:7,padding:"8px 12px",color:C.text,fontSize:13,fontFamily:"inherit",resize:"vertical"}}/>
+        </div>
+        <Btn onClick={envoyerTicket} disabled={envoiTicket} style={{fontSize:12}}>{envoiTicket?"⏳ Envoi...":"📨 Envoyer le ticket"}</Btn>
+      </Card>
+      <Card>
+        <STitle>📋 Mes tickets</STitle>
+        {loadingTickets?<div style={{textAlign:"center",padding:16,color:C.muted}}>Chargement...</div>:mesTickets.length===0?<div style={{textAlign:"center",padding:16,color:C.muted,fontSize:12}}>Aucun ticket envoyé</div>:mesTickets.map(tk=><div key={tk.id} style={{padding:10,borderBottom:`1px solid ${C.border}22`}}>
+          <div style={{display:"flex",justifyContent:"space-between"}}><span style={{fontWeight:600,fontSize:12}}>{tk.sujet}</span><Pill color={tk.statut==="ouvert"?C.orange:C.green}>{tk.statut}</Pill></div>
+          <div style={{fontSize:11,color:C.muted,marginTop:4}}>{tk.message}</div>
+          {tk.reponse&&<div style={{fontSize:11,color:C.green,marginTop:6,background:`${C.green}0D`,padding:8,borderRadius:6}}>↳ {tk.reponse}</div>}
+        </div>)}
+      </Card>
+    </div>}
     {onglet==="rgpd"&&<div>
       <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:12,padding:16,marginBottom:14}}>
         <div style={{fontSize:10,color:C.blue,fontWeight:600,marginBottom:6}}>🔒 CONFORMITÉ RGPD — RÈGLEMENT GÉNÉRAL SUR LA PROTECTION DES DONNÉES</div>
