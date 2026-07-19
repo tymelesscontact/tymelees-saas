@@ -9600,9 +9600,32 @@ const PageDeals=({plan,showToast})=>{
 const PageOperatingCenter=({tenantInfo,showToast})=>{
   const[data,setData]=useState(null);
   const[loading,setLoading]=useState(true);
+  const[tickets,setTickets]=useState([]);
+  const[erreurs,setErreurs]=useState([]);
+  const[reponseTexte,setReponseTexte]=useState({});
   useEffect(()=>{
     fetch('/api/deploiement').then(r=>r.json()).then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));
+    fetch('/api/tickets').then(r=>r.json()).then(d=>{if(d.tickets)setTickets(d.tickets.filter(t=>t.statut==="ouvert"));});
+    fetch('/api/erreurs-systeme').then(r=>r.json()).then(d=>{if(d.erreurs)setErreurs(d.erreurs);});
   },[]);
+  const repondreTicket=async(id)=>{
+    const reponse=reponseTexte[id];
+    if(!reponse)return showToast("⚠️ Ecrivez une reponse");
+    try{
+      const res=await fetch('/api/tickets',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'repondre',id,reponse,statut:'resolu'})});
+      const d=await res.json();
+      if(d.success){showToast("✅ Reponse envoyee");setTickets(t=>t.filter(x=>x.id!==id));}
+      else showToast("❌ "+d.error);
+    }catch(e){showToast("❌ Erreur");}
+  };
+  const resoudreErreur=async(id)=>{
+    try{
+      const res=await fetch('/api/erreurs-systeme',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'resoudre',id})});
+      const d=await res.json();
+      if(d.success){showToast("✅ Marque comme resolu");setErreurs(e=>e.filter(x=>x.id!==id));}
+      else showToast("❌ "+d.error);
+    }catch(e){showToast("❌ Erreur");}
+  };
   const heure=new Date().getHours();
   const salutation=heure<12?"Bonjour":heure<18?"Bon apres-midi":"Bonsoir";
   const prenom=tenantInfo?.societe||"Curtiss";
@@ -9610,15 +9633,40 @@ const PageOperatingCenter=({tenantInfo,showToast})=>{
   const essaisExpires=tenants.filter(t=>t.statut==="essai"&&t.trial_ends_at&&new Date(t.trial_ends_at)<new Date());
   const actifs=tenants.filter(t=>t.statut==="actif");
   const essais=tenants.filter(t=>t.statut==="essai");
+  const totalAlertes=tickets.length+erreurs.length+essaisExpires.length;
   return <div style={{padding:20}}>
     <div style={{marginBottom:20}}>
       <div style={{fontSize:22,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>{salutation}, {prenom}.</div>
-      <div style={{fontSize:12,color:C.muted}}>Voici ce qui compte aujourd'hui sur Xyra.</div>
+      <div style={{fontSize:12,color:C.muted}}>{totalAlertes>0?`${totalAlertes} chose(s) demandent votre attention.`:"Tout est sous controle."}</div>
     </div>
     {loading?(
       <div style={{padding:40,textAlign:"center",color:C.muted}}>Chargement des donnees...</div>
     ):(
-      <div style={{display:"flex",flexDirection:"column",gap:10}}>
+      <div style={{display:"flex",flexDirection:"column",gap:14}}>
+        {tickets.length>0&&<Card style={{borderColor:`${C.orange}44`}}>
+          <STitle>🎫 Tickets clients ouverts ({tickets.length})</STitle>
+          {tickets.map(tk=><div key={tk.id} style={{padding:10,borderBottom:`1px solid ${C.border}22`}}>
+            <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
+              <span style={{fontWeight:600,fontSize:12}}>{tk.societe} — {tk.sujet}</span>
+              <Pill color={tk.priorite==="haute"?C.red:C.orange}>{tk.priorite}</Pill>
+            </div>
+            <div style={{fontSize:11,color:C.muted,marginBottom:6}}>{tk.message}</div>
+            <div style={{display:"flex",gap:6}}>
+              <Inp value={reponseTexte[tk.id]||""} onChange={e=>setReponseTexte({...reponseTexte,[tk.id]:e.target.value})} placeholder="Votre reponse..." style={{flex:1}}/>
+              <Btn onClick={()=>repondreTicket(tk.id)} style={{fontSize:11}}>Repondre</Btn>
+            </div>
+          </div>)}
+        </Card>}
+        {erreurs.length>0&&<Card style={{borderColor:`${C.red}44`}}>
+          <STitle>🐛 Erreurs systeme ({erreurs.length})</STitle>
+          {erreurs.map(er=><div key={er.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:10,borderBottom:`1px solid ${C.border}22`}}>
+            <div>
+              <div style={{fontSize:12,fontWeight:600,color:C.red}}>{er.route}</div>
+              <div style={{fontSize:11,color:C.muted}}>{er.message}</div>
+            </div>
+            <BtnGhost onClick={()=>resoudreErreur(er.id)} style={{fontSize:10}}>✓ Resolu</BtnGhost>
+          </div>)}
+        </Card>}
         <Card>
           <div style={{display:"flex",alignItems:"center",gap:10}}>
             <span style={{fontSize:24}}>✅</span>
@@ -9639,7 +9687,7 @@ const PageOperatingCenter=({tenantInfo,showToast})=>{
             </div>
           </Card>
         )}
-        {essaisExpires.length===0&&(
+        {totalAlertes===0&&(
           <Card>
             <div style={{display:"flex",alignItems:"center",gap:10}}>
               <span style={{fontSize:24}}>👍</span>
@@ -9651,7 +9699,6 @@ const PageOperatingCenter=({tenantInfo,showToast})=>{
     )}
   </div>;
 };
-
 const PageBusinessAdmin=({showToast})=>{
   const[data,setData]=useState(null);
   const[loading,setLoading]=useState(true);
