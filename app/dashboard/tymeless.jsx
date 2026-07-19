@@ -624,6 +624,8 @@ export default function Xyra() {
             const planNorm=tenant.plan.replace('business_pro','business').replace('_pro','');
             setPlan(planNorm);
           }
+          const{data:companiesData}=await sb.from("companies").select("*").eq("owner_id",user.id).order("created_at");
+          if(companiesData?.length){setCompanies(companiesData);setActiveCompany(companiesData[0]);}
         }
       }catch(e){console.error('Supabase:',e);}
       finally{setSbLoading(false);}
@@ -634,6 +636,9 @@ export default function Xyra() {
   const[notifs,setNotifs]=useState(INIT_NOTIFS);
   const[toast,setToast]=useState(null);
   const[profil,setProfil]=useState(PROFIL_DEFAUT);
+  const[companies,setCompanies]=useState([]);
+  const[activeCompany,setActiveCompany]=useState(null);
+  const[vueGlobale,setVueGlobale]=useState(true);
   const[sirApiKey,setSirApiKey]=useState(()=>typeof window!=="undefined"?localStorage.getItem("ty_anthropic")||"":"");
   const[sidebarOpen,setSidebarOpen]=useState(true);
 
@@ -702,6 +707,12 @@ export default function Xyra() {
           <select value={profil?.label||PROFIL_DEFAUT.label} onChange={e=>{const p=Object.values(PROFILS_SECTEURS).find(s=>s.label===e.target.value);if(p)setProfil(p);}} style={{marginTop:8,background:C.card2,border:`1px solid ${C.gold}44`,borderRadius:5,padding:"4px 6px",color:C.gold,fontSize:10,width:"100%",fontFamily:"inherit"}}>
             {Object.values(PROFILS_SECTEURS).map(p=><option key={p.label} value={p.label}>{p.label}</option>)}
           </select>
+          {companies.length>0&&<div style={{marginTop:8}}>
+            <select value={vueGlobale?"global":activeCompany?.id||""} onChange={e=>{if(e.target.value==="global"){setVueGlobale(true);}else{setVueGlobale(false);const c=companies.find(x=>x.id===e.target.value);if(c)setActiveCompany(c);}}} style={{background:C.card2,border:`1px solid ${C.purple}44`,borderRadius:5,padding:"4px 6px",color:C.purple,fontSize:10,width:"100%",fontFamily:"inherit"}}>
+              <option value="global">🌐 Vue Globale (toutes)</option>
+              {companies.map(c=><option key={c.id} value={c.id}>🏢 {c.nom}</option>)}
+            </select>
+          </div>}
         </div>
 
         {/* Nav */}
