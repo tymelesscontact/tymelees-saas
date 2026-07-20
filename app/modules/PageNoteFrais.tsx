@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { C, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM, Tabs } from "../lib/ui";
 
-const PageNoteFrais=({plan,showToast})=>{
+const PageNoteFrais=({plan,showToast,activeCompany})=>{
   const[onglet,setOnglet]=useState("saisie");
   const[notes,setNotes]=useState([]);
   const[loadingNotes,setLoadingNotes]=useState(true);
@@ -10,14 +10,15 @@ const PageNoteFrais=({plan,showToast})=>{
   useEffect(()=>{
     const load=async()=>{
       try{
-        const res=await fetch('/api/notefrais?action=list');
+        const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
+        const res=await fetch('/api/notefrais?action=list'+companyParam);
         const data=await res.json();
         if(data.notes)setNotes(data.notes);
       }catch(e){console.error('Notes frais:',e);}
       setLoadingNotes(false);
     };
     load();
-  },[]);
+  },[activeCompany]);
   const[form,setForm]=useState({employe:"",date:"",categorie:"Transport",marchand:"",montant:"",tva:"",projet:"",notes:"",justificatif:false});
   const[scanning,setScanning]=useState(false);
   const[budget,setBudget]=useState({Transport:500,Repas:300,Hébergement:800,Fournitures:200,Télécom:150,Formation:1000,Autre:200});

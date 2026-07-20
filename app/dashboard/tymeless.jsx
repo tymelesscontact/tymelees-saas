@@ -658,7 +658,7 @@ export default function Xyra() {
     devis:<PageDevis plan={plan} showToast={showToast} profil={profil} activeCompany={activeCompany}/>,
     investissement:<PageInvestissementModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
     compta:<PageComptaModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
-    notefrais:<PageNoteFraisModule plan={plan} showToast={showToast}/>,
+    notefrais:<PageNoteFraisModule plan={plan} showToast={showToast} activeCompany={activeCompany}/>,
     tresorerie:<PageTresorerieModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
     analytique:<PageAnalytiqueModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
     clients:<PageClientsModule plan={plan} showToast={showToast} profil={profil} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
