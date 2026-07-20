@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,12 +26,13 @@ async function askClaude(prompt: string) {
 }
 
 export async function GET(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
   const { searchParams } = new URL(req.url);
   const action = searchParams.get('action') || 'cartes';
   const carteId = searchParams.get('carte_id');
 
   if (action === 'cartes') {
-    const { data } = await sb.from('cartes_virtuelles').select('*').order('created_at', { ascending: false });
+    const { data } = tenantId ? await sb.from('cartes_virtuelles').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }) : await sb.from('cartes_virtuelles').select('*').order('created_at', { ascending: false });
     return NextResponse.json({ cartes: data || [] });
   }
 
@@ -40,7 +42,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (action === 'transactions_all') {
-    const { data } = await sb.from('cartes_transactions').select('*, cartes_virtuelles(nom,couleur)').order('date_transaction', { ascending: false }).limit(100);
+    const { data } = tenantId ? await sb.from('cartes_transactions').select('*, cartes_virtuelles(nom,couleur)').eq('tenant_id', tenantId).order('date_transaction', { ascending: false }).limit(100) : await sb.from('cartes_transactions').select('*, cartes_virtuelles(nom,couleur)').order('date_transaction', { ascending: false }).limit(100);
     return NextResponse.json({ transactions: data || [] });
   }
 
@@ -50,7 +52,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (action === 'en_attente') {
-    const { data } = await sb.from('cartes_transactions').select('*, cartes_virtuelles(nom)').eq('statut', 'en_attente').order('created_at', { ascending: false });
+    const { data } = tenantId ? await sb.from('cartes_transactions').select('*, cartes_virtuelles(nom)').eq('statut', 'en_attente').eq('tenant_id', tenantId).order('created_at', { ascending: false }) : await sb.from('cartes_transactions').select('*, cartes_virtuelles(nom)').eq('statut', 'en_attente').order('created_at', { ascending: false });
     return NextResponse.json({ transactions: data || [] });
   }
 

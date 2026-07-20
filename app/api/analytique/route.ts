@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -48,12 +49,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const devise = searchParams.get('devise') || 'EUR';
   const periode = searchParams.get('periode') || 'mois';
+  const tenantId = await getTenantIdFromRequest(req);
 
   const [facturesRes, walletRes, chargesRes, equipeRes] = await Promise.all([
-    sb.from('factures').select('*'),
-    sb.from('wallet_transactions').select('*'),
-    sb.from('charges').select('*'),
-    sb.from('equipe').select('nom,salaire'),
+    tenantId ? sb.from('factures').select('*').eq('tenant_id', tenantId) : sb.from('factures').select('*'),
+    tenantId ? sb.from('wallet_transactions').select('*').eq('tenant_id', tenantId) : sb.from('wallet_transactions').select('*'),
+    tenantId ? sb.from('charges').select('*').eq('tenant_id', tenantId) : sb.from('charges').select('*'),
+    tenantId ? sb.from('equipe').select('nom,salaire').eq('tenant_id', tenantId) : sb.from('equipe').select('nom,salaire'),
   ]);
 
   const factures = facturesRes.data || [];

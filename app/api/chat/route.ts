@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,10 +27,11 @@ async function askClaude(prompt: string, maxTokens = 300) {
 }
 
 export async function GET(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
   const { searchParams } = new URL(req.url);
   const espace = searchParams.get('espace');
 
-  let query = sb.from('conversations').select('*').order('derniere_activite', { ascending: false });
+  let query = tenantId ? sb.from('conversations').select('*').eq('tenant_id', tenantId).order('derniere_activite', { ascending: false }) : sb.from('conversations').select('*').order('derniere_activite', { ascending: false });
   if (espace) query = query.eq('espace', espace);
   const { data: conversations, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
