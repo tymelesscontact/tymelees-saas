@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -32,20 +33,20 @@ async function sendWhatsApp(to: string, message: string) {
     body: JSON.stringify({ messaging_product: 'whatsapp', to: to.replace(/\D/g, ''), text: { body: safe } }),
   });
 }
-
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const entiteId = searchParams.get('entite_id');
-
+  const tenantId = await getTenantIdFromRequest(req);
   const [walletRes, facturesRes, chargesRes, paramRes, stockRes, equipeRes, clientsRes, missionsRes] = await Promise.all([
-    sb.from('wallet_transactions').select('*'),
-    sb.from('factures').select('*'),
-    sb.from('charges').select('*'),
-    sb.from('tresorerie_parametres').select('*').limit(1).single(),
-    sb.from('stock').select('qte,prixU,prix_unitaire'),
-    sb.from('equipe').select('salaire,nom'),
-    sb.from('clients').select('id,nom'),
-    sb.from('factures').select('client_nom,montant_ttc,statut,date_emission,date_echeance'),
+    tenantId ? sb.from('wallet_transactions').select('*').eq('tenant_id', tenantId) : sb.from('wallet_transactions').select('*'),
+    tenantId ? sb.from('factures').select('*').eq('tenant_id', tenantId) : sb.from('factures').select('*'),
+
+    tenantId ? sb.from('charges').select('*').eq('tenant_id', tenantId) : sb.from('charges').select('*'),
+    tenantId ? sb.from('tresorerie_parametres').select('*').eq('tenant_id', tenantId).limit(1).maybeSingle() : sb.from('tresorerie_parametres').select('*').limit(1).maybeSingle(),
+    tenantId ? sb.from('stock').select('qte,prixU,prix_unitaire').eq('tenant_id', tenantId) : sb.from('stock').select('qte,prixU,prix_unitaire'),
+    tenantId ? sb.from('equipe').select('salaire,nom').eq('tenant_id', tenantId) : sb.from('equipe').select('salaire,nom'),
+    tenantId ? sb.from('clients').select('id,nom').eq('tenant_id', tenantId) : sb.from('clients').select('id,nom'),
+    tenantId ? sb.from('factures').select('client_nom,montant_ttc,statut,date_emission,date_echeance').eq('tenant_id', tenantId) : sb.from('factures').select('client_nom,montant_ttc,statut,date_emission,date_echeance'),
   ]);
 
   const wallet = walletRes.data || [];

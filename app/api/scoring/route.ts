@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -40,11 +41,17 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get('company_id');
   const action = searchParams.get('action') || 'all';
+  const tenantId = await getTenantIdFromRequest(req);
 
   let avisQuery = sb.from('avis').select('*').order('date_avis', { ascending: false });
   let npsQuery = sb.from('nps_reponses').select('*').order('created_at', { ascending: false });
   let csatQuery = sb.from('csat_reponses').select('*').order('created_at', { ascending: false });
 
+  if (tenantId) {
+    avisQuery = avisQuery.eq("tenant_id", tenantId);
+    npsQuery = npsQuery.eq("tenant_id", tenantId);
+    csatQuery = csatQuery.eq("tenant_id", tenantId);
+  }
   if (companyId) {
     avisQuery = avisQuery.eq('company_id', companyId);
     npsQuery = npsQuery.eq('company_id', companyId);

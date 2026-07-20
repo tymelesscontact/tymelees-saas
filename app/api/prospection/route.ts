@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -12,8 +13,12 @@ export async function GET(req: NextRequest) {
 
   const statutConnexion = !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)
 
-  const { data: conversations } = await sb.from("conduit").select("*")
-  const { data: devisGeneres } = await sb.from("devis").select("*")
+  const tenantId = await getTenantIdFromRequest(req)
+  let qConv = sb.from("conduit").select("*")
+  let qDevis = sb.from("devis").select("*")
+  if (tenantId) { qConv = qConv.eq("tenant_id", tenantId); qDevis = qDevis.eq("tenant_id", tenantId); }
+  const { data: conversations } = await qConv
+  const { data: devisGeneres } = await qDevis
 
   const totalConversations = conversations?.length || 0
 
