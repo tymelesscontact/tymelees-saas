@@ -23,9 +23,12 @@ async function sendEmail(to: string, subject: string, html: string) {
 }
 
 export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
   let dealsQuery = sb.from('deals').select('*').order('updated_at', { ascending: false });
   if (tenantId) dealsQuery = dealsQuery.eq('tenant_id', tenantId);
+  if (companyId) dealsQuery = dealsQuery.eq('company_id', companyId);
   const { data: deals, error } = await dealsQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

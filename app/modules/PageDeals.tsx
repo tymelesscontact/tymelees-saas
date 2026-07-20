@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
-const PageDeals=({plan,showToast,UpgradeWall})=>{
+const PageDeals=({plan,showToast,UpgradeWall,activeCompany})=>{
   const[_dealsReal,setDealsReal]=useState([]);
   const[_partenairesReal,setPartenairesReal]=useState([]);
   const[_caPipeline,setCaPipeline]=useState(0);
@@ -15,7 +15,8 @@ const PageDeals=({plan,showToast,UpgradeWall})=>{
 
   const _loadDeals=async()=>{
     try{
-      const res=await fetch('/api/deals');
+      const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/deals'+companyParam);
       const data=await res.json();
       if(data.deals&&data.deals.length>0){
         setDealsReal(data.deals);
@@ -64,7 +65,7 @@ const PageDeals=({plan,showToast,UpgradeWall})=>{
       _loadDeals();
     }catch(e){}
   };
-  useEffect(()=>{_loadDeals();},[]);
+  useEffect(()=>{_loadDeals();},[activeCompany]);
   const ETAPES=["Identification","Qualification","Proposition","Négociation","Closing","Gagné","Perdu"];
   const[deals,setDeals]=useState([
     {id:"DEAL-001",nom:"Contrat Hôtel Prestige Paris",valeur:12000,prob:85,etape:"Proposition",client:"Claire Bernard",tel:"+33 1 23 45 67",email:"claire@prestige.fr",dead:"30/04/2026",source:"CRM",desc:"Nettoyage 40 chambres/jour + entretien communs",actions:[{date:"14/04",type:"Email",note:"Proposition envoyée"},{date:"12/04",type:"RDV",note:"Présentation en présentiel"}],dernierContact:"14/04"},
