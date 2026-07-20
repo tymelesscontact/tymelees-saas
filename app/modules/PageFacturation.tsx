@@ -4,20 +4,21 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp } from "../l
 import { FORMATION } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageFacturation=({plan,showToast,UpgradeWall})=>{
+const PageFacturation=({plan,showToast,UpgradeWall,activeCompany})=>{
   const[onglet,setOnglet]=useState("dashboard");
   const[factures,setFactures]=useState([]);
   const[loadingFact,setLoadingFact]=useState(true);
 
   const loadFactures=async()=>{
     try{
-      const res=await fetch('/api/factures?action=list');
+      const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/factures?action=list'+companyParam);
       const data=await res.json();
       if(data.factures)setFactures(data.factures);
     }catch(e){console.error("Factures:",e);}
     setLoadingFact(false);
   };
-  useEffect(()=>{loadFactures();},[]);
+  useEffect(()=>{loadFactures();},[activeCompany]);
 
   const[newFact,setNewFact]=useState({client_nom:"",client_email:"",client_tel:"",siren:"",type_client:"entreprise",description:"",montant_ht:"",taux_tva:"20",format:"Factur-X"});
   const tvaMontant=newFact.montant_ht?Math.round(Number(newFact.montant_ht)*Number(newFact.taux_tva))/100:0;

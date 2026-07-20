@@ -679,7 +679,7 @@ export default function Xyra() {
     conversations_whatsapp:<PageConversationsWhatsapp/>,
     notifications:<PageNotificationsModule notifs={notifs} setNotifs={setNotifs} showToast={showToast}/>,
     signature:<PageSignaturesModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
-    facturation:<PageFacturationModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
+    facturation:<PageFacturationModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     formation:<PageFormationModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
     deploiement:<PageDeploiementTenantModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
     api:<PageAPIModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
