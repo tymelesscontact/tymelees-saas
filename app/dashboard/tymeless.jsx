@@ -669,7 +669,7 @@ export default function Xyra() {
     wallet_membres:<PageWalletMembresModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
     evenements:<PageEvenementsModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
     scoring:<PageScoringModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
-    equipe:<PageEquipeModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
+    equipe:<PageEquipeModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     planning:<PagePlanningModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
     prospection:<PageProspectionModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
     deals:<PageDealsModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,

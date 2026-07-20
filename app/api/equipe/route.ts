@@ -35,9 +35,12 @@ function calculerPaie(salaireBrut: number) {
 }
 
 export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
   let membresQuery = sb.from('equipe').select('*').order('created_at', { ascending: false });
   if (tenantId) membresQuery = membresQuery.eq('tenant_id', tenantId);
+  if (companyId) membresQuery = membresQuery.eq('company_id', companyId);
   const { data: membres, error } = await membresQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

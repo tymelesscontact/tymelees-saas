@@ -4,11 +4,12 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI } from "../lib/ui";
 import { PLANNING, CONTRATS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageEquipe=({plan,showToast,UpgradeWall})=>{
+const PageEquipe=({plan,showToast,UpgradeWall,activeCompany})=>{
   // Chargement des vraies données Supabase
   const loadRealData=async()=>{
     try{
-      const res=await fetch('/api/equipe');
+      const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/equipe'+companyParam);
       const data=await res.json();
       if(data.membres&&data.membres.length>0){
         setEquipe(prev=>prev.map(m=>{
@@ -19,7 +20,7 @@ const PageEquipe=({plan,showToast,UpgradeWall})=>{
       }
     }catch(e){console.log("Mode local");}
   };
-  useEffect(()=>{loadRealData();},[]);
+  useEffect(()=>{loadRealData();},[activeCompany]);
   const[equipe,setEquipe]=useState([
     {id:1,nom:"Thomas Beaumont",prenom:"Thomas",role:"Responsable missions premium",statut:"En mission",localisation:"Airbnb Montmartre",pointage:"09:02",heures:6.5,conges:12,soldeConges:12,salaire:2800,perf:94,contrat:"CDI",email:"thomas@xyra.io",tel:"+33 6 12 34 56 78",embauche:"01/03/2024",nss:"1 85 06 75 056 042 28",rib:"FR76 3000 4000 0100 0012 3456 789",adresse:"12 rue de la Paix, 75001 Paris",dateNaissance:"15/06/1985",couleur:"#4B7BFF",
     missions:[{date:"15/04",service:"Nettoyage Airbnb Montmartre",client:"Isabelle Moreau",duree:"3h",note:5},{date:"14/04",service:"Nettoyage bureaux La Défense",client:"Marc Dupont",duree:"4h",note:5},{date:"12/04",service:"Rapatriement corps — Lefevre",client:"Pierre Lefevre",duree:"8h",note:5}],
