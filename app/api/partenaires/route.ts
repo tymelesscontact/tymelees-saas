@@ -95,9 +95,12 @@ function genererPdfContrat(p: any): Promise<Buffer> {
 }
 
 export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
   let partsQuery = sb.from('partenaires').select('*').order('created_at', { ascending: false });
   if (tenantId) partsQuery = partsQuery.eq('tenant_id', tenantId);
+  if (companyId) partsQuery = partsQuery.eq('company_id', companyId);
   const { data: parts, error } = await partsQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

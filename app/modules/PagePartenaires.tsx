@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, S
 import { PARTENAIRES, ANNUAIRE, CONTRATS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PagePartenaires=({plan,showToast,UpgradeWall})=>{
+const PagePartenaires=({plan,showToast,UpgradeWall,activeCompany})=>{
   const[parts,setParts]=useState([]);
   const[loadingParts,setLoadingParts]=useState(true);
   const[alertes,setAlertes]=useState([]);
@@ -20,13 +20,14 @@ const PagePartenaires=({plan,showToast,UpgradeWall})=>{
 
   const loadAll=async()=>{
     try{
-      const res=await fetch('/api/partenaires');
+      const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/partenaires'+companyParam);
       const data=await res.json();
       if(data.partenaires)setParts(data.partenaires);
     }catch(e){console.error("Partenaires:",e);}
     setLoadingParts(false);
   };
-  useEffect(()=>{loadAll();},[]);
+  useEffect(()=>{loadAll();},[activeCompany]);
   useEffect(()=>{if(sel)setSel(s=>parts.find(p=>p.id===s.id)||null);},[parts]);
 
   const tabs=[
