@@ -14,9 +14,12 @@ async function sendEmail(to: string, subject: string, html: string) {
 }
 
 export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
   let articlesQuery = sb.from('stock').select('*').order('art', { ascending: true });
   if (tenantId) articlesQuery = articlesQuery.eq('tenant_id', tenantId);
+  if (companyId) articlesQuery = articlesQuery.eq('company_id', companyId);
   const { data: articles, error } = await articlesQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

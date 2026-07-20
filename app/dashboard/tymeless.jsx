@@ -673,7 +673,7 @@ export default function Xyra() {
     planning:<PagePlanningModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
     prospection:<PageProspectionModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
     deals:<PageDealsModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
-    stock:<PageStockModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
+    stock:<PageStockModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     services:<PageServicesModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
     chat:<PageChatModule plan={plan} showToast={showToast} Chat={Chat}/>,
     conversations_whatsapp:<PageConversationsWhatsapp/>,
