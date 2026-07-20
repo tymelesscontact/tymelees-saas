@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM, co
 import { CLIENTS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageTresorerie=({plan,showToast,UpgradeWall})=>{
+const PageTresorerie=({plan,showToast,UpgradeWall,activeCompany})=>{
   const[devise,setDevise]=useState("EUR");
   const[onglet,setOnglet]=useState("dashboard");
   const[loading,setLoading]=useState(true);
@@ -35,7 +35,8 @@ const PageTresorerie=({plan,showToast,UpgradeWall})=>{
 
   const load=async()=>{
     try{
-      const res=await fetch('/api/tresorerie');
+      const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/tresorerie'+companyParam);
       const d=await res.json();
       setData(d);
       if(d.parametres)setSeuils(d.parametres);
@@ -43,7 +44,7 @@ const PageTresorerie=({plan,showToast,UpgradeWall})=>{
     setLoading(false);
   };
 
-  useEffect(()=>{load();},[]);
+  useEffect(()=>{load();},[activeCompany]);
 
   // Analyse IA au chargement
   useEffect(()=>{

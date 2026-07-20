@@ -37,16 +37,21 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const entiteId = searchParams.get('entite_id');
   const tenantId = await getTenantIdFromRequest(req);
+  const companyId = searchParams.get('company_id');
+  function scoped(q) {
+    if (tenantId) q = q.eq('tenant_id', tenantId);
+    if (companyId) q = q.eq('company_id', companyId);
+    return q;
+  }
   const [walletRes, facturesRes, chargesRes, paramRes, stockRes, equipeRes, clientsRes, missionsRes] = await Promise.all([
-    tenantId ? sb.from('wallet_transactions').select('*').eq('tenant_id', tenantId) : sb.from('wallet_transactions').select('*'),
-    tenantId ? sb.from('factures').select('*').eq('tenant_id', tenantId) : sb.from('factures').select('*'),
-
-    tenantId ? sb.from('charges').select('*').eq('tenant_id', tenantId) : sb.from('charges').select('*'),
-    tenantId ? sb.from('tresorerie_parametres').select('*').eq('tenant_id', tenantId).limit(1).maybeSingle() : sb.from('tresorerie_parametres').select('*').limit(1).maybeSingle(),
-    tenantId ? sb.from('stock').select('qte,prixU,prix_unitaire').eq('tenant_id', tenantId) : sb.from('stock').select('qte,prixU,prix_unitaire'),
-    tenantId ? sb.from('equipe').select('salaire,nom').eq('tenant_id', tenantId) : sb.from('equipe').select('salaire,nom'),
-    tenantId ? sb.from('clients').select('id,nom').eq('tenant_id', tenantId) : sb.from('clients').select('id,nom'),
-    tenantId ? sb.from('factures').select('client_nom,montant_ttc,statut,date_emission,date_echeance').eq('tenant_id', tenantId) : sb.from('factures').select('client_nom,montant_ttc,statut,date_emission,date_echeance'),
+    scoped(sb.from('wallet_transactions').select('*')),
+    scoped(sb.from('factures').select('*')),
+    scoped(sb.from('charges').select('*')),
+    scoped(sb.from('tresorerie_parametres').select('*')).limit(1).maybeSingle(),
+    scoped(sb.from('stock').select('qte,prixU,prix_unitaire')),
+    scoped(sb.from('equipe').select('salaire,nom')),
+    scoped(sb.from('clients').select('id,nom')),
+    scoped(sb.from('factures').select('client_nom,montant_ttc,statut,date_emission,date_echeance')),
   ]);
 
   const wallet = walletRes.data || [];
