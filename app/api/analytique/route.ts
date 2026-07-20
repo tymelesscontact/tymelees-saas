@@ -50,12 +50,18 @@ export async function GET(req: NextRequest) {
   const devise = searchParams.get('devise') || 'EUR';
   const periode = searchParams.get('periode') || 'mois';
   const tenantId = await getTenantIdFromRequest(req);
+  const companyId = searchParams.get('company_id');
+  function scoped(q) {
+    if (tenantId) q = q.eq('tenant_id', tenantId);
+    if (companyId) q = q.eq('company_id', companyId);
+    return q;
+  }
 
   const [facturesRes, walletRes, chargesRes, equipeRes] = await Promise.all([
-    tenantId ? sb.from('factures').select('*').eq('tenant_id', tenantId) : sb.from('factures').select('*'),
-    tenantId ? sb.from('wallet_transactions').select('*').eq('tenant_id', tenantId) : sb.from('wallet_transactions').select('*'),
-    tenantId ? sb.from('charges').select('*').eq('tenant_id', tenantId) : sb.from('charges').select('*'),
-    tenantId ? sb.from('equipe').select('nom,salaire').eq('tenant_id', tenantId) : sb.from('equipe').select('nom,salaire'),
+    scoped(sb.from('factures').select('*')),
+    scoped(sb.from('wallet_transactions').select('*')),
+    scoped(sb.from('charges').select('*')),
+    scoped(sb.from('equipe').select('nom,salaire')),
   ]);
 
   const factures = facturesRes.data || [];

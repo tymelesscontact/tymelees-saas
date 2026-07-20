@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, BtnGhost, STitle, Sel, SM, DEVISES } from "../lib/ui"
 import { CLIENTS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageAnalytique=({plan,showToast,UpgradeWall})=>{
+const PageAnalytique=({plan,showToast,UpgradeWall,activeCompany})=>{
   const[data,setData]=useState(null);
   const[loading,setLoading]=useState(true);
   const[devise,setDevise]=useState("EUR");
@@ -25,14 +25,15 @@ const PageAnalytique=({plan,showToast,UpgradeWall})=>{
   const load=async()=>{
     setLoading(true);
     try{
-      const res=await fetch(`/api/analytique?devise=${devise}`);
+      const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
+      const res=await fetch(`/api/analytique?devise=${devise}`+companyParam);
       const d=await res.json();
       setData(d);
     }catch(e){console.error(e);}
     setLoading(false);
   };
 
-  useEffect(()=>{load();},[devise]);
+  useEffect(()=>{load();},[devise,activeCompany]);
 
   useEffect(()=>{
     if(data&&!analyseIA){
