@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, BtnGhost, TH, Td, KPI, STitle, Pill, Tabs } from "../
 import { hasAccess } from "../lib/plans";
 import { TabCharges, TabFournisseurs } from "./PageInvestissement";
 
-const PageCompta=({plan,showToast,UpgradeWall})=>{
+const PageCompta=({plan,showToast,UpgradeWall,activeCompany})=>{
   const[onglet,setOnglet]=useState("journal");
   const[wallet,setWallet]=useState([]);
   const[factures,setFactures]=useState([]);
@@ -14,9 +14,10 @@ const PageCompta=({plan,showToast,UpgradeWall})=>{
 
   const loadCompta=async()=>{
     try{
+      const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
       const[wRes,fRes]=await Promise.all([
-        fetch('/api/wallet?action=list').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/factures?action=list').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/wallet?action=list'+companyParam).then(r=>r.json()).catch(()=>({})),
+        fetch('/api/factures?action=list'+companyParam).then(r=>r.json()).catch(()=>({})),
       ]);
       if(wRes.transactions)setWallet(wRes.transactions);
       if(wRes.solde!=null)setSoldeReel(wRes.solde);
@@ -30,7 +31,7 @@ const PageCompta=({plan,showToast,UpgradeWall})=>{
     }catch(e){console.error("Compta:",e);}
     setLoadingCompta(false);
   };
-  useEffect(()=>{loadCompta();},[]);
+  useEffect(()=>{loadCompta();},[activeCompany]);
 
   const tabs=[{id:"journal",label:"📋 Journal"},{id:"bilan",label:"📊 Bilan"},{id:"tva",label:"💶 TVA"},{id:"charges",label:"💸 Charges"},{id:"fournisseurs",label:"🏭 Fournisseurs"},{id:"ia",label:"🤖 IA Fiscale"},{id:"export",label:"📤 Export"}];
   if(!hasAccess(plan,"compta"))return <div style={{padding:20}}><UpgradeWall page="Comptabilité" plan={plan}/></div>;
