@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -25,12 +26,13 @@ async function sendWhatsApp(to: string, message: string) {
 }
 
 export async function GET(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
   const { searchParams } = new URL(req.url);
   const action = searchParams.get('action') || 'list';
   const eventId = searchParams.get('event_id');
 
   if (action === 'list') {
-    const { data } = await sb.from('evenements').select('*').order('date_debut', { ascending: true });
+    const { data } = tenantId ? await sb.from('evenements').select('*').eq('tenant_id', tenantId).order('date_debut', { ascending: true }) : await sb.from('evenements').select('*').order('date_debut', { ascending: true });
     return NextResponse.json({ evenements: data || [] });
   }
 

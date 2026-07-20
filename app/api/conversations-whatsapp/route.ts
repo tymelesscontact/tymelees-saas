@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -27,10 +28,10 @@ async function sendWhatsApp(to: string, message: string) {
 
 export async function GET(req: NextRequest) {
   const sb = getAdminClient()
-  const { data, error } = await sb
-    .from("conduit")
-    .select("*")
-    .order("created_at", { ascending: false })
+  const tenantId = await getTenantIdFromRequest(req)
+  let q = sb.from("conduit").select("*").order("created_at", { ascending: false })
+  if (tenantId) q = q.eq("tenant_id", tenantId)
+  const { data, error } = await q
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
