@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
-const PageDevis=({plan,showToast,profil})=>{
+const PageDevis=({plan,showToast,profil,activeCompany})=>{
   const MODELES=[
     {id:"airbnb",label:"Nettoyage Airbnb",lignes:[{desc:"Nettoyage complet appartement",qte:1,pu:180,tva:20},{desc:"Blanchisserie linge de lit",qte:1,pu:45,tva:20},{desc:"Réassort produits accueil",qte:1,pu:25,tva:20}]},
     {id:"bureau",label:"Nettoyage bureaux",lignes:[{desc:"Nettoyage bureaux (surface)",qte:1,pu:280,tva:20},{desc:"Nettoyage sanitaires",qte:1,pu:80,tva:20},{desc:"Vitrerie intérieure",qte:1,pu:120,tva:20}]},
@@ -17,7 +17,8 @@ const PageDevis=({plan,showToast,profil})=>{
   const[loadingDevis,setLoadingDevis]=useState(true);
   const loadDevis=async()=>{
     try{
-      const res=await fetch('/api/devis?action=list');
+      const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/devis?action=list'+companyParam);
       const data=await res.json();
       if(data.devis)setDevis(data.devis.map(d=>({
         id:d.reference,dbId:d.id,client:d.client_nom,email:d.client_email,tel:d.client_tel,
@@ -29,7 +30,7 @@ const PageDevis=({plan,showToast,profil})=>{
     }catch(e){console.error("Devis:",e);}
     setLoadingDevis(false);
   };
-  useEffect(()=>{loadDevis();},[]);
+  useEffect(()=>{loadDevis();},[activeCompany]);
   const[onglet,setOnglet]=useState("liste");
   const[showCreate,setShowCreate]=useState(false);
   const[modeleId,setModeleId]=useState("airbnb");

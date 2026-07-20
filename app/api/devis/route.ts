@@ -165,9 +165,13 @@ export async function GET(req: NextRequest) {
     const action = searchParams.get('action')
     if (action === 'list') {
       const tenantId = await getTenantIdFromRequest(req)
+      const companyId = searchParams.get('company_id')
       let query = supabase.from('devis').select('*').order('created_at', { ascending: false })
       if (tenantId) {
         query = query.eq('tenant_id', tenantId)
+      }
+      if (companyId) {
+        query = query.eq('company_id', companyId)
       }
       const { data, error } = await query
       if (error) {
