@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, Btn, BtnGhost, KPI, STitle, Pill, Inp, Sel, SM, inits
 import { PARTENAIRES } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageClients=({plan,showToast,profil,setPage,UpgradeWall})=>{
+const PageClients=({plan,showToast,profil,setPage,UpgradeWall,activeCompany})=>{
   const[clients,setClients]=useState([]);
   const[loadingClients,setLoadingClients]=useState(true);
   const[sel,setSel]=useState(null);
@@ -14,13 +14,14 @@ const PageClients=({plan,showToast,profil,setPage,UpgradeWall})=>{
 
   const loadAll=async()=>{
     try{
-      const res=await fetch('/api/clients');
+      const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/clients'+companyParam);
       const data=await res.json();
       if(data.clients)setClients(data.clients);
     }catch(e){console.error("Clients:",e);}
     setLoadingClients(false);
   };
-  useEffect(()=>{loadAll();},[]);
+  useEffect(()=>{loadAll();},[activeCompany]);
   useEffect(()=>{if(sel)setSel(s=>clients.find(c=>c.id===s.id)||null);},[clients]);
 
   const enriched=clients;

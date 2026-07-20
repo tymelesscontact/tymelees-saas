@@ -23,9 +23,12 @@ async function sendWhatsApp(to: string, message: string) {
 }
 
 export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
   let clientsQuery = sb.from('clients').select('*').order('created_at', { ascending: false });
   if (tenantId) clientsQuery = clientsQuery.eq('tenant_id', tenantId);
+  if (companyId) clientsQuery = clientsQuery.eq('company_id', companyId);
   const { data: clients, error } = await clientsQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
