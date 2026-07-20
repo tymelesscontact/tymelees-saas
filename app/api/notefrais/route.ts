@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -9,10 +10,10 @@ function getAdminClient() {
 
 export async function GET(req: NextRequest) {
   const sb = getAdminClient()
-  const { data, error } = await sb
-    .from("notes_frais")
-    .select("*")
-    .order("date", { ascending: false })
+  const tenantId = await getTenantIdFromRequest(req)
+  let q = sb.from("notes_frais").select("*").order("date", { ascending: false })
+  if (tenantId) q = q.eq("id_locataire", tenantId)
+  const { data, error } = await q
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -38,6 +39,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json()
   const { action } = body
+  const tenantId = await getTenantIdFromRequest(req)
   const sb = getAdminClient()
 
   if (action === "create") {
@@ -60,6 +62,7 @@ export async function POST(req: NextRequest) {
         justificatif,
         compte_cpt,
         projet,
+        id_locataire: tenantId,
       })
       .select()
       .single()
