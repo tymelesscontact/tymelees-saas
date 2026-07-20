@@ -28,8 +28,10 @@ export async function GET(req: NextRequest) {
 
   if (action === 'list') {
     const tenantId = await getTenantIdFromRequest(req);
+    const companyId = searchParams.get('company_id');
     let query = sb.from('wallet_transactions').select('*').order('created_at', { ascending: false }).limit(100);
     if (tenantId) query = query.eq('tenant_id', tenantId);
+    if (companyId) query = query.eq('company_id', companyId);
     const { data, error } = await query;
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

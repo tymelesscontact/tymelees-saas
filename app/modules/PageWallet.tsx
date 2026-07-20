@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM, Tabs, St, conv, DEVISES } from "../lib/ui";
 import { INIT_HISTO } from "../lib/seedData";
 
-const PageWallet=({plan,showToast,profil})=>{
+const PageWallet=({plan,showToast,profil,activeCompany})=>{
   const[onglet,setOnglet]=useState("solde");
   const[devise,setDevise]=useState("EUR");
   const[histo,setHisto]=useState(INIT_HISTO);
@@ -28,7 +28,8 @@ const PageWallet=({plan,showToast,profil})=>{
 
   const loadWallet=async()=>{
     try{
-      const res=await fetch('/api/wallet?action=list');
+      const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/wallet?action=list'+companyParam);
       const data=await res.json();
       if(data.transactions){
         setHisto(data.transactions.map(t=>({id:t.id,type:t.type,libelle:t.libelle,montant:Number(t.montant),devise:t.devise,methode:t.methode,date:new Date(t.created_at).toLocaleString("fr"),rawDate:t.created_at,statut:t.statut,ref:t.ref,com:Number(t.commission||0)})));
@@ -38,7 +39,7 @@ const PageWallet=({plan,showToast,profil})=>{
     setLoadingWallet(false);
   };
 
-  useEffect(()=>{loadWallet();},[]);
+  useEffect(()=>{loadWallet();},[activeCompany]);
   const[virementForm,setVirementForm]=useState({iban:"",bic:"",nom:"",montant:"",devise:"EUR",motif:""});
 
   const handleVirementSepa=async()=>{
