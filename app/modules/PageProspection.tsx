@@ -275,10 +275,36 @@ const BotWhatsAppTab=()=>{
 };
 
 // ─── PAGE PROSPECTION ─────────────────────────────────────────
-const PageProspection=({plan,showToast,profil=null,UpgradeWall})=>{
+const PageProspection=({plan,showToast,profil=null,UpgradeWall,activeCompany})=>{
   const[onglet,setOnglet]=useState("sirene");
   const[query,setQuery]=useState("");
-  const[leads,setLeads]=useState([{nom:"Syndic Lebrun SARL",secteur:"Syndic",ville:"Créteil",tel:"01 45 67 89 01",email:"contact@lebrun.fr",score:88},{nom:"Cabinet Moreau Gestion",secteur:"Gestion immo",ville:"Ivry-sur-Seine",tel:"01 56 78 90 12",email:"info@moreau-gestion.fr",score:74},{nom:"Résidences du Val",secteur:"Bailleur social",ville:"Villejuif",tel:"01 67 89 01 23",email:"rh@residences-val.fr",score:91},{nom:"SCI Châtillon",secteur:"SCI / Investisseurs",ville:"Châtillon",tel:"01 78 90 12 34",email:"sci@chatillon.fr",score:67}]);
+  const[leadsReal,setLeadsReal]=useState([]);
+  const[loadingLeads,setLoadingLeads]=useState(true);
+  const loadLeads=async()=>{
+    try{
+      const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/crm'+companyParam);
+      const data=await res.json();
+      if(data.leads)setLeadsReal(data.leads);
+    }catch(e){console.error("Prospection leads:",e);}
+    setLoadingLeads(false);
+  };
+  useEffect(()=>{loadLeads();},[activeCompany]);
+  const leads=leadsReal.filter(l=>!query||(l.nom||'').toLowerCase().includes(query.toLowerCase())||(l.metier||'').toLowerCase().includes(query.toLowerCase()));
+  const envoyerWhatsapp=async(l)=>{
+    try{
+      const res=await fetch('/api/crm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_whatsapp',id:l.id,tel:l.tel,message:`Bonjour, je me permets de vous contacter au sujet de nos services.`})});
+      const d=await res.json();
+      if(d.success)showToast(`✅ WhatsApp envoyé à ${l.nom}`);else showToast("❌ "+(d.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const envoyerEmailLead=async(l)=>{
+    try{
+      const res=await fetch('/api/crm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_email',id:l.id,email:l.email,subject:`Prise de contact — ${l.nom}`,message:`Bonjour, je me permets de vous contacter au sujet de nos services.`})});
+      const d=await res.json();
+      if(d.success)showToast(`✅ Email envoyé à ${l.email}`);else showToast("❌ "+(d.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const tabs=[{id:"sirene",label:"🏢 SIRENE / Leads"},{id:"sequences",label:"📧 Séquences"},{id:"bot",label:"🤖 Bot WhatsApp"},{id:"vocal",label:"🎙 Lea"},{id:"linkedin",label:"💼 LinkedIn"},{id:"stats",label:"📊 Stats"}];
   if(!hasAccess(plan,"prospection"))return <div style={{padding:20}}><UpgradeWall page="Prospection Auto" plan={plan}/></div>;
   return <div style={{padding:20}}>
@@ -287,29 +313,27 @@ const PageProspection=({plan,showToast,profil=null,UpgradeWall})=>{
     <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
     {onglet==="sirene"&&<>
       <div style={{display:"flex",gap:10,marginBottom:16}}>
-        <Inp value={query} onChange={e=>setQuery(e.target.value)} placeholder="🔍 Rechercher dans SIRENE (syndic, gestion, immo...)" style={{flex:1}}/>
-        <Sel style={{width:160}}><option>Val-de-Marne (94)</option><option>Paris (75)</option><option>Hauts-de-Seine (92)</option><option>Seine-Saint-Denis (93)</option></Sel>
-        <Btn onClick={()=>showToast("🔍 Recherche SIRENE lancée — 47 résultats trouvés !")}>Rechercher</Btn>
+        <Inp value={query} onChange={e=>setQuery(e.target.value)} placeholder="🔍 Filtrer par nom ou secteur" style={{flex:1}}/>
       </div>
       <Card>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-          <STitle>🎯 Leads qualifiés</STitle>
-          <Btn onClick={()=>showToast("✅ Séquence envoyée à tous les leads !")} style={{fontSize:11,padding:"6px 12px"}}>📧 Envoyer séquence à tous</Btn>
+          <STitle>🎯 Leads a prospecter (nouveaux)</STitle>
+          <span style={{fontSize:11,color:C.muted}}>{leads.length} lead(s)</span>
         </div>
+        {loadingLeads?<div style={{textAlign:"center",padding:20,color:C.muted}}>Chargement...</div>:leads.length===0?<div style={{textAlign:"center",padding:20,color:C.muted,fontSize:12}}>Aucun nouveau lead a prospecter — ajoutez-en un depuis le CRM.</div>:
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Entreprise</TH><TH>Secteur</TH><TH>Ville</TH><TH>Score IA</TH><TH>Actions</TH></tr></thead>
+          <thead><tr><TH>Entreprise</TH><TH>Secteur</TH><TH>Contact</TH><TH>Score</TH><TH>Actions</TH></tr></thead>
           <tbody>{leads.map((l,i)=><tr key={i}>
             <Td style={{fontWeight:700}}>{l.nom}</Td>
-            <Td><Pill color={C.blue}>{l.secteur}</Pill></Td>
-            <Td style={{color:C.muted}}>{l.ville}</Td>
-            <Td><div style={{display:"flex",alignItems:"center",gap:6}}><SM val={l.score} max={100} color={l.score>=80?C.green:C.gold}/><span style={{color:l.score>=80?C.green:C.gold,fontWeight:700}}>{l.score}</span></div></Td>
+            <Td><Pill color={C.blue}>{l.metier||'—'}</Pill></Td>
+            <Td style={{color:C.muted}}>{l.contact||l.source||'—'}</Td>
+            <Td><div style={{display:"flex",alignItems:"center",gap:6}}><SM val={l.score||0} max={100} color={(l.score||0)>=80?C.green:C.gold}/><span style={{color:(l.score||0)>=80?C.green:C.gold,fontWeight:700}}>{l.score||0}</span></div></Td>
             <Td><div style={{display:"flex",gap:4}}>
-              <Btn onClick={()=>showToast(`📱 WhatsApp envoyé à ${l.nom}`)} style={{padding:"4px 8px",fontSize:10}}>WA</Btn>
-              <BtnGhost onClick={()=>showToast(`📞 Appel vocal ${l.nom}`)} style={{padding:"4px 8px",fontSize:10}}>📞</BtnGhost>
-              <BtnGhost onClick={()=>showToast(`📧 Email envoyé à ${l.email}`)} style={{padding:"4px 8px",fontSize:10}}>✉️</BtnGhost>
+              <Btn onClick={()=>envoyerWhatsapp(l)} style={{padding:"4px 8px",fontSize:10}}>WA</Btn>
+              <BtnGhost onClick={()=>envoyerEmailLead(l)} style={{padding:"4px 8px",fontSize:10}}>✉️</BtnGhost>
             </div></Td>
           </tr>)}</tbody>
-        </table>
+        </table>}
       </Card>
     </>}
     {onglet==="sequences"&&<Card><STitle>📧 Séquences de prospection automatiques</STitle>
