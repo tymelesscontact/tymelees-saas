@@ -3,7 +3,7 @@ import { useState, useEffect, useRef } from "react";
 import { C, Card, Btn, BtnGhost, Pill, Inp, Sel } from "../lib/ui";
 import { CLIENTS, PARTENAIRES } from "../lib/seedData";
 
-const PageChat=({plan,showToast,Chat})=>{
+const PageChat=({plan,showToast,Chat,activeCompany})=>{
   const[espace,setEspace]=useState("equipe");
   const[convs,setConvs]=useState([]);
   const[loadingConvs,setLoadingConvs]=useState(true);
@@ -27,13 +27,14 @@ const PageChat=({plan,showToast,Chat})=>{
 
   const loadConvs=async()=>{
     try{
-      const res=await fetch(`/api/chat?espace=${espace==="visio"?"externe":espace}`);
+      const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
+      const res=await fetch(`/api/chat?espace=${espace==="visio"?"externe":espace}`+companyParam);
       const data=await res.json();
       if(data.conversations)setConvs(data.conversations);
     }catch(e){console.error("Chat:",e);}
     setLoadingConvs(false);
   };
-  useEffect(()=>{if(espace!=="visio"){setLoadingConvs(true);setSelConv(null);loadConvs();}},[espace]);
+  useEffect(()=>{if(espace!=="visio"){setLoadingConvs(true);setSelConv(null);loadConvs();}},[espace,activeCompany]);
   useEffect(()=>{const i=setInterval(()=>{if(espace!=="visio")loadConvs();},15000);return()=>clearInterval(i);},[espace]);
   useEffect(()=>{if(selConv)setSelConv(c=>convs.find(x=>x.id===c.id)||null);},[convs]);
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"});},[selConv?.messages?.length]);

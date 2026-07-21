@@ -30,9 +30,11 @@ export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   const { searchParams } = new URL(req.url);
   const espace = searchParams.get('espace');
+  const companyId = searchParams.get('company_id');
 
   let query = tenantId ? sb.from('conversations').select('*').eq('tenant_id', tenantId).order('derniere_activite', { ascending: false }) : sb.from('conversations').select('*').order('derniere_activite', { ascending: false });
   if (espace) query = query.eq('espace', espace);
+  if (companyId) query = query.eq('company_id', companyId);
   const { data: conversations, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
