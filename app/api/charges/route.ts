@@ -8,9 +8,12 @@ const sb = createClient(
 );
 
 export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(req.url);
+  const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
   let query = sb.from('charges').select('*').order('created_at', { ascending: false });
   if (tenantId) query = query.eq('tenant_id', tenantId);
+  if (companyId) query = query.eq('company_id', companyId);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ charges: data });

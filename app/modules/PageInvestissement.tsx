@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, SM, Ta
 import { CHARGES } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageInvestissement=({plan,showToast,UpgradeWall})=>{
+const PageInvestissement=({plan,showToast,UpgradeWall,activeCompany})=>{
   const[onglet,setOnglet]=useState("reco");
   // FIX: apostrophe correcte ci-dessous
   const tabs=[{id:"reco",label:"🤖 Recommandations IA"},{id:"portefeuille",label:"💼 Portefeuille"},{id:"plan",label:"Plan d'action"},{id:"scenarios",label:"📊 Scénarios"}];
@@ -68,13 +68,14 @@ export const TabCharges=({showToast})=>{
 
   const load=async()=>{
     try{
-      const res=await fetch('/api/charges');
+      const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/charges'+companyParam);
       const data=await res.json();
       if(data.charges)setCharges(data.charges);
     }catch(e){console.error("Charges:",e);}
     setLoading(false);
   };
-  useEffect(()=>{load();},[]);
+  useEffect(()=>{load();},[activeCompany]);
 
   const total=charges.reduce((a,c)=>a+Number(c.montant||0),0);
 
@@ -142,13 +143,14 @@ export const TabFournisseurs=({showToast})=>{
 
   const load=async()=>{
     try{
-      const res=await fetch('/api/fournisseurs');
+      const companyParam2=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/fournisseurs'+companyParam2);
       const data=await res.json();
       if(data.fournisseurs)setFours(data.fournisseurs);
     }catch(e){console.error("Fournisseurs:",e);}
     setLoading(false);
   };
-  useEffect(()=>{load();},[]);
+  useEffect(()=>{load();},[activeCompany]);
 
   const ajouter=async()=>{
     if(!form.nom)return showToast("⚠️ Nom requis");
