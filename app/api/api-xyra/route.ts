@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -27,10 +28,12 @@ export async function GET(req: NextRequest) {
   const action = searchParams.get('action') || 'all';
 
   if (action === 'all') {
+    const tenantId = await getTenantIdFromRequest(req);
+    function scoped(q: any) { return tenantId ? q.eq('tenant_id', tenantId) : q; }
     const [keysRes, webhooksRes, logsRes] = await Promise.all([
-      sb.from('api_keys').select('*').eq('statut', 'active').order('created_at', { ascending: false }),
-      sb.from('api_webhooks').select('*').order('created_at', { ascending: false }),
-      sb.from('api_logs').select('*').order('created_at', { ascending: false }).limit(50),
+      scoped(sb.from('api_keys').select('*').eq('statut', 'active').order('created_at', { ascending: false })),
+      scoped(sb.from('api_webhooks').select('*').order('created_at', { ascending: false })),
+      scoped(sb.from('api_logs').select('*').order('created_at', { ascending: false }).limit(50)),
     ]);
     const keys = keysRes.data || [];
     const logs = logsRes.data || [];
@@ -44,6 +47,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;
 
@@ -54,6 +58,7 @@ export async function POST(req: NextRequest) {
       nom, key_value, type: type || 'live',
       permissions: permissions || ['read'],
       limite_mois: 10000,
+      tenant_id: tenantId,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, key: data, key_value });
@@ -70,6 +75,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await sb.from('api_webhooks').insert({
       nom, url, evenements: evenements || ['paiement.recu'],
       secret, statut: 'actif',
+      tenant_id: tenantId,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, webhook: data });
