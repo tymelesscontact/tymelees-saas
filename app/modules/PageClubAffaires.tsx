@@ -4,7 +4,15 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, St, in
 import { EVENEMENTS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageClubAffaires=({plan,showToast,UpgradeWall})=>{
+const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
+  const contacterMembre=async(m)=>{
+    try{
+      const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer_conversation',espace:'externe',contact_nom:m.nom,contact_tel:m.tel,contact_email:m.email,contact_type:'partenaire'})});
+      const data=await res.json();
+      if(data.success){showToast(`✅ Conversation ouverte avec ${m.nom}`);setPage('chat');}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const[onglet,setOnglet]=useState("accueil");
   const[membres,setMembres]=useState([]);
   const[tenants,setTenants]=useState([]);
@@ -217,7 +225,7 @@ const PageClubAffaires=({plan,showToast,UpgradeWall})=>{
             <Card>
               <STitle>⚡ Actions</STitle>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                <Btn onClick={()=>showToast("💬 WhatsApp ouvert")} style={{background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 WhatsApp</Btn>
+                <Btn onClick={()=>contacterMembre(selectedMembre)} style={{background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 Contacter</Btn>
                 <Btn onClick={()=>showToast("🤝 Deal proposé")} style={{background:`${C.gold}22`,color:C.gold,border:`1px solid ${C.gold}44`}}>🤝 Proposer un deal</Btn>
                 <BtnGhost onClick={()=>{setOnglet("meetings");showToast("📅 Planifiez votre speed meeting ci-dessous");}}>⚡ Speed Meeting</BtnGhost>
                 <BtnGhost onClick={()=>showToast("⭐ Recommandation envoyée")}>⭐ Recommander</BtnGhost>
@@ -262,7 +270,7 @@ const PageClubAffaires=({plan,showToast,UpgradeWall})=>{
               <span style={{fontSize:11,color:m.couleur||C.gold,fontWeight:600}}>★ {m.score_reputation||50}/100</span>
             </div>
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-              <Btn onClick={e=>{e.stopPropagation();showToast(`💬 WhatsApp ${m.nom}`);}} style={{fontSize:10,padding:"6px 4px",background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 Contact</Btn>
+              <Btn onClick={e=>{e.stopPropagation();contacterMembre(m);}} style={{fontSize:10,padding:"6px 4px",background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 Contact</Btn>
               <BtnGhost onClick={e=>{e.stopPropagation();setSelectedMembre(m);}} style={{fontSize:10,padding:"6px 4px"}}>Profil →</BtnGhost>
             </div>
           </Card>)}
