@@ -53,6 +53,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
+  const tenantId = await getTenantIdFromRequest(req);
 
   if (action === 'creer_conversation') {
     const { espace, contact_nom, contact_type, contact_id, contact_tel, contact_email, premier_contact } = body;
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await sb.from('conversations').insert({
       espace: espace || 'externe', contact_nom, contact_type, contact_id, contact_tel, contact_email,
       jitsi_room: `xyra-${Date.now().toString(36)}`,
+      tenant_id: tenantId,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
