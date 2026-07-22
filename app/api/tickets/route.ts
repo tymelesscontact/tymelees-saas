@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { getTenantFromRequest } from '../../lib/supabaseServer';
 export const dynamic = 'force-dynamic';
 
 function getAdminClient() {
@@ -11,10 +12,15 @@ function getAdminClient() {
 export async function GET(req: NextRequest) {
   const sb = getAdminClient();
   const { searchParams } = new URL(req.url);
-  const tenantEmail = searchParams.get('email');
+  const isAdmin = searchParams.get('admin') === 'true';
+  const tenant = await getTenantFromRequest(req);
+  const tenantEmail = tenant?.email;
 
   let query = sb.from('tickets_support').select('*').order('created_at', { ascending: false });
-  if (tenantEmail) query = query.eq('email', tenantEmail);
+  if (!isAdmin) {
+    if (!tenantEmail) return NextResponse.json({ tickets: [] });
+    query = query.eq('email', tenantEmail);
+  }
 
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });

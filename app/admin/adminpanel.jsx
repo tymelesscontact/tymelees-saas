@@ -9605,7 +9605,7 @@ const PageOperatingCenter=({tenantInfo,showToast})=>{
   const[reponseTexte,setReponseTexte]=useState({});
   useEffect(()=>{
     fetch('/api/deploiement').then(r=>r.json()).then(d=>{setData(d);setLoading(false);}).catch(()=>setLoading(false));
-    fetch('/api/tickets').then(r=>r.json()).then(d=>{if(d.tickets)setTickets(d.tickets.filter(t=>t.statut==="ouvert"));});
+    fetch('/api/tickets?admin=true').then(r=>r.json()).then(d=>{if(d.tickets)setTickets(d.tickets.filter(t=>t.statut==="ouvert"));});
     fetch('/api/erreurs-systeme').then(r=>r.json()).then(d=>{if(d.erreurs)setErreurs(d.erreurs);});
   },[]);
   const repondreTicket=async(id)=>{
