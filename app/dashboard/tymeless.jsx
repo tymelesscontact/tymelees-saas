@@ -650,7 +650,7 @@ export default function Xyra() {
     // Pages bientôt disponibles
     ...Object.fromEntries(Object.entries(SOON_MODULES).map(([k,v])=>[k,<PageBientot key={k} {...v}/>])),
     wallet:<PageWalletModule plan={plan} showToast={showToast} profil={profil} activeCompany={activeCompany}/>,
-    cartes:<PageCartesModule showToast={showToast}/>,
+    cartes:<PageCartesModule plan={plan} showToast={showToast} activeCompany={activeCompany}/>,
     overview:<PageOverviewModule plan={plan} profil={profil} setPage={setPage} showToast={showToast} UpgradeWall={UpgradeWall}/>,
     crm:<PageCRMModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     devis:<PageDevis plan={plan} showToast={showToast} profil={profil} activeCompany={activeCompany}/>,

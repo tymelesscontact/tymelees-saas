@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM, DEVISES } from "../lib/ui";
 import { INIT_CARTES } from "../lib/seedData";
 
-const PageCartes=({plan,showToast})=>{
+const PageCartes=({plan,showToast,activeCompany})=>{
   const[cartes,setCartes]=useState([]);
   const[transactions,setTransactions]=useState([]);
   const[budgets,setBudgets]=useState([]);
@@ -22,11 +22,12 @@ const PageCartes=({plan,showToast})=>{
   const load=async()=>{
     setLoading(true);
     try{
+      const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
       const[cartesRes,txRes,budgetsRes,enAttenteRes]=await Promise.all([
-        fetch('/api/cartes?action=cartes').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/cartes?action=transactions_all').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/cartes?action=budgets').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/cartes?action=en_attente').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/cartes?action=cartes'+companyParam).then(r=>r.json()).catch(()=>({})),
+        fetch('/api/cartes?action=transactions_all'+companyParam).then(r=>r.json()).catch(()=>({})),
+        fetch('/api/cartes?action=budgets'+companyParam).then(r=>r.json()).catch(()=>({})),
+        fetch('/api/cartes?action=en_attente'+companyParam).then(r=>r.json()).catch(()=>({})),
       ]);
       const cartesData=cartesRes.cartes||[];
       setCartes(cartesData.length>0?cartesData:INIT_CARTES);
@@ -38,7 +39,7 @@ const PageCartes=({plan,showToast})=>{
     setLoading(false);
   };
 
-  useEffect(()=>{load();},[]);
+  useEffect(()=>{load();},[activeCompany]);
 
   const creerCarte=async()=>{
     if(!newCarte.nom)return showToast("⚠️ Nom requis");

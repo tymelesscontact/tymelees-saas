@@ -30,9 +30,15 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const action = searchParams.get('action') || 'cartes';
   const carteId = searchParams.get('carte_id');
+  const companyId = searchParams.get('company_id');
+  function scoped(q) {
+    if (tenantId) q = q.eq('tenant_id', tenantId);
+    if (companyId) q = q.eq('company_id', companyId);
+    return q;
+  }
 
   if (action === 'cartes') {
-    const { data } = tenantId ? await sb.from('cartes_virtuelles').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }) : await sb.from('cartes_virtuelles').select('*').order('created_at', { ascending: false });
+    const { data } = await scoped(sb.from('cartes_virtuelles').select('*').order('created_at', { ascending: false }));
     return NextResponse.json({ cartes: data || [] });
   }
 
@@ -42,17 +48,17 @@ export async function GET(req: NextRequest) {
   }
 
   if (action === 'transactions_all') {
-    const { data } = tenantId ? await sb.from('cartes_transactions').select('*, cartes_virtuelles(nom,couleur)').eq('tenant_id', tenantId).order('date_transaction', { ascending: false }).limit(100) : await sb.from('cartes_transactions').select('*, cartes_virtuelles(nom,couleur)').order('date_transaction', { ascending: false }).limit(100);
+    const { data } = await scoped(sb.from('cartes_transactions').select('*, cartes_virtuelles(nom,couleur)').order('date_transaction', { ascending: false }).limit(100));
     return NextResponse.json({ transactions: data || [] });
   }
 
   if (action === 'budgets') {
-    const { data } = await sb.from('cartes_budgets_projet').select('*');
+    const { data } = await scoped(sb.from('cartes_budgets_projet').select('*'));
     return NextResponse.json({ budgets: data || [] });
   }
 
   if (action === 'en_attente') {
-    const { data } = tenantId ? await sb.from('cartes_transactions').select('*, cartes_virtuelles(nom)').eq('statut', 'en_attente').eq('tenant_id', tenantId).order('created_at', { ascending: false }) : await sb.from('cartes_transactions').select('*, cartes_virtuelles(nom)').eq('statut', 'en_attente').order('created_at', { ascending: false });
+    const { data } = await scoped(sb.from('cartes_transactions').select('*, cartes_virtuelles(nom)').eq('statut', 'en_attente').order('created_at', { ascending: false }));
     return NextResponse.json({ transactions: data || [] });
   }
 
