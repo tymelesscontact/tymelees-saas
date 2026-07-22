@@ -13,6 +13,20 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
       else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
   };
+  const[showMsgGroupe,setShowMsgGroupe]=useState(false);
+  const[msgGroupeTexte,setMsgGroupeTexte]=useState("");
+  const[envoiMsgGroupe,setEnvoiMsgGroupe]=useState(false);
+  const envoyerMessageGroupe=async()=>{
+    if(!msgGroupeTexte)return showToast("⚠️ Ecrivez un message");
+    setEnvoiMsgGroupe(true);
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'message_groupe',message:msgGroupeTexte,company_id:activeCompany?.id})});
+      const data=await res.json();
+      if(data.success){showToast(`✅ Message envoye a ${data.envoyes} membre(s)`);setShowMsgGroupe(false);setMsgGroupeTexte("");}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setEnvoiMsgGroupe(false);
+  };
   // Chargement des vraies données Supabase
   const loadRealData=async()=>{
     try{
@@ -97,8 +111,17 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
       </div>
       <div style={{display:"flex",gap:8}}>
         <button onClick={()=>setShowAdd(s=>!s)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>+ Ajouter</button>
+        <button onClick={()=>setShowMsgGroupe(s=>!s)} style={{background:"transparent",color:"#4B7BFF",border:"1px solid #4B7BFF44",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>📢 Message groupe</button>
         <button onClick={()=>showToast("📧 Rapport RH mensuel envoyé !")} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13,fontFamily:"inherit"}}>📊 Rapport RH</button>
       </div>
+    {showMsgGroupe&&<div style={{background:"#0C0C1A",border:"1px solid #4B7BFF44",borderRadius:12,padding:18,marginBottom:14}}>
+      <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:10,fontWeight:600}}>Message a toute l'equipe ({equipe.length} membre(s))</div>
+      <textarea value={msgGroupeTexte} onChange={e=>setMsgGroupeTexte(e.target.value)} placeholder="Ecrivez votre message..." rows={4} style={{width:"100%",background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:10,color:"#EAE6DE",fontSize:13,fontFamily:"inherit",resize:"vertical",marginBottom:10}}/>
+      <div style={{display:"flex",gap:8}}>
+        <button onClick={envoyerMessageGroupe} disabled={envoiMsgGroupe} style={{background:"#4B7BFF",color:"#fff",border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:12,fontFamily:"inherit"}}>{envoiMsgGroupe?"Envoi...":"📢 Envoyer a tous"}</button>
+        <button onClick={()=>setShowMsgGroupe(false)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>Annuler</button>
+      </div>
+    </div>}
     </div>
 
     {/* FORM ADD */}

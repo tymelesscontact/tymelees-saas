@@ -105,7 +105,35 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
+  if (action === 'message_groupe') {
+    const { message, company_id } = body;
+    if (!message) return NextResponse.json({ success: false, error: 'Message requis' }, { status: 400 });
+    const tenantId = await getTenantIdFromRequest(req);
+    let mq = sb.from('equipe').select('*');
+    if (tenantId) mq = mq.eq('tenant_id', tenantId);
+    if (company_id) mq = mq.eq('company_id', company_id);
+    const { data: membres } = await mq;
+    let envoyes = 0;
 
+    for (const m of (membres || [])) {
+      const { data: convExistante } = await sb.from('conversations').select('id').eq('espace', 'equipe').eq('contact_email', m.email).eq('tenant_id', tenantId).maybeSingle();
+      let convId = convExistante?.id;
+      if (!convId) {
+        const { data: newConv } = await sb.from('conversations').insert({
+          espace: 'equipe', contact_nom: m.nom, contact_email: m.email, contact_tel: m.tel,
+          jitsi_room: `xyra-${Date.now().toString(36)}-${envoyes}`,
+          tenant_id: tenantId,
+        }).select('id').single();
+        convId = newConv?.id;
+      }
+      if (convId) {
+        await sb.from('chat_messages').insert({ conversation_id: convId, auteur: 'Curtiss', contenu: message, moi: true, type: 'texte' });
+        await sb.from('conversations').update({ derniere_activite: new Date().toISOString() }).eq('id', convId);
+        envoyes++;
+      }
+    }
+    return NextResponse.json({ success: true, envoyes });
+  }
   if (action === 'creer') {
     const { nom, prenom, role, email, tel, adresse, date_naissance, nss, rib, contrat, salaire_brut, couleur, date_embauche } = body;
     if (!nom || !email) return NextResponse.json({ error: 'Nom et email requis' }, { status: 400 });
