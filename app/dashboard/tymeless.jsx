@@ -678,7 +678,7 @@ export default function Xyra() {
     signature:<PageSignaturesModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
     facturation:<PageFacturationModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     formation:<PageFormationModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
-    api:<PageAPIModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
+    api:<PageAPIModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     settings:<PageSettingsModule plan={plan} showToast={showToast} sirApiKey={sirApiKey} setSirApiKey={setSirApiKey} profil={profil} setProfil={setProfil}/>,
   };
 

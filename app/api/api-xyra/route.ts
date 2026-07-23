@@ -29,7 +29,12 @@ export async function GET(req: NextRequest) {
 
   if (action === 'all') {
     const tenantId = await getTenantIdFromRequest(req);
-    function scoped(q: any) { return tenantId ? q.eq('tenant_id', tenantId) : q; }
+    const companyId = searchParams.get('company_id');
+    function scoped(q: any) {
+      if (tenantId) q = q.eq('tenant_id', tenantId);
+      if (companyId) q = q.eq('company_id', companyId);
+      return q;
+    }
     const [keysRes, webhooksRes, logsRes] = await Promise.all([
       scoped(sb.from('api_keys').select('*').eq('statut', 'active').order('created_at', { ascending: false })),
       scoped(sb.from('api_webhooks').select('*').order('created_at', { ascending: false })),

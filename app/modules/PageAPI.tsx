@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { C, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
-const PageAPI=({plan,showToast,UpgradeWall})=>{
+const PageAPI=({plan,showToast,UpgradeWall,activeCompany})=>{
   const[onglet,setOnglet]=useState("keys");
   const[keys,setKeys]=useState([]);
   const[webhooks,setWebhooks]=useState([]);
@@ -38,7 +38,8 @@ const PageAPI=({plan,showToast,UpgradeWall})=>{
   const load=async()=>{
     setLoading(true);
     try{
-      const res=await fetch('/api/api-xyra?action=all');
+      const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/api-xyra?action=all'+companyParam);
       const d=await res.json();
       setKeys(d.keys||[]);
       setWebhooks(d.webhooks||[]);
@@ -50,7 +51,7 @@ const PageAPI=({plan,showToast,UpgradeWall})=>{
     setLoading(false);
   };
 
-  useEffect(()=>{load();},[]);
+  useEffect(()=>{load();},[activeCompany]);
 
   const creerKey=async()=>{
     if(!keyForm.nom)return showToast("⚠️ Nom requis");
