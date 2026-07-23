@@ -664,7 +664,7 @@ export default function Xyra() {
     club_affaires:<PageClubAffairesModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} setPage={setPage}/>,
     multi_societes:<PageMultiSocietesModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
     annuaire:<PageAnnuaireModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany} setPage={setPage}/>,
-    evenements:<PageEvenementsModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
+    evenements:<PageEvenementsModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     scoring:<PageScoringModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
     equipe:<PageEquipeModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany} setPage={setPage}/>,
     planning:<PagePlanningModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,

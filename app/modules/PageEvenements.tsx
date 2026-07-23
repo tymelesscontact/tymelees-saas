@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM } f
 import { EVENEMENTS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageEvenements=({plan,showToast,UpgradeWall})=>{
+const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
   const[evts,setEvts]=useState(EVENEMENTS);
   const[loading,setLoading]=useState(true);
   const[onglet,setOnglet]=useState("liste");
@@ -20,14 +20,15 @@ const PageEvenements=({plan,showToast,UpgradeWall})=>{
   const load=async()=>{
     setLoading(true);
     try{
-      const res=await fetch('/api/evenements?action=list');
+      const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/evenements?action=list'+companyParam);
       const d=await res.json();
       if(d.evenements&&d.evenements.length>0)setEvts(d.evenements);
     }catch(e){console.error(e);}
     setLoading(false);
   };
 
-  useEffect(()=>{load();},[]);
+  useEffect(()=>{load();},[activeCompany]);
 
   const creerEvenement=async()=>{
     if(!newEvt.titre||!newEvt.date_debut)return showToast("⚠️ Titre et date requis");

@@ -30,9 +30,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const action = searchParams.get('action') || 'list';
   const eventId = searchParams.get('event_id');
+  const companyId = searchParams.get('company_id');
 
   if (action === 'list') {
-    const { data } = tenantId ? await sb.from('evenements').select('*').eq('tenant_id', tenantId).order('date_debut', { ascending: true }) : await sb.from('evenements').select('*').order('date_debut', { ascending: true });
+    let q = sb.from('evenements').select('*').order('date_debut', { ascending: true });
+    if (tenantId) q = q.eq('tenant_id', tenantId);
+    if (companyId) q = q.eq('company_id', companyId);
+    const { data } = await q;
     return NextResponse.json({ evenements: data || [] });
   }
 
