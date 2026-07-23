@@ -4,7 +4,7 @@ import { C, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM, St, ini
 import { AVIS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageScoring=({plan,showToast,profil,UpgradeWall})=>{
+const PageScoring=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
   const[data,setData]=useState(null);
   const[loading,setLoading]=useState(true);
   const[onglet,setOnglet]=useState("dashboard");
@@ -28,14 +28,15 @@ const PageScoring=({plan,showToast,profil,UpgradeWall})=>{
   const load=async()=>{
     setLoading(true);
     try{
-      const res=await fetch('/api/scoring');
+      const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/scoring'+companyParam);
       const d=await res.json();
       setData(d);
     }catch(e){console.error(e);}
     setLoading(false);
   };
 
-  useEffect(()=>{load();},[]);
+  useEffect(()=>{load();},[activeCompany]);
 
   const ajouterAvis=async()=>{
     if(!avisForm.client_nom)return showToast("⚠️ Nom client requis");
