@@ -107,5 +107,13 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ success: true });
   }
+  if (action === 'annuler') {
+    const { id } = body;
+    const { data: c } = await sb.from('contrats').select('statut').eq('id', id).single();
+    if (c && c.statut === 'signe') return NextResponse.json({ success: false, error: 'Impossible d annuler un contrat deja signe' }, { status: 400 });
+    const { error } = await sb.from('contrats').update({ statut: 'annule' }).eq('id', id);
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
   return NextResponse.json({ success: false, error: 'action inconnue' }, { status: 400 });
 }
