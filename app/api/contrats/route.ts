@@ -8,12 +8,21 @@ const sb = createClient(
 );
 async function sendEmail(to: string, subject: string, html: string) {
   try {
-    await fetch('https://api.resend.com/emails', {
+    const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({ from: 'Xyra <contrats@xyraio.fr>', to, subject, html }),
     });
-  } catch (e) { console.error('Email:', e); }
+    const responseBody = await res.text();
+    if (!res.ok) {
+      console.error('Resend error:', res.status, responseBody);
+      return { ok: false, status: res.status, body: responseBody };
+    }
+    return { ok: true, status: res.status, body: responseBody };
+  } catch (e: any) {
+    console.error('Email exception:', e);
+    return { ok: false, error: e.message };
+  }
 }
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -66,15 +75,15 @@ export async function POST(req: NextRequest) {
     await sb.from('contrats').update({ lien_token, code_verification, statut: 'envoye' }).eq('id', id);
     const lien = `https://xyraio.fr/signature/${lien_token}`;
     const messageBloc = message_perso ? `<p>${message_perso}</p>` : '';
-    await sendEmail(contrat.signataire_email, `Document a signer - ${contrat.titre}`,
+    const r1 = await sendEmail(contrat.signataire_email, `Document a signer - ${contrat.titre}`,
       `<p>Bonjour ${contrat.signataire_nom},</p>${messageBloc}<p>Un document est pret pour votre signature electronique.</p><p><a href="${lien}">Consulter et signer le document</a></p><p>Votre code de verification vous sera demande sur la page de signature.</p>`);
-    await sendEmail(contrat.signataire_email, `Votre code de verification - ${contrat.titre}`,
+    const r2 = await sendEmail(contrat.signataire_email, `Votre code de verification - ${contrat.titre}`,
       `<p>Votre code de verification pour signer le document : <strong>${code_verification}</strong></p>`);
     if (email_copie) {
       await sendEmail(email_copie, `Copie — Document envoye pour signature - ${contrat.titre}`,
         `<p>Copie pour information : le document "${contrat.titre}" a ete envoye a ${contrat.signataire_nom} (${contrat.signataire_email}) pour signature electronique.</p>`);
     }
-    return NextResponse.json({ success: true, lien });
+    return NextResponse.json({ success: true, lien, debug_email: r1 });
   }
   if (action === 'verifier_code') {
     const { lien_token, code } = body;
