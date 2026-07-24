@@ -90,6 +90,15 @@ export async function POST(req: NextRequest) {
       statut: 'signe', signe_a: new Date().toISOString(), signature_ip: ip,
       signature_nom_tape: nom_tape, document_hash: hash,
     }).eq('id', contrat.id);
+    const dateSignature = new Date().toLocaleString('fr-FR');
+    const preuve = `<p>Document : <strong>${contrat.titre}</strong></p><p>Signe par : ${nom_tape} (${contrat.signataire_email})</p><p>Date : ${dateSignature}</p><p>Adresse IP : ${ip}</p><p>Empreinte du document : ${hash}</p>`;
+    await sendEmail(contrat.signataire_email, `Confirmation de signature - ${contrat.titre}`, `<p>Bonjour ${contrat.signataire_nom},</p><p>Votre signature electronique a bien ete enregistree.</p>${preuve}`);
+    if (contrat.tenant_id) {
+      const { data: tenantOwner } = await sb.from('tenants').select('email').eq('id', contrat.tenant_id).single();
+      if (tenantOwner?.email) {
+        await sendEmail(tenantOwner.email, `Document signe - ${contrat.titre}`, `<p>Le document a ete signe electroniquement.</p>${preuve}`);
+      }
+    }
     return NextResponse.json({ success: true });
   }
   return NextResponse.json({ success: false, error: 'action inconnue' }, { status: 400 });
