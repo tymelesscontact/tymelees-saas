@@ -8,7 +8,8 @@ const sb = createClient(
 );
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
-  const tenantId = searchParams.get('tenant_id');
+  let tenantId = searchParams.get('tenant_id');
+  if (!tenantId) tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ error: 'tenant_id requis' }, { status: 400 });
   const { data } = await sb.from('tenants').select('societe,logo_url,couleur_primaire,couleur_secondaire,couleur_accent').eq('id', tenantId).single();
   if (!data) return NextResponse.json({ error: 'Tenant introuvable' }, { status: 404 });

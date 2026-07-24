@@ -1,9 +1,41 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { C, Card, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, DEVISES } from "../lib/ui";
 
 const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
   const[onglet,setOnglet]=useState("entreprise");
+  const[logoUrl,setLogoUrl]=useState("");
+  const[couleursMarque,setCouleursMarque]=useState({couleur_primaire:"#C9A84C",couleur_secondaire:"#0A0A16",couleur_accent:"#2EC9B0"});
+  const[uploadEnCours,setUploadEnCours]=useState(false);
+  const logoInputRef=useRef(null);
+  useEffect(()=>{
+    fetch('/api/branding').then(r=>r.json()).then(d=>{
+      if(d.branding){
+        if(d.branding.logo_url)setLogoUrl(d.branding.logo_url);
+        setCouleursMarque({couleur_primaire:d.branding.couleur_primaire||"#C9A84C",couleur_secondaire:d.branding.couleur_secondaire||"#0A0A16",couleur_accent:d.branding.couleur_accent||"#2EC9B0"});
+      }
+    }).catch(()=>{});
+  },[]);
+  const uploaderLogo=async(file)=>{
+    if(!file)return;
+    setUploadEnCours(true);
+    try{
+      const{createClient}=await import('@supabase/supabase-js');
+      const sbc=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+      const path=`logos/${Date.now()}_${file.name}`;
+      const{error:upErr}=await sbc.storage.from('attachments').upload(path,file);
+      if(upErr){showToast("❌ Echec upload — verifie le bucket 'attachments'");setUploadEnCours(false);return;}
+      const{data:urlData}=sbc.storage.from('attachments').getPublicUrl(path);
+      const res=await fetch('/api/branding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'upload_logo',logo_url:urlData.publicUrl})});
+      const data=await res.json();
+      if(data.success){
+        setLogoUrl(urlData.publicUrl);
+        setCouleursMarque({couleur_primaire:data.couleur_primaire,couleur_secondaire:data.couleur_secondaire,couleur_accent:data.couleur_accent});
+        showToast("✅ Logo et charte graphique mis a jour !");
+      }else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setUploadEnCours(false);
+  };
 
   // États formulaires
   const[entreprise,setEntreprise]=useState({nom:"Xyra SaaS SASU",siren:"123 456 789",tva:"FR12 123456789",adresse:"75 rue de Rivoli",ville:"Paris",cp:"75001",pays:"France",tel:"+33 1 23 45 67 89",email:"contact@xyra.io",site:"xyra.io",logo:""});
@@ -103,13 +135,21 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
           </div>
         </Card>
         <Card>
-          <STitle>🖼 Logo de l'entreprise</STitle>
-          <div style={{background:C.card2,borderRadius:10,padding:20,textAlign:"center",border:`2px dashed ${C.border}`,marginBottom:10}}>
-            <div style={{fontSize:32,marginBottom:6}}>🏢</div>
-            <div style={{fontSize:11,color:C.muted}}>Glissez votre logo ici ou cliquez pour choisir</div>
-            <div style={{fontSize:9,color:C.muted,marginTop:4}}>PNG, JPG — max 2MB</div>
+          <STitle>🖼 Logo & charte graphique</STitle>
+          <div style={{fontSize:10,color:C.muted,marginBottom:10}}>Ce logo et ces couleurs apparaitront sur vos devis et contrats envoyes aux clients.</div>
+          <input ref={logoInputRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>uploaderLogo(e.target.files?.[0])}/>
+          <div onClick={()=>logoInputRef.current?.click()} style={{background:C.card2,borderRadius:10,padding:20,textAlign:"center",border:`2px dashed ${C.border}`,marginBottom:10,cursor:"pointer"}}>
+            {logoUrl?<img src={logoUrl} alt="Logo" style={{maxHeight:60,marginBottom:8}}/>:<div style={{fontSize:32,marginBottom:6}}>🏢</div>}
+            <div style={{fontSize:11,color:C.muted}}>{uploadEnCours?"Upload en cours...":"Cliquez pour choisir votre logo"}</div>
+            <div style={{fontSize:9,color:C.muted,marginTop:4}}>PNG, JPG — la charte graphique sera extraite automatiquement</div>
           </div>
-          <Btn onClick={()=>showToast("✅ Logo uploadé !")} style={{width:"100%"}}>📁 Choisir un fichier</Btn>
+          {logoUrl&&<div style={{display:"flex",gap:8,marginBottom:10}}>
+            {[["Primaire",couleursMarque.couleur_primaire],["Secondaire",couleursMarque.couleur_secondaire],["Accent",couleursMarque.couleur_accent]].map(([label,coul],i)=><div key={i} style={{textAlign:"center"}}>
+              <div style={{width:28,height:28,borderRadius:"50%",background:coul,border:`1px solid ${C.border}`,margin:"0 auto 4px"}}/>
+              <div style={{fontSize:8,color:C.muted}}>{label}</div>
+            </div>)}
+          </div>}
+          <Btn onClick={()=>logoInputRef.current?.click()} disabled={uploadEnCours} style={{width:"100%"}}>📁 {logoUrl?"Changer le logo":"Choisir un fichier"}</Btn>
         </Card>
         <Btn onClick={()=>showToast("✅ Informations entreprise sauvegardées !")}>Sauvegarder les modifications</Btn>
       </div>
