@@ -83,7 +83,7 @@ export async function POST(req: NextRequest) {
       await sendEmail(email_copie, `Copie — Document envoye pour signature - ${contrat.titre}`,
         `<p>Copie pour information : le document "${contrat.titre}" a ete envoye a ${contrat.signataire_nom} (${contrat.signataire_email}) pour signature electronique.</p>`);
     }
-    return NextResponse.json({ success: true, lien, debug_email: r1 });
+    return NextResponse.json({ success: true, lien });
   }
   if (action === 'verifier_code') {
     const { lien_token, code } = body;
