@@ -8,6 +8,7 @@ export default function PageSignature() {
   const [code, setCode] = useState("");
   const [etape, setEtape] = useState("code");
   const [contrat, setContrat] = useState<any>(null);
+  const [branding, setBranding] = useState<any>(null);
   const [loading, setLoading] = useState(false);
   const [erreur, setErreur] = useState("");
   const [nomTape, setNomTape] = useState("");
@@ -26,6 +27,7 @@ export default function PageSignature() {
       const data = await res.json();
       if (data.success) {
         setContrat(data.contrat);
+        if(data.branding)setBranding(data.branding);
         if (data.contrat.statut === 'signe') setEtape('deja_signe');
         else setEtape('document');
       } else {
@@ -57,12 +59,13 @@ export default function PageSignature() {
     setLoading(false);
   };
 
-  const S = { bg: "#0A0A16", card: "#12121E", border: "#1E1E36", gold: "#C9A84C", text: "#EAE6DE", muted: "#5A5A7A", green: "#2EC9B0", red: "#E5484D" };
+  const S = { bg: "#0A0A16", card: "#12121E", border: "#1E1E36", gold: branding?.couleur_primaire||"#C9A84C", text: "#EAE6DE", muted: "#5A5A7A", green: branding?.couleur_accent||"#2EC9B0", red: "#E5484D" };
 
   return (
     <div style={{ minHeight: "100vh", background: S.bg, display: "flex", alignItems: "center", justifyContent: "center", padding: 20, fontFamily: "system-ui" }}>
       <div style={{ maxWidth: 560, width: "100%", background: S.card, border: `1px solid ${S.border}`, borderRadius: 16, padding: 32 }}>
-        <div style={{ fontSize: 12, color: S.gold, letterSpacing: "0.15em", marginBottom: 20, textTransform: "uppercase" }}>Xyra · Signature électronique</div>
+        {branding?.logo_url?<img src={branding.logo_url} alt="Logo" style={{maxHeight:44,marginBottom:12,display:"block"}}/>:null}
+        <div style={{ fontSize: 12, color: S.gold, letterSpacing: "0.15em", marginBottom: 20, textTransform: "uppercase" }}>{branding?.societe||"Xyra"} · Signature électronique</div>
 
         {etape === "code" && (
           <>

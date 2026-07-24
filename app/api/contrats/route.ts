@@ -77,7 +77,12 @@ export async function POST(req: NextRequest) {
     if (!contrat) return NextResponse.json({ success: false, error: 'Document introuvable' }, { status: 404 });
     if (contrat.code_verification !== code) return NextResponse.json({ success: false, error: 'Code incorrect' }, { status: 400 });
     await sb.from('contrats').update({ code_verifie_a: new Date().toISOString() }).eq('id', contrat.id);
-    return NextResponse.json({ success: true, contrat: { titre: contrat.titre, contenu_final: contrat.contenu_final, signataire_nom: contrat.signataire_nom, statut: contrat.statut } });
+    let branding = { logo_url: null, couleur_primaire: '#C9A84C', couleur_secondaire: '#0A0A16', couleur_accent: '#2EC9B0', societe: 'Xyra' };
+    if (contrat.tenant_id) {
+      const { data: t } = await sb.from('tenants').select('societe,logo_url,couleur_primaire,couleur_secondaire,couleur_accent').eq('id', contrat.tenant_id).single();
+      if (t) branding = { logo_url: t.logo_url, couleur_primaire: t.couleur_primaire || '#C9A84C', couleur_secondaire: t.couleur_secondaire || '#0A0A16', couleur_accent: t.couleur_accent || '#2EC9B0', societe: t.societe };
+    }
+    return NextResponse.json({ success: true, contrat: { titre: contrat.titre, contenu_final: contrat.contenu_final, signataire_nom: contrat.signataire_nom, statut: contrat.statut }, branding });
   }
   if (action === 'signer') {
     const { lien_token, nom_tape } = body;
