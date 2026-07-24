@@ -52,7 +52,7 @@ export async function POST(req: NextRequest) {
       tenant_id: tenantId, company_id, modele_id, titre: titre || modele.nom, type: modele.type,
       source_type, source_id, contenu_final: contenu, variables,
       signataire_nom, signataire_email, signataire_role,
-      statut: 'brouillon', reference,
+      statut: 'brouillon', reference, nom_membre: signataire_nom,
     }).select().single();
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, contrat: data });
