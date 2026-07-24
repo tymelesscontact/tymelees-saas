@@ -671,7 +671,7 @@ export default function Xyra() {
     prospection:<PageProspectionModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     deals:<PageDealsModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     stock:<PageStockModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    services:<PageServicesModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
+    services:<PageServicesModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     chat:<PageChatModule plan={plan} showToast={showToast} Chat={Chat} activeCompany={activeCompany}/>,
     conversations_whatsapp:<PageConversationsWhatsapp/>,
     notifications:<PageNotificationsModule notifs={notifs} setNotifs={setNotifs} showToast={showToast} activeCompany={activeCompany}/>,
