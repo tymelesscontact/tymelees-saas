@@ -54,13 +54,30 @@ const PageSignatures=({plan,showToast,UpgradeWall,activeCompany})=>{
     </div>
     <Card style={{marginBottom:16}}>
       <STitle>📄 Generer un nouveau contrat</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:8,marginBottom:14}}>
-        {modeles.map(m=><div key={m.id} onClick={()=>{setModeleChoisi(m);setVariables({});}} style={{background:modeleChoisi?.id===m.id?`${C.gold}18`:C.card2,border:`1px solid ${modeleChoisi?.id===m.id?C.gold:C.border}`,borderRadius:10,padding:12,cursor:"pointer"}}>
+      {modeles.length===0&&!loading&&<div style={{fontSize:12,color:C.muted,marginBottom:14}}>Aucun modele disponible.</div>}
+      {(()=>{
+        const typesTymeless=["conciergerie_abonnement","nettoyage_airbnb","nettoyage_jet","nettoyage_yacht","nettoyage_villa","nettoyage_bureaux","nettoyage_industriel","nettoyage_syndic","securite_privee","courtage_yacht","location_jet","rapatriement_funeraire"];
+        const modelesTymeless=modeles.filter(m=>typesTymeless.includes(m.type));
+        const modelesGeneriques=modeles.filter(m=>!typesTymeless.includes(m.type));
+        const CarteModele=(m)=><div key={m.id} onClick={()=>{setModeleChoisi(m);setVariables({});}} style={{background:modeleChoisi?.id===m.id?`${C.gold}18`:C.card2,border:`1px solid ${modeleChoisi?.id===m.id?C.gold:C.border}`,borderRadius:10,padding:12,cursor:"pointer"}}>
           <div style={{fontSize:12,fontWeight:700,color:C.text}}>{m.nom}</div>
           <div style={{fontSize:10,color:C.muted,marginTop:4}}>{m.pays} · {m.type}</div>
-        </div>)}
-        {modeles.length===0&&!loading&&<div style={{fontSize:12,color:C.muted}}>Aucun modele disponible.</div>}
-      </div>
+        </div>;
+        return <>
+          {modelesGeneriques.length>0&&<>
+            <div style={{fontSize:10,fontWeight:700,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Contrats generiques</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:8,marginBottom:18}}>
+              {modelesGeneriques.map(CarteModele)}
+            </div>
+          </>}
+          {modelesTymeless.length>0&&<>
+            <div style={{fontSize:10,fontWeight:700,color:C.gold,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Contrats Tymeless</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:8,marginBottom:14}}>
+              {modelesTymeless.map(CarteModele)}
+            </div>
+          </>}
+        </>;
+      })()}
       {modeleChoisi&&<div style={{background:C.card2,borderRadius:10,padding:14,border:`1px solid ${C.border}`}}>
         <div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:10}}>Remplir : {modeleChoisi.nom}</div>
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:8,marginBottom:12}}>
