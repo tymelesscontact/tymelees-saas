@@ -58,17 +58,22 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, contrat: data });
   }
   if (action === 'envoyer') {
-    const { id } = body;
+    const { id, message_perso, email_copie } = body;
     const { data: contrat } = await sb.from('contrats').select('*').eq('id', id).single();
     if (!contrat) return NextResponse.json({ success: false, error: 'Contrat introuvable' }, { status: 404 });
     const lien_token = crypto.randomBytes(24).toString('hex');
     const code_verification = String(Math.floor(100000 + Math.random() * 900000));
     await sb.from('contrats').update({ lien_token, code_verification, statut: 'envoye' }).eq('id', id);
     const lien = `https://xyraio.fr/signature/${lien_token}`;
+    const messageBloc = message_perso ? `<p>${message_perso}</p>` : '';
     await sendEmail(contrat.signataire_email, `Document a signer - ${contrat.titre}`,
-      `<p>Bonjour ${contrat.signataire_nom},</p><p>Un document est pret pour votre signature electronique.</p><p><a href="${lien}">Consulter et signer le document</a></p><p>Votre code de verification vous sera demande sur la page de signature.</p>`);
+      `<p>Bonjour ${contrat.signataire_nom},</p>${messageBloc}<p>Un document est pret pour votre signature electronique.</p><p><a href="${lien}">Consulter et signer le document</a></p><p>Votre code de verification vous sera demande sur la page de signature.</p>`);
     await sendEmail(contrat.signataire_email, `Votre code de verification - ${contrat.titre}`,
       `<p>Votre code de verification pour signer le document : <strong>${code_verification}</strong></p>`);
+    if (email_copie) {
+      await sendEmail(email_copie, `Copie — Document envoye pour signature - ${contrat.titre}`,
+        `<p>Copie pour information : le document "${contrat.titre}" a ete envoye a ${contrat.signataire_nom} (${contrat.signataire_email}) pour signature electronique.</p>`);
+    }
     return NextResponse.json({ success: true, lien });
   }
   if (action === 'verifier_code') {
