@@ -623,7 +623,7 @@ export default function Xyra() {
             setPlan(planNorm);
           }
           const{data:companiesData}=await sb.from("companies").select("*").eq("owner_id",user.id).order("created_at");
-          if(companiesData?.length){setCompanies(companiesData);setActiveCompany(companiesData[0]);}
+          if(companiesData?.length){setCompanies(companiesData);}
         }
       }catch(e){console.error('Supabase:',e);}
       finally{setSbLoading(false);}
