@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, BtnGhost, STitle, Pill, Sel, SM, conv, DEVISES } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
-const PageOverview=({plan,profil,setPage,showToast,UpgradeWall})=>{
+const PageOverview=({plan,profil,setPage,showToast,UpgradeWall,activeCompany})=>{
   const[data,setData]=useState(null);
   const[loading,setLoading]=useState(true);
   const[briefing,setBriefing]=useState("");
@@ -13,14 +13,16 @@ const PageOverview=({plan,profil,setPage,showToast,UpgradeWall})=>{
   const load=async()=>{
     setLoading(true);
     try{
+      const cp=activeCompany?.id?`company_id=${activeCompany.id}`:'';
+      const j=(u)=>u.includes('?')?u+'&'+cp:u+'?'+cp;
       const[walletRes,facturesRes,devisRes,clientsRes,dealsRes,chargesRes,partnersRes]=await Promise.all([
-        fetch('/api/wallet?action=list').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/factures?action=list').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/devis?action=list').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/clients').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/deals').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/tresorerie').then(r=>r.json()).catch(()=>({})),
-        fetch('/api/partenaires').then(r=>r.json()).catch(()=>({})),
+        fetch(j('/api/wallet?action=list')).then(r=>r.json()).catch(()=>({})),
+        fetch(j('/api/factures?action=list')).then(r=>r.json()).catch(()=>({})),
+        fetch(j('/api/devis?action=list')).then(r=>r.json()).catch(()=>({})),
+        fetch(j('/api/clients')).then(r=>r.json()).catch(()=>({})),
+        fetch(j('/api/deals')).then(r=>r.json()).catch(()=>({})),
+        fetch(j('/api/tresorerie')).then(r=>r.json()).catch(()=>({})),
+        fetch(j('/api/partenaires')).then(r=>r.json()).catch(()=>({})),
       ]);
 
       const wallet=walletRes.transactions||walletRes.data||[];
@@ -84,7 +86,7 @@ const PageOverview=({plan,profil,setPage,showToast,UpgradeWall})=>{
     setLoading(false);
   };
 
-  useEffect(()=>{load();},[]);
+  useEffect(()=>{load();},[activeCompany]);
 
   useEffect(()=>{
     if(data&&!briefing){
