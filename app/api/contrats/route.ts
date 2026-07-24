@@ -47,11 +47,12 @@ export async function POST(req: NextRequest) {
     for (const [cle, valeur] of Object.entries(variables || {})) {
       contenu = contenu.split(`{{${cle}}}`).join(String(valeur));
     }
+    const reference = `CTR-${Date.now().toString(36).toUpperCase()}`;
     const { data, error } = await sb.from('contrats').insert({
       tenant_id: tenantId, company_id, modele_id, titre: titre || modele.nom, type: modele.type,
       source_type, source_id, contenu_final: contenu, variables,
       signataire_nom, signataire_email, signataire_role,
-      statut: 'brouillon',
+      statut: 'brouillon', reference,
     }).select().single();
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, contrat: data });
