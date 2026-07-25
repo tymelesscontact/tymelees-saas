@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { C, fmt, Card, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM, Tabs } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
-const PageCRM=({plan,showToast,profil,UpgradeWall})=>{
+const PageCRM=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
   const[leads,setLeads]=useState([]);
   const[loadingLeads,setLoadingLeads]=useState(true);
   const[onglet,setOnglet]=useState("pipeline");
@@ -17,13 +17,14 @@ const PageCRM=({plan,showToast,profil,UpgradeWall})=>{
 
   const loadAll=async()=>{
     try{
-      const res=await fetch('/api/crm');
+      const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/crm'+companyParam);
       const data=await res.json();
       if(data.leads)setLeads(data.leads);
     }catch(e){console.error("CRM:",e);}
     setLoadingLeads(false);
   };
-  useEffect(()=>{loadAll();},[]);
+  useEffect(()=>{loadAll();},[activeCompany]);
   useEffect(()=>{if(sel)setSel(s=>leads.find(l=>l.id===s.id)||null);},[leads]);
 
   if(!hasAccess(plan,"crm"))return <div style={{padding:20}}><UpgradeWall page="CRM" plan={plan}/></div>;

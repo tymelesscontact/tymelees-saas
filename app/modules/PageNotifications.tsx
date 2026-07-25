@@ -4,7 +4,7 @@ import { C, Card, Btn, BtnGhost, TH, Td, KPI, STitle, Pill } from "../lib/ui";
 import { STOCK, CONTRATS } from "../lib/seedData";
 import { SwipeableNotif } from "./PageChat";
 
-const PageNotifications=({notifs,setNotifs,showToast})=>{
+const PageNotifications=({notifs,setNotifs,showToast,activeCompany})=>{
   const[_notifsReal,setNotifsReal]=useState([]);
   const[_autoNotifs,setAutoNotifs]=useState([]);
   const[_prefs,setPrefs]=useState([]);
@@ -12,7 +12,8 @@ const PageNotifications=({notifs,setNotifs,showToast})=>{
 
   const _loadNotifs=async()=>{
     try{
-      const res=await fetch('/api/notifications');
+      const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/notifications'+companyParam);
       const data=await res.json();
       if(data.notifications){
         setNotifsReal(data.notifications);
