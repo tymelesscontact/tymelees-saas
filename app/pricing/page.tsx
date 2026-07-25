@@ -249,7 +249,7 @@ function PricingContent() {
                     <span style={{ color: plan.color, flexShrink: 0 }}>◆</span>{m}
                   </div>
                 ))}
-                {plan.locked.map((m, j) => (
+                {plan.locked.map((m: string, j: number) => (
                   <div key={j} style={{ display: "flex", gap: 10, fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: C.muted, marginBottom: 10 }}>
                     <span style={{ flexShrink: 0 }}>🔒</span>{m}
                   </div>
