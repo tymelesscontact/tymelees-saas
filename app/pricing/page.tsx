@@ -171,7 +171,7 @@ function PricingContent() {
         {/* Paiements */}
         <div style={{ display: "flex", justifyContent: "center", alignItems: "center", gap: 8, flexWrap: "wrap", marginBottom: 20 }}>
           <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: C.muted }}>Paiements :</span>
-          {PAYMENTS.map((p, i) => (
+          {PAYMENTS.map((p: any, i: number) => (
             <span key={i} style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, background: C.card, border: `1px solid ${C.border}`, borderRadius: 20, padding: "4px 12px", color: C.text }}>
               {p.icon} {p.name}
             </span>
@@ -196,7 +196,7 @@ function PricingContent() {
 
         {/* Stats */}
         <div style={{ display: "flex", justifyContent: "center", gap: 40, flexWrap: "wrap", marginBottom: 48 }}>
-          {STATS.map((s, i) => (
+          {STATS.map((s: any, i: number) => (
             <div key={i} style={{ textAlign: "center" }}>
               <div style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: 32, fontWeight: 300, color: C.gold }}>{s.val}</div>
               <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: C.muted, marginTop: 4 }}>{s.label}</div>
@@ -206,7 +206,7 @@ function PricingContent() {
 
         {/* Toggle mensuel/annuel */}
         <div style={{ display: "inline-flex", background: C.card, border: `1px solid ${C.border}`, borderRadius: 100, padding: 4, gap: 4, marginBottom: 32 }}>
-          {(["month", "year"] as const).map(b => (
+          {(["month", "year"] as const).map((b: "month" | "year") => (
             <button key={b} onClick={() => setBilling(b)} style={{ background: billing === b ? C.gold : "transparent", color: billing === b ? "#000" : C.muted, border: "none", borderRadius: 100, padding: "8px 20px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 600, transition: "all 0.2s" }}>
               {b === "month" ? "Mensuel" : "Annuel"}
             </button>
@@ -219,7 +219,7 @@ function PricingContent() {
             { key: "solo", label: "🏠 1 Société", desc: "59€ · 129€ · 249€" },
             { key: "multi", label: "🏢 Multi-Sociétés", desc: "499€ · 799€ · 1 200€" },
             { key: "saas", label: "🚀 Déploiement SaaS", desc: "White-label revendeur" },
-          ].map(s => (
+          ].map((s: any) => (
             <button key={s.key} onClick={() => setSection(s.key as any)} style={{ background: section === s.key ? `${C.gold}15` : "transparent", border: `1px solid ${section === s.key ? C.gold : C.border}`, borderRadius: 10, padding: "12px 20px", cursor: "pointer", fontFamily: "'DM Sans', sans-serif", textAlign: "left", transition: "all 0.2s" }}>
               <div style={{ fontSize: 13, fontWeight: 600, color: section === s.key ? C.gold : C.text }}>{s.label}</div>
               <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{s.desc}</div>
@@ -370,7 +370,7 @@ function PricingContent() {
               Club d'affaires <em style={{ color: C.gold }}>Xyra</em>
             </h2>
             <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 24 }}>
-              {["Réseau privé de membres Xyra triés sur le volet","Deals exclusifs -10% entre membres","IA Match business — Claude identifie les synergies","Événements VIP networking","Annuaire mondial 18+ pays","Messagerie directe inter-membres"].map((f, i) => (
+              {["Réseau privé de membres Xyra triés sur le volet","Deals exclusifs -10% entre membres","IA Match business — Claude identifie les synergies","Événements VIP networking","Annuaire mondial 18+ pays","Messagerie directe inter-membres"].map((f: string, i: number) => (
                 <div key={i} style={{ display: "flex", gap: 10, fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: C.text }}>
                   <span style={{ color: C.gold, flexShrink: 0 }}>◆</span>{f}
                 </div>
@@ -411,7 +411,7 @@ function PricingContent() {
             </p>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(180px, 1fr))", gap: 10 }}>
-            {MODULES.map((m, i) => (
+            {MODULES.map((m: any, i: number) => (
               <div key={i} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 10, padding: "14px 16px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   <span>{m.icon}</span>
@@ -439,7 +439,7 @@ function PricingContent() {
             { profil: "🏢 Multi-sociétés", plan: "Multi-Sociétés", prix: "À partir de 499€/mois", desc: "Vous gérez 2 sociétés ou plus et voulez tout centraliser" },
             { profil: "🏛 Holding / Grand groupe", plan: "Holding", prix: "1 200€/mois", desc: "Vous avez une structure holding et voulez la vue consolidée complète" },
             { profil: "🚀 Agence / Revendeur", plan: "White-label", prix: "5 000€ + 500€/mois", desc: "Vous voulez revendre Xyra sous votre marque à vos clients" },
-          ].map((p, i) => (
+          ].map((p: any, i: number) => (
             <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20 }}>
               <div style={{ fontSize: 20, marginBottom: 8 }}>{p.profil}</div>
               <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: C.gold, fontWeight: 600, marginBottom: 4 }}>{p.plan}</div>
@@ -456,7 +456,7 @@ function PricingContent() {
           <h2 style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: "clamp(28px,4vw,46px)", fontWeight: 300, textAlign: "center", marginBottom: 40 }}>
             Questions <em style={{ color: C.gold }}>fréquentes</em>
           </h2>
-          {FAQ.map((f, i) => (
+          {FAQ.map((f: any, i: number) => (
             <div key={i} style={{ borderBottom: `1px solid ${C.border}`, overflow: "hidden" }}>
               <button onClick={() => setOpenFaq(openFaq === i ? null : i)} style={{ width: "100%", display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 0", background: "transparent", border: "none", color: C.text, cursor: "pointer", fontFamily: "'DM Sans', sans-serif", fontSize: 14, fontWeight: 500, textAlign: "left", gap: 12 }}>
                 <span>{f.q}</span>
