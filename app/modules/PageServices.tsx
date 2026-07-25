@@ -8,6 +8,13 @@ const PageServices=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
   const[devisStats,setDevisStats]=useState([]);
   const[loading,setLoading]=useState(true);
   const[onglet,setOnglet]=useState("catalogue");
+  const[ongletPrincipal,setOngletPrincipal]=useState("services");
+  const[produits,setProduits]=useState([]);
+  const[showAddProduit,setShowAddProduit]=useState(false);
+  const[produitForm,setProduitForm]=useState({nom:"",marque:"",code_barre:"",categorie:"",description:"",photo_url:"",prix_vente:"",cout_achat:"",quantite_stock:"",seuil_alerte:"5",vente_active:false});
+  const[scanCode,setScanCode]=useState("");
+  const[recherchant,setRecherchant]=useState(false);
+  const[selProduit,setSelProduit]=useState(null);
   const[sel,setSel]=useState(null);
   const[showAdd,setShowAdd]=useState(false);
   const[addForm,setAddForm]=useState({nom:"",categorie:"",description:"",photo_url:"",prix_standard:"",prix_vip:"",prix_enterprise:"",cout_reel:"",duree:""});
@@ -29,6 +36,45 @@ const PageServices=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
     setLoading(false);
   };
   useEffect(()=>{load();},[activeCompany]);
+  const loadProduits=async()=>{
+    try{
+      const cp=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/produits-catalogue?action=liste'+cp);
+      const data=await res.json();
+      if(data.produits)setProduits(data.produits);
+    }catch(e){console.error("Produits:",e);}
+  };
+  useEffect(()=>{loadProduits();},[activeCompany]);
+  const rechercherCodeBarre=async()=>{
+    if(!scanCode)return showToast("⚠️ Entrez ou scannez un code-barres");
+    setRecherchant(true);
+    try{
+      const res=await fetch(`/api/produits-catalogue?action=lookup_barcode&code=${scanCode}`);
+      const data=await res.json();
+      if(data.found){
+        setProduitForm(f=>({...f,nom:data.nom||f.nom,marque:data.marque||f.marque,categorie:data.categorie||f.categorie,photo_url:data.photo_url||f.photo_url,code_barre:scanCode}));
+        showToast("✅ Produit trouve, verifiez les infos");
+      }else{
+        setProduitForm(f=>({...f,code_barre:scanCode}));
+        showToast("⚠️ Produit non reconnu, remplissez a la main");
+      }
+    }catch(e){showToast("❌ Erreur de recherche");}
+    setRecherchant(false);
+  };
+  const ajouterProduit=async()=>{
+    if(!produitForm.nom)return showToast("⚠️ Nom requis");
+    try{
+      const res=await fetch('/api/produits-catalogue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer',...produitForm,company_id:activeCompany?.id})});
+      const data=await res.json();
+      if(data.success){showToast("✅ Produit ajoute");setProduitForm({nom:"",marque:"",code_barre:"",categorie:"",description:"",photo_url:"",prix_vente:"",cout_achat:"",quantite_stock:"",seuil_alerte:"5",vente_active:false});setScanCode("");setShowAddProduit(false);loadProduits();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const supprimerProduit=async(id)=>{
+    try{await fetch('/api/produits-catalogue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer',id})});showToast("✅ Supprime");setSelProduit(null);loadProduits();}
+    catch(e){showToast("❌ Erreur");}
+  };
+  const margeProduit=(p)=>p.prix_vente>0?Math.round((p.prix_vente-(p.cout_achat||0))/p.prix_vente*100):0;
   const uploaderPhoto=async(file)=>{
     if(!file)return;
     setUploadEnCours(true);
@@ -66,6 +112,10 @@ const PageServices=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
   const totalCA=devisStats.reduce((a,d)=>a+(Number(d.montant)||0),0);
   const margeMoyenne=services.length>0?Math.round(services.reduce((a,s)=>a+marge(s),0)/services.length):0;
   return <div style={{padding:20}}>
+    <div style={{display:"flex",gap:8,marginBottom:16,borderBottom:"1px solid #1E1E36",paddingBottom:2}}>
+      {[["services","⚙️ Services"],["produits","📦 Produits"]].map(([id,label])=><button key={id} onClick={()=>setOngletPrincipal(id)} style={{background:"transparent",border:"none",borderBottom:ongletPrincipal===id?"2px solid #C9A84C":"2px solid transparent",color:ongletPrincipal===id?"#C9A84C":"#5A5A7A",padding:"8px 4px",fontSize:13,fontWeight:ongletPrincipal===id?700:400,cursor:"pointer",fontFamily:"inherit"}}>{label}</button>)}
+    </div>
+    {ongletPrincipal==="services"&&<>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
       <div>
         <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>⊛ Produits & Services</div>
@@ -135,6 +185,47 @@ const PageServices=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
         <BtnGhost onClick={()=>supprimerService(sel.id)} style={{color:C.red}}>🗑 Supprimer</BtnGhost>
       </div>
     </div>}
+  </>}
+  {ongletPrincipal==="produits"&&<>
+    <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:16}}>
+      <div>
+        <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>📦 Produits a vendre</div>
+        <div style={{fontSize:11,color:C.muted}}>{produits.length} produit(s) au catalogue</div>
+      </div>
+      <Btn onClick={()=>setShowAddProduit(s=>!s)}>+ Ajouter un produit</Btn>
+    </div>
+    {showAddProduit&&<Card style={{marginBottom:16}}>
+      <STitle>📷 Scanner ou saisir un code-barres</STitle>
+      <div style={{display:"flex",gap:8,marginBottom:14}}>
+        <Inp value={scanCode} onChange={e=>setScanCode(e.target.value)} placeholder="Code-barres (EAN/UPC)" style={{flex:1}}/>
+        <Btn onClick={rechercherCodeBarre} disabled={recherchant}>{recherchant?"Recherche...":"🔍 Rechercher"}</Btn>
+      </div>
+      <STitle>+ Nouveau produit</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+        <Inp value={produitForm.nom} onChange={e=>setProduitForm(f=>({...f,nom:e.target.value}))} placeholder="Nom du produit"/>
+        <Inp value={produitForm.marque} onChange={e=>setProduitForm(f=>({...f,marque:e.target.value}))} placeholder="Marque"/>
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+        <Inp value={produitForm.categorie} onChange={e=>setProduitForm(f=>({...f,categorie:e.target.value}))} placeholder="Categorie"/>
+        <Inp value={produitForm.description} onChange={e=>setProduitForm(f=>({...f,description:e.target.value}))} placeholder="Description"/>
+      </div>
+      {produitForm.photo_url&&<img src={produitForm.photo_url} alt="" style={{maxHeight:80,marginBottom:8}}/>}
+      <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:8,marginBottom:8}}>
+        <Inp value={produitForm.prix_vente} onChange={e=>setProduitForm(f=>({...f,prix_vente:e.target.value}))} placeholder="Prix de vente €"/>
+        <Inp value={produitForm.cout_achat} onChange={e=>setProduitForm(f=>({...f,cout_achat:e.target.value}))} placeholder="Cout d'achat €"/>
+        <Inp value={produitForm.quantite_stock} onChange={e=>setProduitForm(f=>({...f,quantite_stock:e.target.value}))} placeholder="Quantite en stock"/>
+        <Inp value={produitForm.seuil_alerte} onChange={e=>setProduitForm(f=>({...f,seuil_alerte:e.target.value}))} placeholder="Seuil d'alerte"/>
+      </div>
+      <label style={{display:"flex",alignItems:"center",gap:6,fontSize:11,color:C.muted,marginBottom:10,cursor:"pointer"}}>
+        <input type="checkbox" checked={produitForm.vente_active} onChange={e=>setProduitForm(f=>({...f,vente_active:e.target.checked}))}/>
+        Rendre ce produit achetable directement (boutique en ligne)
+      </label>
+      <div style={{display:"flex",gap:8}}>
+        <Btn onClick={ajouterProduit}>✅ Ajouter</Btn>
+        <BtnGhost onClick={()=>setShowAddProduit(false)}>Annuler</BtnGhost>
+      </div>
+    </Card>}
+  </>}
   </div>;
 };
 export default PageServices;
