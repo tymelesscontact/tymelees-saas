@@ -231,7 +231,7 @@ function PricingContent() {
       {/* ── SECTION 1 SOCIÉTÉ ── */}
       {section === "solo" && (
         <div style={{ maxWidth: 1100, margin: "0 auto", padding: "0 24px 80px", display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
-          {PLANS_SOLO.map((plan, i) => (
+          {PLANS_SOLO.map((plan: any, i: number) => (
             <div key={i} className="fade" style={{ background: plan.highlight ? `linear-gradient(135deg, ${C.card}, #0a1a0f)` : C.card, border: `1px solid ${plan.highlight ? C.gold + "44" : C.border}`, borderRadius: 16, padding: 28, position: "relative", animationDelay: `${i * 0.1}s` }}>
               {plan.highlight && (
                 <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: C.gold, color: "#000", fontSize: 10, fontWeight: 700, padding: "4px 16px", textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>⭐ Recommandé</div>
@@ -279,7 +279,7 @@ function PricingContent() {
             </p>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
-            {filtrerParUpgrade(PLANS_MULTI).map((plan, i) => (
+            {filtrerParUpgrade(PLANS_MULTI).map((plan: any, i: number) => (
               <div key={i} className="fade" style={{ background: plan.highlight ? `linear-gradient(135deg, ${C.card}, #0a0f1a)` : C.card, border: `1px solid ${plan.highlight ? plan.color + "66" : C.border}`, borderRadius: 16, padding: 28, position: "relative", animationDelay: `${i * 0.1}s` }}>
                 {plan.highlight && (
                   <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: plan.color, color: "#000", fontSize: 10, fontWeight: 700, padding: "4px 16px", textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>⭐ Recommandé</div>
@@ -324,7 +324,7 @@ function PricingContent() {
             </p>
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 16 }}>
-            {PLANS_SAAS.map((plan, i) => (
+            {PLANS_SAAS.map((plan: any, i: number) => (
               <div key={i} className="fade" style={{ background: plan.highlight ? `linear-gradient(135deg, ${C.card}, #0a1a0a)` : C.card, border: `1px solid ${plan.highlight ? plan.color + "66" : C.border}`, borderRadius: 16, padding: 28, position: "relative", animationDelay: `${i * 0.1}s` }}>
                 {plan.highlight && (
                   <div style={{ position: "absolute", top: -12, left: "50%", transform: "translateX(-50%)", background: plan.color, color: "#000", fontSize: 10, fontWeight: 700, padding: "4px 16px", textTransform: "uppercase", letterSpacing: "0.1em", whiteSpace: "nowrap" }}>⭐ Le plus populaire</div>
@@ -496,7 +496,7 @@ function PricingContent() {
         <div style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: 18, color: C.gold }}>XYRA</div>
         <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: C.muted }}>© 2026 Xyra · Tous droits réservés</div>
         <div style={{ display: "flex", gap: 20 }}>
-          {["CGV", "Confidentialité", "Contact"].map(l => (
+          {["CGV", "Confidentialité", "Contact"].map((l: string) => (
             <a key={l} href="#" style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: C.muted, textDecoration: "none" }}>{l}</a>
           ))}
         </div>
