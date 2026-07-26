@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { useMultiSocietes } from "../lib/useMultiSocietes";
 import PageWalletModule from "../modules/PageWallet";
 import PageCartesModule from "../modules/PageCartes";
 import PageAccueilModule from "../modules/PageAccueil";
@@ -573,14 +574,6 @@ export default function Xyra() {
           }).catch(()=>{});
         }
       }
-      fetch("/api/whoami").then(r=>r.json()).then(async wd=>{
-        if(wd?.user_id){
-          const{createClient}=await import('@supabase/supabase-js');
-          const sbc=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-          const{data:companiesData}=await sbc.from("companies").select("*").eq("owner_id",wd.user_id).order("created_at");
-          if(companiesData?.length)setCompanies(companiesData);
-        }
-      }).catch(()=>{});
     }).catch(()=>{});
   },[]);
   const[mesSocietes,setMesSocietes]=useState([]);
@@ -713,9 +706,7 @@ export default function Xyra() {
 
   const[notifs,setNotifs]=useState(INIT_NOTIFS);
   const[toast,setToast]=useState(null);
-  const[companies,setCompanies]=useState([]);
-  const[activeCompany,setActiveCompany]=useState(null);
-  const[vueGlobale,setVueGlobale]=useState(true);
+  const{companies,setCompanies,activeCompany,setActiveCompany,vueGlobale,setVueGlobale}=useMultiSocietes();
   const[profil,setProfil]=useState(PROFIL_DEFAUT);
   const[sirApiKey,setSirApiKey]=useState(()=>typeof window!=="undefined"?localStorage.getItem("ty_anthropic")||"":"");
   const[sidebarOpen,setSidebarOpen]=useState(true);

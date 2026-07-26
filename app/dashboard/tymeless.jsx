@@ -1,5 +1,6 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
+import { useMultiSocietes } from "../lib/useMultiSocietes";
 import PageConversationsWhatsapp from "../modules/PageConversationsWhatsapp";
 import PageWalletModule from "../modules/PageWallet";
 import PageCartesModule from "../modules/PageCartes";
@@ -622,8 +623,6 @@ export default function Xyra() {
             const planNorm=tenant.plan.replace('business_pro','business').replace('_pro','');
             setPlan(planNorm);
           }
-          const{data:companiesData}=await sb.from("companies").select("*").eq("owner_id",user.id).order("created_at");
-          if(companiesData?.length){setCompanies(companiesData);}
         }
       }catch(e){console.error('Supabase:',e);}
       finally{setSbLoading(false);}
@@ -634,9 +633,7 @@ export default function Xyra() {
   const[notifs,setNotifs]=useState(INIT_NOTIFS);
   const[toast,setToast]=useState(null);
   const[profil,setProfil]=useState(PROFIL_DEFAUT);
-  const[companies,setCompanies]=useState([]);
-  const[activeCompany,setActiveCompany]=useState(null);
-  const[vueGlobale,setVueGlobale]=useState(true);
+  const{companies,setCompanies,activeCompany,setActiveCompany,vueGlobale,setVueGlobale}=useMultiSocietes();
   const[sirApiKey,setSirApiKey]=useState(()=>typeof window!=="undefined"?localStorage.getItem("ty_anthropic")||"":"");
   const[sidebarOpen,setSidebarOpen]=useState(true);
 
