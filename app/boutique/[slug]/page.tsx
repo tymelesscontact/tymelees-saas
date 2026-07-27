@@ -10,6 +10,13 @@ export default function BoutiquePublicPage() {
   const [loading, setLoading] = useState(true);
   const [erreur, setErreur] = useState("");
   const [panier, setPanier] = useState<{ [id: string]: number }>({});
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [nom, setNom] = useState("");
+  const [email, setEmail] = useState("");
+  const [tel, setTel] = useState("");
+  const [adresse, setAdresse] = useState("");
+  const [commandeEnCours, setCommandeEnCours] = useState(false);
+  const [erreurCommande, setErreurCommande] = useState("");
 
   useEffect(() => {
     fetch(`/api/boutique?slug=${slug}`)
@@ -42,6 +49,32 @@ export default function BoutiquePublicPage() {
   };
   const totalArticles = Object.values(panier).reduce((a, n) => a + n, 0);
   const totalPrix = produits.reduce((a, p) => a + (panier[p.id] || 0) * Number(p.prix_vente), 0);
+
+  const passerCommande = async () => {
+    if (!nom || !email) { setErreurCommande("Nom et email requis"); return; }
+    setCommandeEnCours(true);
+    setErreurCommande("");
+    try {
+      const items = produits
+        .filter((p) => panier[p.id])
+        .map((p) => ({ produit_id: p.id, nom: p.nom, prix: Number(p.prix_vente), quantite: panier[p.id] }));
+      const res = await fetch("/api/commandes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ slug, client_nom: nom, client_email: email, client_tel: tel, client_adresse: adresse, items }),
+      });
+      const data = await res.json();
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        setErreurCommande(data.error || "Erreur lors de la commande");
+        setCommandeEnCours(false);
+      }
+    } catch (e) {
+      setErreurCommande("Erreur de connexion");
+      setCommandeEnCours(false);
+    }
+  };
 
   const C = {
     dark: "#06060E", card: "#0C0C1A", card2: "#121222",
@@ -88,7 +121,26 @@ export default function BoutiquePublicPage() {
       {totalArticles > 0 && (
         <div style={{ position: "fixed", bottom: 0, left: 0, right: 0, background: C.card, borderTop: `1px solid ${C.border}`, padding: "14px 24px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div style={{ fontSize: 13 }}>{totalArticles} article(s) — <strong style={{ color: C.gold }}>{totalPrix.toFixed(2)} €</strong></div>
-          <button style={{ background: C.gold, border: "none", color: "#000", borderRadius: 6, padding: "10px 24px", fontWeight: 700, cursor: "pointer" }}>Commander →</button>
+          <button onClick={() => setShowCheckout(true)} style={{ background: C.gold, border: "none", color: "#000", borderRadius: 6, padding: "10px 24px", fontWeight: 700, cursor: "pointer" }}>Commander →</button>
+        </div>
+      )}
+
+      {showCheckout && (
+        <div onClick={() => !commandeEnCours && setShowCheckout(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24, maxWidth: 420, width: "100%" }}>
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 14 }}>Finaliser la commande</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+              <input value={nom} onChange={(e) => setNom(e.target.value)} placeholder="Nom complet" style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "10px 12px", color: C.text }} />
+              <input value={email} onChange={(e) => setEmail(e.target.value)} placeholder="Email" style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "10px 12px", color: C.text }} />
+              <input value={tel} onChange={(e) => setTel(e.target.value)} placeholder="Téléphone (optionnel)" style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "10px 12px", color: C.text }} />
+              <input value={adresse} onChange={(e) => setAdresse(e.target.value)} placeholder="Adresse de livraison (optionnel)" style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "10px 12px", color: C.text }} />
+            </div>
+            {erreurCommande && <div style={{ color: C.red, fontSize: 12, marginBottom: 10 }}>{erreurCommande}</div>}
+            <div style={{ fontSize: 13, marginBottom: 14 }}>Total : <strong style={{ color: C.gold }}>{totalPrix.toFixed(2)} €</strong></div>
+            <button onClick={passerCommande} disabled={commandeEnCours} style={{ width: "100%", background: C.gold, border: "none", color: "#000", borderRadius: 6, padding: "12px", fontWeight: 700, cursor: "pointer" }}>
+              {commandeEnCours ? "Redirection..." : "Payer par carte →"}
+            </button>
+          </div>
         </div>
       )}
     </div>
