@@ -169,11 +169,23 @@ export default function BoutiquePublicPage() {
 
   return (
     <div style={{ minHeight: "100vh", background: C.dark, color: C.text, fontFamily: "sans-serif", paddingBottom: totalArticles > 0 ? 90 : 20 }}>
-      <div style={{ padding: "32px 24px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", gap: 14 }}>
-        {company.logo_url && <img src={company.logo_url} alt="" style={{ height: 48, borderRadius: 8 }} />}
-        <div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{company.nom}</div>
-          <div style={{ fontSize: 12, color: C.muted }}>Boutique en ligne</div>
+      <div style={{ padding: "32px 24px", borderBottom: `1px solid ${C.border}`, display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+          {company.logo_url && <img src={company.logo_url} alt="" style={{ height: 48, borderRadius: 8 }} />}
+          <div>
+            <div style={{ fontSize: 20, fontWeight: 700 }}>{company.nom}</div>
+            <div style={{ fontSize: 12, color: C.muted }}>Boutique en ligne</div>
+          </div>
+        </div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {user ? (
+            <>
+              <button onClick={ouvrirMesCommandes} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.text, borderRadius: 6, padding: "8px 14px", fontSize: 12, cursor: "pointer" }}>Mes commandes</button>
+              <button onClick={logout} style={{ background: "transparent", border: `1px solid ${C.border}`, color: C.muted, borderRadius: 6, padding: "8px 14px", fontSize: 12, cursor: "pointer" }}>Déconnexion</button>
+            </>
+          ) : (
+            <button onClick={() => setShowAuth(true)} style={{ background: "transparent", border: `1px solid ${C.gold}`, color: C.gold, borderRadius: 6, padding: "8px 14px", fontSize: 12, cursor: "pointer" }}>Se connecter</button>
+          )}
         </div>
       </div>
 
