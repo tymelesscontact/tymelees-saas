@@ -17,6 +17,16 @@ export default function BoutiquePublicPage() {
   const [adresse, setAdresse] = useState("");
   const [commandeEnCours, setCommandeEnCours] = useState(false);
   const [erreurCommande, setErreurCommande] = useState("");
+  const [user, setUser] = useState<any>(null);
+  const [showAuth, setShowAuth] = useState(false);
+  const [authMode, setAuthMode] = useState<"login" | "signup">("login");
+  const [authEmail, setAuthEmail] = useState("");
+  const [authPassword, setAuthPassword] = useState("");
+  const [authNom, setAuthNom] = useState("");
+  const [authErreur, setAuthErreur] = useState("");
+  const [authEnCours, setAuthEnCours] = useState(false);
+  const [showCommandes, setShowCommandes] = useState(false);
+  const [mesCommandes, setMesCommandes] = useState<any[]>([]);
 
   useEffect(() => {
     fetch(`/api/boutique?slug=${slug}`)
@@ -35,6 +45,78 @@ export default function BoutiquePublicPage() {
         setLoading(false);
       });
   }, [slug]);
+
+  const getSb = async () => {
+    const { createClient } = await import("@supabase/supabase-js");
+    return createClient(process.env.NEXT_PUBLIC_SUPABASE_URL as string, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY as string);
+  };
+
+  useEffect(() => {
+    (async () => {
+      const sbc = await getSb();
+      const { data } = await sbc.auth.getSession();
+      if (data.session?.user) setUser(data.session.user);
+    })();
+  }, []);
+
+  const signup = async () => {
+    if (!authNom || !authEmail || !authPassword) { setAuthErreur("Tous les champs sont requis"); return; }
+    setAuthEnCours(true);
+    setAuthErreur("");
+    try {
+      const sbc = await getSb();
+      const { data, error } = await sbc.auth.signUp({ email: authEmail, password: authPassword, options: { data: { nom: authNom } } });
+      if (error) { setAuthErreur(error.message); setAuthEnCours(false); return; }
+      if (data.user) setUser(data.user);
+      setShowAuth(false);
+      setNom(authNom);
+      setEmail(authEmail);
+    } catch (e) {
+      setAuthErreur("Erreur de connexion");
+    }
+    setAuthEnCours(false);
+  };
+
+  const login = async () => {
+    if (!authEmail || !authPassword) { setAuthErreur("Email et mot de passe requis"); return; }
+    setAuthEnCours(true);
+    setAuthErreur("");
+    try {
+      const sbc = await getSb();
+      const { data, error } = await sbc.auth.signInWithPassword({ email: authEmail, password: authPassword });
+      if (error) { setAuthErreur(error.message); setAuthEnCours(false); return; }
+      if (data.user) {
+        setUser(data.user);
+        setEmail(data.user.email || "");
+        setNom(data.user.user_metadata?.nom || "");
+      }
+      setShowAuth(false);
+    } catch (e) {
+      setAuthErreur("Erreur de connexion");
+    }
+    setAuthEnCours(false);
+  };
+
+  const loginGoogle = async () => {
+    const sbc = await getSb();
+    await sbc.auth.signInWithOAuth({ provider: "google", options: { redirectTo: typeof window !== "undefined" ? window.location.href : undefined } });
+  };
+
+  const logout = async () => {
+    const sbc = await getSb();
+    await sbc.auth.signOut();
+    setUser(null);
+  };
+
+  const ouvrirMesCommandes = async () => {
+    if (!user) return;
+    setShowCommandes(true);
+    try {
+      const sbc = await getSb();
+      const { data } = await sbc.from("commandes").select("*").eq("client_user_id", user.id).order("created_at", { ascending: false });
+      setMesCommandes(data || []);
+    } catch (e) { console.error(e); }
+  };
 
   const ajouterAuPanier = (id: string) => {
     setPanier((p) => ({ ...p, [id]: (p[id] || 0) + 1 }));
