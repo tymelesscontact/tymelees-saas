@@ -237,6 +237,67 @@ export default function BoutiquePublicPage() {
           </div>
         </div>
       )}
+
+      {showAuth && (
+        <div onClick={() => !authEnCours && setShowAuth(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24, maxWidth: 380, width: "100%" }}>
+            <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 4 }}>{authMode === "login" ? "Se connecter" : "Créer un compte"}</div>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 16 }}>
+              {authMode === "login" ? "Pas encore de compte ? " : "Déjà un compte ? "}
+              <span onClick={() => { setAuthMode(authMode === "login" ? "signup" : "login"); setAuthErreur(""); }} style={{ color: C.gold, cursor: "pointer" }}>
+                {authMode === "login" ? "Créer un compte" : "Se connecter"}
+              </span>
+            </div>
+
+            <button onClick={loginGoogle} style={{ width: "100%", background: "#fff", border: "none", color: "#000", borderRadius: 6, padding: "10px 12px", fontWeight: 600, cursor: "pointer", marginBottom: 14, display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+              Continuer avec Google
+            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
+              <div style={{ flex: 1, height: 1, background: C.border }} />
+              <div style={{ fontSize: 11, color: C.muted }}>ou</div>
+              <div style={{ flex: 1, height: 1, background: C.border }} />
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 14 }}>
+              {authMode === "signup" && (
+                <input value={authNom} onChange={(e) => setAuthNom(e.target.value)} placeholder="Nom complet" style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "10px 12px", color: C.text }} />
+              )}
+              <input value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} placeholder="Email" style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "10px 12px", color: C.text }} />
+              <input value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} type="password" placeholder="Mot de passe" style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "10px 12px", color: C.text }} />
+            </div>
+            {authErreur && <div style={{ color: C.red, fontSize: 12, marginBottom: 10 }}>{authErreur}</div>}
+            <button onClick={authMode === "login" ? login : signup} disabled={authEnCours} style={{ width: "100%", background: C.gold, border: "none", color: "#000", borderRadius: 6, padding: "12px", fontWeight: 700, cursor: "pointer" }}>
+              {authEnCours ? "..." : authMode === "login" ? "Se connecter" : "Créer mon compte"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {showCommandes && (
+        <div onClick={() => setShowCommandes(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.6)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 100, padding: 20 }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 14, padding: 24, maxWidth: 480, width: "100%", maxHeight: "80vh", overflowY: "auto" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 14 }}>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>Mes commandes</div>
+              <button onClick={() => setShowCommandes(false)} style={{ background: "transparent", border: "none", color: C.muted, cursor: "pointer", fontSize: 18 }}>✕</button>
+            </div>
+            {mesCommandes.length === 0 ? (
+              <div style={{ color: C.muted, fontSize: 13, textAlign: "center", padding: 20 }}>Aucune commande pour l'instant.</div>
+            ) : (
+              <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                {mesCommandes.map((c) => (
+                  <div key={c.id} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: 14 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700 }}>{c.reference}</div>
+                      <div style={{ fontSize: 11, color: c.statut === "payée" ? C.green : C.muted }}>{c.statut}</div>
+                    </div>
+                    <div style={{ fontSize: 12, color: C.muted }}>{Number(c.montant_total).toFixed(2)} € · {new Date(c.created_at).toLocaleDateString("fr")}</div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
