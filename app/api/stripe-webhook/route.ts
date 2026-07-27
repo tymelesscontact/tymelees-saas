@@ -20,15 +20,16 @@ export async function POST(req: NextRequest) {
     if (event.type === 'checkout.session.completed') {
       const session = event.data.object as any;
 
-      // ── PAIEMENT WALLET (Encaisser) ──────────────────────────
-      if (session.metadata?.type === 'wallet_payment') {
-        const { createClient } = await import('@supabase/supabase-js');
-        const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
+      const { createClient } = await import('@supabase/supabase-js');
+      const sb = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
 
+      if (session.metadata?.type === 'wallet_payment') {
         await sb.from('wallet_transactions')
           .update({ statut: 'confirmé' })
           .eq('id', session.metadata.transaction_id);
-
         try {
           const { Resend } = await import('resend');
           const resend = new Resend(process.env.RESEND_API_KEY);
@@ -39,22 +40,15 @@ export async function POST(req: NextRequest) {
             html: `<div style="font-family:sans-serif;padding:24px;"><h2>Paiement confirmé !</h2><p>Montant : <strong>${(session.amount_total / 100).toFixed(2)}€</strong></p></div>`,
           });
         } catch (e) { console.error('Email error:', e); }
-
         return NextResponse.json({ received: true });
       }
 
-      // ── PAIEMENT FACTURE ──────────────────────────────────────
       if (session.metadata?.type === 'facture_payment') {
-        const { createClient } = await import('@supabase/supabase-js');
-        const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
-
         const { data: facture } = await sb.from('factures')
           .update({ statut: 'payée' })
           .eq('id', session.metadata.facture_id)
           .select()
           .single();
-
-        // Notif owner
         try {
           const { Resend } = await import('resend');
           const resend = new Resend(process.env.RESEND_API_KEY);
@@ -65,8 +59,6 @@ export async function POST(req: NextRequest) {
             html: `<div style="font-family:sans-serif;padding:24px;"><h2>Facture payée !</h2><p>Numéro : <strong>${facture?.numero || ''}</strong></p><p>Montant : <strong>${(session.amount_total / 100).toFixed(2)}€</strong></p></div>`,
           });
         } catch (e) { console.error('Email error:', e); }
-
-        // Reçu de paiement automatique au client
         if (facture?.client_email) {
           try {
             const { Resend } = await import('resend');
@@ -79,15 +71,42 @@ export async function POST(req: NextRequest) {
             });
           } catch (e) { console.error('Email client error:', e); }
         }
-
         return NextResponse.json({ received: true });
       }
 
-      // ── ABONNEMENT XYRA ───────────────────────────────────────
+      if (session.metadata?.type === 'commande_payment') {
+        const { data: commande } = await sb.from('commandes')
+          .update({ statut: 'payée', stripe_session_id: session.id })
+          .eq('id', session.metadata.commande_id)
+          .select()
+          .single();
+        try {
+          const { Resend } = await import('resend');
+          const resend = new Resend(process.env.RESEND_API_KEY);
+          await resend.emails.send({
+            from: 'Xyra Alerts <notifications@xyraio.fr>',
+            to: 'xyra.solution@gmail.com',
+            subject: `🛍️ Commande boutique payée — ${(session.amount_total / 100).toFixed(2)}€`,
+            html: `<div style="font-family:sans-serif;padding:24px;"><h2>Nouvelle commande payée !</h2><p>Référence : <strong>${commande?.reference || ''}</strong></p><p>Montant : <strong>${(session.amount_total / 100).toFixed(2)}€</strong></p></div>`,
+          });
+        } catch (e) { console.error('Email error:', e); }
+        if (commande?.client_email) {
+          try {
+            const { Resend } = await import('resend');
+            const resend = new Resend(process.env.RESEND_API_KEY);
+            await resend.emails.send({
+              from: 'Xyra <notifications@xyraio.fr>',
+              to: commande.client_email,
+              subject: `✅ Commande confirmée — ${commande.reference}`,
+              html: `<div style="font-family:sans-serif;padding:24px;"><h2>Merci pour votre commande !</h2><p>Référence : <strong>${commande.reference}</strong></p><p>Montant : <strong>${Number(commande.montant_total).toFixed(2)}€</strong></p><p>Elle est en cours de préparation.</p></div>`,
+            });
+          } catch (e) { console.error('Email commande error:', e); }
+        }
+        return NextResponse.json({ received: true });
+      }
+
       const { email, societe, plan } = session.metadata || {};
 
-      const { createClient } = await import('@supabase/supabase-js');
-      const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
       await sb.from('tenants').update({
         statut: 'actif',
         stripe_customer_id: session.customer,
@@ -101,7 +120,6 @@ export async function POST(req: NextRequest) {
 
       const { Resend } = await import('resend');
       const resend = new Resend(process.env.RESEND_API_KEY);
-
       const planPrix = plan === 'starter' ? '59€' : plan === 'business' ? '129€' : '249€';
       const planNom = plan === 'starter' ? 'Starter' : plan === 'business' ? 'Business Pro' : 'Enterprise';
 
