@@ -8,7 +8,7 @@ const sb = createClient(
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const { slug, client_nom, client_email, client_tel, client_adresse, items } = body;
+    const { slug, client_nom, client_email, client_tel, client_adresse, items, mode_paiement, devise } = body;
     if (!slug || !client_nom || !client_email || !items?.length) {
       return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
     }
@@ -25,13 +25,19 @@ export async function POST(req: NextRequest) {
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+    if (mode_paiement === 'flutterwave') {
+      const lien = await payerFlutterwave(commande, items, slug, devise, sb);
+      return NextResponse.json({ url: lien });
+    }
+
+
     const { default: Stripe } = await import('stripe');
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2024-06-20' });
     const session = await stripe.checkout.sessions.create({
       payment_method_types: ['card'],
       mode: 'payment',
       customer_email: client_email,
-      metadata: { commande_id: commande.id, reference },
+      metadata: { type: 'commande_payment', commande_id: commande.id, reference },
       line_items: items.map((it: any) => ({
         price_data: { currency: 'eur', product_data: { name: it.nom }, unit_amount: Math.round(it.prix * 100) },
         quantity: it.quantite,
@@ -40,10 +46,36 @@ export async function POST(req: NextRequest) {
       cancel_url: `https://xyraio.fr/boutique/${slug}?commande=annulee`,
     });
 
-    await sb.from('commandes').update({ stripe_session_id: session.id }).eq('id', commande.id);
+    await sb.from('commandes').update({ stripe_session_id: session.id, mode_paiement: 'stripe' }).eq('id', commande.id);
     return NextResponse.json({ url: session.url });
   } catch (error: any) {
     console.error('Commande error:', error);
     return NextResponse.json({ error: error.message }, { status: 500 });
   }
+}
+
+async function payerFlutterwave(commande: any, items: any[], slug: string, devise: string, sb: any) {
+  const currency = devise || 'XOF';
+  const tauxXOF = 655.96;
+  const amount = currency === 'XOF' ? Math.round(commande.montant_total * tauxXOF) : commande.montant_total;
+  const res = await fetch('https://api.flutterwave.com/v3/payments', {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${process.env.FLUTTERWAVE_SECRET_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      tx_ref: commande.reference,
+      amount,
+      currency,
+      redirect_url: `https://xyraio.fr/boutique/${slug}?commande=success&ref=${commande.reference}`,
+      customer: { email: commande.client_email, name: commande.client_nom, phonenumber: commande.client_tel || undefined },
+      customizations: { title: `Commande — ${commande.reference}`, description: `Commande boutique — ${items.map((i: any) => i.nom).join(', ')}` },
+      meta: { commande_id: commande.id, reference: commande.reference, type: 'commande_payment' },
+    }),
+  });
+  const data = await res.json();
+  if (data.status !== 'success') throw new Error(data.message || 'Erreur Flutterwave');
+  await sb.from('commandes').update({ flutterwave_ref: commande.reference, mode_paiement: 'flutterwave' }).eq('id', commande.id);
+  return data.data.link;
 }
