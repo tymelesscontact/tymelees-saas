@@ -1,28 +1,61 @@
 import { NextRequest, NextResponse } from 'next/server';
 export const dynamic = 'force-dynamic';
-
 export async function POST(req: NextRequest) {
   try {
     const signature = req.headers.get('verif-hash');
     const secretHash = process.env.FLUTTERWAVE_SECRET_HASH;
-
     if (!secretHash || signature !== secretHash) {
       return NextResponse.json({ error: 'Signature invalide' }, { status: 401 });
     }
-
     const payload = await req.json();
-
     if (payload.data?.status !== 'successful') {
       return NextResponse.json({ received: true });
     }
-
     const meta = payload.data.meta || {};
+
+    const { createClient } = await import('@supabase/supabase-js');
+    const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!);
+
+    // ── PAIEMENT COMMANDE BOUTIQUE ───────────────────────────
+    if (meta.type === 'commande_payment') {
+      const { data: commande } = await sb.from('commandes')
+        .update({ statut: 'payée', flutterwave_ref: payload.data.tx_ref })
+        .eq('id', meta.commande_id)
+        .select()
+        .single();
+
+      try {
+        const { Resend } = await import('resend');
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: 'Xyra Alerts <notifications@xyraio.fr>',
+          to: 'xyra.solution@gmail.com',
+          subject: `🛍️ Commande boutique payée (Flutterwave) — ${payload.data.amount} ${payload.data.currency}`,
+          html: `<div style="font-family:sans-serif;padding:24px;"><h2>Nouvelle commande payée !</h2><p>Référence : <strong>${commande?.reference || ''}</strong></p><p>Montant : <strong>${payload.data.amount} ${payload.data.currency}</strong></p></div>`,
+        });
+      } catch (e) { console.error('Email error:', e); }
+
+      if (commande?.client_email) {
+        try {
+          const { Resend } = await import('resend');
+          const resend = new Resend(process.env.RESEND_API_KEY);
+          await resend.emails.send({
+            from: 'Xyra <notifications@xyraio.fr>',
+            to: commande.client_email,
+            subject: `✅ Commande confirmée — ${commande.reference}`,
+            html: `<div style="font-family:sans-serif;padding:24px;"><h2>Merci pour votre commande !</h2><p>Référence : <strong>${commande.reference}</strong></p><p>Montant : <strong>${Number(commande.montant_total).toFixed(2)}€</strong></p><p>Elle est en cours de préparation.</p></div>`,
+          });
+        } catch (e) { console.error('Email client error:', e); }
+      }
+
+      return NextResponse.json({ received: true });
+    }
+
+    // ── ABONNEMENT XYRA ───────────────────────────────────────
     const { societe, plan } = meta;
     const customer = payload.data.customer || {};
     const email = customer.email;
 
-    const { createClient } = await import('@supabase/supabase-js');
-    const sb = createClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!);
     await sb.from('tenants').update({
       statut: 'actif',
       flutterwave_tx_ref: payload.data.tx_ref,
@@ -63,7 +96,6 @@ export async function POST(req: NextRequest) {
         `
       });
     }
-
     await resend.emails.send({
       from: 'Xyra Alerts <notifications@xyraio.fr>',
       to: 'xyra.solution@gmail.com',
@@ -82,7 +114,6 @@ export async function POST(req: NextRequest) {
         </div>
       `
     });
-
     return NextResponse.json({ received: true });
   } catch (error: any) {
     console.error('Flutterwave webhook error:', error);
