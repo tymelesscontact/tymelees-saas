@@ -8,6 +8,33 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
   const[couleursMarque,setCouleursMarque]=useState({couleur_primaire:"#C9A84C",couleur_secondaire:"#0A0A16",couleur_accent:"#2EC9B0"});
   const[uploadEnCours,setUploadEnCours]=useState(false);
   const logoInputRef=useRef(null);
+  const[showPayModal,setShowPayModal]=useState(false);
+  const[planChoisi,setPlanChoisi]=useState(null);
+  const[tenantInfo,setTenantInfo]=useState({email:"",societe:""});
+  const[payEnCours,setPayEnCours]=useState(false);
+  useEffect(()=>{
+    fetch('/api/tenant-info').then(r=>r.json()).then(d=>{
+      setTenantInfo({email:d.email||"",societe:d.societe||""});
+    }).catch(()=>{});
+  },[]);
+  const payerAbonnement=async(p,mode)=>{
+    setPayEnCours(true);
+    try{
+      const planKey=p.id==="business"?"business":p.id;
+      if(mode==="stripe"){
+        const res=await fetch('/api/create-checkout',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan:planKey,email:tenantInfo.email,societe:tenantInfo.societe})});
+        const data=await res.json();
+        if(data.url)window.location.href=data.url;
+        else showToast("❌ "+(data.error||"Erreur"));
+      }else{
+        const res=await fetch('/api/create-checkout-flutterwave',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({plan:planKey,email:tenantInfo.email,societe:tenantInfo.societe,currency:'XOF'})});
+        const data=await res.json();
+        if(data.url)window.location.href=data.url;
+        else showToast("❌ "+(data.error||"Erreur"));
+      }
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setPayEnCours(false);
+  };
   useEffect(()=>{
     fetch('/api/branding').then(r=>r.json()).then(d=>{
       if(d.branding){
