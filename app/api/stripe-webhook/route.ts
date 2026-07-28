@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { PLAN_PRIX, PLAN_LABELS } from '../../lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -112,7 +113,8 @@ export async function POST(req: NextRequest) {
         stripe_customer_id: session.customer,
         stripe_subscription_id: session.subscription,
       }).eq('email', email);
-      const montantNum = plan === 'starter' ? 59 : plan === 'business' ? 129 : 249;
+      const planNorm = plan === 'multi_pro' ? 'multi_societes_pro' : (plan || 'starter');
+      const montantNum = PLAN_PRIX[planNorm] ?? 0;
       await sb.from('abonnements_paiements').insert({
         tenant_email: email, societe, plan, montant: montantNum, devise: 'EUR',
         provider: 'stripe', reference: session.id,
@@ -120,8 +122,8 @@ export async function POST(req: NextRequest) {
 
       const { Resend } = await import('resend');
       const resend = new Resend(process.env.RESEND_API_KEY);
-      const planPrix = plan === 'starter' ? '59€' : plan === 'business' ? '129€' : '249€';
-      const planNom = plan === 'starter' ? 'Starter' : plan === 'business' ? 'Business Pro' : 'Enterprise';
+      const planPrix = `${PLAN_PRIX[planNorm] ?? 0}€`;
+      const planNom = PLAN_LABELS[planNorm] || planNorm;
 
       await resend.emails.send({
         from: 'Xyra <notifications@xyraio.fr>',
