@@ -243,7 +243,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
             <div style={{fontSize:22,fontWeight:700,color:C.text,margin:"8px 0"}}>{p.prix}</div>
             <div style={{fontSize:11,color:C.muted}}>{p.description}</div>
           </div>
-          {plan===p.id?<div style={{background:`${p.color}22`,border:`1px solid ${p.color}44`,borderRadius:8,padding:8,textAlign:"center",fontSize:11,color:p.color,fontWeight:700}}>✓ Plan actuel</div>:<Btn onClick={()=>showToast(`✅ Passage à ${p.nom} initié — Paiement Flutterwave`)} color={p.color} style={{width:"100%",color:p.id==="business"?"#000":"#fff"}}>Passer à ce plan</Btn>}
+          {plan===p.id?<div style={{background:`${p.color}22`,border:`1px solid ${p.color}44`,borderRadius:8,padding:8,textAlign:"center",fontSize:11,color:p.color,fontWeight:700}}>✓ Plan actuel</div>:<Btn onClick={()=>{setPlanChoisi(p);setShowPayModal(true);}} color={p.color} style={{width:"100%",color:p.id==="business"?"#000":"#fff"}}>Passer à ce plan</Btn>}
         </Card>)}
       </div>
       <Card>
@@ -579,7 +579,35 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
         <div style={{display:"flex",gap:8}}><BtnGhost onClick={()=>showToast("📄 Politique confidentialité téléchargée")}>📄 Télécharger PDF</BtnGhost><BtnGhost onClick={()=>showToast("📧 Email DPO ouvert")}>📧 Contacter le DPO</BtnGhost></div>
       </Card>
     </div>}
+
+    {showPayModal&&planChoisi&&<div onClick={()=>!payEnCours&&setShowPayModal(false)} style={{position:"fixed",inset:0,background:"rgba(6,4,12,.78)",backdropFilter:"blur(4px)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:440,background:C.card||"#15131E",border:`1px solid ${C.border}`,borderRadius:16,padding:24}}>
+        <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:4}}>Passer au forfait {planChoisi.nom}</div>
+        <div style={{fontSize:12,color:C.muted,marginBottom:20}}>{planChoisi.prix} — choisissez votre méthode de paiement</div>
+        <div style={{display:"flex",flexDirection:"column",gap:10}}>
+          <div onClick={()=>!payEnCours&&payerAbonnement(planChoisi,"stripe")} style={{display:"flex",alignItems:"center",gap:14,padding:"15px 16px",borderRadius:12,border:`1px solid ${C.border}`,cursor:payEnCours?"default":"pointer",opacity:payEnCours?.5:1}}>
+            <span style={{fontSize:22}}>💳</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:700,color:C.text}}>Carte bancaire</div>
+              <div style={{fontSize:10,color:C.muted}}>Visa, Mastercard, Amex — via Stripe</div>
+            </div>
+            <span style={{color:C.muted,fontSize:13}}>→</span>
+          </div>
+          <div onClick={()=>!payEnCours&&payerAbonnement(planChoisi,"flutterwave")} style={{display:"flex",alignItems:"center",gap:14,padding:"15px 16px",borderRadius:12,border:`1px solid ${C.border}`,cursor:payEnCours?"default":"pointer",opacity:payEnCours?.5:1}}>
+            <span style={{fontSize:22}}>📱</span>
+            <div style={{flex:1}}>
+              <div style={{fontSize:13,fontWeight:700,color:C.text}}>Mobile Money</div>
+              <div style={{fontSize:10,color:C.muted}}>Orange Money, MTN, Wave — via Flutterwave</div>
+            </div>
+            <span style={{color:C.muted,fontSize:13}}>→</span>
+          </div>
+        </div>
+        {payEnCours&&<div style={{marginTop:14,fontSize:11,color:C.gold,textAlign:"center"}}>⏳ Redirection en cours...</div>}
+        <div style={{marginTop:16,display:"flex",justifyContent:"flex-end"}}>
+          <BtnGhost onClick={()=>!payEnCours&&setShowPayModal(false)} style={{fontSize:11}}>Annuler</BtnGhost>
+        </div>
+      </div>
+    </div>}
   </div>;
 };
-
 export default PageSettings;
