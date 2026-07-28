@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { C, Card, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, DEVISES } from "../lib/ui";
 
-const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil})=>{
+const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLANS,PROFILS_SECTEURS})=>{
   const[onglet,setOnglet]=useState("entreprise");
   const[logoUrl,setLogoUrl]=useState("");
   const[couleursMarque,setCouleursMarque]=useState({couleur_primaire:"#C9A84C",couleur_secondaire:"#0A0A16",couleur_accent:"#2EC9B0"});

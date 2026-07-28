@@ -676,7 +676,7 @@ export default function Xyra() {
     facturation:<PageFacturationModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     formation:<PageFormationModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
     api:<PageAPIModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    settings:<PageSettingsModule plan={plan} showToast={showToast} sirApiKey={sirApiKey} setSirApiKey={setSirApiKey} profil={profil} setProfil={setProfil}/>,
+    settings:<PageSettingsModule plan={plan} showToast={showToast} sirApiKey={sirApiKey} setSirApiKey={setSirApiKey} profil={profil} setProfil={setProfil} PLANS={PLANS} PROFILS_SECTEURS={PROFILS_SECTEURS}/>,
   };
 
   if(sbLoading)return <div style={{minHeight:"100vh",background:"#06060E",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
