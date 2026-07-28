@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, S
 import { PARTENAIRES, ANNUAIRE, CONTRATS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PagePartenaires=({plan,showToast,UpgradeWall,activeCompany})=>{
+const PagePartenaires=({plan,showToast,UpgradeWall,activeCompany,Chat})=>{
   const[parts,setParts]=useState([]);
   const[loadingParts,setLoadingParts]=useState(true);
   const[alertes,setAlertes]=useState([]);
