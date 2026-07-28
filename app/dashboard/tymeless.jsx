@@ -646,7 +646,7 @@ export default function Xyra() {
     accueil:<PageAccueilModule notifs={notifs} setNotifs={setNotifs} profil={profil} setPage={setPage}/>,
     // Pages bientôt disponibles
     ...Object.fromEntries(Object.entries(SOON_MODULES).map(([k,v])=>[k,<PageBientot key={k} {...v}/>])),
-    wallet:<PageWalletModule plan={plan} showToast={showToast} profil={profil} activeCompany={activeCompany}/>,
+    wallet:<PageWalletModule plan={plan} showToast={showToast} profil={profil} activeCompany={activeCompany} METHODES_PAY={METHODES_PAY} Convertisseur={Convertisseur} IbanMondial={IbanMondial}/>,
     cartes:<PageCartesModule plan={plan} showToast={showToast} activeCompany={activeCompany}/>,
     overview:<PageOverviewModule plan={plan} profil={profil} setPage={setPage} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     crm:<PageCRMModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,

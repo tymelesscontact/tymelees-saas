@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM, Tabs, St, conv, DEVISES } from "../lib/ui";
 import { INIT_HISTO } from "../lib/seedData";
 
-const PageWallet=({plan,showToast,profil,activeCompany})=>{
+const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseur,IbanMondial})=>{
   const[onglet,setOnglet]=useState("solde");
   const[devise,setDevise]=useState("EUR");
   const[histo,setHisto]=useState(INIT_HISTO);
