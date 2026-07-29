@@ -58,7 +58,9 @@ export async function POST(req: NextRequest) {
     if (!id || !statut) {
       return NextResponse.json({ success: false, error: "id et statut requis" }, { status: 400 })
     }
-    const { error } = await sb.from("notes_frais").update({ statut }).eq("id", id)
+    let uq = sb.from("notes_frais").update({ statut }).eq("id", id)
+    if (tenantId) uq = uq.eq("tenant_id", tenantId)
+    const { error } = await uq
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
