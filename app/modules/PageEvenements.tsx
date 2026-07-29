@@ -179,9 +179,9 @@ const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
         <div style={{marginBottom:12}}>
           <div style={{display:"flex",justifyContent:"space-between",fontSize:10,marginBottom:3}}>
             <span style={{color:C.muted}}>Inscriptions</span>
-            <span style={{color:C.gold,fontWeight:700}}>{e.inscrits||0}/{e.max||e.max_inscrits||50}</span>
+            <span style={{color:C.gold,fontWeight:700}}>{e.inscrits||0}/{e.max_inscrits||50}</span>
           </div>
-          <SM val={Number(e.inscrits||0)} max={Number(e.max||e.max_inscrits||50)} color={Number(e.inscrits||0)===Number(e.max||e.max_inscrits||50)?C.red:C.green}/>
+          <SM val={Number(e.inscrits||0)} max={Number(e.max_inscrits||50)} color={Number(e.inscrits||0)===Number(e.max_inscrits||50)?C.red:C.green}/>
         </div>
         <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
           <Btn onClick={()=>{setSelectedEvt(e);setShowInscription(true);}} style={{flex:1,fontSize:11,background:e.statut==="complet"?C.border:C.green,color:e.statut==="complet"?C.muted:"#000"}} disabled={e.statut==="complet"}>🎟 S'inscrire</Btn>
@@ -213,7 +213,7 @@ const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
             </div>}
             <div style={{flex:1}}>
               <div style={{fontSize:12,fontWeight:700}}>{e.titre}</div>
-              <div style={{fontSize:10,color:C.muted}}>{e.lieu} · {e.inscrits||0}/{e.max||e.max_inscrits||50} inscrits</div>
+              <div style={{fontSize:10,color:C.muted}}>{e.lieu} · {e.inscrits||0}/{e.max_inscrits||50} inscrits</div>
             </div>
             <div style={{display:"flex",gap:6}}>
               <Pill color={e.statut==="ouvert"?C.green:C.red}>{e.statut==="ouvert"?"Ouvert":"Complet"}</Pill>
@@ -266,8 +266,8 @@ const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
         </Card>
         <Card>
           <STitle>🏆 Top événements par remplissage</STitle>
-          {[...evts].sort((a,b)=>(Number(b.inscrits||0)/Math.max(1,Number(b.max||b.max_inscrits||50)))-(Number(a.inscrits||0)/Math.max(1,Number(a.max||a.max_inscrits||50)))).slice(0,5).map((e,i)=>{
-            const pct=Math.round(Number(e.inscrits||0)/Math.max(1,Number(e.max||e.max_inscrits||50))*100);
+          {[...evts].sort((a,b)=>(Number(b.inscrits||0)/Math.max(1,Number(b.max_inscrits||50)))-(Number(a.inscrits||0)/Math.max(1,Number(a.max_inscrits||50)))).slice(0,5).map((e,i)=>{
+            const pct=Math.round(Number(e.inscrits||0)/Math.max(1,Number(e.max_inscrits||50))*100);
             return <div key={i} style={{marginBottom:10}}>
               <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{fontWeight:600}}>{e.titre.slice(0,30)}{e.titre.length>30?"...":""}</span><span style={{color:pct>=80?C.green:C.gold,fontWeight:700}}>{pct}%</span></div>
               <SM val={pct} max={100} color={pct>=80?C.green:C.gold}/>
