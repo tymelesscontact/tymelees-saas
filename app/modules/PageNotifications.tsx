@@ -110,8 +110,8 @@ const PageNotifications=({notifs,setNotifs,showToast,activeCompany})=>{
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
         {filtered.map((n,i)=><SwipeableNotif key={n.id||i} n={n} i={i} typeColor={typeColor}
-          onOpen={()=>{setNotifs(ns=>ns.map((x,j)=>j===i?{...x,lu:true}:x));if(n.id)_marquerLu(n.id);}}
-          onDelete={()=>{setNotifs(ns=>ns.filter((x,j)=>j!==i));if(n.id)_supprimerNotif(n.id);else showToast("🗑 Notification supprimée");}}
+          onOpen={()=>{setNotifs(ns=>ns.map(x=>x===n?{...x,lu:true}:x));if(n.id)_marquerLu(n.id);}}
+          onDelete={()=>{setNotifs(ns=>ns.filter(x=>x!==n));if(n.id)_supprimerNotif(n.id);else showToast("🗑 Notification supprimée");}}
         />)}
         {filtered.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>✅ Aucune notification pour ce filtre</div>}
       </div>
