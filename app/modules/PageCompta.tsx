@@ -136,8 +136,8 @@ const PageCompta=({plan,showToast,UpgradeWall,activeCompany})=>{
       </div>
       <div style={{marginTop:12,fontSize:11,color:C.muted}}>TVA collectée calculée depuis tes vraies factures. TVA déductible calculée depuis les Notes de Frais validées.</div>
     </Card>}
-    {onglet==="charges"&&<TabCharges showToast={showToast}/>}
-    {onglet==="fournisseurs"&&<TabFournisseurs showToast={showToast}/>}
+    {onglet==="charges"&&<TabCharges showToast={showToast} activeCompany={activeCompany}/>}
+    {onglet==="fournisseurs"&&<TabFournisseurs showToast={showToast} activeCompany={activeCompany}/>}
     {onglet==="ia"&&<Card><STitle>🤖 Conseils IA Fiscale — Claude</STitle>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         {[{t:"Marge actuelle",c:`Ta marge nette est de ${marge}% sur la période. ${marge<20?"C'est en dessous de la moyenne du secteur services (25-35%) — vérifie tes charges fixes.":"C'est une bonne marge pour ton secteur."}`,col:marge<20?C.orange:C.green},{t:"TVA à anticiper",c:`Tu as ${fmt(tvaAReverser)} de TVA à reverser sur la période. Mets cette somme de côté pour ta prochaine déclaration.`,col:C.gold},{t:"Créances en attente",c:creancesClients>0?`Tu as ${fmt(creancesClients)} de factures non encore payées. Pense à relancer les clients en retard depuis le module Facturation.`:"Aucune créance en attente, bien joué.",col:C.blue}].map((a,i)=><div key={i} style={{background:`${a.col}11`,border:`1px solid ${a.col}33`,borderRadius:8,padding:12}}>
