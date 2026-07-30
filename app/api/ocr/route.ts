@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
+        model: 'claude-sonnet-4-6',
         max_tokens: 500,
         messages: [{
           role: 'user',
@@ -49,11 +49,25 @@ Si une info est illisible, mets null pour ce champ.`,
     });
 
     const data = await res.json();
-    const text = data.content?.[0]?.text || '{}';
+    if (!res.ok || data.error) {
+      const msg = data.error?.message || ('Erreur Claude Vision HTTP ' + res.status);
+      console.error('OCR Claude:', msg);
+      return NextResponse.json({ success: false, error: msg }, { status: 502 });
+    }
+    const text = data.content?.[0]?.text;
+    if (!text) {
+      console.error('OCR: reponse sans texte', JSON.stringify(data).slice(0, 300));
+      return NextResponse.json({ success: false, error: 'Lecture impossible, reponse vide' }, { status: 502 });
+    }
     
     // Parser le JSON retourné par Claude
     const clean = text.replace(/```json|```/g, '').trim();
-    const result = JSON.parse(clean);
+    let result;
+    try { result = JSON.parse(clean); }
+    catch (e) {
+      console.error('OCR: JSON invalide:', clean.slice(0, 300));
+      return NextResponse.json({ success: false, error: 'Ticket illisible' }, { status: 502 });
+    }
 
     return NextResponse.json({ success: true, data: result });
   } catch (error: any) {

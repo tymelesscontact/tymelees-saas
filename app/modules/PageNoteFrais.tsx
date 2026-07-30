@@ -68,7 +68,7 @@ const PageNoteFrais=({plan,showToast,activeCompany})=>{
         }));
         showToast("🤖 Lea a lu votre ticket ! Score de confiance : "+(d.confiance||"—")+"%");
       }else{
-        showToast("⚠️ Ticket illisible — remplissez manuellement");
+        showToast("⚠️ "+(data.error||"Ticket illisible — remplissez manuellement"));
       }
     }catch(err){
       showToast("❌ Erreur OCR — vérifiez la connexion");
