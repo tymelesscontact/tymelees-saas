@@ -135,7 +135,8 @@ export async function POST(req: NextRequest) {
 
   // ── PAYER : enregistre un virement à exécuter manuellement ──
   if (action === 'payer') {
-    const { nom, montant, devise, methode, ref, type, destinataire_iban, destinataire_email, destinataire_tel } = body;
+    const { nom, montant, devise, methode, ref, type, destinataire_iban, destinataire_email, destinataire_tel, company_id } = body;
+    const tenantId = await getTenantIdFromRequest(req);
     if (!nom || !montant) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
 
     const { data: row, error } = await sb
@@ -152,6 +153,8 @@ export async function POST(req: NextRequest) {
         destinataire_iban: destinataire_iban || null,
         destinataire_email: destinataire_email || null,
         destinataire_tel: destinataire_tel || null,
+        tenant_id: tenantId || null,
+        company_id: company_id || null,
       })
       .select()
       .single();
