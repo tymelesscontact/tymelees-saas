@@ -66,6 +66,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
+  const tenantId = await getTenantIdFromRequest(req);
 
   if (action === 'creer') {
     const { nom, valeur, prob, etape, client, email, tel, dead, source, desc, partenaire_id, commission_pct } = body;
@@ -131,12 +132,14 @@ export async function POST(req: NextRequest) {
           montant: deal.commission_montant, devise: 'EUR', methode: 'sepa',
           statut: 'à_virer', ref: `DEAL-COMM-${Date.now()}`,
           destinataire_nom: deal.partenaire_nom,
+          tenant_id: tenantId || null,
         });
         await sb.from('notifications').insert({
           type: 'money', icon: '💰', urgence: 'haute',
           titre: `Commission à virer — ${deal.partenaire_nom}`,
           message: `Deal "${deal.nom}" gagné — commission : ${deal.commission_montant}€`,
           action_type: 'commission', lu: false,
+          tenant_id: tenantId || null,
         });
       }
       await sb.from('deals_timeline').insert({ deal_id: id, type: 'gagné', description: `Deal gagné — CA : ${deal?.valeur}€` });
