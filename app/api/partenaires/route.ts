@@ -143,6 +143,7 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
+  const tenantId = await getTenantIdFromRequest(req);
 
   if (action === 'creer') {
     const { nom, role, comm, email, tel, adresse, rib } = body;
@@ -241,9 +242,13 @@ export async function POST(req: NextRequest) {
     const { data: p, error: errP } = await sb.from('partenaires').select('*').eq('id', id).single();
     if (errP || !p) return NextResponse.json({ error: 'Partenaire introuvable' }, { status: 404 });
 
-    const { data: leads } = await sb.from('leads_partenaires').select('*');
+    let lq = sb.from('leads_partenaires').select('*');
+    if (tenantId) lq = lq.eq('tenant_id', tenantId);
+    const { data: leads } = await lq;
     const pLeads = (leads || []).filter((l: any) => l.partenaire_id === p.id || (p.user_id && l.partenaire_id === p.user_id));
-    const { data: commTx } = await sb.from('wallet_transactions').select('*').eq('type', 'commission').eq('destinataire_nom', p.nom);
+    let cq = sb.from('wallet_transactions').select('*').eq('type', 'commission').eq('destinataire_nom', p.nom);
+    if (tenantId) cq = cq.eq('tenant_id', tenantId);
+    const { data: commTx } = await cq;
 
     const ca = pLeads.filter((l: any) => l.statut === 'gagné').reduce((a: number, l: any) => a + Number(l.ca_estime || 0), 0);
     const commissionTheorique = Math.round(ca * (Number(p.commission) || 0) / 100);
@@ -264,6 +269,7 @@ export async function POST(req: NextRequest) {
       destinataire_iban: p.rib || null,
       destinataire_email: p.email || null,
       destinataire_tel: p.tel || null,
+      tenant_id: tenantId || null,
     }).select().single();
 
     if (errTx) return NextResponse.json({ error: errTx.message }, { status: 500 });
