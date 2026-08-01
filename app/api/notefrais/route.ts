@@ -26,7 +26,9 @@ export async function POST(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req)
   const sb = getAdminClient()
   if (action === "create") {
-    const { employe, date, categorie, marchand, montant, tva, justificatif, compte_cpt, projet, company_id } = body
+    const { employe, date, categorie, marchand, montant, tva, justificatif, compte_cpt, projet, company_id,
+              justificatif_chemin, justificatif_nom, justificatif_type, justificatif_taille,
+              justificatif_empreinte, justificatif_depose_le } = body
     if (!employe || !montant || !date) {
       return NextResponse.json({ success: false, error: "Champs obligatoires manquants" }, { status: 400 })
     }
@@ -45,6 +47,12 @@ export async function POST(req: NextRequest) {
         projet,
         tenant_id: tenantId,
         company_id: company_id || null,
+        justificatif_chemin: justificatif_chemin || null,
+        justificatif_nom: justificatif_nom || null,
+        justificatif_type: justificatif_type || null,
+        justificatif_taille: justificatif_taille || null,
+        justificatif_empreinte: justificatif_empreinte || null,
+        justificatif_depose_le: justificatif_depose_le || null,
       })
       .select()
       .single()
@@ -60,7 +68,32 @@ export async function POST(req: NextRequest) {
     }
     let uq = sb.from("notes_frais").update({ statut }).eq("id", id)
     if (tenantId) uq = uq.eq("tenant_id", tenantId)
-    const { error } = await uq
+    const { data: note, error } = await uq.select().single()
+
+    // Note validee -> vraie ligne dans le Wallet (donc visible en Compta et Tresorerie)
+    if (!error && note && statut === "validé") {
+      const { error: errTx } = await sb.from("wallet_transactions").insert({
+        type: "note_frais",
+        libelle: `Note de frais ${note.employe || ""} — ${note.marchand || ""}`.trim(),
+        montant: Number(note.montant || 0),
+        devise: "EUR",
+        methode: "sepa",
+        statut: "à_virer",
+        ref: `NDF-${note.id}`,
+        destinataire_nom: note.employe || "",
+        tenant_id: note.tenant_id || tenantId || null,
+        company_id: note.company_id || null,
+      })
+      if (errTx) console.error("Note de frais: transaction wallet non creee:", errTx.message)
+    }
+
+    // Note remboursee -> la transaction passe en vire
+    if (!error && note && statut === "remboursé") {
+      const { error: errMaj } = await sb.from("wallet_transactions")
+        .update({ statut: "viré" })
+        .eq("ref", `NDF-${note.id}`)
+      if (errMaj) console.error("Note de frais: transaction wallet non mise a jour:", errMaj.message)
+    }
     if (error) {
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
     }
