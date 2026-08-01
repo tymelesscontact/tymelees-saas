@@ -225,7 +225,8 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'valider_acompte') {
-    const { id, employe_id, montant, nom_employe } = body;
+    const { id, employe_id, montant, nom_employe, company_id } = body;
+    const tenantId = await getTenantIdFromRequest(req);
     await sb.from('acomptes').update({ statut: 'validé' }).eq('id', id);
     // Crée une vraie transaction dans le wallet
     await sb.from('wallet_transactions').insert({
@@ -237,6 +238,8 @@ export async function POST(req: NextRequest) {
       statut: 'à_virer',
       ref: `ACOMP-${Date.now()}`,
       destinataire_nom: nom_employe,
+      tenant_id: tenantId || null,
+      company_id: company_id || null,
     });
     return NextResponse.json({ success: true });
   }
