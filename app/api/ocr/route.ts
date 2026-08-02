@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'crypto';
+import sharp from 'sharp';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 
 export const dynamic = 'force-dynamic';
@@ -30,7 +31,22 @@ export async function POST(req: NextRequest) {
 
     const bytes = await file.arrayBuffer();
     const buffer = Buffer.from(bytes);
-    const base64 = buffer.toString('base64');
+
+    // Claude Vision n'accepte pas le HEIC des photos iPhone : on convertit en JPEG
+    // pour la LECTURE seulement. Le fichier d'origine reste celui qui est stocke,
+    // et l'empreinte est calculee sur lui.
+    let bufferLecture: Buffer = buffer;
+    let typeLecture = mediaType;
+    if (mediaType === 'image/heic' || mediaType === 'image/heif') {
+      try {
+        bufferLecture = await sharp(buffer).jpeg({ quality: 90 }).toBuffer();
+        typeLecture = 'image/jpeg';
+      } catch (e: any) {
+        console.error('Conversion HEIC echouee:', e.message);
+        return NextResponse.json({ success: false, error: 'Photo HEIC illisible - reessayez en JPEG' }, { status: 400 });
+      }
+    }
+    const base64 = bufferLecture.toString('base64');
 
     const empreinte = createHash('sha256').update(buffer).digest('hex');
 
@@ -83,7 +99,7 @@ export async function POST(req: NextRequest) {
         messages: [{
           role: 'user',
           content: [
-            { type: 'image', source: { type: 'base64', media_type: mediaType, data: base64 } },
+            { type: 'image', source: { type: 'base64', media_type: typeLecture, data: base64 } },
             {
               type: 'text',
               text: `Analyse ce ticket de caisse ou facture et extrais les informations suivantes. Reponds UNIQUEMENT en JSON valide, sans texte avant ou apres :
