@@ -29,6 +29,15 @@ export async function POST(req: NextRequest) {
     const { employe, date, categorie, marchand, montant, tva, justificatif, compte_cpt, projet, company_id,
               justificatif_chemin, justificatif_nom, justificatif_type, justificatif_taille,
               justificatif_empreinte, justificatif_depose_le } = body
+    // Accepte JJ/MM/AAAA et le convertit en AAAA-MM-JJ (format attendu par Postgres)
+    let dateOk = date
+    if (typeof date === 'string' && /^\d{2}\/\d{2}\/\d{4}$/.test(date)) {
+      const [j, m, a] = date.split('/')
+      dateOk = `${a}-${m}-${j}`
+    }
+    if (typeof dateOk === 'string' && dateOk && !/^\d{4}-\d{2}-\d{2}$/.test(dateOk)) {
+      return NextResponse.json({ success: false, error: `Date invalide : ${date}` }, { status: 400 })
+    }
     if (!employe || !montant || !date) {
       return NextResponse.json({ success: false, error: "Champs obligatoires manquants" }, { status: 400 })
     }
@@ -36,7 +45,7 @@ export async function POST(req: NextRequest) {
       .from("notes_frais")
       .insert({
         employe,
-        date,
+        date: dateOk,
         categorie,
         marchand,
         montant,
