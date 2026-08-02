@@ -7,20 +7,22 @@ const PageNoteFrais=({plan,showToast,activeCompany})=>{
   const[notes,setNotes]=useState([]);
   const[loadingNotes,setLoadingNotes]=useState(true);
 
+  const chargerNotes=async()=>{
+    try{
+      const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/notefrais?action=list'+companyParam);
+      const data=await res.json();
+      if(data.notes)setNotes(data.notes);
+    }catch(e){console.error('Notes frais:',e);}
+    setLoadingNotes(false);
+  };
   useEffect(()=>{
-    const load=async()=>{
-      try{
-        const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
-        const res=await fetch('/api/notefrais?action=list'+companyParam);
-        const data=await res.json();
-        if(data.notes)setNotes(data.notes);
-      }catch(e){console.error('Notes frais:',e);}
-      setLoadingNotes(false);
-    };
-    load();
+    chargerNotes();
   },[activeCompany]);
   const[form,setForm]=useState({employe:"",date:"",categorie:"Transport",marchand:"",montant:"",tva:"",projet:"",notes:"",justificatif:false});
   const[scanning,setScanning]=useState(false);
+  const[envoiEnCours,setEnvoiEnCours]=useState(false);
+  const[justifInfo,setJustifInfo]=useState(null);
   const[budget,setBudget]=useState({Transport:500,Repas:300,Hébergement:800,Fournitures:200,Télécom:150,Formation:1000,Autre:200});
   const[showBudget,setShowBudget]=useState(false);
   const[filterStatut,setFilterStatut]=useState("tous");
@@ -66,7 +68,12 @@ const PageNoteFrais=({plan,showToast,activeCompany})=>{
           date:d.date||new Date().toISOString().slice(0,10),
           justificatif:true,
         }));
-        showToast("🤖 Lea a lu votre ticket ! Score de confiance : "+(d.confiance||"—")+"%");
+        if(data.justificatif)setJustifInfo(data.justificatif);
+        if(data.doublon){
+          showToast("⚠️ Deja utilise le "+data.doublon.date+" ("+data.doublon.marchand+" · "+data.doublon.montant+"€)");
+        }else{
+          showToast("🤖 Lea : "+(d.marchand||"marchand ?")+" · "+(d.montant_ttc||"?")+"€ · "+(d.date||"?")+" · "+(d.confiance||"—")+"%");
+        }
       }else{
         showToast("⚠️ "+(data.error||"Ticket illisible — remplissez manuellement"));
       }
@@ -78,7 +85,9 @@ const PageNoteFrais=({plan,showToast,activeCompany})=>{
   };
 
   const soumettre=async()=>{
+    if(envoiEnCours)return;
     if(!form.employe||!form.montant||!form.date)return showToast("⚠️ Remplissez les champs obligatoires");
+    setEnvoiEnCours(true);
     const plafond=plafonds[form.categorie];
     if(plafond&&parseFloat(form.montant)>plafond)showToast("⚠️ Plafond légal dépassé — "+form.categorie+" : "+plafond+"€ max");
     try{
@@ -96,15 +105,24 @@ const PageNoteFrais=({plan,showToast,activeCompany})=>{
           justificatif:form.justificatif,
           compte_cpt:comptes[form.categorie],
           projet:form.projet,
+          company_id:activeCompany?.id||null,
+          justificatif_chemin:justifInfo?.chemin||null,
+          justificatif_nom:justifInfo?.nom||null,
+          justificatif_type:justifInfo?.type||null,
+          justificatif_taille:justifInfo?.taille||null,
+          justificatif_empreinte:justifInfo?.empreinte||null,
+          justificatif_depose_le:justifInfo?.depose_le||null,
         }),
       });
       const data=await res.json();
       if(data.note){
         setNotes(n=>[{...data.note,compteCpt:data.note.compte_cpt},...n]);
         setForm({employe:"",date:"",categorie:"Transport",marchand:"",montant:"",tva:"",projet:"",notes:"",justificatif:false});
-        showToast("✅ Note soumise — en attente de validation");
+        setJustifInfo(null);
+        showToast("✅ Note soumise — en attente de validation"); chargerNotes();
       }else{showToast("❌ Erreur lors de la soumission");}
     }catch(e){showToast("❌ Erreur connexion");}
+    setEnvoiEnCours(false);
   };
 
   const updateStatut=async(id,statut,msg)=>{
@@ -245,7 +263,7 @@ const PageNoteFrais=({plan,showToast,activeCompany})=>{
             </label>
           </div>
         </div>
-        <button onClick={soumettre} disabled={!form.employe||!form.montant||!form.date} style={{width:"100%",background:!form.employe||!form.montant||!form.date?C.muted:`linear-gradient(135deg,${C.gold},#A07830)`,color:"#000",border:"none",borderRadius:8,padding:"13px",cursor:"pointer",fontWeight:700,fontSize:14,fontFamily:"inherit"}}>
+        <button onClick={soumettre} disabled={envoiEnCours||!form.employe||!form.montant||!form.date} style={{width:"100%",background:!form.employe||!form.montant||!form.date?C.muted:`linear-gradient(135deg,${C.gold},#A07830)`,color:"#000",border:"none",borderRadius:8,padding:"13px",cursor:"pointer",fontWeight:700,fontSize:14,fontFamily:"inherit"}}>
           📤 Soumettre la note de frais
         </button>
       </CT>
