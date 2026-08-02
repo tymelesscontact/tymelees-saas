@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { calculerTva } from '../../lib/reglesTva';
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
@@ -41,6 +42,14 @@ export async function POST(req: NextRequest) {
     if (!employe || !montant || !date) {
       return NextResponse.json({ success: false, error: "Champs obligatoires manquants" }, { status: 400 })
     }
+    const calc = await calculerTva({
+      categorie,
+      payeur: body.payeur,
+      sous_type: body.sous_type,
+      tva,
+      date: dateOk,
+    })
+
     const { data, error } = await sb
       .from("notes_frais")
       .insert({
@@ -52,7 +61,10 @@ export async function POST(req: NextRequest) {
         tva,
         statut: "en_attente",
         justificatif,
-        compte_cpt,
+        compte_cpt: calc.compte_charge || compte_cpt,
+        payeur: body.payeur || 'salarie',
+        sous_type: body.sous_type || null,
+        tva_deductible: calc.tva_deductible,
         projet,
         tenant_id: tenantId,
         company_id: (typeof company_id === 'string'
