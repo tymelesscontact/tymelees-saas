@@ -46,7 +46,9 @@ export async function POST(req: NextRequest) {
         compte_cpt,
         projet,
         tenant_id: tenantId,
-        company_id: company_id || null,
+        company_id: (typeof company_id === 'string'
+          && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(company_id))
+          ? company_id : null,
         justificatif_chemin: justificatif_chemin || null,
         justificatif_nom: justificatif_nom || null,
         justificatif_type: justificatif_type || null,
