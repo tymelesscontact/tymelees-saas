@@ -170,7 +170,7 @@ export async function GET(req: NextRequest) {
       if (tenantId) {
         query = query.eq('tenant_id', tenantId)
       }
-      if (companyId) {
+      if (companyId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(companyId)) {
         query = query.eq('company_id', companyId)
       }
       const { data, error } = await query
