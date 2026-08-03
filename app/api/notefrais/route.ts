@@ -14,7 +14,8 @@ export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req)
   let q = sb.from("notes_frais").select("*").order("date", { ascending: false })
   if (tenantId) q = q.eq("tenant_id", tenantId)
-  if (companyId) q = q.eq("company_id", companyId)
+  const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+  if (companyId && UUID.test(companyId)) q = q.eq("company_id", companyId)
   const { data, error } = await q
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
