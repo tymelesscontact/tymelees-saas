@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -53,7 +54,7 @@ export async function GET(req: NextRequest) {
   const companyId = searchParams.get('company_id');
   function scoped(q) {
     if (tenantId) q = q.eq('tenant_id', tenantId);
-    if (companyId) q = q.eq('company_id', companyId);
+    if (companyId && UUID_RE.test(companyId)) q = q.eq('company_id', companyId);
     return q;
   }
 

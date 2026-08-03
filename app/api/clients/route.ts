@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,7 +29,7 @@ export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   let clientsQuery = sb.from('clients').select('*').order('created_at', { ascending: false });
   if (tenantId) clientsQuery = clientsQuery.eq('tenant_id', tenantId);
-  if (companyId) clientsQuery = clientsQuery.eq('company_id', companyId);
+  if (companyId && UUID_RE.test(companyId)) clientsQuery = clientsQuery.eq('company_id', companyId);
   const { data: clients, error } = await clientsQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
