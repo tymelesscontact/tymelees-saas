@@ -84,6 +84,14 @@ const PageNoteFrais=({plan,showToast,activeCompany})=>{
     e.target.value="";
   };
 
+  const voirJustificatif=async(id)=>{
+    try{
+      const res=await fetch('/api/justificatif?note_id='+id);
+      const d=await res.json();
+      if(d.url)window.open(d.url,"_blank");
+      else showToast("⚠️ "+(d.error||"Justificatif introuvable"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const soumettre=async()=>{
     if(envoiEnCours)return;
     if(!form.employe||!form.montant||!form.date)return showToast("⚠️ Remplissez les champs obligatoires");
@@ -333,7 +341,9 @@ const PageNoteFrais=({plan,showToast,activeCompany})=>{
               <Td style={{color:C.teal,fontSize:10}}>{n.tva.toFixed(2)}€</Td>
               <Td style={{fontFamily:"monospace",fontSize:10,color:C.muted}}>{n.compteCpt}</Td>
               <Td style={{fontSize:10,color:C.muted}}>{n.projet||"—"}</Td>
-              <Td style={{textAlign:"center"}}>{n.justificatif?"✅":"⚠️"}</Td>
+              <Td style={{textAlign:"center"}}>{n.justificatif_chemin
+                ?<Btn onClick={()=>voirJustificatif(n.id)} style={{fontSize:11,padding:"2px 8px"}}>🧾</Btn>
+                :(n.justificatif?"✅":"⚠️")}</Td>
               <Td><Pill color={statutColor[n.statut]||C.muted}>{statutLabel[n.statut]||n.statut}</Pill></Td>
               <Td><div style={{display:"flex",gap:4}}>
                 {n.statut==="validé"&&<Btn onClick={()=>rembourser(n.id)} style={{fontSize:9,padding:"3px 6px",background:C.teal}}>💸</Btn>}
