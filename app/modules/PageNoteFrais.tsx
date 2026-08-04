@@ -18,7 +18,7 @@ const PageNoteFrais=({plan,showToast,activeCompany})=>{
   };
   useEffect(()=>{
     chargerNotes();
-  },[activeCompany]);
+  },[activeCompany?.id]);
   const[form,setForm]=useState({employe:"",date:"",categorie:"Transport",marchand:"",montant:"",tva:"",projet:"",notes:"",justificatif:false});
   const[scanning,setScanning]=useState(false);
   const[envoiEnCours,setEnvoiEnCours]=useState(false);
