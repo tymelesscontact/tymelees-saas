@@ -70,8 +70,8 @@ export const Pill = ({ children, color = C.gold, bg }: any) => (
   <span style={{ background: bg || color + "22", color, border: `1px solid ${color}44`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>{children}</span>
 );
 
-export const Inp = ({ value, onChange, placeholder, style = {} }: any) => (
-  <input value={value} onChange={onChange} placeholder={placeholder} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 12px", color: C.text, fontSize: 13, fontFamily: "inherit", outline: "none", width: "100%", ...style }}/>
+export const Inp = ({ value, onChange, placeholder, style = {}, ...rest }: any) => (
+  <input {...rest} value={value} onChange={onChange} placeholder={placeholder} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 12px", color: C.text, fontSize: 13, fontFamily: "inherit", outline: "none", width: "100%", ...style }}/>
 );
 
 export const Sel = ({ value, onChange, children, style = {} }: any) => (
