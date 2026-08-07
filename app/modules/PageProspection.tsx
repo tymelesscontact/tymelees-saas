@@ -289,7 +289,7 @@ const PageProspection=({plan,showToast,profil=null,UpgradeWall,activeCompany})=>
     }catch(e){console.error("Prospection leads:",e);}
     setLoadingLeads(false);
   };
-  useEffect(()=>{loadLeads();},[activeCompany]);
+  useEffect(()=>{loadLeads();},[activeCompany?.id]);
   const leads=leadsReal.filter(l=>!query||(l.nom||'').toLowerCase().includes(query.toLowerCase())||(l.metier||'').toLowerCase().includes(query.toLowerCase()));
   const envoyerWhatsapp=async(l)=>{
     try{

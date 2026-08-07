@@ -39,7 +39,7 @@ const PageCartes=({plan,showToast,activeCompany})=>{
     setLoading(false);
   };
 
-  useEffect(()=>{load();},[activeCompany]);
+  useEffect(()=>{load();},[activeCompany?.id]);
 
   const creerCarte=async()=>{
     if(!newCarte.nom)return showToast("⚠️ Nom requis");

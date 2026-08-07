@@ -33,7 +33,7 @@ const PageSignatures=({plan,showToast,UpgradeWall,activeCompany}) => {
     }catch(e){console.error("Signatures:",e);}
     setLoading(false);
   };
-  useEffect(()=>{load();},[activeCompany]);
+  useEffect(()=>{load();},[activeCompany?.id]);
   const resetFormulaire=()=>{
     setModeleChoisi(null);setVariables({});setSignataireNom("");setSignataireEmail("");setSignataireRole("");setMessagePerso("");setEmailCopie("");setApercu(false);
   };

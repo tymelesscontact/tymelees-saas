@@ -36,7 +36,7 @@ const PageScoring=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
     setLoading(false);
   };
 
-  useEffect(()=>{load();},[activeCompany]);
+  useEffect(()=>{load();},[activeCompany?.id]);
 
   const ajouterAvis=async()=>{
     if(!avisForm.client_nom)return showToast("⚠️ Nom client requis");

@@ -27,7 +27,7 @@ const PagePartenaires=({plan,showToast,UpgradeWall,activeCompany,Chat})=>{
     }catch(e){console.error("Partenaires:",e);}
     setLoadingParts(false);
   };
-  useEffect(()=>{loadAll();},[activeCompany]);
+  useEffect(()=>{loadAll();},[activeCompany?.id]);
   useEffect(()=>{if(sel)setSel(s=>parts.find(p=>p.id===s.id)||null);},[parts]);
 
   const tabs=[

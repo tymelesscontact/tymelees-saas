@@ -28,7 +28,7 @@ const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
     setLoading(false);
   };
 
-  useEffect(()=>{load();},[activeCompany]);
+  useEffect(()=>{load();},[activeCompany?.id]);
 
   const creerEvenement=async()=>{
     if(!newEvt.titre||!newEvt.date_debut)return showToast("⚠️ Titre et date requis");

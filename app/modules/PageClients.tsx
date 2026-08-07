@@ -21,7 +21,7 @@ const PageClients=({plan,showToast,profil,setPage,UpgradeWall,activeCompany})=>{
     }catch(e){console.error("Clients:",e);}
     setLoadingClients(false);
   };
-  useEffect(()=>{loadAll();},[activeCompany]);
+  useEffect(()=>{loadAll();},[activeCompany?.id]);
   useEffect(()=>{if(sel)setSel(s=>clients.find(c=>c.id===s.id)||null);},[clients]);
 
   const enriched=clients;

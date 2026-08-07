@@ -86,7 +86,7 @@ const PageOverview=({plan,profil,setPage,showToast,UpgradeWall,activeCompany})=>
     setLoading(false);
   };
 
-  useEffect(()=>{load();},[activeCompany]);
+  useEffect(()=>{load();},[activeCompany?.id]);
 
   useEffect(()=>{
     if(data&&!briefing){

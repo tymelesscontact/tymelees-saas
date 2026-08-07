@@ -75,7 +75,7 @@ export const TabCharges=({showToast,activeCompany})=>{
     }catch(e){console.error("Charges:",e);}
     setLoading(false);
   };
-  useEffect(()=>{load();},[activeCompany]);
+  useEffect(()=>{load();},[activeCompany?.id]);
 
   const total=charges.reduce((a,c)=>a+Number(c.montant||0),0);
 
@@ -150,7 +150,7 @@ export const TabFournisseurs=({showToast,activeCompany})=>{
     }catch(e){console.error("Fournisseurs:",e);}
     setLoading(false);
   };
-  useEffect(()=>{load();},[activeCompany]);
+  useEffect(()=>{load();},[activeCompany?.id]);
 
   const ajouter=async()=>{
     if(!form.nom)return showToast("⚠️ Nom requis");

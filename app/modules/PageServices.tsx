@@ -35,7 +35,7 @@ const PageServices=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
     }catch(e){console.error("Services:",e);}
     setLoading(false);
   };
-  useEffect(()=>{load();},[activeCompany]);
+  useEffect(()=>{load();},[activeCompany?.id]);
   const loadProduits=async()=>{
     try{
       const cp=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
@@ -44,7 +44,7 @@ const PageServices=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
       if(data.produits)setProduits(data.produits);
     }catch(e){console.error("Produits:",e);}
   };
-  useEffect(()=>{loadProduits();},[activeCompany]);
+  useEffect(()=>{loadProduits();},[activeCompany?.id]);
   const rechercherCodeBarre=async()=>{
     if(!scanCode)return showToast("⚠️ Entrez ou scannez un code-barres");
     setRecherchant(true);

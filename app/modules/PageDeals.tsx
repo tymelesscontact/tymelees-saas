@@ -65,7 +65,7 @@ const PageDeals=({plan,showToast,UpgradeWall,activeCompany})=>{
       _loadDeals();
     }catch(e){}
   };
-  useEffect(()=>{_loadDeals();},[activeCompany]);
+  useEffect(()=>{_loadDeals();},[activeCompany?.id]);
   const ETAPES=["Identification","Qualification","Proposition","Négociation","Closing","Gagné","Perdu"];
   const[deals,setDeals]=useState([
     {id:"DEAL-001",nom:"Contrat Hôtel Prestige Paris",valeur:12000,prob:85,etape:"Proposition",client:"Claire Bernard",tel:"+33 1 23 45 67",email:"claire@prestige.fr",dead:"30/04/2026",source:"CRM",desc:"Nettoyage 40 chambres/jour + entretien communs",actions:[{date:"14/04",type:"Email",note:"Proposition envoyée"},{date:"12/04",type:"RDV",note:"Présentation en présentiel"}],dernierContact:"14/04"},

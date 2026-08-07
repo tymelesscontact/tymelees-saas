@@ -31,7 +31,7 @@ const PageCompta=({plan,showToast,UpgradeWall,activeCompany})=>{
     }catch(e){console.error("Compta:",e);}
     setLoadingCompta(false);
   };
-  useEffect(()=>{loadCompta();},[activeCompany]);
+  useEffect(()=>{loadCompta();},[activeCompany?.id]);
 
   const tabs=[{id:"journal",label:"📋 Journal"},{id:"bilan",label:"📊 Bilan"},{id:"tva",label:"💶 TVA"},{id:"charges",label:"💸 Charges"},{id:"fournisseurs",label:"🏭 Fournisseurs"},{id:"ia",label:"🤖 IA Fiscale"},{id:"export",label:"📤 Export"}];
   if(!hasAccess(plan,"compta"))return <div style={{padding:20}}><UpgradeWall page="Comptabilité" plan={plan}/></div>;

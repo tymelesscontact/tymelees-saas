@@ -51,7 +51,7 @@ const PageAPI=({plan,showToast,UpgradeWall,activeCompany})=>{
     setLoading(false);
   };
 
-  useEffect(()=>{load();},[activeCompany]);
+  useEffect(()=>{load();},[activeCompany?.id]);
 
   const creerKey=async()=>{
     if(!keyForm.nom)return showToast("⚠️ Nom requis");

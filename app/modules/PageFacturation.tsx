@@ -18,7 +18,7 @@ const PageFacturation=({plan,showToast,UpgradeWall,activeCompany})=>{
     }catch(e){console.error("Factures:",e);}
     setLoadingFact(false);
   };
-  useEffect(()=>{loadFactures();},[activeCompany]);
+  useEffect(()=>{loadFactures();},[activeCompany?.id]);
 
   const[newFact,setNewFact]=useState({client_nom:"",client_email:"",client_tel:"",siren:"",type_client:"entreprise",description:"",montant_ht:"",taux_tva:"20",format:"Factur-X"});
   const tvaMontant=newFact.montant_ht?Math.round(Number(newFact.montant_ht)*Number(newFact.taux_tva))/100:0;

@@ -30,7 +30,7 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
     }catch(e){console.error("Devis:",e);}
     setLoadingDevis(false);
   };
-  useEffect(()=>{loadDevis();},[activeCompany]);
+  useEffect(()=>{loadDevis();},[activeCompany?.id]);
   const[onglet,setOnglet]=useState("liste");
   const[showCreate,setShowCreate]=useState(false);
   const[modeleId,setModeleId]=useState("airbnb");

@@ -44,7 +44,7 @@ const PageTresorerie=({plan,showToast,UpgradeWall,activeCompany})=>{
     setLoading(false);
   };
 
-  useEffect(()=>{load();},[activeCompany]);
+  useEffect(()=>{load();},[activeCompany?.id]);
 
   // Analyse IA au chargement
   useEffect(()=>{

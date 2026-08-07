@@ -39,7 +39,7 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
     setLoadingWallet(false);
   };
 
-  useEffect(()=>{loadWallet();},[activeCompany]);
+  useEffect(()=>{loadWallet();},[activeCompany?.id]);
   const[virementForm,setVirementForm]=useState({iban:"",bic:"",nom:"",montant:"",devise:"EUR",motif:""});
 
   const handleVirementSepa=async()=>{

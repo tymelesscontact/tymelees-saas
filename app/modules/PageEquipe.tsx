@@ -42,7 +42,7 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
       }
     }catch(e){console.log("Mode local");}
   };
-  useEffect(()=>{loadRealData();},[activeCompany]);
+  useEffect(()=>{loadRealData();},[activeCompany?.id]);
   const[alertes,setAlertes]=useState([]);
   const[equipe,setEquipe]=useState([
     {id:1,nom:"Thomas Beaumont",prenom:"Thomas",role:"Responsable missions premium",statut:"En mission",localisation:"Airbnb Montmartre",pointage:"09:02",heures:6.5,conges:12,soldeConges:12,salaire:2800,perf:94,contrat:"CDI",email:"thomas@xyra.io",tel:"+33 6 12 34 56 78",embauche:"01/03/2024",nss:"1 85 06 75 056 042 28",rib:"FR76 3000 4000 0100 0012 3456 789",adresse:"12 rue de la Paix, 75001 Paris",dateNaissance:"15/06/1985",couleur:"#4B7BFF",

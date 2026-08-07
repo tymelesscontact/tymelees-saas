@@ -24,7 +24,7 @@ const PageCRM=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
     }catch(e){console.error("CRM:",e);}
     setLoadingLeads(false);
   };
-  useEffect(()=>{loadAll();},[activeCompany]);
+  useEffect(()=>{loadAll();},[activeCompany?.id]);
   useEffect(()=>{if(sel)setSel(s=>leads.find(l=>l.id===s.id)||null);},[leads]);
 
   if(!hasAccess(plan,"crm"))return <div style={{padding:20}}><UpgradeWall page="CRM" plan={plan}/></div>;
