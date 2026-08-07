@@ -76,6 +76,8 @@ const PageStock=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
   if(!hasAccess(plan,"stock"))return <div style={{padding:20}}><UpgradeWall page="stock" plan={plan}/></div>;
 
   const ajouterMouvement=(idx,type,qte,note)=>{
+    const article=stock[idx];
+    if(article?.id)_mouvement(article.id,type,qte,note);
     setStock(sk=>sk.map((s,i)=>i===idx?{...s,qte:type==="entrée"?s.qte+qte:Math.max(0,s.qte-qte),historique:[{date:new Date().toLocaleDateString("fr"),type,qte,note},...s.historique]}:s));
     showToast(`✅ ${type==="entrée"?"+":"-"}${qte} ${stock[idx]?.u} — ${stock[idx]?.art}`);
   };
