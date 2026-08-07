@@ -92,6 +92,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;
 
@@ -111,6 +112,7 @@ export async function POST(req: NextRequest) {
       type: type || 'info', icon: icon || '🔔', titre, message,
       urgence: urgence || 'normale', action_type, action_id,
       canal: canal || 'dashboard', lu: false,
+      tenant_id: tenantId || null,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, notification: data });

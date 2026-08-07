@@ -65,6 +65,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;
 
@@ -120,6 +121,7 @@ export async function POST(req: NextRequest) {
         titre: `Stock critique : ${art?.art}`,
         message: `Il ne reste que ${nouvelleQte} unité(s) — seuil minimum : ${minSeuil}`,
         lu: false,
+        tenant_id: tenantId || null,
       });
     }
 

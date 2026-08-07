@@ -193,6 +193,8 @@ export async function POST(req: NextRequest) {
         titre: `Claude a répondu à ${conv.contact_nom}`,
         message: 'Aucune réponse depuis 1h — vérifie et reprends la main si besoin',
         action_type: 'chat', action_id: conv.id, lu: false,
+        tenant_id: tenantId || null,
+        tenant_id: tenantId || null,
       });
       const ownerTel = process.env.OWNER_WHATSAPP;
       if (ownerTel) { try { await sendWhatsApp(ownerTel, `Xyra - Claude a repondu a ${conv.contact_nom} (pas de reponse depuis 1h). Verifie la conversation.`); } catch { /* non bloquant */ } }
