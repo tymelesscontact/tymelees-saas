@@ -25,7 +25,8 @@ const PageStock=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
         setStock(prev=>{
           const merged=data.articles.map((r)=>{
             const existing=prev.find(p=>p.art===r.art||p.id===r.id);
-            return existing?{...existing,...r}:r;
+            const fusion=existing?{...existing,...r}:r;
+            return {...fusion,historique:fusion.historique||[]};
           });
           return merged.length>0?merged:prev;
         });
