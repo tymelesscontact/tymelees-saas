@@ -26,7 +26,15 @@ const PageStock=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
           const merged=data.articles.map((r)=>{
             const existing=prev.find(p=>p.art===r.art||p.id===r.id);
             const fusion=existing?{...existing,...r}:r;
-            return {...fusion,historique:fusion.historique||[]};
+            return {...fusion,
+              art:fusion.art||r.article||'',
+              cat:fusion.cat||r.categorie||'',
+              u:fusion.u||r.unite||'',
+              four:fusion.four||r.fournisseur||'',
+              prixU:fusion.prixU||r.prixu||r.prix_unitaire||0,
+              min:fusion.min||r.seuil_min||0,
+              max:fusion.max||Math.max((fusion.min||r.seuil_min||0)*4,10),
+              historique:fusion.historique||[]};
           });
           return merged.length>0?merged:prev;
         });
