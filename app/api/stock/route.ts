@@ -96,46 +96,121 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
 
-  if (action === 'mouvement') {
-    const { article_id, type, quantite, note, operateur, localisation_origine, localisation_destination } = body;
-    if (!article_id || !type || !quantite) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
-
-    // Enregistrer le mouvement
-    const { error: mvtError } = await sb.from('mouvements_stock').insert({
-      article_id, type, quantite: Number(quantite), note, operateur: operateur || 'Curtiss',
-      localisation_origine, localisation_destination,
-    });
-    if (mvtError) return NextResponse.json({ error: mvtError.message }, { status: 500 });
-
-    // Mettre à jour la quantité
-    const { data: art } = await sb.from('stock').select('qte,quantite,min,art').eq('id', article_id).single();
-    const qteActuelle = Number(art?.qte || art?.quantite || 0);
-    const nouvelleQte = type === 'entrée' ? qteActuelle + Number(quantite) : Math.max(0, qteActuelle - Number(quantite));
-    await sb.from('stock').update({ qte: nouvelleQte, updated_at: new Date().toISOString() }).eq('id', article_id);
-
-    // Alerte si stock critique après sortie
-    const minSeuil = art?.min || 5;
-    if (type === 'sortie' && nouvelleQte <= minSeuil) {
-      await sb.from('notifications').insert({
-        type: 'stock', icon: '📦', urgence: 'haute',
-        titre: `Stock critique : ${art?.art}`,
-        message: `Il ne reste que ${nouvelleQte} unité(s) — seuil minimum : ${minSeuil}`,
-        lu: false,
-        tenant_id: tenantId || null,
+  // ── MOUVEMENT DE STOCK : 6 operations ──────────────────────
+  // reception | sortie | transfert | retrait | inventaire | correction
+  if (action === 'mouvement' || action === 'transfert') {
+    const {
+      article_id, quantite, note, cause, client_id,
+      emplacement_id, emplacement_destination_id, lot_id,
+      numero_lot, date_peremption, prix_achat, fournisseur_id, reference_reception,
+    } = body;
+    let type = action === 'transfert' ? 'transfert' : body.type;
+    if (type === 'entree' || type === 'entrée') type = 'reception';
+    const TYPES = ['reception', 'sortie', 'transfert', 'retrait', 'inventaire', 'correction'];
+    if (!article_id || !type || quantite === undefined || quantite === null) {
+      return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
+    }
+    if (!TYPES.includes(type)) {
+      return NextResponse.json({ error: 'Type inconnu : ' + type }, { status: 400 });
+    }
+    const qte = Number(quantite);
+    if (isNaN(qte) || qte < 0) {
+      return NextResponse.json({ error: 'Quantite invalide' }, { status: 400 });
+    }
+    let empId = emplacement_id;
+    if (!empId) {
+      const { data: def } = await sb.from('emplacements')
+        .select('id').eq('tenant_id', tenantId).eq('par_defaut', true).limit(1).maybeSingle();
+      empId = def?.id || null;
+    }
+    if (!empId) {
+      return NextResponse.json({ error: 'Aucun emplacement disponible' }, { status: 400 });
+    }
+    let lotId = lot_id || null;
+    if (!lotId && type === 'reception' && (numero_lot || date_peremption)) {
+      const { data: nouveauLot } = await sb.from('lots').insert({
+        tenant_id: tenantId, article_id, numero_lot: numero_lot || null,
+        date_peremption: date_peremption || null, prix_achat: prix_achat || null,
+        fournisseur_id: fournisseur_id || null, reference_reception: reference_reception || null,
+      }).select('id').single();
+      lotId = nouveauLot?.id || null;
+    }
+    let q = sb.from('stock_niveaux').select('*')
+      .eq('article_id', article_id).eq('emplacement_id', empId);
+    q = lotId ? q.eq('lot_id', lotId) : q.is('lot_id', null);
+    const { data: niveau } = await q.maybeSingle();
+    const avant = Number(niveau?.quantite || 0);
+    let apres = avant;
+    if (type === 'reception') apres = avant + qte;
+    else if (type === 'sortie' || type === 'retrait' || type === 'transfert') apres = avant - qte;
+    else if (type === 'inventaire' || type === 'correction') apres = qte;
+    if (apres < 0) {
+      return NextResponse.json({ error: 'Stock insuffisant : ' + avant + ' disponible, ' + qte + ' demande' }, { status: 400 });
+    }
+    if (niveau) {
+      await sb.from('stock_niveaux')
+        .update({ quantite: apres, updated_at: new Date().toISOString() })
+        .eq('id', niveau.id);
+    } else {
+      await sb.from('stock_niveaux').insert({
+        tenant_id: tenantId, article_id, emplacement_id: empId,
+        lot_id: lotId, quantite: apres,
       });
     }
-
-    return NextResponse.json({ success: true, nouvelleQte });
-  }
-
-  if (action === 'transfert') {
-    const { article_id, quantite, de, vers } = body;
-    await sb.from('mouvements_stock').insert({
-      article_id, type: 'transfert', quantite: Number(quantite),
-      localisation_origine: de, localisation_destination: vers,
-      note: `Transfert ${de} → ${vers}`, operateur: 'Curtiss',
+    if (type === 'transfert') {
+      if (!emplacement_destination_id) {
+        return NextResponse.json({ error: 'Emplacement de destination requis' }, { status: 400 });
+      }
+      let qd = sb.from('stock_niveaux').select('*')
+        .eq('article_id', article_id).eq('emplacement_id', emplacement_destination_id);
+      qd = lotId ? qd.eq('lot_id', lotId) : qd.is('lot_id', null);
+      const { data: dest } = await qd.maybeSingle();
+      if (dest) {
+        await sb.from('stock_niveaux')
+          .update({ quantite: Number(dest.quantite) + qte, updated_at: new Date().toISOString() })
+          .eq('id', dest.id);
+      } else {
+        await sb.from('stock_niveaux').insert({
+          tenant_id: tenantId, article_id, emplacement_id: emplacement_destination_id,
+          lot_id: lotId, quantite: qte,
+        });
+      }
+    }
+    let valeurPerdue = null;
+    if (type === 'retrait') {
+      const { data: art0 } = await sb.from('stock').select('prixu,prix_unitaire').eq('id', article_id).single();
+      const pu = Number(art0?.prixu || art0?.prix_unitaire || 0);
+      valeurPerdue = Math.round(pu * qte * 100) / 100;
+    }
+    const { error: mvtError } = await sb.from('mouvements_stock').insert({
+      tenant_id: tenantId, article_id, type,
+      quantite: (type === 'inventaire' || type === 'correction') ? Math.abs(apres - avant) : qte,
+      note: note || null, cause: cause || null, client_id: client_id || null,
+      emplacement_id: empId, emplacement_destination_id: emplacement_destination_id || null,
+      lot_id: lotId, quantite_avant: avant, quantite_apres: apres,
+      valeur_perdue: valeurPerdue, operateur: body.operateur || null,
     });
-    return NextResponse.json({ success: true });
+    if (mvtError) return NextResponse.json({ error: mvtError.message }, { status: 500 });
+    const { data: niveaux } = await sb.from('stock_niveaux')
+      .select('quantite').eq('article_id', article_id);
+    const total = (niveaux || []).reduce((a: number, n: any) => a + Number(n.quantite || 0), 0);
+    await sb.from('stock')
+      .update({ qte: total, quantite: total, updated_at: new Date().toISOString() })
+      .eq('id', article_id);
+    const { data: art } = await sb.from('stock').select('min,seuil_min,art').eq('id', article_id).single();
+    const minSeuil = Number(art?.min || art?.seuil_min || 0);
+    if (minSeuil > 0 && total <= minSeuil && (type === 'sortie' || type === 'retrait')) {
+      await sb.from('notifications').insert({
+        type: 'stock', icon: '📦', urgence: 'haute',
+        titre: 'Stock critique : ' + art?.art,
+        message: 'Il ne reste que ' + total + ' unite(s) - seuil minimum : ' + minSeuil,
+        lu: false, tenant_id: tenantId || null,
+      });
+    }
+    return NextResponse.json({
+      success: true, type, quantite_avant: avant, quantite_apres: apres,
+      nouvelleQte: total, valeur_perdue: valeurPerdue,
+    });
   }
 
   if (action === 'analyse_ia') {
