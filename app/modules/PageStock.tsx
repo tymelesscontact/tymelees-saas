@@ -33,7 +33,7 @@ const PageStock=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
               four:fusion.four||r.fournisseur||'',
               prixU:fusion.prixU||r.prixu||r.prix_unitaire||0,
               min:fusion.min||r.seuil_min||0,
-              max:fusion.max||Math.max((fusion.min||r.seuil_min||0)*4,10),
+              max:fusion.max||r.seuil_max||0,
               historique:fusion.historique||[]};
           });
           return merged.length>0?merged:prev;
