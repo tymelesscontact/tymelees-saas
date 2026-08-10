@@ -55,7 +55,13 @@ Le JSON doit avoir EXACTEMENT cette structure (reponds UNIQUEMENT le JSON, sans 
     "commande": "mot pour designer une commande/reservation",
     "rdv": "mot pour designer un rendez-vous",
     "produit": "mot pour designer un produit/prestation vendue",
-    "devis": "mot pour designer un devis/proposition commerciale"
+    "devis": "mot pour designer un devis/proposition commerciale",
+    "reception": "mot court pour quand de la marchandise arrive (ex: Livraison recue, Reception, Approvisionnement)",
+    "sortie": "mot court pour quand de la marchandise part vers une prestation ou une vente (ex: Utilise en cuisine, Sortie mission, Vendu)",
+    "transfert": "mot court pour un deplacement entre deux lieux de stockage",
+    "retrait": "mot court pour une perte reelle : casse, perime, vol (ex: Perte ou casse, Perime, Casse)",
+    "inventaire": "mot court pour le comptage physique du stock (ex: Comptage, Inventaire)",
+    "correction": "mot court pour corriger une erreur de saisie sans mouvement reel"
   },
   "services": ["4 a 8 exemples de services typiques de ce metier"],
   "stockCategories": ["4 a 7 categories de stock/fournitures typiques"],
