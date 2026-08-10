@@ -24,7 +24,12 @@ export async function GET(req: NextRequest) {
   const { data: articles, error } = await articlesQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const { data: mouvements } = await sb.from('mouvements_stock').select('*').order('date_mouvement', { ascending: false }).limit(100);
+  let mvtQuery = sb.from('mouvements_stock').select('*').order('date_mouvement', { ascending: false }).limit(100);
+  if (tenantId) mvtQuery = mvtQuery.eq('tenant_id', tenantId);
+  const { data: mouvements } = await mvtQuery;
+  let empQuery = sb.from('emplacements').select('*').eq('actif', true).order('nom');
+  if (tenantId) empQuery = empQuery.eq('tenant_id', tenantId);
+  const { data: emplacements } = await empQuery;
   const { data: fournisseurs } = await sb.from('fournisseurs').select('*').order('nom');
 
   // Enrichir chaque article
@@ -61,7 +66,7 @@ export async function GET(req: NextRequest) {
   const articlesCritiques = enriched.filter((a: any) => a.statut === 'critique' || a.statut === 'rupture');
   const scoreStock = Math.max(0, 100 - articlesCritiques.length * 15);
 
-  return NextResponse.json({ articles: enriched, mouvements: mouvements || [], fournisseurs: fournisseurs || [], valeurTotale, articlesCritiques, scoreStock });
+  return NextResponse.json({ articles: enriched, mouvements: mouvements || [], fournisseurs: fournisseurs || [], emplacements: emplacements || [], valeurTotale, articlesCritiques, scoreStock });
 }
 
 export async function POST(req: NextRequest) {
