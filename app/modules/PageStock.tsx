@@ -6,6 +6,7 @@ import { hasAccess } from "../lib/plans";
 const PageStock=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
   const[_stockReal,setStockReal]=useState([]);
   const[_mouvementsReal,setMouvementsReal]=useState([]);
+  const[emplacements,setEmplacements]=useState([]);
   const[_fournisseursReal,setFournisseursReal]=useState([]);
   const[_stockKpis,setStockKpis]=useState({valeurTotale:0,articlesCritiques:[],scoreStock:100});
   const[_stockIa,setStockIa]=useState("");
@@ -20,6 +21,7 @@ const PageStock=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
         setStockReal(data.articles);
         setMouvementsReal(data.mouvements||[]);
         setFournisseursReal(data.fournisseurs||[]);
+        setEmplacements(data.emplacements||[]);
         setStockKpis({valeurTotale:data.valeurTotale||0,articlesCritiques:data.articlesCritiques||[],scoreStock:data.scoreStock||100});
         // Enrichir le stock existant avec les données réelles
         setStock(prev=>{
@@ -83,6 +85,56 @@ const PageStock=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
 
   if(!hasAccess(plan,"stock"))return <div style={{padding:20}}><UpgradeWall page="stock" plan={plan}/></div>;
 
+  const[mvt,setMvt]=useState(null);
+  const[mvtForm,setMvtForm]=useState({type:"",quantite:"",note:"",cause:"",emplacement_id:"",emplacement_destination_id:"",numero_lot:"",date_peremption:""});
+  const[mvtEnCours,setMvtEnCours]=useState(false);
+  const T=(cle,defaut)=>profil?.termes?.[cle]||defaut;
+  const OPERATIONS=[
+    {id:"reception",  icone:"\ud83d\udce5", libelle:()=>T("reception","Réception"),   couleur:C.green},
+    {id:"sortie",     icone:"\ud83d\udce4", libelle:()=>T("sortie","Sortie"),         couleur:C.blue},
+    {id:"transfert",  icone:"\ud83d\udd04", libelle:()=>T("transfert","Transfert"),   couleur:C.teal},
+    {id:"retrait",    icone:"\u26a0\ufe0f", libelle:()=>T("retrait","Perte ou casse"),couleur:C.red},
+    {id:"inventaire", icone:"\ud83d\udccb", libelle:()=>T("inventaire","Inventaire"), couleur:C.gold},
+    {id:"correction", icone:"\u270f\ufe0f", libelle:()=>T("correction","Correction"), couleur:C.muted},
+  ];
+  const CAUSES=["Casse","Périmé","Vol","Retour fournisseur","Autre"];
+  const ouvrirMvt=(article)=>{
+    setMvt(article);
+    setMvtForm({type:"",quantite:"",note:"",cause:"",emplacement_id:"",emplacement_destination_id:"",numero_lot:"",date_peremption:""});
+  };
+  const apercu=()=>{
+    if(!mvt||!mvtForm.type||!mvtForm.quantite)return null;
+    const q=Number(mvtForm.quantite)||0;
+    const avant=Number(mvt.qte)||0;
+    if(mvtForm.type==="reception")return avant+q;
+    if(mvtForm.type==="inventaire"||mvtForm.type==="correction")return q;
+    if(mvtForm.type==="transfert")return avant;
+    return Math.max(0,avant-q);
+  };
+  const validerMvt=async()=>{
+    if(mvtEnCours)return;
+    if(!mvtForm.type)return showToast("⚠️ Choisissez le type de mouvement");
+    if(mvtForm.quantite===""||Number(mvtForm.quantite)<0)return showToast("⚠️ Quantité invalide");
+    if(mvtForm.type==="transfert"&&!mvtForm.emplacement_destination_id)return showToast("⚠️ Choisissez la destination");
+    if(mvtForm.type==="retrait"&&!mvtForm.cause)return showToast("⚠️ Indiquez la cause");
+    setMvtEnCours(true);
+    try{
+      const res=await fetch('/api/stock',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        action:'mouvement',article_id:mvt.id,type:mvtForm.type,quantite:Number(mvtForm.quantite),
+        note:mvtForm.note||null,cause:mvtForm.cause||null,
+        emplacement_id:mvtForm.emplacement_id||null,
+        emplacement_destination_id:mvtForm.emplacement_destination_id||null,
+        numero_lot:mvtForm.numero_lot||null,date_peremption:mvtForm.date_peremption||null,
+      })});
+      const data=await res.json();
+      if(data.success){
+        showToast(`✅ ${data.quantite_avant} → ${data.quantite_apres}`);
+        setMvt(null);
+        _loadStock();
+      }else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setMvtEnCours(false);
+  };
   const ajouterMouvement=(idx,type,qte,note)=>{
     const article=stock[idx];
     if(article?.id)_mouvement(article.id,type,qte,note);
@@ -155,8 +207,8 @@ const PageStock=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
           <Td style={{color:C.muted,fontSize:11}}>{s.four}</Td>
           <Td>{s.qte<s.min?<Pill color={C.red}>⚠ Critique</Pill>:s.qte<=s.min*1.5?<Pill color={C.orange}>⚡ Bas</Pill>:<Pill color={C.green}>✓ OK</Pill>}</Td>
           <Td onClick={e=>e.stopPropagation()}><div style={{display:"flex",gap:3}}>
-            <Btn onClick={()=>ajouterMouvement(i,"entrée",10,"Réapprovisionnement")} style={{fontSize:9,padding:"3px 6px",background:C.green}}>+10</Btn>
-            <BtnGhost onClick={()=>ajouterMouvement(i,"sortie",1,"Utilisation mission")} style={{fontSize:9,padding:"3px 6px"}}>-1</BtnGhost>
+            <Btn onClick={()=>ouvrirMvt(s)} style={{fontSize:10,padding:"4px 10px",background:C.gold,color:"#000"}}>⇄ Mouvement</Btn>
+            
             {s.qte<s.min&&<Btn onClick={()=>showToast(`🛒 Commande ${s.art} envoyée à ${s.four}`)} style={{fontSize:9,padding:"3px 6px",background:C.orange}}>Commander</Btn>}
           </div></Td>
         </tr>)}
@@ -249,6 +301,81 @@ const PageStock=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
           </tbody>
         </table>
       </Card>
+    </div>}
+    {mvt&&<div onClick={()=>!mvtEnCours&&setMvt(null)} style={{position:"fixed",inset:0,background:"rgba(6,4,12,.78)",backdropFilter:"blur(4px)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20,overflowY:"auto"}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:520,background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:24,maxHeight:"90vh",overflowY:"auto"}}>
+        <div style={{fontSize:17,fontWeight:700,color:C.text}}>{mvt.art}</div>
+        <div style={{fontSize:12,color:C.muted,marginBottom:18}}>{mvt.qte} {mvt.u} en stock · seuil {mvt.min}</div>
+
+        <div style={{fontSize:10,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Que se passe-t-il ?</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:8,marginBottom:18}}>
+          {OPERATIONS.map(op=><div key={op.id} onClick={()=>setMvtForm(f=>({...f,type:op.id}))} style={{padding:"12px 6px",borderRadius:10,border:`2px solid ${mvtForm.type===op.id?op.couleur:C.border}`,background:mvtForm.type===op.id?`${op.couleur}18`:"transparent",cursor:"pointer",textAlign:"center",transition:"all .15s"}}>
+            <div style={{fontSize:22,marginBottom:4}}>{op.icone}</div>
+            <div style={{fontSize:10,fontWeight:600,color:mvtForm.type===op.id?op.couleur:C.text,lineHeight:1.3}}>{op.libelle()}</div>
+          </div>)}
+        </div>
+
+        {mvtForm.type&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>
+              {mvtForm.type==="inventaire"?"Quantité comptée":mvtForm.type==="correction"?"Quantité correcte":"Quantité"} ({mvt.u})
+            </label>
+            <Inp type="number" value={mvtForm.quantite} onChange={e=>setMvtForm(f=>({...f,quantite:e.target.value}))} placeholder="0"/>
+          </div>
+
+          {mvtForm.type==="retrait"&&<div>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Cause</label>
+            <Sel value={mvtForm.cause} onChange={e=>setMvtForm(f=>({...f,cause:e.target.value}))}>
+              <option value="">— Choisir —</option>
+              {CAUSES.map(c=><option key={c} value={c}>{c}</option>)}
+            </Sel>
+          </div>}
+
+          {mvtForm.type==="reception"&&<>
+            <div>
+              <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>N° de lot (facultatif)</label>
+              <Inp value={mvtForm.numero_lot} onChange={e=>setMvtForm(f=>({...f,numero_lot:e.target.value}))} placeholder="LOT-2026-04"/>
+            </div>
+            <div>
+              <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Date de péremption (facultatif)</label>
+              <Inp type="date" value={mvtForm.date_peremption} onChange={e=>setMvtForm(f=>({...f,date_peremption:e.target.value}))}/>
+            </div>
+          </>}
+
+          {emplacements.length>1&&<div>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{mvtForm.type==="transfert"?"Depuis":"Lieu"}</label>
+            <Sel value={mvtForm.emplacement_id} onChange={e=>setMvtForm(f=>({...f,emplacement_id:e.target.value}))}>
+              <option value="">— Par défaut —</option>
+              {emplacements.map(e=><option key={e.id} value={e.id}>{e.nom}</option>)}
+            </Sel>
+          </div>}
+
+          {mvtForm.type==="transfert"&&<div>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Vers</label>
+            <Sel value={mvtForm.emplacement_destination_id} onChange={e=>setMvtForm(f=>({...f,emplacement_destination_id:e.target.value}))}>
+              <option value="">— Choisir —</option>
+              {emplacements.filter(e=>e.id!==mvtForm.emplacement_id).map(e=><option key={e.id} value={e.id}>{e.nom}</option>)}
+            </Sel>
+          </div>}
+
+          <div>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Motif (facultatif)</label>
+            <Inp value={mvtForm.note} onChange={e=>setMvtForm(f=>({...f,note:e.target.value}))} placeholder="Commande CleanPro, mission Airbnb..."/>
+          </div>
+
+          {apercu()!==null&&mvtForm.type!=="transfert"&&<div style={{background:C.card2,borderRadius:10,padding:12,textAlign:"center",fontSize:14}}>
+            <span style={{color:C.muted}}>{mvt.qte}</span>
+            <span style={{color:C.muted,margin:"0 10px"}}>→</span>
+            <span style={{fontWeight:700,color:apercu()<mvt.min?C.red:C.green,fontSize:20}}>{apercu()}</span>
+            <span style={{color:C.muted,fontSize:11,marginLeft:6}}>{mvt.u}</span>
+          </div>}
+        </div>}
+
+        <div style={{marginTop:20,display:"flex",gap:8,justifyContent:"flex-end"}}>
+          <BtnGhost onClick={()=>!mvtEnCours&&setMvt(null)} style={{fontSize:11}}>Annuler</BtnGhost>
+          <Btn onClick={validerMvt} color={C.green} style={{fontSize:12,opacity:mvtEnCours||!mvtForm.type?.5:1}}>{mvtEnCours?"En cours...":"Valider"}</Btn>
+        </div>
+      </div>
     </div>}
   </div>;
 };
