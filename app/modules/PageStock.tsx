@@ -229,14 +229,25 @@ const PageStock=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
     {onglet==="mouvements"&&<Card>
       <STitle>🔄 Historique des mouvements</STitle>
       <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Article</TH><TH>Date</TH><TH>Type</TH><TH>Quantité</TH><TH>Note</TH></tr></thead>
-        <tbody>{stock.flatMap(s=>s.historique.map(h=>({...h,art:s.art,u:s.u}))).sort((a,b)=>b.date.localeCompare(a.date)).map((h,i)=><tr key={i}>
-          <Td style={{fontWeight:600}}>{h.art}</Td>
-          <Td style={{color:C.muted,fontSize:10}}>{h.date}</Td>
-          <Td><Pill color={h.type==="entrée"?C.green:C.red}>{h.type==="entrée"?"↓ Entrée":"↑ Sortie"}</Pill></Td>
-          <Td style={{color:h.type==="entrée"?C.green:C.red,fontWeight:700}}>{h.type==="entrée"?"+":"-"}{h.qte} {h.u}</Td>
-          <Td style={{color:C.muted,fontSize:11}}>{h.note}</Td>
-        </tr>)}
+        <thead><tr><TH>Article</TH><TH>Date</TH><TH>Type</TH><TH>Quantité</TH><TH>Stock</TH><TH>Note</TH></tr></thead>
+        <tbody>{(_mouvementsReal||[]).map((m,i)=>{
+          const art=stock.find(s=>s.id===m.article_id);
+          const OP={reception:{l:"↓ "+T("reception","Réception"),c:C.green,signe:"+"},
+                    sortie:{l:"↑ "+T("sortie","Sortie"),c:C.blue,signe:"-"},
+                    transfert:{l:"⇄ "+T("transfert","Transfert"),c:C.teal,signe:""},
+                    retrait:{l:"⚠ "+T("retrait","Perte"),c:C.red,signe:"-"},
+                    inventaire:{l:"📋 "+T("inventaire","Inventaire"),c:C.gold,signe:"="},
+                    correction:{l:"✏ "+T("correction","Correction"),c:C.muted,signe:"="},
+                    entrée:{l:"↓ Entrée",c:C.green,signe:"+"}}[m.type]||{l:m.type,c:C.muted,signe:""};
+          return <tr key={m.id||i}>
+            <Td style={{fontWeight:600}}>{art?.art||"—"}</Td>
+            <Td style={{color:C.muted,fontSize:10}}>{m.date_mouvement?new Date(m.date_mouvement).toLocaleDateString("fr"):"—"}</Td>
+            <Td><Pill color={OP.c}>{OP.l}</Pill></Td>
+            <Td style={{color:OP.c,fontWeight:700}}>{OP.signe}{m.quantite} {art?.u||""}</Td>
+            <Td style={{color:C.muted,fontSize:10}}>{m.quantite_avant!==null&&m.quantite_avant!==undefined?`${m.quantite_avant} → ${m.quantite_apres}`:"—"}</Td>
+            <Td style={{color:C.muted,fontSize:11}}>{m.cause?`${m.cause} — `:""}{m.note||"—"}</Td>
+          </tr>;})}
+        {(!_mouvementsReal||_mouvementsReal.length===0)&&<tr><Td colSpan={6} style={{textAlign:"center",padding:30,color:C.muted}}>Aucun mouvement enregistré</Td></tr>}
         </tbody>
       </table>
     </Card>}
