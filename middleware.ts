@@ -14,6 +14,7 @@ const API_OUVERTES = [
   '/api/generer-secteur',
   '/api/send-email',
   '/api/whoami',
+  '/api/club',
   '/api/stripe-webhook',
   '/api/flutterwave-webhook',
   '/api/webhook',
