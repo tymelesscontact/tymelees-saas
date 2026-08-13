@@ -77,20 +77,30 @@ export async function POST(req: NextRequest) {
 
       if (session.metadata?.type === 'club_adhesion') {
         const membreId = session.metadata.membre_id;
+        const etape = session.metadata.etape || 'cotisation';
         const debut = new Date();
         const fin = new Date(debut);
         fin.setFullYear(fin.getFullYear() + 1);
 
+        // Etape 1 : droit d'entree regle. Le membre reste sans acces au club.
+        // Etape 2 : cotisation reglee. Le membre devient actif.
+        const champs = etape === 'droit_entree'
+          ? {
+              droit_entree_paye: true,
+              statut: 'attente_cotisation',
+              reference_paiement: session.id,
+            }
+          : {
+              statut: 'actif',
+              date_adhesion: debut.toISOString().slice(0, 10),
+              date_fin_adhesion: fin.toISOString().slice(0, 10),
+              cotisation_payee_le: debut.toISOString().slice(0, 10),
+              montant_cotisation: 2000,
+              reference_paiement: session.id,
+            };
+
         const { data: membre } = await sb.from('club_membres')
-          .update({
-            statut: 'actif',
-            droit_entree_paye: true,
-            date_adhesion: debut.toISOString().slice(0, 10),
-            date_fin_adhesion: fin.toISOString().slice(0, 10),
-            cotisation_payee_le: debut.toISOString().slice(0, 10),
-            montant_cotisation: 2000,
-            reference_paiement: session.id,
-          })
+          .update(champs)
           .eq('id', membreId)
           .select()
           .single();
@@ -106,7 +116,7 @@ export async function POST(req: NextRequest) {
           });
         } catch (e) { console.error('Email club:', e); }
 
-        if (membre?.email) {
+        if (membre?.email && etape !== 'droit_entree') {
           try {
             const { Resend } = await import('resend');
             const resend = new Resend(process.env.RESEND_API_KEY);

@@ -76,11 +76,12 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
     setIaLoading(false);
   };
 
-  const envoyerLienPaiement=async(membre)=>{
+  const envoyerLienPaiement=async(membre,etape)=>{
     if(!membre.email)return showToast("⚠️ Ce membre n'a pas d'adresse email");
-    if(!window.confirm(`Envoyer le lien de paiement a ${membre.nom} ?\n\nDestinataire : ${membre.email}`))return;
+    const libelle=etape==="droit_entree"?"droit d'entree (500 EUR)":"cotisation annuelle (2 000 EUR)";
+    if(!window.confirm(`Envoyer le lien de paiement du ${libelle} a ${membre.nom} ?\n\nDestinataire : ${membre.email}`))return;
     try{
-      const res=await fetch('/api/club-paiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({membre_id:membre.id})});
+      const res=await fetch('/api/club-paiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({membre_id:membre.id,etape})});
       const data=await res.json();
       if(data.success&&data.url){
         showToast(`✅ Lien de paiement (${data.montant} EUR) envoye a ${data.destinataire||membre.email}`);
@@ -300,7 +301,8 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
               <span style={{fontSize:11,fontWeight:700,color:C.gold}}>{fmt(m.ca_genere||0)}</span>
               <span style={{fontSize:11,color:m.couleur||C.gold,fontWeight:600}}>★ {m.score_reputation||50}/100</span>
             </div>
-            {m.statut==="attente_paiement"&&<Btn onClick={e=>{e.stopPropagation();envoyerLienPaiement(m);}} style={{width:"100%",marginBottom:6,fontSize:10,padding:"6px 4px",background:C.gold,color:"#000"}}>Envoyer le lien de paiement</Btn>}
+            {m.statut==="attente_paiement"&&<Btn onClick={e=>{e.stopPropagation();envoyerLienPaiement(m,"droit_entree");}} style={{width:"100%",marginBottom:6,fontSize:10,padding:"6px 4px",background:C.gold,color:"#000"}}>1. Lien droit d'entree (500 €)</Btn>}
+            {m.statut==="attente_cotisation"&&<Btn onClick={e=>{e.stopPropagation();envoyerLienPaiement(m,"cotisation");}} style={{width:"100%",marginBottom:6,fontSize:10,padding:"6px 4px",background:C.green,color:"#000"}}>2. Lien cotisation (2 000 €)</Btn>}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
               <Btn onClick={e=>{e.stopPropagation();contacterMembre(m);}} style={{fontSize:10,padding:"6px 4px",background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 Contact</Btn>
               <BtnGhost onClick={e=>{e.stopPropagation();setSelectedMembre(m);}} style={{fontSize:10,padding:"6px 4px"}}>Profil →</BtnGhost>
