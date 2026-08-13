@@ -77,12 +77,13 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
   };
 
   const envoyerLienPaiement=async(membre)=>{
-    if(!window.confirm(`Generer le lien de paiement pour ${membre.nom} ?`))return;
+    if(!membre.email)return showToast("⚠️ Ce membre n'a pas d'adresse email");
+    if(!window.confirm(`Envoyer le lien de paiement a ${membre.nom} ?\n\nDestinataire : ${membre.email}`))return;
     try{
       const res=await fetch('/api/club-paiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({membre_id:membre.id})});
       const data=await res.json();
       if(data.success&&data.url){
-        window.prompt(`Lien de paiement (${data.montant} EUR) — copiez-le et envoyez-le a ${membre.email} :`, data.url);
+        showToast(`✅ Lien de paiement (${data.montant} EUR) envoye a ${data.destinataire||membre.email}`);
       }else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
   };

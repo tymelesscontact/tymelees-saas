@@ -75,11 +75,47 @@ export async function POST(req: NextRequest) {
       .update({ reference_paiement: session.id })
       .eq('id', membre_id);
 
+    let emailEnvoye = false;
+    if (membre.email && session.url) {
+      const total = ((premiereFois ? DROIT_ENTREE + COTISATION : COTISATION) / 100).toFixed(0);
+      const detail = premiereFois
+        ? "Droit d'entree : 500 &euro;<br/>Cotisation annuelle : 2 000 &euro;"
+        : "Cotisation annuelle : 2 000 &euro;";
+      try {
+        const { Resend } = await import('resend');
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: 'Xyra Club <notifications@xyraio.fr>',
+          to: membre.email,
+          subject: 'Votre candidature au Xyra Club a ete retenue',
+          html: `<div style="font-family:Georgia,serif;background:#0a0a0a;color:#f0ead6;padding:40px 32px;">
+            <div style="font-size:26px;font-style:italic;color:#c9a96e;margin-bottom:24px;">Votre place vous attend</div>
+            <div style="font-family:sans-serif;font-size:14px;line-height:1.8;color:#a39c8e;margin-bottom:28px;">
+              Bonjour ${membre.nom || ''},<br/><br/>
+              Votre candidature a ete examinee et retenue. Il ne reste qu'a regler votre adhesion pour rejoindre le club.
+            </div>
+            <div style="font-family:sans-serif;font-size:13px;color:#78716a;border-left:1px solid #c9a96e;padding-left:16px;margin-bottom:28px;line-height:1.9;">
+              ${detail}<br/><strong style="color:#c9a96e;">Total : ${total} &euro;</strong>
+            </div>
+            <a href="${session.url}" style="display:inline-block;background:#c9a96e;color:#0a0a0a;padding:14px 30px;text-decoration:none;font-family:sans-serif;font-size:13px;">Regler mon adhesion</a>
+            <div style="font-family:sans-serif;font-size:11px;color:#4f4a43;margin-top:32px;line-height:1.7;">
+              Vous disposez de 15 jours apres reglement pour vous retracter.<br/>
+              Xyra Club &mdash; adhesion reservee aux professionnels.
+            </div>
+          </div>`,
+        });
+        emailEnvoye = true;
+      } catch (e) { console.error('Email lien paiement:', e); }
+    }
+
+
     return NextResponse.json({
       success: true,
       url: session.url,
       montant: (premiereFois ? DROIT_ENTREE + COTISATION : COTISATION) / 100,
       premiere_adhesion: premiereFois,
+      email_envoye: emailEnvoye,
+      destinataire: membre.email,
     });
   } catch (e: any) {
     console.error('Club paiement:', e.message);
