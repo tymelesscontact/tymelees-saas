@@ -56,21 +56,64 @@ export async function POST(req: NextRequest) {
   const { action } = body;
 
   if (action === 'candidature') {
-    const { nom, email, metier, message, coopte_par } = body;
-    const { error } = await sb.from('club_candidatures').insert({ nom, email, metier, message, coopte_par });
+    const { nom, email, metier, message, coopte_par, tel, societe, siren,
+            pays, ville, zone, linkedin, site_web, recherche, propose } = body;
+    if (!nom || !email || !metier) {
+      return NextResponse.json({ error: 'Nom, email et metier sont necessaires' }, { status: 400 });
+    }
+    const { error } = await sb.from('club_candidatures').insert({
+      nom, email, metier, message: message || null, coopte_par: coopte_par || null,
+      tel: tel || null, societe: societe || null, siren: siren || null,
+      pays: pays || null, ville: ville || null, zone: zone || ville || null,
+      linkedin: linkedin || null, site_web: site_web || null,
+      recherche: recherche || null, propose: propose || null,
+      statut: 'en_attente',
+    });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
 
   if (action === 'valider_candidature') {
-    const { candidature_id, nom, email, metier, pays, bio, plan } = body;
-    await sb.from('club_candidatures').update({ statut: 'accepté' }).eq('id', candidature_id);
-    await sb.from('club_membres').insert({ nom, email, metier, pays, bio, plan: plan || 'starter', statut: 'actif' });
-    return NextResponse.json({ success: true });
+    const { candidature_id } = body;
+    const { data: c } = await sb.from('club_candidatures').select('*').eq('id', candidature_id).single();
+    if (!c) return NextResponse.json({ error: 'Candidature introuvable' }, { status: 404 });
+
+    // La place est-elle deja prise pour ce metier dans cette zone ?
+    const zone = c.zone || c.ville || c.pays;
+    if (c.metier && zone) {
+      const { data: occupe } = await sb.from('club_membres')
+        .select('id,nom').eq('metier', c.metier).eq('zone', zone).eq('statut', 'actif').maybeSingle();
+      if (occupe) {
+        return NextResponse.json({
+          error: `La place de ${c.metier} a ${zone} est deja occupee par ${occupe.nom}`,
+        }, { status: 409 });
+      }
+    }
+
+    await sb.from('club_candidatures')
+      .update({ statut: 'accepté', decision_le: new Date().toISOString().slice(0, 10) })
+      .eq('id', candidature_id);
+
+    // Membre cree EN ATTENTE DE PAIEMENT, pas encore actif
+    const { data: membre, error } = await sb.from('club_membres').insert({
+      nom: c.nom, email: c.email, metier: c.metier, tel: c.tel,
+      pays: c.pays, ville: c.ville, zone, linkedin: c.linkedin,
+      recherche: c.recherche, propose: c.propose, bio: c.message,
+      statut: 'attente_paiement',
+      droit_entree_paye: false,
+      montant_cotisation: 2000,
+      score_reputation: 0, ca_genere: 0, nb_deals: 0,
+    }).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, membre });
   }
 
   if (action === 'rejeter_candidature') {
-    await sb.from('club_candidatures').update({ statut: 'refusé' }).eq('id', body.candidature_id);
+    await sb.from('club_candidatures').update({
+      statut: 'refusé',
+      motif_refus: body.motif || null,
+      decision_le: new Date().toISOString().slice(0, 10),
+    }).eq('id', body.candidature_id);
     return NextResponse.json({ success: true });
   }
 
