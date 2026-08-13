@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
 
   if (action === 'membres') {
     const [membresRes, tenantsRes] = await Promise.all([
-      sb.from('club_membres').select('*').eq('statut', 'actif').order('score_reputation', { ascending: false }),
+      sb.from('club_membres').select('*').in('statut', ['actif', 'attente_paiement']).order('score_reputation', { ascending: false }),
       sb.from('tenants').select('id,societe,email,metier,pays,plan,plan_price').limit(50),
     ]);
     return NextResponse.json({ membres: membresRes.data || [], tenants: tenantsRes.data || [] });

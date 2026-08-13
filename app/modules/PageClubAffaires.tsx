@@ -76,6 +76,16 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
     setIaLoading(false);
   };
 
+  const envoyerLienPaiement=async(membre)=>{
+    if(!window.confirm(`Generer le lien de paiement pour ${membre.nom} ?`))return;
+    try{
+      const res=await fetch('/api/club-paiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({membre_id:membre.id})});
+      const data=await res.json();
+      if(data.success&&data.url){
+        window.prompt(`Lien de paiement (${data.montant} EUR) — copiez-le et envoyez-le a ${membre.email} :`, data.url);
+      }else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const deciderCandidature=async(id,accepter)=>{
     let motif=null;
     if(!accepter){
@@ -289,6 +299,7 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
               <span style={{fontSize:11,fontWeight:700,color:C.gold}}>{fmt(m.ca_genere||0)}</span>
               <span style={{fontSize:11,color:m.couleur||C.gold,fontWeight:600}}>★ {m.score_reputation||50}/100</span>
             </div>
+            {m.statut==="attente_paiement"&&<Btn onClick={e=>{e.stopPropagation();envoyerLienPaiement(m);}} style={{width:"100%",marginBottom:6,fontSize:10,padding:"6px 4px",background:C.gold,color:"#000"}}>Envoyer le lien de paiement</Btn>}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
               <Btn onClick={e=>{e.stopPropagation();contacterMembre(m);}} style={{fontSize:10,padding:"6px 4px",background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 Contact</Btn>
               <BtnGhost onClick={e=>{e.stopPropagation();setSelectedMembre(m);}} style={{fontSize:10,padding:"6px 4px"}}>Profil →</BtnGhost>
