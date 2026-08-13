@@ -76,6 +76,26 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
     setIaLoading(false);
   };
 
+  const deciderCandidature=async(id,accepter)=>{
+    let motif=null;
+    if(!accepter){
+      motif=window.prompt("Motif du refus (enregistre dans le dossier) :");
+      if(motif===null)return;
+    }else{
+      if(!window.confirm("Accepter cette candidature ? Le membre sera cree en attente de paiement."))return;
+    }
+    try{
+      const res=await fetch('/api/club',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        action:accepter?'valider_candidature':'rejeter_candidature',
+        candidature_id:id, motif,
+      })});
+      const data=await res.json();
+      if(data.success){
+        showToast(accepter?"✅ Candidature acceptee — membre en attente de paiement":"Candidature refusee");
+        load();
+      }else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const soumettreCandidat=async()=>{
     if(!candidatureForm.nom||!candidatureForm.email)return showToast("⚠️ Nom et email requis");
     try{
@@ -412,27 +432,37 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
       <div style={{fontSize:13,fontWeight:700,marginBottom:14}}>📋 Candidatures en attente ({candidatures.filter(c=>c.statut==="en_attente").length})</div>
       {candidatures.length===0?<Card style={{textAlign:"center",padding:30}}>
         <div style={{fontSize:11,color:C.muted}}>Aucune candidature pour le moment.</div>
-      </Card>:<div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {candidatures.map((c,i)=><Card key={i}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-            <div>
-              <div style={{fontSize:13,fontWeight:700}}>{c.nom}</div>
-              <div style={{fontSize:11,color:C.muted}}>{c.email} · {c.metier}</div>
-              {c.coopte_par&&<div style={{fontSize:10,color:C.gold}}>Coopté par : {c.coopte_par}</div>}
-              {c.message&&<div style={{fontSize:11,color:C.muted,marginTop:4,fontStyle:"italic"}}>"{c.message.slice(0,80)}..."</div>}
+      </Card>:<div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {candidatures.map((c,i)=><Card key={c.id||i}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",gap:16,flexWrap:"wrap"}}>
+            <div style={{flex:1,minWidth:240}}>
+              <div style={{fontSize:14,fontWeight:700}}>{c.nom}</div>
+              <div style={{fontSize:11,color:C.muted,marginBottom:8}}>{c.email}{c.tel?" · "+c.tel:""}</div>
+              <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(150px,1fr))",gap:"6px 16px",fontSize:11,marginBottom:8}}>
+                {c.societe&&<div><span style={{color:C.muted}}>Société : </span>{c.societe}</div>}
+                {c.siren&&<div><span style={{color:C.muted}}>SIREN : </span>{c.siren}</div>}
+                {c.metier&&<div><span style={{color:C.muted}}>Métier : </span>{c.metier}</div>}
+                {(c.ville||c.pays)&&<div><span style={{color:C.muted}}>Zone : </span>{[c.ville,c.pays].filter(Boolean).join(", ")}</div>}
+                {c.linkedin&&<div><span style={{color:C.muted}}>LinkedIn : </span>{c.linkedin}</div>}
+                {c.site_web&&<div><span style={{color:C.muted}}>Site : </span>{c.site_web}</div>}
+              </div>
+              {c.recherche&&<div style={{fontSize:11,marginBottom:4}}><span style={{color:C.muted}}>Cherche : </span>{c.recherche}</div>}
+              {c.propose&&<div style={{fontSize:11,marginBottom:4}}><span style={{color:C.muted}}>Propose : </span>{c.propose}</div>}
+              {c.coopte_par&&<div style={{fontSize:11,color:C.gold,marginTop:4}}>Coopté par : {c.coopte_par}</div>}
+              {c.message&&<div style={{fontSize:11,color:C.muted,marginTop:6,fontStyle:"italic"}}>« {c.message} »</div>}
+              {c.motif_refus&&<div style={{fontSize:11,color:C.red,marginTop:6}}>Motif du refus : {c.motif_refus}</div>}
             </div>
-            <div style={{display:"flex",gap:6}}>
+            <div style={{display:"flex",flexDirection:"column",gap:6,alignItems:"flex-end"}}>
               <Pill color={c.statut==="en_attente"?C.orange:c.statut==="accepté"?C.green:C.red}>{c.statut}</Pill>
-              {c.statut==="en_attente"&&<>
-                <Btn onClick={()=>showToast("✅ Candidature acceptée")} style={{fontSize:10,padding:"4px 8px",background:C.green}}>✅ Accepter</Btn>
-                <BtnGhost onClick={()=>showToast("❌ Candidature refusée")} style={{fontSize:10,color:C.red,borderColor:`${C.red}44`}}>✕ Refuser</BtnGhost>
-              </>}
+              {c.statut==="en_attente"&&<div style={{display:"flex",gap:6}}>
+                <Btn onClick={()=>deciderCandidature(c.id,true)} style={{fontSize:10,padding:"5px 10px",background:C.green}}>✅ Accepter</Btn>
+                <BtnGhost onClick={()=>deciderCandidature(c.id,false)} style={{fontSize:10,color:C.red,borderColor:`${C.red}44`}}>✕ Refuser</BtnGhost>
+              </div>}
             </div>
           </div>
         </Card>)}
       </div>}
     </div>}
-
     {/* ── AVANTAGES ── */}
     {onglet==="avantages"&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(240px,1fr))",gap:12}}>
       {[
