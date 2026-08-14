@@ -61,7 +61,7 @@ export default function EspaceMembre() {
       <div style={{ background: NOIR, minHeight: "100vh", color: IVOIRE, fontFamily: "system-ui,sans-serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32, textAlign: "center" }}>
         <div style={{ fontFamily: "Georgia,serif", fontSize: 26, fontStyle: "italic", color: OR, marginBottom: 18 }}>Acces reserve</div>
         <div style={{ fontSize: 14, color: GRIS, lineHeight: 1.8, maxWidth: 380, marginBottom: 30 }}>{messages[erreur] || "Acces refuse."}</div>
-        <a href="/login" style={{ padding: "13px 30px", border: `0.5px solid ${OR}`, color: OR, fontSize: 13, textDecoration: "none" }}>Se connecter</a>
+        <a href="/club/connexion" style={{ padding: "13px 30px", border: `0.5px solid ${OR}`, color: OR, fontSize: 13, textDecoration: "none" }}>Se connecter</a>
         <a href="/club" style={{ marginTop: 18, fontSize: 12, color: GRIS, textDecoration: "underline" }}>Retour au club</a>
       </div>
     );
