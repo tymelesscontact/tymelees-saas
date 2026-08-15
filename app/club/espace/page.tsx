@@ -24,6 +24,8 @@ export default function EspaceMembre() {
   const [nouveauMsg, setNouveauMsg] = useState("");
   const [documents, setDocuments] = useState<any[]>([]);
   const [dealsConv, setDealsConv] = useState<any[]>([]);
+  const [planExp, setPlanExp] = useState<any>(null);
+  const [expEnCours, setExpEnCours] = useState(false);
   const [onglet, setOnglet] = useState("annuaire");
   const [recherche, setRecherche] = useState("");
   const [filtrePays, setFiltrePays] = useState("");
@@ -159,7 +161,7 @@ export default function EspaceMembre() {
       )}
 
       <div style={{ display: "flex", gap: 4, padding: "18px 28px 0", maxWidth: 1200, margin: "0 auto", flexWrap: "wrap" }}>
-        {[["annuaire", "Annuaire"], ["demandes", "Demandes"], ["deals", "Mes deals"], ["messages", "Messages"], ["evenements", "Evenements"], ["profil", "Mon profil"]].map(([id, label]) => (
+        {[["annuaire", "Annuaire"], ["demandes", "Demandes"], ["deals", "Mes deals"], ["messages", "Messages"], ["expansion", "International"], ["evenements", "Evenements"], ["profil", "Mon profil"]].map(([id, label]) => (
           <button key={id} onClick={() => { setOnglet(id); setSelection(null); }}
             style={{ background: onglet === id ? CARTE : "transparent", border: "none", borderBottom: onglet === id ? `1px solid ${OR}` : "1px solid transparent", color: onglet === id ? OR : GRIS, padding: "11px 18px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
             {label}
@@ -385,6 +387,98 @@ export default function EspaceMembre() {
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {onglet === "expansion" && (
+          <div style={{ maxWidth: 760 }}>
+            <Carte style={{ marginBottom: 18 }}>
+              <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 8 }}>DEVELOPPEMENT INTERNATIONAL</div>
+              <div style={{ fontSize: 13, color: GRIS_CLAIR, lineHeight: 1.8, marginBottom: 18 }}>
+                Vous visez <strong style={{ color: OR }}>{moi?.expansion_pays || "aucun pays"}</strong>
+                {moi?.expansion_type === "vendre" && " pour y vendre a distance."}
+                {moi?.expansion_type === "implanter" && " pour vous y implanter."}
+                {moi?.expansion_type === "les_deux" && " pour y vendre puis vous y implanter."}
+                {!moi?.expansion_type && "."}
+              </div>
+              {!moi?.expansion_pays ? (
+                <div style={{ fontSize: 12, color: GRIS }}>
+                  Renseignez votre pays cible dans <span onClick={() => setOnglet("profil")} style={{ color: OR, cursor: "pointer", textDecoration: "underline" }}>votre profil</span> pour que Lea vous compose une equipe sur place.
+                </div>
+              ) : (
+                <div onClick={async () => {
+                  if (expEnCours) return;
+                  setExpEnCours(true); setPlanExp(null);
+                  try {
+                    const r = await fetch("/api/club-espace", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "plan_expansion" }) });
+                    const d = await r.json();
+                    setPlanExp(d);
+                  } catch {}
+                  setExpEnCours(false);
+                }} style={{ display: "inline-block", padding: "12px 26px", background: OR, color: NOIR, fontSize: 12, cursor: expEnCours ? "default" : "pointer", opacity: expEnCours ? 0.5 : 1 }}>
+                  {expEnCours ? "Lea analyse..." : "Composer mon equipe sur place"}
+                </div>
+              )}
+            </Carte>
+
+            {planExp?.aucun_membre && (
+              <Carte><div style={{ fontSize: 13, color: GRIS_CLAIR, lineHeight: 1.8 }}>{planExp.message}</div></Carte>
+            )}
+
+            {planExp?.plan && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+                <Carte>
+                  <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 10 }}>CE QUI VOUS ATTEND</div>
+                  <div style={{ fontSize: 13, color: GRIS_CLAIR, lineHeight: 1.85 }}>{planExp.plan.synthese}</div>
+                </Carte>
+
+                <Carte>
+                  <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 16 }}>VOTRE EQUIPE SUR PLACE</div>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                    {(planExp.plan.equipe || []).map((e: any, i: number) => {
+                      const m = membres.find((x) => x.nom === e.nom);
+                      return (
+                        <div key={i} style={{ display: "flex", gap: 18 }}>
+                          <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: OR, minWidth: 30 }}>{String(e.ordre || i + 1).padStart(2, "0")}</div>
+                          <div style={{ flex: 1 }}>
+                            <div style={{ fontSize: 14, marginBottom: 3 }}>{e.nom}</div>
+                            <div style={{ fontSize: 12, color: OR, marginBottom: 6 }}>{e.role}</div>
+                            <div style={{ fontSize: 12, color: GRIS, lineHeight: 1.7 }}>{e.pourquoi}</div>
+                            {m && (
+                              <button onClick={async () => {
+                                const r = await fetch("/api/club-messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ouvrir", membre_id: m.id }) });
+                                const d = await r.json();
+                                if (d.conversation) { setOnglet("messages"); ouvrirConv(d.conversation); charger(); }
+                              }} style={{ marginTop: 10, background: "none", border: `0.5px solid ${TRAIT}`, color: GRIS_CLAIR, padding: "7px 16px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
+                                Le contacter
+                              </button>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </Carte>
+
+                <Carte>
+                  <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 10 }}>PAR OU COMMENCER</div>
+                  <div style={{ fontSize: 13, color: GRIS_CLAIR, lineHeight: 1.85 }}>{planExp.plan.premiere_etape}</div>
+                </Carte>
+
+                {(planExp.plan.points_vigilance || []).length > 0 && (
+                  <Carte>
+                    <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 12 }}>POINTS DE VIGILANCE</div>
+                    {planExp.plan.points_vigilance.map((p: string, i: number) => (
+                      <div key={i} style={{ display: "flex", gap: 10, marginBottom: 9, fontSize: 12, color: GRIS, lineHeight: 1.7 }}>
+                        <span style={{ color: OR }}>&middot;</span><span>{p}</span>
+                      </div>
+                    ))}
+                  </Carte>
+                )}
+              </div>
+            )}
+
+            {planExp?.error && <Carte><div style={{ fontSize: 12, color: "#c96e6e" }}>{planExp.error}</div></Carte>}
           </div>
         )}
 

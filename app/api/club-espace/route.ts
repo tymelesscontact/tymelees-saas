@@ -3,6 +3,16 @@ import { createClient } from '@supabase/supabase-js';
 
 export const dynamic = 'force-dynamic';
 
+async function askClaude(prompt: string) {
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+    body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1200, messages: [{ role: 'user', content: prompt }] }),
+  });
+  const data = await res.json();
+  return data.content?.[0]?.text || '';
+}
+
 function sbAdmin() {
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -118,6 +128,73 @@ export async function POST(req: NextRequest) {
       .eq('id', body.demande_id).eq('membre_id', membre.id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
+  }
+
+  // ── Expansion internationale : Lea compose une equipe ───
+  if (action === 'plan_expansion') {
+    const pays = body.pays || membre.expansion_pays;
+    const objectif = body.objectif || membre.expansion_type || 'les_deux';
+    if (!pays) {
+      return NextResponse.json({ error: 'Indiquez le pays vise dans votre profil' }, { status: 400 });
+    }
+
+    // Les membres presents sur place
+    const { data: locaux } = await sb.from('club_membres')
+      .select('id,nom,metier,secteur,ville,pays,propose,recherche,score_reputation,nb_deals')
+      .eq('statut', 'actif').ilike('pays', `%${pays}%`);
+
+    if (!locaux || locaux.length === 0) {
+      return NextResponse.json({
+        success: true,
+        pays,
+        aucun_membre: true,
+        message: `Aucun membre du club n'est encore etabli en ${pays}. Vous serez prevenu des qu'un membre s'y installe.`,
+        membres: [],
+      });
+    }
+
+    const liste = locaux.map((m: any, i: number) =>
+      `${i + 1}. ${m.nom} — ${m.metier}${m.secteur ? ' (' + m.secteur + ')' : ''}, ${m.ville || m.pays}. Propose : ${m.propose || 'non precise'}. Reputation ${m.score_reputation || 0}, ${m.nb_deals || 0} deals.`
+    ).join('\n');
+
+    const but = objectif === 'vendre'
+      ? "vendre a distance dans ce pays sans s'y implanter (il cherche des clients, des distributeurs ou des apporteurs d'affaires)"
+      : objectif === 'implanter'
+      ? "s'implanter dans ce pays (il aura besoin d'accompagnement local : comptable, juridique, partenaires, connaissance du marche)"
+      : "vendre dans ce pays et envisager de s'y implanter ensuite";
+
+    const prompt = `Tu conseilles un membre d'un club d'affaires prive qui veut se developper en ${pays}.
+
+SON PROFIL
+Metier : ${membre.metier || 'non precise'}
+Secteur : ${membre.secteur || 'non precise'}
+Base a : ${membre.ville || ''} ${membre.pays || ''}
+Ce qu'il propose : ${membre.propose || 'non precise'}
+Son objectif : ${but}
+
+LES MEMBRES DU CLUB PRESENTS EN ${pays.toUpperCase()}
+${liste}
+
+Reponds UNIQUEMENT en JSON, sans texte avant ni apres, sans balises markdown :
+{
+  "synthese": "2 phrases sur ce qui l'attend dans ce pays pour son metier",
+  "equipe": [
+    { "nom": "nom exact du membre de la liste", "role": "ce qu'il peut lui apporter concretement", "ordre": 1, "pourquoi": "une phrase" }
+  ],
+  "premiere_etape": "l'action concrete a faire en premier",
+  "points_vigilance": ["2 a 3 points d'attention propres a ce pays et ce metier"]
+}
+
+Classe l'equipe dans l'ordre ou il devrait les contacter. N'invente aucun nom : utilise uniquement ceux de la liste. Si un membre n'apporte rien d'utile, ne le cite pas.`;
+
+    try {
+      const reponse = await askClaude(prompt);
+      const propre = reponse.replace(/\`\`\`json|\`\`\`/g, '').trim();
+      const plan = JSON.parse(propre);
+      return NextResponse.json({ success: true, pays, objectif, plan, membres: locaux });
+    } catch (e: any) {
+      return NextResponse.json({ error: "Lea n'a pas pu etablir le plan", detail: e.message }, { status: 500 });
+    }
   }
 
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });
