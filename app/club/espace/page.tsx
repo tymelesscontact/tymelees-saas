@@ -661,7 +661,35 @@ export default function EspaceMembre() {
           </div>
         )}
 
-        {onglet === "profil" && <FormProfil moi={moi} onMaj={charger} desactive={lectureSeule} />}
+        {onglet === "profil" && (
+          <div>
+            <div style={{ maxWidth: 400, marginBottom: 28 }}>
+              <div style={{ background: "linear-gradient(135deg,#16130c 0%,#0f0d09 100%)", border: `1px solid ${OR}44`, borderRadius: 8, padding: 26, position: "relative", overflow: "hidden" }}>
+                <div style={{ position: "absolute", top: -30, right: -30, width: 120, height: 120, borderRadius: 60, border: `0.5px solid ${OR}22` }} />
+                <div style={{ position: "absolute", top: -10, right: -10, width: 80, height: 80, borderRadius: 40, border: `0.5px solid ${OR}18` }} />
+                <div style={{ fontFamily: "Georgia,serif", fontSize: 15, fontStyle: "italic", color: OR, marginBottom: 30 }}>Xyra Club</div>
+                <div style={{ fontSize: 18, color: IVOIRE, marginBottom: 4 }}>{moi?.nom}</div>
+                <div style={{ fontSize: 12, color: GRIS_CLAIR, marginBottom: 24 }}>{moi?.metier || ""}</div>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+                  <div>
+                    <div style={{ fontSize: 9, color: "#5f5951", letterSpacing: "0.14em", marginBottom: 3 }}>MEMBRE DEPUIS</div>
+                    <div style={{ fontSize: 12, color: GRIS_CLAIR }}>{moi?.date_adhesion ? new Date(moi.date_adhesion).getFullYear() : "—"}</div>
+                  </div>
+                  <div style={{ textAlign: "right" }}>
+                    <div style={{ fontSize: 9, color: "#5f5951", letterSpacing: "0.14em", marginBottom: 3 }}>ADHERENT</div>
+                    <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: OR }}>{String(moi?.numero_adherent || 0).padStart(3, "0")}</div>
+                  </div>
+                </div>
+              </div>
+              {moi?.date_fin_adhesion && (
+                <div style={{ fontSize: 11, color: GRIS, marginTop: 10, textAlign: "center" }}>
+                  Valable jusqu&apos;au {new Date(moi.date_fin_adhesion).toLocaleDateString("fr")}
+                </div>
+              )}
+            </div>
+            <FormProfil moi={moi} onMaj={charger} desactive={lectureSeule} />
+          </div>
+        )}
       </div>
     </div>
   );
