@@ -18,6 +18,10 @@ export default function EspaceMembre() {
   const [demandes, setDemandes] = useState<any[]>([]);
   const [evenements, setEvenements] = useState<any[]>([]);
   const [deals, setDeals] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [convActive, setConvActive] = useState<any>(null);
+  const [messages, setMessages] = useState<any[]>([]);
+  const [nouveauMsg, setNouveauMsg] = useState("");
   const [onglet, setOnglet] = useState("annuaire");
   const [recherche, setRecherche] = useState("");
   const [filtrePays, setFiltrePays] = useState("");
@@ -36,8 +40,28 @@ export default function EspaceMembre() {
         const dd = await rd.json();
         if (rd.ok) setDeals(dd.deals || []);
       } catch {}
+      try {
+        const rc = await fetch("/api/club-messages");
+        const dc = await rc.json();
+        if (rc.ok) setConversations(dc.conversations || []);
+      } catch {}
     } catch { setErreur("connexion"); }
     setChargement(false);
+  };
+  const ouvrirConv = async (conv: any) => {
+    setConvActive(conv);
+    try {
+      const r = await fetch(`/api/club-messages?conversation_id=${conv.id}`);
+      const d = await r.json();
+      if (r.ok) setMessages(d.messages || []);
+    } catch {}
+  };
+  const envoyerMsg = async () => {
+    if (!nouveauMsg.trim() || !convActive) return;
+    const contenu = nouveauMsg;
+    setNouveauMsg("");
+    await fetch("/api/club-messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "envoyer", conversation_id: convActive.id, contenu }) });
+    ouvrirConv(convActive);
   };
   useEffect(() => { charger(); }, []);
 
@@ -102,7 +126,7 @@ export default function EspaceMembre() {
       )}
 
       <div style={{ display: "flex", gap: 4, padding: "18px 28px 0", maxWidth: 1200, margin: "0 auto", flexWrap: "wrap" }}>
-        {[["annuaire", "Annuaire"], ["demandes", "Demandes"], ["deals", "Mes deals"], ["evenements", "Evenements"], ["profil", "Mon profil"]].map(([id, label]) => (
+        {[["annuaire", "Annuaire"], ["demandes", "Demandes"], ["deals", "Mes deals"], ["messages", "Messages"], ["evenements", "Evenements"], ["profil", "Mon profil"]].map(([id, label]) => (
           <button key={id} onClick={() => { setOnglet(id); setSelection(null); }}
             style={{ background: onglet === id ? CARTE : "transparent", border: "none", borderBottom: onglet === id ? `1px solid ${OR}` : "1px solid transparent", color: onglet === id ? OR : GRIS, padding: "11px 18px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
             {label}
@@ -136,6 +160,15 @@ export default function EspaceMembre() {
                 {selection.tel_visible && selection.tel && <span>{selection.tel}</span>}
                 {selection.linkedin && <a href={selection.linkedin} target="_blank" rel="noreferrer" style={{ color: OR }}>LinkedIn</a>}
               </div>
+              {selection.id !== moi?.id && (
+                <button onClick={async () => {
+                  const r = await fetch("/api/club-messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ouvrir", membre_id: selection.id }) });
+                  const d = await r.json();
+                  if (d.conversation) { setOnglet("messages"); setSelection(null); ouvrirConv(d.conversation); charger(); }
+                }} style={{ marginTop: 18, background: OR, color: NOIR, border: "none", padding: "11px 24px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
+                  Envoyer un message
+                </button>
+              )}
             </Carte>
           </div>
         ) : (
@@ -203,6 +236,70 @@ export default function EspaceMembre() {
                 );
               })}
               {demandes.length === 0 && <div style={{ textAlign: "center", padding: 50, color: GRIS, fontSize: 13 }}>Aucune demande en cours.</div>}
+            </div>
+          </div>
+        )}
+
+        {onglet === "messages" && (
+          <div className="duo" style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16, minHeight: 480 }}>
+            <div style={{ background: CARTE, border: `0.5px solid ${TRAIT}`, borderRadius: 4, overflow: "hidden" }}>
+              {conversations.length === 0 && <div style={{ padding: 30, textAlign: "center", color: GRIS, fontSize: 12, lineHeight: 1.7 }}>Aucune conversation.<br />Ouvrez la fiche d&apos;un membre pour lui ecrire.</div>}
+              {conversations.map((c) => {
+                const autreId = c.membre_a === moi?.id ? c.membre_b : c.membre_a;
+                const autre = membres.find((m) => m.id === autreId);
+                const nonLu = (c.membre_a === moi?.id && !c.lu_par_a) || (c.membre_b === moi?.id && !c.lu_par_b);
+                return (
+                  <div key={c.id} onClick={() => ouvrirConv(c)}
+                    style={{ padding: "14px 16px", borderBottom: `0.5px solid ${TRAIT}`, cursor: "pointer", background: convActive?.id === c.id ? "#16151a" : "transparent" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                      <div style={{ fontSize: 13, color: nonLu ? IVOIRE : GRIS_CLAIR }}>{autre?.nom || "Membre"}</div>
+                      {nonLu && <div style={{ width: 7, height: 7, borderRadius: 4, background: OR }} />}
+                    </div>
+                    <div style={{ fontSize: 11, color: GRIS, marginTop: 3 }}>{autre?.metier || ""}</div>
+                  </div>
+                );
+              })}
+            </div>
+
+            <div style={{ background: CARTE, border: `0.5px solid ${TRAIT}`, borderRadius: 4, display: "flex", flexDirection: "column" }}>
+              {!convActive ? (
+                <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: GRIS, fontSize: 12 }}>Choisissez une conversation</div>
+              ) : (
+                <>
+                  <div style={{ padding: "14px 18px", borderBottom: `0.5px solid ${TRAIT}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                    <div style={{ fontSize: 13 }}>
+                      {(() => { const aid = convActive.membre_a === moi?.id ? convActive.membre_b : convActive.membre_a; return membres.find((m) => m.id === aid)?.nom || "Membre"; })()}
+                    </div>
+                    {convActive.jitsi_room && (
+                      <a href={`https://meet.jit.si/${convActive.jitsi_room}`} target="_blank" rel="noreferrer"
+                        style={{ fontSize: 11, color: OR, border: `0.5px solid ${OR}55`, padding: "6px 14px", textDecoration: "none" }}>
+                        Appel video
+                      </a>
+                    )}
+                  </div>
+
+                  <div style={{ flex: 1, padding: 18, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, maxHeight: 380 }}>
+                    {messages.length === 0 && <div style={{ textAlign: "center", color: GRIS, fontSize: 12, padding: 30 }}>Aucun message. Ecrivez le premier.</div>}
+                    {messages.map((m) => {
+                      const moiMeme = m.auteur_id === moi?.id;
+                      return (
+                        <div key={m.id} style={{ alignSelf: moiMeme ? "flex-end" : "flex-start", maxWidth: "72%" }}>
+                          <div style={{ background: moiMeme ? "#2a2418" : "#16151a", border: `0.5px solid ${TRAIT}`, borderRadius: 4, padding: "10px 14px", fontSize: 13, color: GRIS_CLAIR, lineHeight: 1.6 }}>{m.contenu}</div>
+                          <div style={{ fontSize: 10, color: "#4f4a43", marginTop: 4, textAlign: moiMeme ? "right" : "left" }}>
+                            {new Date(m.created_at).toLocaleString("fr", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+
+                  <div style={{ padding: 14, borderTop: `0.5px solid ${TRAIT}`, display: "flex", gap: 10 }}>
+                    <input value={nouveauMsg} onChange={(e) => setNouveauMsg(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && envoyerMsg()} placeholder="Votre message" />
+                    <button onClick={envoyerMsg} style={{ background: OR, color: NOIR, border: "none", padding: "0 22px", fontSize: 12, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>Envoyer</button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         )}
