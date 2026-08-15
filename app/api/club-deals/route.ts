@@ -19,7 +19,7 @@ async function membreConnecte(req: NextRequest) {
   const { data: auth } = await sb.auth.getUser(token);
   if (!auth?.user) return null;
   const { data: membre } = await sb.from('club_membres')
-    .select('*').eq('user_id', auth.user.id).eq('statut', 'actif').maybeSingle();
+    .select('*').eq('user_id', auth.user.id).in('statut', ['actif', 'fondateur']).maybeSingle();
   return membre || null;
 }
 

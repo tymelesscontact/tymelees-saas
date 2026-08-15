@@ -22,7 +22,7 @@ export async function POST(req: NextRequest) {
   if (!auth?.user) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
 
   const { data: membre } = await sb.from('club_membres')
-    .select('id,nom').eq('user_id', auth.user.id).eq('statut', 'actif').maybeSingle();
+    .select('id,nom').eq('user_id', auth.user.id).in('statut', ['actif', 'fondateur']).maybeSingle();
   if (!membre) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
 
   const form = await req.formData();

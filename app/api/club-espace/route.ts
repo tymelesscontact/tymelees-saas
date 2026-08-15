@@ -33,7 +33,7 @@ async function membreConnecte(req: NextRequest) {
     .select('*').eq('user_id', auth.user.id).maybeSingle();
   if (!membre) return { membre: null, raison: 'pas_membre' };
 
-  if (membre.statut !== 'actif') return { membre, raison: 'adhesion_inactive' };
+  if (membre.statut !== 'actif' && membre.statut !== 'fondateur') return { membre, raison: 'adhesion_inactive' };
 
   // Un mois de grace apres l'echeance : lecture seule
   if (membre.date_fin_adhesion) {
@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     const [annuaire, demandes, evenements] = await Promise.all([
       sb.from('club_membres')
         .select('id,nom,metier,secteur,ville,pays,bio,services,linkedin,score_reputation,nb_deals,recherche,propose,expansion_pays,tel,tel_visible,numero_adherent,date_adhesion')
-        .eq('statut', 'actif').order('score_reputation', { ascending: false }),
+        .in('statut', ['actif', 'fondateur']).order('score_reputation', { ascending: false }),
       sb.from('club_demandes')
         .select('*').eq('statut', 'ouverte').order('created_at', { ascending: false }).limit(30),
       sb.from('evenements')
@@ -144,7 +144,7 @@ export async function GET(req: NextRequest) {
     }
 
     const { data: tous } = await sb.from('club_membres')
-      .select('id,nom,metier,ville,pays,score_reputation').eq('statut', 'actif');
+      .select('id,nom,metier,ville,pays,score_reputation').in('statut', ['actif', 'fondateur']);
 
     const classement = Object.entries(parMembre)
       .map(([id, v]) => {
@@ -160,7 +160,7 @@ export async function GET(req: NextRequest) {
   // ── Places libres par metier et par zone ────────────────
   if (action === 'places') {
     const { data: occupes } = await sb.from('club_membres')
-      .select('metier,zone,ville,pays,nom').eq('statut', 'actif');
+      .select('metier,zone,ville,pays,nom').in('statut', ['actif', 'fondateur']);
 
     const parZone: Record<string, any[]> = {};
     for (const m of occupes || []) {
@@ -236,7 +236,7 @@ export async function POST(req: NextRequest) {
     // Les membres presents sur place
     const { data: locaux } = await sb.from('club_membres')
       .select('id,nom,metier,secteur,ville,pays,propose,recherche,score_reputation,nb_deals')
-      .eq('statut', 'actif').ilike('pays', `%${pays}%`);
+      .in('statut', ['actif', 'fondateur']).ilike('pays', `%${pays}%`);
 
     if (!locaux || locaux.length === 0) {
       return NextResponse.json({
