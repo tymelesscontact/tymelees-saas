@@ -36,6 +36,18 @@ export async function POST(req: NextRequest) {
 
     // Deux paiements distincts : le droit d'entree d'abord, la cotisation ensuite.
     // L'acces au club n'est ouvert qu'apres reglement de la cotisation.
+    // Le reglement doit etre signe avant tout paiement : c'est ce qui rend
+    // les clauses opposables (non-remboursement, exclusion, non-contournement).
+    if (membre.contrat_id) {
+      const { data: ctr } = await sb.from('contrats')
+        .select('statut').eq('id', membre.contrat_id).maybeSingle();
+      if (ctr && ctr.statut !== 'signe') {
+        return NextResponse.json({
+          error: "Le reglement du Club doit etre signe avant le paiement",
+        }, { status: 400 });
+      }
+    }
+
     const premiereFois = etape === 'droit_entree';
     if (etape === 'droit_entree' && membre.droit_entree_paye) {
       return NextResponse.json({ error: "Le droit d'entree est deja regle" }, { status: 400 });

@@ -105,7 +105,47 @@ export async function POST(req: NextRequest) {
       score_reputation: 0, ca_genere: 0, nb_deals: 0,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ success: true, membre });
+
+    // Generer le reglement du Club, a signer AVANT le paiement
+    let contrat = null;
+    try {
+      const { data: modele } = await sb.from('contrats_modeles')
+        .select('*').eq('nom', 'Reglement du Xyra Club').maybeSingle();
+      if (modele && membre) {
+        let contenu = modele.contenu;
+        const vars: Record<string, string> = {
+          nom: membre.nom || '',
+          societe: c.societe || membre.nom || '',
+          ville: membre.ville || c.ville || '',
+          date: new Date().toLocaleDateString('fr-FR'),
+        };
+        for (const [cle, val] of Object.entries(vars)) {
+          contenu = contenu.split('{{' + cle + '}}').join(val);
+        }
+        const { data: ctr } = await sb.from('contrats').insert({
+          tenant_id: modele.tenant_id,
+          modele_id: modele.id,
+          titre: 'Reglement du Xyra Club',
+          type: 'adhesion',
+          source_type: 'club_membre',
+          source_id: membre.id,
+          contenu_final: contenu,
+          variables: vars,
+          signataire_nom: membre.nom,
+          signataire_email: membre.email,
+          signataire_role: 'Membre',
+          statut: 'brouillon',
+          reference: 'CTR-' + Date.now().toString(36).toUpperCase(),
+          nom_membre: membre.nom,
+        }).select().single();
+        contrat = ctr || null;
+        if (ctr) {
+          await sb.from('club_membres').update({ contrat_id: ctr.id }).eq('id', membre.id);
+        }
+      }
+    } catch (e: any) { console.error('Reglement club:', e.message); }
+
+    return NextResponse.json({ success: true, membre, contrat });
   }
 
   if (action === 'rejeter_candidature') {
