@@ -38,12 +38,19 @@ export async function GET(req: NextRequest) {
     }
     const { data: messages } = await sb.from('club_messages')
       .select('*').eq('conversation_id', conversationId).order('created_at');
+    const { data: documents } = await sb.from('club_documents')
+      .select('id,message_id,nom,type,taille,created_at,auteur_id')
+      .eq('conversation_id', conversationId).is('supprime_le', null);
+    const { data: dealsCommuns } = await sb.from('club_deals')
+      .select('id,reference,titre,montant,statut,created_at')
+      .or(`and(membre_prestataire.eq.${conv.membre_a},membre_client.eq.${conv.membre_b}),and(membre_prestataire.eq.${conv.membre_b},membre_client.eq.${conv.membre_a})`)
+      .order('created_at', { ascending: false });
 
     // Marquer comme lu
     const champ = conv.membre_a === membre.id ? 'lu_par_a' : 'lu_par_b';
     await sb.from('club_conversations').update({ [champ]: true }).eq('id', conversationId);
 
-    return NextResponse.json({ conversation: conv, messages: messages || [], moi: membre.id });
+    return NextResponse.json({ conversation: conv, messages: messages || [], documents: documents || [], deals: dealsCommuns || [], moi: membre.id });
   }
 
   // La liste des conversations
@@ -108,6 +115,81 @@ export async function POST(req: NextRequest) {
       .eq('id', conversation_id);
 
     return NextResponse.json({ success: true, message: data });
+  }
+
+  // ── Modifier un message : l'original est conserve ──────
+  if (action === 'modifier') {
+    const { message_id, contenu } = body;
+    if (!contenu?.trim()) return NextResponse.json({ error: 'Message vide' }, { status: 400 });
+
+    const { data: msg } = await sb.from('club_messages').select('*').eq('id', message_id).single();
+    if (!msg || msg.auteur_id !== membre.id) {
+      return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    }
+    if (msg.supprime_le) {
+      return NextResponse.json({ error: 'Message supprime' }, { status: 400 });
+    }
+
+    const versions = Array.isArray(msg.versions) ? msg.versions : [];
+    versions.push({ contenu: msg.contenu, le: new Date().toISOString() });
+
+    const { error } = await sb.from('club_messages').update({
+      contenu: contenu.trim(),
+      contenu_original: msg.contenu_original || msg.contenu,
+      modifie_le: new Date().toISOString(),
+      versions,
+    }).eq('id', message_id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  // ── Supprimer : le message reste, marque comme supprime ─
+  if (action === 'supprimer') {
+    const { data: msg } = await sb.from('club_messages').select('*').eq('id', body.message_id).single();
+    if (!msg || msg.auteur_id !== membre.id) {
+      return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    }
+    const { error } = await sb.from('club_messages').update({
+      contenu_original: msg.contenu_original || msg.contenu,
+      supprime_le: new Date().toISOString(),
+    }).eq('id', body.message_id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  // ── Lien temporaire vers un document ───────────────────
+  if (action === 'lien_document') {
+    const { data: doc } = await sb.from('club_documents').select('*').eq('id', body.document_id).single();
+    if (!doc) return NextResponse.json({ error: 'Document introuvable' }, { status: 404 });
+
+    const { data: conv } = await sb.from('club_conversations')
+      .select('*').eq('id', doc.conversation_id).single();
+    if (!conv || (conv.membre_a !== membre.id && conv.membre_b !== membre.id)) {
+      return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    }
+
+    const { data: lien } = await sb.storage.from('club-documents')
+      .createSignedUrl(doc.chemin, 300);
+    if (!lien?.signedUrl) return NextResponse.json({ error: 'Document inaccessible' }, { status: 500 });
+    return NextResponse.json({ success: true, url: lien.signedUrl, nom: doc.nom });
+  }
+
+  // ── Ouvrir un litige : seul moyen d'acceder aux echanges ─
+  if (action === 'ouvrir_litige') {
+    const { conversation_id, deal_id, contre, motif, description } = body;
+    if (!contre || !motif) {
+      return NextResponse.json({ error: 'Destinataire et motif necessaires' }, { status: 400 });
+    }
+    const { data, error } = await sb.from('club_litiges').insert({
+      reference: 'LIT-' + Date.now().toString(36).toUpperCase(),
+      conversation_id: conversation_id || null,
+      deal_id: deal_id || null,
+      ouvert_par: membre.id, contre, motif,
+      description: description || null,
+      statut: 'ouvert',
+    }).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, litige: data });
   }
 
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });

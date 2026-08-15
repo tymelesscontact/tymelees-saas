@@ -18,6 +18,7 @@ const API_OUVERTES = [
   '/api/club-espace',
   '/api/club-deals',
   '/api/club-messages',
+  '/api/club-document',
   '/api/club-paiement',
   '/api/stripe-webhook',
   '/api/flutterwave-webhook',
