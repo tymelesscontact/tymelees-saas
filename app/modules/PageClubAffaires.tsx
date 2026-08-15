@@ -76,6 +76,19 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
     setIaLoading(false);
   };
 
+  const envoyerReglement=async(membre)=>{
+    if(!membre.contrat_id)return showToast("⚠️ Aucun reglement genere pour ce membre");
+    if(!window.confirm(`Envoyer le reglement du Club a ${membre.nom} ?\n\nDestinataire : ${membre.email}\n\nIl recevra le document et son code de verification.`))return;
+    try{
+      const res=await fetch('/api/contrats',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        action:'envoyer', id:membre.contrat_id,
+        message_perso:"Votre candidature a ete retenue. Merci de signer le reglement du Club avant de proceder au reglement de votre adhesion.",
+      })});
+      const data=await res.json();
+      if(data.success)showToast(`✅ Reglement envoye a ${membre.email}`);
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const envoyerLienPaiement=async(membre,etape)=>{
     if(!membre.email)return showToast("⚠️ Ce membre n'a pas d'adresse email");
     const libelle=etape==="droit_entree"?"droit d'entree (500 EUR)":"cotisation annuelle (2 000 EUR)";
@@ -301,6 +314,7 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
               <span style={{fontSize:11,fontWeight:700,color:C.gold}}>{fmt(m.ca_genere||0)}</span>
               <span style={{fontSize:11,color:m.couleur||C.gold,fontWeight:600}}>★ {m.score_reputation||50}/100</span>
             </div>
+            {m.statut==="attente_paiement"&&m.contrat_id&&<Btn onClick={e=>{e.stopPropagation();envoyerReglement(m);}} style={{width:"100%",marginBottom:6,fontSize:10,padding:"6px 4px",background:`${C.purple}33`,color:C.purple,border:`1px solid ${C.purple}55`}}>Envoyer le reglement a signer</Btn>}
             {m.statut==="attente_paiement"&&<Btn onClick={e=>{e.stopPropagation();envoyerLienPaiement(m,"droit_entree");}} style={{width:"100%",marginBottom:6,fontSize:10,padding:"6px 4px",background:C.gold,color:"#000"}}>1. Lien droit d'entree (500 €)</Btn>}
             {m.statut==="attente_cotisation"&&<Btn onClick={e=>{e.stopPropagation();envoyerLienPaiement(m,"cotisation");}} style={{width:"100%",marginBottom:6,fontSize:10,padding:"6px 4px",background:C.green,color:"#000"}}>2. Lien cotisation (2 000 €)</Btn>}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
