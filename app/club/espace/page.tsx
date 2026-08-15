@@ -22,6 +22,8 @@ export default function EspaceMembre() {
   const [convActive, setConvActive] = useState<any>(null);
   const [messages, setMessages] = useState<any[]>([]);
   const [nouveauMsg, setNouveauMsg] = useState("");
+  const [documents, setDocuments] = useState<any[]>([]);
+  const [dealsConv, setDealsConv] = useState<any[]>([]);
   const [onglet, setOnglet] = useState("annuaire");
   const [recherche, setRecherche] = useState("");
   const [filtrePays, setFiltrePays] = useState("");
@@ -53,8 +55,39 @@ export default function EspaceMembre() {
     try {
       const r = await fetch(`/api/club-messages?conversation_id=${conv.id}`);
       const d = await r.json();
-      if (r.ok) setMessages(d.messages || []);
+      if (r.ok) { setMessages(d.messages || []); setDocuments(d.documents || []); setDealsConv(d.deals || []); }
     } catch {}
+  };
+  const autreMembre = () => {
+    if (!convActive) return null;
+    const aid = convActive.membre_a === moi?.id ? convActive.membre_b : convActive.membre_a;
+    return membres.find((m) => m.id === aid) || null;
+  };
+  const modifierMsg = async (m: any) => {
+    const nouveau = window.prompt("Modifier le message :", m.contenu);
+    if (nouveau === null || !nouveau.trim()) return;
+    await fetch("/api/club-messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "modifier", message_id: m.id, contenu: nouveau }) });
+    ouvrirConv(convActive);
+  };
+  const supprimerMsg = async (id: string) => {
+    if (!window.confirm("Supprimer ce message ? Il restera visible comme supprime dans la conversation.")) return;
+    await fetch("/api/club-messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "supprimer", message_id: id }) });
+    ouvrirConv(convActive);
+  };
+  const ouvrirDoc = async (id: string) => {
+    const r = await fetch("/api/club-messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "lien_document", document_id: id }) });
+    const d = await r.json();
+    if (d.url) window.open(d.url, "_blank");
+  };
+  const envoyerFichier = async (e: any) => {
+    const f = e.target.files?.[0];
+    if (!f || !convActive) return;
+    const fd = new FormData();
+    fd.append("fichier", f);
+    fd.append("conversation_id", convActive.id);
+    await fetch("/api/club-document", { method: "POST", body: fd });
+    e.target.value = "";
+    ouvrirConv(convActive);
   };
   const envoyerMsg = async () => {
     if (!nouveauMsg.trim() || !convActive) return;
@@ -241,7 +274,7 @@ export default function EspaceMembre() {
         )}
 
         {onglet === "messages" && (
-          <div className="duo" style={{ display: "grid", gridTemplateColumns: "300px 1fr", gap: 16, minHeight: 480 }}>
+          <div className="duo" style={{ display: "grid", gridTemplateColumns: convActive ? "260px 1fr 260px" : "260px 1fr", gap: 14, minHeight: 500 }}>
             <div style={{ background: CARTE, border: `0.5px solid ${TRAIT}`, borderRadius: 4, overflow: "hidden" }}>
               {conversations.length === 0 && <div style={{ padding: 30, textAlign: "center", color: GRIS, fontSize: 12, lineHeight: 1.7 }}>Aucune conversation.<br />Ouvrez la fiche d&apos;un membre pour lui ecrire.</div>}
               {conversations.map((c) => {
@@ -267,40 +300,91 @@ export default function EspaceMembre() {
               ) : (
                 <>
                   <div style={{ padding: "14px 18px", borderBottom: `0.5px solid ${TRAIT}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-                    <div style={{ fontSize: 13 }}>
-                      {(() => { const aid = convActive.membre_a === moi?.id ? convActive.membre_b : convActive.membre_a; return membres.find((m) => m.id === aid)?.nom || "Membre"; })()}
-                    </div>
+                    <div style={{ fontSize: 13 }}>{autreMembre()?.nom || "Membre"}</div>
                     {convActive.jitsi_room && (
                       <a href={`https://meet.jit.si/${convActive.jitsi_room}`} target="_blank" rel="noreferrer"
-                        style={{ fontSize: 11, color: OR, border: `0.5px solid ${OR}55`, padding: "6px 14px", textDecoration: "none" }}>
-                        Appel video
-                      </a>
+                        style={{ fontSize: 11, color: OR, border: `0.5px solid ${OR}55`, padding: "6px 14px", textDecoration: "none" }}>Appel video</a>
                     )}
                   </div>
 
-                  <div style={{ flex: 1, padding: 18, overflowY: "auto", display: "flex", flexDirection: "column", gap: 10, maxHeight: 380 }}>
+                  <div style={{ flex: 1, padding: 18, overflowY: "auto", display: "flex", flexDirection: "column", gap: 12, maxHeight: 400 }}>
                     {messages.length === 0 && <div style={{ textAlign: "center", color: GRIS, fontSize: 12, padding: 30 }}>Aucun message. Ecrivez le premier.</div>}
                     {messages.map((m) => {
                       const moiMeme = m.auteur_id === moi?.id;
+                      const doc = documents.find((d: any) => d.message_id === m.id);
                       return (
-                        <div key={m.id} style={{ alignSelf: moiMeme ? "flex-end" : "flex-start", maxWidth: "72%" }}>
-                          <div style={{ background: moiMeme ? "#2a2418" : "#16151a", border: `0.5px solid ${TRAIT}`, borderRadius: 4, padding: "10px 14px", fontSize: 13, color: GRIS_CLAIR, lineHeight: 1.6 }}>{m.contenu}</div>
-                          <div style={{ fontSize: 10, color: "#4f4a43", marginTop: 4, textAlign: moiMeme ? "right" : "left" }}>
-                            {new Date(m.created_at).toLocaleString("fr", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}
+                        <div key={m.id} style={{ alignSelf: moiMeme ? "flex-end" : "flex-start", maxWidth: "76%" }}>
+                          <div style={{ background: moiMeme ? "#2a2418" : "#16151a", border: `0.5px solid ${TRAIT}`, borderRadius: 4, padding: "10px 14px", fontSize: 13, color: m.supprime_le ? "#4f4a43" : GRIS_CLAIR, lineHeight: 1.6, fontStyle: m.supprime_le ? "italic" : "normal" }}>
+                            {m.supprime_le ? "Ce message a ete supprime"
+                              : doc ? (
+                                <span onClick={() => ouvrirDoc(doc.id)} style={{ cursor: "pointer", color: OR }}>
+                                  {doc.nom} <span style={{ color: GRIS, fontSize: 11 }}>({Math.round((doc.taille || 0) / 1024)} Ko)</span>
+                                </span>
+                              ) : m.contenu}
+                          </div>
+                          <div style={{ fontSize: 10, color: "#4f4a43", marginTop: 4, textAlign: moiMeme ? "right" : "left", display: "flex", gap: 8, justifyContent: moiMeme ? "flex-end" : "flex-start" }}>
+                            <span>{new Date(m.created_at).toLocaleString("fr", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
+                            {m.modifie_le && !m.supprime_le && <span>modifie</span>}
+                            {moiMeme && !m.supprime_le && m.type !== "document" && (
+                              <>
+                                <span onClick={() => modifierMsg(m)} style={{ cursor: "pointer", textDecoration: "underline" }}>modifier</span>
+                                <span onClick={() => supprimerMsg(m.id)} style={{ cursor: "pointer", textDecoration: "underline" }}>supprimer</span>
+                              </>
+                            )}
                           </div>
                         </div>
                       );
                     })}
                   </div>
 
-                  <div style={{ padding: 14, borderTop: `0.5px solid ${TRAIT}`, display: "flex", gap: 10 }}>
+                  <div style={{ padding: 14, borderTop: `0.5px solid ${TRAIT}`, display: "flex", gap: 10, alignItems: "center" }}>
+                    <label style={{ color: GRIS, fontSize: 18, cursor: "pointer", padding: "0 4px" }} title="Joindre un document">
+                      +
+                      <input type="file" onChange={envoyerFichier} style={{ display: "none" }} />
+                    </label>
                     <input value={nouveauMsg} onChange={(e) => setNouveauMsg(e.target.value)}
                       onKeyDown={(e) => e.key === "Enter" && envoyerMsg()} placeholder="Votre message" />
-                    <button onClick={envoyerMsg} style={{ background: OR, color: NOIR, border: "none", padding: "0 22px", fontSize: 12, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap" }}>Envoyer</button>
+                    <button onClick={envoyerMsg} style={{ background: OR, color: NOIR, border: "none", padding: "0 22px", fontSize: 12, cursor: "pointer", fontFamily: "inherit", whiteSpace: "nowrap", height: 40 }}>Envoyer</button>
                   </div>
                 </>
               )}
             </div>
+
+            {convActive && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                <div style={{ background: CARTE, border: `0.5px solid ${TRAIT}`, borderRadius: 4, padding: 16 }}>
+                  <div onClick={() => { const a = autreMembre(); if (a) { setOnglet("annuaire"); setSelection(a); } }} style={{ cursor: "pointer" }}>
+                    <div style={{ fontSize: 14, marginBottom: 3 }}>{autreMembre()?.nom || "Membre"}</div>
+                    <div style={{ fontSize: 11, color: OR, marginBottom: 6 }}>{autreMembre()?.metier || ""}</div>
+                    <div style={{ fontSize: 11, color: GRIS }}>{[autreMembre()?.ville, autreMembre()?.pays].filter(Boolean).join(", ")}</div>
+                    <div style={{ fontSize: 11, color: GRIS, marginTop: 10, textDecoration: "underline" }}>Voir le profil</div>
+                  </div>
+                </div>
+
+                <div style={{ background: CARTE, border: `0.5px solid ${TRAIT}`, borderRadius: 4, padding: 16 }}>
+                  <div style={{ fontSize: 10, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 10 }}>DOCUMENTS ({documents.length})</div>
+                  {documents.length === 0 && <div style={{ fontSize: 11, color: GRIS }}>Aucun document echange.</div>}
+                  {documents.map((d: any) => (
+                    <div key={d.id} onClick={() => ouvrirDoc(d.id)} style={{ fontSize: 11, color: GRIS_CLAIR, padding: "6px 0", cursor: "pointer", borderBottom: `0.5px solid ${TRAIT}` }}>
+                      {d.nom}
+                      <div style={{ fontSize: 10, color: "#4f4a43", marginTop: 2 }}>{new Date(d.created_at).toLocaleDateString("fr")}</div>
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ background: CARTE, border: `0.5px solid ${TRAIT}`, borderRadius: 4, padding: 16 }}>
+                  <div style={{ fontSize: 10, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 10 }}>DEALS COMMUNS ({dealsConv.length})</div>
+                  {dealsConv.length === 0 && <div style={{ fontSize: 11, color: GRIS, marginBottom: 12 }}>Aucun deal entre vous.</div>}
+                  {dealsConv.map((d: any) => (
+                    <div key={d.id} style={{ fontSize: 11, color: GRIS_CLAIR, padding: "6px 0", borderBottom: `0.5px solid ${TRAIT}` }}>
+                      {d.titre}
+                      <div style={{ fontSize: 10, color: OR, marginTop: 2 }}>{Number(d.montant).toLocaleString("fr")} &euro; · {d.statut}</div>
+                    </div>
+                  ))}
+                  <button onClick={() => setOnglet("deals")} style={{ width: "100%", marginTop: 12, background: OR, color: NOIR, border: "none", padding: "9px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>Proposer un deal</button>
+                </div>
+              </div>
+            )}
           </div>
         )}
 
