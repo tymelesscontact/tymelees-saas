@@ -17,6 +17,7 @@ export default function EspaceMembre() {
   const [membres, setMembres] = useState<any[]>([]);
   const [demandes, setDemandes] = useState<any[]>([]);
   const [evenements, setEvenements] = useState<any[]>([]);
+  const [deals, setDeals] = useState<any[]>([]);
   const [onglet, setOnglet] = useState("annuaire");
   const [recherche, setRecherche] = useState("");
   const [filtrePays, setFiltrePays] = useState("");
@@ -30,6 +31,11 @@ export default function EspaceMembre() {
       setMoi(d.moi); setLectureSeule(!!d.lecture_seule);
       setMembres(d.membres || []); setDemandes(d.demandes || []);
       setEvenements(d.evenements || []);
+      try {
+        const rd = await fetch("/api/club-deals");
+        const dd = await rd.json();
+        if (rd.ok) setDeals(dd.deals || []);
+      } catch {}
     } catch { setErreur("connexion"); }
     setChargement(false);
   };
@@ -96,7 +102,7 @@ export default function EspaceMembre() {
       )}
 
       <div style={{ display: "flex", gap: 4, padding: "18px 28px 0", maxWidth: 1200, margin: "0 auto", flexWrap: "wrap" }}>
-        {[["annuaire", "Annuaire"], ["demandes", "Demandes"], ["evenements", "Evenements"], ["profil", "Mon profil"]].map(([id, label]) => (
+        {[["annuaire", "Annuaire"], ["demandes", "Demandes"], ["deals", "Mes deals"], ["evenements", "Evenements"], ["profil", "Mon profil"]].map(([id, label]) => (
           <button key={id} onClick={() => { setOnglet(id); setSelection(null); }}
             style={{ background: onglet === id ? CARTE : "transparent", border: "none", borderBottom: onglet === id ? `1px solid ${OR}` : "1px solid transparent", color: onglet === id ? OR : GRIS, padding: "11px 18px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
             {label}
@@ -212,6 +218,70 @@ export default function EspaceMembre() {
               </div>
             ))}
             {evenements.length === 0 && <div style={{ textAlign: "center", padding: 50, color: GRIS, fontSize: 13 }}>Aucun evenement a venir.</div>}
+          </div>
+        )}
+
+        {onglet === "deals" && (
+          <div>
+            <Carte style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 6 }}>PROPOSER UN DEAL</div>
+              <div style={{ fontSize: 11, color: "#4f4a43", marginBottom: 16, lineHeight: 1.6 }}>
+                Le paiement est bloque jusqu&apos;a validation de la prestation. Xyra preleve 3%.
+              </div>
+              <FormDeal membres={membres} moi={moi} onCree={charger} desactive={lectureSeule} />
+            </Carte>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {deals.map((d) => {
+                const prest = membres.find((m) => m.id === d.membre_prestataire);
+                const client = membres.find((m) => m.id === d.membre_client);
+                const app = membres.find((m) => m.id === d.membre_apporteur);
+                const jeSuisClient = d.membre_client === moi?.id;
+                const jeSuisPrest = d.membre_prestataire === moi?.id;
+                const couleurs: any = { propose: "#c9a96e", accepte: "#7ea8c9", paye: "#c9a96e", livre: "#a3c97e", valide: "#7ec99a", refuse: "#c96e6e" };
+                const agir = async (act: string) => {
+                  const r = await fetch("/api/club-deals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: act, deal_id: d.id }) });
+                  const dd = await r.json();
+                  if (dd.url) { window.location.href = dd.url; return; }
+                  charger();
+                };
+                return (
+                  <div key={d.id} style={{ background: CARTE, border: `0.5px solid ${TRAIT}`, borderRadius: 4, padding: 20 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", gap: 16, flexWrap: "wrap", marginBottom: 14 }}>
+                      <div style={{ flex: 1, minWidth: 220 }}>
+                        <div style={{ fontSize: 11, color: GRIS, marginBottom: 4 }}>{d.reference}</div>
+                        <div style={{ fontSize: 15, marginBottom: 6 }}>{d.titre}</div>
+                        <div style={{ fontSize: 12, color: GRIS }}>
+                          {prest?.nom || "—"} <span style={{ color: "#4f4a43" }}>pour</span> {client?.nom || "—"}
+                          {app && <span style={{ color: OR }}> · apporte par {app.nom}</span>}
+                        </div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontFamily: "Georgia,serif", fontSize: 22, color: OR }}>{Number(d.montant).toLocaleString("fr")} &euro;</div>
+                        <div style={{ fontSize: 11, color: couleurs[d.statut] || GRIS, marginTop: 4 }}>{d.statut}</div>
+                      </div>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 18, fontSize: 11, color: GRIS, paddingTop: 12, borderTop: `0.5px solid ${TRAIT}`, flexWrap: "wrap" }}>
+                      {Number(d.commission_apporteur_montant) > 0 && <span>Apport {d.commission_apporteur_pct}% : {Number(d.commission_apporteur_montant).toLocaleString("fr")} &euro;</span>}
+                      <span>Xyra 3% : {Number(d.commission_xyra_montant).toLocaleString("fr")} &euro;</span>
+                      <span style={{ color: GRIS_CLAIR }}>Net : {Number(d.montant_net).toLocaleString("fr")} &euro;</span>
+                    </div>
+
+                    <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
+                      {jeSuisClient && d.statut === "propose" && <>
+                        <button onClick={() => agir("accepter")} style={{ background: OR, color: NOIR, border: "none", padding: "9px 18px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Accepter</button>
+                        <button onClick={() => agir("refuser")} style={{ background: "none", border: `0.5px solid ${TRAIT}`, color: GRIS, padding: "9px 18px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Refuser</button>
+                      </>}
+                      {jeSuisClient && d.statut === "accepte" && <button onClick={() => agir("payer")} style={{ background: OR, color: NOIR, border: "none", padding: "9px 18px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Payer {Number(d.montant).toLocaleString("fr")} &euro;</button>}
+                      {jeSuisPrest && d.statut === "paye" && <button onClick={() => agir("livrer")} style={{ background: OR, color: NOIR, border: "none", padding: "9px 18px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Marquer livre</button>}
+                      {jeSuisClient && d.statut === "livre" && <button onClick={() => agir("valider")} style={{ background: "#7ec99a", color: NOIR, border: "none", padding: "9px 18px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>Valider et liberer les fonds</button>}
+                    </div>
+                  </div>
+                );
+              })}
+              {deals.length === 0 && <div style={{ textAlign: "center", padding: 50, color: GRIS, fontSize: 13 }}>Aucun deal en cours.</div>}
+            </div>
           </div>
         )}
 
@@ -338,6 +408,92 @@ function FormProfil({ moi, onMaj, desactive }: any) {
           {envoi ? "Enregistrement..." : "Enregistrer"}
         </div>
         {ok && <span style={{ fontSize: 12, color: "#7ec99a" }}>Profil enregistre</span>}
+      </div>
+    </div>
+  );
+}
+
+function FormDeal({ membres, moi, onCree, desactive }: any) {
+  const [f, setF] = useState<any>({
+    membre_client: "", membre_apporteur: "", titre: "", description: "",
+    montant: "", commission_apporteur_pct: "5",
+  });
+  const [envoi, setEnvoi] = useState(false);
+  const autres = (membres || []).filter((m: any) => m.id !== moi?.id);
+
+  const m = Number(f.montant) || 0;
+  const pctApp = f.membre_apporteur ? Number(f.commission_apporteur_pct) || 0 : 0;
+  const commApp = Math.round(m * pctApp) / 100;
+  const commXyra = Math.round(m * 3) / 100;
+  const net = m - commApp - commXyra;
+
+  const proposer = async () => {
+    if (!f.membre_client || !f.titre || !f.montant || envoi) return;
+    setEnvoi(true);
+    await fetch("/api/club-deals", {
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "proposer", ...f, montant: Number(f.montant) }),
+    });
+    setF({ membre_client: "", membre_apporteur: "", titre: "", description: "", montant: "", commission_apporteur_pct: "5" });
+    setEnvoi(false);
+    onCree();
+  };
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <input value={f.titre} onChange={(e) => setF({ ...f, titre: e.target.value })} placeholder="Objet du deal" />
+      <textarea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} placeholder="Ce qui est convenu" rows={2} />
+      <div className="duo" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div>
+          <label style={{ fontSize: 11, color: "#78716a", display: "block", marginBottom: 6 }}>Client</label>
+          <select value={f.membre_client} onChange={(e) => setF({ ...f, membre_client: e.target.value })}>
+            <option value="">— Choisir —</option>
+            {autres.map((mm: any) => <option key={mm.id} value={mm.id}>{mm.nom} — {mm.metier}</option>)}
+          </select>
+        </div>
+        <div>
+          <label style={{ fontSize: 11, color: "#78716a", display: "block", marginBottom: 6 }}>Montant (&euro;)</label>
+          <input type="number" value={f.montant} onChange={(e) => setF({ ...f, montant: e.target.value })} />
+        </div>
+      </div>
+      <div className="duo" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <div>
+          <label style={{ fontSize: 11, color: "#78716a", display: "block", marginBottom: 6 }}>Apporteur (facultatif)</label>
+          <select value={f.membre_apporteur} onChange={(e) => setF({ ...f, membre_apporteur: e.target.value })}>
+            <option value="">— Aucun —</option>
+            {autres.filter((mm: any) => mm.id !== f.membre_client).map((mm: any) => <option key={mm.id} value={mm.id}>{mm.nom}</option>)}
+          </select>
+        </div>
+        {f.membre_apporteur && (
+          <div>
+            <label style={{ fontSize: 11, color: "#78716a", display: "block", marginBottom: 6 }}>Sa commission (%)</label>
+            <input type="number" value={f.commission_apporteur_pct} onChange={(e) => setF({ ...f, commission_apporteur_pct: e.target.value })} />
+          </div>
+        )}
+      </div>
+
+      {m > 0 && (
+        <div style={{ background: "#0d0c10", border: "0.5px solid #1f1c16", borderRadius: 3, padding: 14, fontSize: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, color: "#78716a" }}>
+            <span>Montant du deal</span><span>{m.toLocaleString("fr")} &euro;</span>
+          </div>
+          {commApp > 0 && (
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, color: "#78716a" }}>
+              <span>Apporteur ({pctApp}%)</span><span>&minus; {commApp.toLocaleString("fr")} &euro;</span>
+            </div>
+          )}
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, color: "#78716a" }}>
+            <span>Xyra (3%)</span><span>&minus; {commXyra.toLocaleString("fr")} &euro;</span>
+          </div>
+          <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 8, borderTop: "0.5px solid #1f1c16", color: "#c9a96e", fontWeight: 600 }}>
+            <span>Vous recevez</span><span>{net.toLocaleString("fr")} &euro;</span>
+          </div>
+        </div>
+      )}
+
+      <div onClick={desactive ? undefined : proposer}
+        style={{ alignSelf: "flex-start", padding: "12px 28px", background: "#c9a96e", color: "#0a0a0a", fontSize: 12, cursor: desactive || envoi ? "default" : "pointer", opacity: desactive || envoi ? 0.4 : 1 }}>
+        {envoi ? "Envoi..." : "Proposer le deal"}
       </div>
     </div>
   );

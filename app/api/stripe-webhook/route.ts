@@ -75,6 +75,12 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ received: true });
       }
 
+      if (session.metadata?.type === 'club_deal') {
+        await sb.from('club_deals')
+          .update({ statut: 'paye', paye_le: new Date().toISOString(), reference_paiement: session.id })
+          .eq('id', session.metadata.deal_id);
+        return NextResponse.json({ received: true });
+      }
       if (session.metadata?.type === 'club_adhesion') {
         const membreId = session.metadata.membre_id;
         const etape = session.metadata.etape || 'cotisation';

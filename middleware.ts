@@ -16,6 +16,7 @@ const API_OUVERTES = [
   '/api/whoami',
   '/api/club',
   '/api/club-espace',
+  '/api/club-deals',
   '/api/club-paiement',
   '/api/stripe-webhook',
   '/api/flutterwave-webhook',
