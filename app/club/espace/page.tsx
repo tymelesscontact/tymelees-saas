@@ -26,6 +26,9 @@ export default function EspaceMembre() {
   const [dealsConv, setDealsConv] = useState<any[]>([]);
   const [planExp, setPlanExp] = useState<any>(null);
   const [expEnCours, setExpEnCours] = useState(false);
+  const [bilan, setBilan] = useState<any>(null);
+  const [classement, setClassement] = useState<any[]>([]);
+  const [places, setPlaces] = useState<any>(null);
   const [onglet, setOnglet] = useState("annuaire");
   const [recherche, setRecherche] = useState("");
   const [filtrePays, setFiltrePays] = useState("");
@@ -161,7 +164,7 @@ export default function EspaceMembre() {
       )}
 
       <div style={{ display: "flex", gap: 4, padding: "18px 28px 0", maxWidth: 1200, margin: "0 auto", flexWrap: "wrap" }}>
-        {[["annuaire", "Annuaire"], ["demandes", "Demandes"], ["deals", "Mes deals"], ["messages", "Messages"], ["expansion", "International"], ["evenements", "Evenements"], ["profil", "Mon profil"]].map(([id, label]) => (
+        {[["annuaire", "Annuaire"], ["demandes", "Demandes"], ["deals", "Mes deals"], ["messages", "Messages"], ["expansion", "International"], ["bilan", "Mon bilan"], ["evenements", "Evenements"], ["profil", "Mon profil"]].map(([id, label]) => (
           <button key={id} onClick={() => { setOnglet(id); setSelection(null); }}
             style={{ background: onglet === id ? CARTE : "transparent", border: "none", borderBottom: onglet === id ? `1px solid ${OR}` : "1px solid transparent", color: onglet === id ? OR : GRIS, padding: "11px 18px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
             {label}
@@ -479,6 +482,104 @@ export default function EspaceMembre() {
             )}
 
             {planExp?.error && <Carte><div style={{ fontSize: 12, color: "#c96e6e" }}>{planExp.error}</div></Carte>}
+          </div>
+        )}
+
+        {onglet === "bilan" && (
+          <div style={{ maxWidth: 860 }}>
+            {!bilan && (
+              <div onClick={async () => {
+                const r1 = await fetch("/api/club-espace?action=bilan"); const d1 = await r1.json(); setBilan(d1);
+                const r2 = await fetch("/api/club-espace?action=classement"); const d2 = await r2.json(); setClassement(d2.classement || []);
+                const r3 = await fetch("/api/club-espace?action=places"); const d3 = await r3.json(); setPlaces(d3);
+              }} style={{ display: "inline-block", padding: "12px 26px", background: OR, color: NOIR, fontSize: 12, cursor: "pointer" }}>
+                Afficher mon bilan
+              </div>
+            )}
+
+            {bilan?.success && (
+              <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <Carte>
+                  <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 6 }}>CE QUE LE CLUB VOUS A RAPPORTE</div>
+                  <div style={{ fontSize: 11, color: GRIS, marginBottom: 22 }}>Depuis le {new Date(bilan.depuis).toLocaleDateString("fr")}{bilan.fin_adhesion ? ` · adhesion jusqu'au ${new Date(bilan.fin_adhesion).toLocaleDateString("fr")}` : ""}</div>
+
+                  <div className="grille" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 20, marginBottom: 24 }}>
+                    <div>
+                      <div style={{ fontFamily: "Georgia,serif", fontSize: 26, color: OR }}>{Number(bilan.ca_gagne).toLocaleString("fr")} &euro;</div>
+                      <div style={{ fontSize: 11, color: GRIS, marginTop: 4 }}>Chiffre d&apos;affaires gagne</div>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: "Georgia,serif", fontSize: 26, color: OR }}>{Number(bilan.commissions_percues).toLocaleString("fr")} &euro;</div>
+                      <div style={{ fontSize: 11, color: GRIS, marginTop: 4 }}>Commissions d&apos;apport</div>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: "Georgia,serif", fontSize: 26, color: IVOIRE }}>{bilan.deals_conclus}</div>
+                      <div style={{ fontSize: 11, color: GRIS, marginTop: 4 }}>Affaires conclues</div>
+                    </div>
+                    <div>
+                      <div style={{ fontFamily: "Georgia,serif", fontSize: 26, color: IVOIRE }}>{bilan.mises_en_relation}</div>
+                      <div style={{ fontSize: 11, color: GRIS, marginTop: 4 }}>Mises en relation</div>
+                    </div>
+                  </div>
+
+                  <div style={{ paddingTop: 20, borderTop: `0.5px solid ${TRAIT}`, display: "flex", justifyContent: "space-between", alignItems: "flex-end", flexWrap: "wrap", gap: 16 }}>
+                    <div>
+                      <div style={{ fontSize: 12, color: GRIS, marginBottom: 4 }}>Cout de l&apos;adhesion</div>
+                      <div style={{ fontSize: 16, color: GRIS_CLAIR }}>{Number(bilan.cout_adhesion).toLocaleString("fr")} &euro;</div>
+                    </div>
+                    <div style={{ textAlign: "right" }}>
+                      <div style={{ fontSize: 12, color: GRIS, marginBottom: 4 }}>Retour</div>
+                      <div style={{ fontFamily: "Georgia,serif", fontSize: 30, color: bilan.rapport >= 1 ? "#7ec99a" : OR }}>
+                        {bilan.rapport > 0 ? `${bilan.rapport} fois` : "—"}
+                      </div>
+                    </div>
+                  </div>
+                </Carte>
+
+                {Number(bilan.ca_apporte_aux_autres) > 0 && (
+                  <Carte>
+                    <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 10 }}>CE QUE VOUS AVEZ APPORTE AUX AUTRES</div>
+                    <div style={{ fontFamily: "Georgia,serif", fontSize: 24, color: OR, marginBottom: 6 }}>{Number(bilan.ca_apporte_aux_autres).toLocaleString("fr")} &euro;</div>
+                    <div style={{ fontSize: 12, color: GRIS, lineHeight: 1.7 }}>{bilan.deals_apportes} affaire{bilan.deals_apportes > 1 ? "s" : ""} apportee{bilan.deals_apportes > 1 ? "s" : ""} a d&apos;autres membres.</div>
+                  </Carte>
+                )}
+
+                <Carte>
+                  <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 16 }}>LES DONNEURS D&apos;AFFAIRES</div>
+                  {classement.length === 0 && <div style={{ fontSize: 12, color: GRIS }}>Aucune affaire apportee pour le moment.</div>}
+                  {classement.map((c, i) => (
+                    <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "11px 0", borderBottom: i < classement.length - 1 ? `0.5px solid ${TRAIT}` : "none", background: c.id === moi?.id ? "#16151a" : "transparent" }}>
+                      <div style={{ fontFamily: "Georgia,serif", fontSize: 16, color: i < 3 ? OR : GRIS, minWidth: 26 }}>{i + 1}</div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, color: c.id === moi?.id ? OR : IVOIRE }}>{c.nom}</div>
+                        <div style={{ fontSize: 11, color: GRIS }}>{c.metier}{c.ville ? " · " + c.ville : ""}</div>
+                      </div>
+                      <div style={{ textAlign: "right" }}>
+                        <div style={{ fontSize: 13, color: OR }}>{Number(c.ca).toLocaleString("fr")} &euro;</div>
+                        <div style={{ fontSize: 10, color: GRIS }}>{c.nb} affaire{c.nb > 1 ? "s" : ""}</div>
+                      </div>
+                    </div>
+                  ))}
+                </Carte>
+
+                {places?.zones && (
+                  <Carte>
+                    <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 8 }}>LES METIERS DEJA REPRESENTES</div>
+                    <div style={{ fontSize: 11, color: "#4f4a43", marginBottom: 16, lineHeight: 1.6 }}>Un metier absent de votre zone est une place a proposer a quelqu&apos;un.</div>
+                    {places.zones.map((z: any) => (
+                      <div key={z.zone} style={{ marginBottom: 16 }}>
+                        <div style={{ fontSize: 12, color: z.zone === places.ma_zone ? OR : GRIS_CLAIR, marginBottom: 8 }}>{z.zone}{z.zone === places.ma_zone ? " (votre zone)" : ""}</div>
+                        <div style={{ display: "flex", gap: 7, flexWrap: "wrap" }}>
+                          {z.metiers.map((m: any, k: number) => (
+                            <span key={k} style={{ fontSize: 11, color: GRIS, border: `0.5px solid ${TRAIT}`, padding: "4px 11px", borderRadius: 2 }}>{m.metier || "—"}</span>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </Carte>
+                )}
+              </div>
+            )}
           </div>
         )}
 

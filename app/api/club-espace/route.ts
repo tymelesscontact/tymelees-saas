@@ -81,6 +81,101 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // ── Mon bilan : ce que le club m'a rapporte ─────────────
+  if (action === 'bilan') {
+    const depuis = membre.date_adhesion || '2000-01-01';
+
+    const { data: mesDeals } = await sb.from('club_deals')
+      .select('*')
+      .or(`membre_prestataire.eq.${membre.id},membre_client.eq.${membre.id},membre_apporteur.eq.${membre.id}`)
+      .eq('statut', 'valide');
+
+    const deals = mesDeals || [];
+    const gagne = deals.filter((d: any) => d.membre_prestataire === membre.id)
+      .reduce((a: number, d: any) => a + Number(d.montant_net || 0), 0);
+    const apporte = deals.filter((d: any) => d.membre_apporteur === membre.id)
+      .reduce((a: number, d: any) => a + Number(d.commission_apporteur_montant || 0), 0);
+    const ca_apporte_aux_autres = deals.filter((d: any) => d.membre_apporteur === membre.id)
+      .reduce((a: number, d: any) => a + Number(d.montant || 0), 0);
+    const depense = deals.filter((d: any) => d.membre_client === membre.id)
+      .reduce((a: number, d: any) => a + Number(d.montant || 0), 0);
+
+    const { data: convs } = await sb.from('club_conversations')
+      .select('id').or(`membre_a.eq.${membre.id},membre_b.eq.${membre.id}`);
+
+    const { data: mesDemandes } = await sb.from('club_demandes')
+      .select('id').eq('membre_id', membre.id);
+
+    const cout = Number(membre.montant_cotisation || 2000);
+    const retour = gagne + apporte;
+
+    return NextResponse.json({
+      success: true,
+      depuis,
+      fin_adhesion: membre.date_fin_adhesion,
+      deals_conclus: deals.filter((d: any) => d.membre_prestataire === membre.id).length,
+      deals_apportes: deals.filter((d: any) => d.membre_apporteur === membre.id).length,
+      ca_gagne: gagne,
+      commissions_percues: apporte,
+      ca_apporte_aux_autres,
+      montant_depense: depense,
+      mises_en_relation: (convs || []).length,
+      demandes_publiees: (mesDemandes || []).length,
+      cout_adhesion: cout,
+      retour_total: retour,
+      rapport: cout > 0 ? Math.round((retour / cout) * 10) / 10 : 0,
+      score_reputation: membre.score_reputation || 0,
+    });
+  }
+
+  // ── Classement des donneurs d'affaires ──────────────────
+  if (action === 'classement') {
+    const { data: deals } = await sb.from('club_deals')
+      .select('membre_apporteur,montant,commission_apporteur_montant')
+      .eq('statut', 'valide').not('membre_apporteur', 'is', null);
+
+    const parMembre: Record<string, { ca: number; nb: number; gain: number }> = {};
+    for (const d of deals || []) {
+      const id = d.membre_apporteur;
+      if (!parMembre[id]) parMembre[id] = { ca: 0, nb: 0, gain: 0 };
+      parMembre[id].ca += Number(d.montant || 0);
+      parMembre[id].gain += Number(d.commission_apporteur_montant || 0);
+      parMembre[id].nb += 1;
+    }
+
+    const { data: tous } = await sb.from('club_membres')
+      .select('id,nom,metier,ville,pays,score_reputation').eq('statut', 'actif');
+
+    const classement = Object.entries(parMembre)
+      .map(([id, v]) => {
+        const m = (tous || []).find((x: any) => x.id === id);
+        return { id, nom: m?.nom || 'Membre', metier: m?.metier || '', ville: m?.ville || '', ...v };
+      })
+      .sort((a, b) => b.ca - a.ca)
+      .slice(0, 20);
+
+    return NextResponse.json({ success: true, classement, moi: membre.id });
+  }
+
+  // ── Places libres par metier et par zone ────────────────
+  if (action === 'places') {
+    const { data: occupes } = await sb.from('club_membres')
+      .select('metier,zone,ville,pays,nom').eq('statut', 'actif');
+
+    const parZone: Record<string, any[]> = {};
+    for (const m of occupes || []) {
+      const z = m.zone || m.ville || m.pays || 'Non precisee';
+      if (!parZone[z]) parZone[z] = [];
+      parZone[z].push({ metier: m.metier, nom: m.nom });
+    }
+
+    return NextResponse.json({
+      success: true,
+      zones: Object.entries(parZone).map(([zone, metiers]) => ({ zone, metiers })),
+      ma_zone: membre.zone || membre.ville || membre.pays,
+    });
+  }
+
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });
 }
 
