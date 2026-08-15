@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
   const lectureSeule = raison === 'periode_grace';
 
   if (action === 'accueil') {
-    const [annuaire, demandes, evenements] = await Promise.all([
+    const [annuaire, demandes, evenements, avantages] = await Promise.all([
       sb.from('club_membres')
         .select('id,nom,metier,secteur,ville,pays,bio,services,linkedin,score_reputation,nb_deals,recherche,propose,expansion_pays,tel,tel_visible,numero_adherent,date_adhesion')
         .in('statut', ['actif', 'fondateur']).order('score_reputation', { ascending: false }),
@@ -71,6 +71,8 @@ export async function GET(req: NextRequest) {
         .select('*').eq('statut', 'ouverte').order('created_at', { ascending: false }).limit(30),
       sb.from('evenements')
         .select('*').gte('date', new Date().toISOString().slice(0, 10)).order('date').limit(10),
+      sb.from('club_avantages')
+        .select('*').eq('actif', true).order('created_at', { ascending: false }),
     ]);
     return NextResponse.json({
       moi: membre,
@@ -78,6 +80,7 @@ export async function GET(req: NextRequest) {
       membres: annuaire.data || [],
       demandes: demandes.data || [],
       evenements: evenements.data || [],
+      avantages: avantages.data || [],
     });
   }
 
@@ -290,6 +293,36 @@ Classe l'equipe dans l'ordre ou il devrait les contacter. N'invente aucun nom : 
     } catch (e: any) {
       return NextResponse.json({ error: "Lea n'a pas pu etablir le plan", detail: e.message }, { status: 500 });
     }
+  }
+
+  // ── Proposer un avantage aux autres membres ────────────
+  if (action === 'proposer_avantage') {
+    const { titre, description, categorie, reduction, code_promo, lien, pays, date_fin } = body;
+    if (!titre) return NextResponse.json({ error: 'Titre requis' }, { status: 400 });
+    const { data, error } = await sb.from('club_avantages').insert({
+      membre_id: membre.id,
+      partenaire: membre.nom,
+      titre,
+      description: description || null,
+      categorie: categorie || membre.metier || null,
+      reduction: reduction || null,
+      code_promo: code_promo || null,
+      lien: lien || null,
+      pays: pays || membre.pays || null,
+      date_fin: date_fin || null,
+      actif: true,
+    }).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, avantage: data });
+  }
+
+  // ── Retirer son propre avantage ────────────────────────
+  if (action === 'retirer_avantage') {
+    const { error } = await sb.from('club_avantages')
+      .update({ actif: false })
+      .eq('id', body.avantage_id).eq('membre_id', membre.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
   }
 
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });

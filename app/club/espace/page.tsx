@@ -29,6 +29,7 @@ export default function EspaceMembre() {
   const [bilan, setBilan] = useState<any>(null);
   const [classement, setClassement] = useState<any[]>([]);
   const [places, setPlaces] = useState<any>(null);
+  const [avantages, setAvantages] = useState<any[]>([]);
   const [onglet, setOnglet] = useState("annuaire");
   const [recherche, setRecherche] = useState("");
   const [filtrePays, setFiltrePays] = useState("");
@@ -42,6 +43,7 @@ export default function EspaceMembre() {
       setMoi(d.moi); setLectureSeule(!!d.lecture_seule);
       setMembres(d.membres || []); setDemandes(d.demandes || []);
       setEvenements(d.evenements || []);
+      setAvantages(d.avantages || []);
       try {
         const rd = await fetch("/api/club-deals");
         const dd = await rd.json();
@@ -164,7 +166,7 @@ export default function EspaceMembre() {
       )}
 
       <div style={{ display: "flex", gap: 4, padding: "18px 28px 0", maxWidth: 1200, margin: "0 auto", flexWrap: "wrap" }}>
-        {[["annuaire", "Annuaire"], ["demandes", "Demandes"], ["deals", "Mes deals"], ["messages", "Messages"], ["expansion", "International"], ["bilan", "Mon bilan"], ["evenements", "Evenements"], ["profil", "Mon profil"]].map(([id, label]) => (
+        {[["annuaire", "Annuaire"], ["demandes", "Demandes"], ["deals", "Mes deals"], ["messages", "Messages"], ["expansion", "International"], ["avantages", "Avantages"], ["bilan", "Mon bilan"], ["evenements", "Evenements"], ["profil", "Mon profil"]].map(([id, label]) => (
           <button key={id} onClick={() => { setOnglet(id); setSelection(null); }}
             style={{ background: onglet === id ? CARTE : "transparent", border: "none", borderBottom: onglet === id ? `1px solid ${OR}` : "1px solid transparent", color: onglet === id ? OR : GRIS, padding: "11px 18px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
             {label}
@@ -583,6 +585,60 @@ export default function EspaceMembre() {
           </div>
         )}
 
+        {onglet === "avantages" && (
+          <div>
+            <Carte style={{ marginBottom: 20 }}>
+              <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 6 }}>CE QUE VOUS OFFREZ AUX MEMBRES</div>
+              <div style={{ fontSize: 11, color: "#4f4a43", marginBottom: 16, lineHeight: 1.6 }}>
+                Un tarif preferentiel, une remise, une prestation offerte. C&apos;est la meilleure facon de faire venir les autres membres chez vous.
+              </div>
+              <FormAvantage onCree={charger} desactive={lectureSeule} />
+            </Carte>
+
+            <div style={{ fontSize: 12, color: GRIS, marginBottom: 14 }}>{avantages.length} avantage{avantages.length > 1 ? "s" : ""} disponible{avantages.length > 1 ? "s" : ""}</div>
+            <div className="grille" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(290px,1fr))", gap: 12 }}>
+              {avantages.map((a) => (
+                <div key={a.id} style={{ background: CARTE, border: `0.5px solid ${TRAIT}`, borderRadius: 4, padding: 18 }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 10 }}>
+                    <div style={{ fontSize: 11, color: OR }}>{a.partenaire}</div>
+                    {a.reduction && <div style={{ fontFamily: "Georgia,serif", fontSize: 18, color: OR }}>{a.reduction}</div>}
+                  </div>
+                  <div style={{ fontSize: 14, marginBottom: 7 }}>{a.titre}</div>
+                  {a.description && <div style={{ fontSize: 12, color: GRIS_CLAIR, lineHeight: 1.65, marginBottom: 12 }}>{a.description}</div>}
+                  <div style={{ display: "flex", gap: 12, fontSize: 11, color: GRIS, flexWrap: "wrap", marginBottom: 10 }}>
+                    {a.categorie && <span>{a.categorie}</span>}
+                    {a.pays && <span>{a.pays}</span>}
+                    {a.date_fin && <span>Jusqu&apos;au {new Date(a.date_fin).toLocaleDateString("fr")}</span>}
+                  </div>
+                  {a.code_promo && (
+                    <div style={{ background: "#0d0c10", border: `0.5px dashed ${OR}55`, borderRadius: 3, padding: "9px 12px", fontSize: 12, color: OR, textAlign: "center", marginBottom: 10 }}>
+                      {a.code_promo}
+                    </div>
+                  )}
+                  <div style={{ display: "flex", gap: 8, paddingTop: 10, borderTop: `0.5px solid ${TRAIT}` }}>
+                    {a.lien && <a href={a.lien} target="_blank" rel="noreferrer" style={{ fontSize: 11, color: OR, textDecoration: "underline" }}>En profiter</a>}
+                    {a.membre_id && a.membre_id !== moi?.id && (
+                      <span onClick={async () => {
+                        const r = await fetch("/api/club-messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ouvrir", membre_id: a.membre_id }) });
+                        const d = await r.json();
+                        if (d.conversation) { setOnglet("messages"); ouvrirConv(d.conversation); charger(); }
+                      }} style={{ fontSize: 11, color: GRIS, cursor: "pointer", textDecoration: "underline" }}>Contacter</span>
+                    )}
+                    {a.membre_id === moi?.id && (
+                      <span onClick={async () => {
+                        if (!window.confirm("Retirer cet avantage ?")) return;
+                        await fetch("/api/club-espace", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "retirer_avantage", avantage_id: a.id }) });
+                        charger();
+                      }} style={{ fontSize: 11, color: "#c96e6e", cursor: "pointer", textDecoration: "underline" }}>Retirer</span>
+                    )}
+                  </div>
+                </div>
+              ))}
+              {avantages.length === 0 && <div style={{ gridColumn: "1/-1", textAlign: "center", padding: 50, color: GRIS, fontSize: 13 }}>Aucun avantage pour le moment. Soyez le premier a en proposer un.</div>}
+            </div>
+          </div>
+        )}
+
         {onglet === "evenements" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {evenements.map((e) => (
@@ -898,6 +954,51 @@ function FormDeal({ membres, moi, onCree, desactive }: any) {
       <div onClick={desactive ? undefined : proposer}
         style={{ alignSelf: "flex-start", padding: "12px 28px", background: "#c9a96e", color: "#0a0a0a", fontSize: 12, cursor: desactive || envoi ? "default" : "pointer", opacity: desactive || envoi ? 0.4 : 1 }}>
         {envoi ? "Envoi..." : "Proposer le deal"}
+      </div>
+    </div>
+  );
+}
+
+function FormAvantage({ onCree, desactive }: any) {
+  const [f, setF] = useState({ titre: "", description: "", reduction: "", code_promo: "", lien: "", date_fin: "" });
+  const [envoi, setEnvoi] = useState(false);
+  const [ouvert, setOuvert] = useState(false);
+
+  const proposer = async () => {
+    if (!f.titre || envoi) return;
+    setEnvoi(true);
+    await fetch("/api/club-espace", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "proposer_avantage", ...f }) });
+    setF({ titre: "", description: "", reduction: "", code_promo: "", lien: "", date_fin: "" });
+    setEnvoi(false); setOuvert(false);
+    onCree();
+  };
+
+  if (!ouvert) {
+    return (
+      <div onClick={() => !desactive && setOuvert(true)}
+        style={{ display: "inline-block", padding: "11px 24px", border: "0.5px solid #c9a96e", color: "#c9a96e", fontSize: 12, cursor: desactive ? "default" : "pointer", opacity: desactive ? 0.4 : 1 }}>
+        Proposer un avantage
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <input value={f.titre} onChange={(e) => setF({ ...f, titre: e.target.value })} placeholder="Deux nuits offertes pour toute reservation d'une semaine" />
+      <textarea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} placeholder="Les conditions" rows={2} />
+      <div className="duo" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <input value={f.reduction} onChange={(e) => setF({ ...f, reduction: e.target.value })} placeholder="-20%" />
+        <input value={f.code_promo} onChange={(e) => setF({ ...f, code_promo: e.target.value })} placeholder="Code (facultatif)" />
+      </div>
+      <div className="duo" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+        <input value={f.lien} onChange={(e) => setF({ ...f, lien: e.target.value })} placeholder="Lien (facultatif)" />
+        <input type="date" value={f.date_fin} onChange={(e) => setF({ ...f, date_fin: e.target.value })} />
+      </div>
+      <div style={{ display: "flex", gap: 10 }}>
+        <div onClick={proposer} style={{ padding: "11px 26px", background: "#c9a96e", color: "#0a0a0a", fontSize: 12, cursor: envoi ? "default" : "pointer", opacity: envoi ? 0.4 : 1 }}>
+          {envoi ? "Envoi..." : "Publier"}
+        </div>
+        <div onClick={() => setOuvert(false)} style={{ padding: "11px 20px", border: "0.5px solid #1f1c16", color: "#78716a", fontSize: 12, cursor: "pointer" }}>Annuler</div>
       </div>
     </div>
   );
