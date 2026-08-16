@@ -43,8 +43,15 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
     {id:5,nom:"Fatoumata Diop",metier:"Finance Afrique",ville:"Dakar",pays:"🇸🇳",plan:"Business Pro",score_reputation:89,couleur:"#FF5F9E",bio:"Consultante en finance d'entreprise couvrant l'Afrique de l'Ouest.",services:["Conseil financier","Investissement","Formation"],ca_genere:81600,nb_deals:4,email:"fatou.d@dakar.sn",tel:"+221 77 123 45 67"},
   ];
 
+  const[observation,setObservation]=useState(null);
   const load=async()=>{
     setLoading(true);
+    try{
+      const ro=await fetch('/api/club-observateur');
+      const dobs=await ro.json();
+      if(!dobs.est_membre)setObservation(dobs);
+      else setObservation(null);
+    }catch(e){}
     try{
       const [membresRes,coinvestRes,contenuRes,candidaturesRes,meetingsRes]=await Promise.all([
         fetch('/api/club?action=membres').then(r=>r.json()).catch(()=>({})),
@@ -171,6 +178,39 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
         <div style={{borderLeft:`2px solid ${C.teal}`,paddingLeft:10}}><div style={{fontSize:9,color:C.muted}}>Co-investissements</div><div style={{fontSize:16,fontWeight:700,color:C.teal}}>{coinvestissements.length}</div></div>
       </div>
     </div>
+
+    {observation?.expiree&&<Card style={{marginBottom:14,borderColor:`${C.gold}44`,textAlign:"center",padding:32}}>
+      <div style={{fontSize:18,fontWeight:700,color:C.gold,marginBottom:12}}>Votre periode de decouverte est terminee</div>
+      <div style={{fontSize:12,color:C.muted,lineHeight:1.8,marginBottom:20,maxWidth:420,margin:"0 auto 20px"}}>
+        {observation.demandes_manquees>0
+          ? `Pendant votre observation, ${observation.demandes_manquees} demande${observation.demandes_manquees>1?"s":""} correspondai${observation.demandes_manquees>1?"ent":"t"} a votre metier.`
+          : "Rejoignez le club pour acceder a l'annuaire, aux demandes et aux affaires entre membres."}
+      </div>
+      {observation.place_libre===true&&<div style={{fontSize:12,color:C.green,marginBottom:20}}>La place de {observation.metier} est encore libre dans votre zone.</div>}
+      {observation.place_libre===false&&<div style={{fontSize:12,color:C.orange,marginBottom:20}}>La place de {observation.metier} est occupee par {observation.occupee_par} dans votre zone.</div>}
+      <a href="/club/rejoindre" target="_blank" rel="noreferrer" style={{display:"inline-block",background:C.gold,color:"#000",padding:"12px 28px",fontSize:12,textDecoration:"none",borderRadius:6}}>Deposer une candidature</a>
+    </Card>}
+
+    {observation?.observation&&<Card style={{marginBottom:14,borderColor:`${C.gold}33`,background:`${C.gold}08`}}>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:16,flexWrap:"wrap"}}>
+        <div>
+          <div style={{fontSize:13,fontWeight:700,color:C.gold,marginBottom:4}}>Decouverte du club &mdash; {observation.jours_restants} jour{observation.jours_restants>1?"s":""} restant{observation.jours_restants>1?"s":""}</div>
+          <div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>
+            Vous observez l&apos;activite du club. Pour contacter un membre, publier ou traiter une affaire, il faut en devenir membre.
+          </div>
+          {observation.place_libre===true&&<div style={{fontSize:11,color:C.green,marginTop:6}}>La place de {observation.metier} est libre dans votre zone.</div>}
+          {observation.place_libre===false&&<div style={{fontSize:11,color:C.orange,marginTop:6}}>La place de {observation.metier} est deja occupee par {observation.occupee_par}.</div>}
+        </div>
+        <a href="/club/rejoindre" target="_blank" rel="noreferrer" style={{background:C.gold,color:"#000",padding:"10px 22px",fontSize:12,textDecoration:"none",borderRadius:6,whiteSpace:"nowrap"}}>Devenir membre</a>
+      </div>
+
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fit,minmax(120px,1fr))",gap:14,marginTop:18,paddingTop:16,borderTop:`1px solid ${C.gold}22`}}>
+        <div><div style={{fontSize:19,fontWeight:700,color:C.gold}}>{observation.activite?.nb_membres||0}</div><div style={{fontSize:10,color:C.muted}}>membres</div></div>
+        <div><div style={{fontSize:19,fontWeight:700,color:C.gold}}>{observation.activite?.deals_ce_mois||0}</div><div style={{fontSize:10,color:C.muted}}>affaires ce mois</div></div>
+        <div><div style={{fontSize:19,fontWeight:700,color:C.gold}}>{Number(observation.activite?.volume_ce_mois||0).toLocaleString("fr")} &euro;</div><div style={{fontSize:10,color:C.muted}}>echanges ce mois</div></div>
+        <div><div style={{fontSize:19,fontWeight:700,color:C.gold}}>{observation.evenements_restants||0}</div><div style={{fontSize:10,color:C.muted}}>invitations restantes</div></div>
+      </div>
+    </Card>}
 
     <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
       {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
