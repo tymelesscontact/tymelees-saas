@@ -229,5 +229,51 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Type inconnu' }, { status: 400 });
   }
 
+  // ── Contexte du contact : ce que Xyra sait de lui ───────
+  if (action === 'contexte') {
+    const { conversation_id } = body;
+    if (!conversation_id) return NextResponse.json({ error: 'conversation_id requis' }, { status: 400 });
+
+    const { data: conv } = await sb.from('conversations')
+      .select('*').eq('id', conversation_id).maybeSingle();
+    if (!conv) return NextResponse.json({ error: 'Conversation introuvable' }, { status: 404 });
+    if (tenantId && conv.tenant_id !== tenantId) {
+      return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    }
+
+    const email = conv.contact_email;
+    const tel = conv.contact_tel;
+    const nom = conv.contact_nom;
+    const filtreTenant = (q: any) => tenantId ? q.eq('tenant_id', tenantId) : q;
+
+    const [devisRes, facturesRes, commandesRes, dealsRes, partenaireRes, equipeRes] = await Promise.all([
+      email ? filtreTenant(sb.from('devis').select('id,reference,montant,statut,created_at').eq('client_email', email)).order('created_at', { ascending: false }).limit(5) : { data: [] },
+      email ? filtreTenant(sb.from('factures').select('id,numero,montant_ttc,statut,date_emission').eq('client_email', email)).order('date_emission', { ascending: false }).limit(5) : { data: [] },
+      email ? filtreTenant(sb.from('commandes').select('id,reference,montant_total,statut,created_at').eq('client_email', email)).order('created_at', { ascending: false }).limit(5) : { data: [] },
+      nom ? filtreTenant(sb.from('deals').select('id,nom,valeur,etape').eq('client_nom', nom)).limit(5) : { data: [] },
+      email ? filtreTenant(sb.from('partenaires').select('id,nom,commission,statut').eq('email', email)).maybeSingle() : { data: null },
+      email ? filtreTenant(sb.from('equipe').select('id,nom,statut').eq('email', email)).maybeSingle() : { data: null },
+    ]);
+
+    const devis = devisRes.data || [];
+    const factures = facturesRes.data || [];
+    const commandes = commandesRes.data || [];
+
+    return NextResponse.json({
+      success: true,
+      contact: { nom, email, tel, type: conv.contact_type },
+      devis, factures, commandes,
+      deals: dealsRes.data || [],
+      partenaire: (partenaireRes as any)?.data || null,
+      employe: (equipeRes as any)?.data || null,
+      resume: {
+        ca_facture: factures.filter((f: any) => f.statut === 'payée').reduce((a: number, f: any) => a + Number(f.montant_ttc || 0), 0),
+        impaye: factures.filter((f: any) => f.statut !== 'payée' && f.statut !== 'annulée').reduce((a: number, f: any) => a + Number(f.montant_ttc || 0), 0),
+        devis_en_attente: devis.filter((d: any) => d.statut === 'envoyé' || d.statut === 'brouillon').length,
+        commandes_en_cours: commandes.filter((c: any) => c.statut !== 'livrée' && c.statut !== 'annulée').length,
+      },
+    });
+  }
+
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });
 }

@@ -8,6 +8,8 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
   const[convs,setConvs]=useState([]);
   const[loadingConvs,setLoadingConvs]=useState(true);
   const[selConv,setSelConv]=useState(null);
+  const[contexte,setContexte]=useState(null);
+  const[contexteOuvert,setContexteOuvert]=useState(true);
   const[msgInput,setMsgInput]=useState("");
   const[showNewConv,setShowNewConv]=useState(false);
   const[newConvForm,setNewConvForm]=useState({contact_nom:"",contact_type:"client",contact_tel:"",contact_email:"",premier_contact:true});
@@ -38,6 +40,16 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
   useEffect(()=>{const i=setInterval(()=>{if(espace!=="visio")loadConvs();},15000);return()=>clearInterval(i);},[espace]);
   useEffect(()=>{if(selConv)setSelConv(c=>convs.find(x=>x.id===c.id)||null);},[convs]);
   useEffect(()=>{endRef.current?.scrollIntoView({behavior:"smooth"});},[selConv?.messages?.length]);
+  useEffect(()=>{
+    if(!selConv?.id){setContexte(null);return;}
+    (async()=>{
+      try{
+        const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'contexte',conversation_id:selConv.id})});
+        const d=await r.json();
+        setContexte(d.success?d:null);
+      }catch(e){setContexte(null);}
+    })();
+  },[selConv?.id]);
 
   // Vérifie l'inactivité 1h toutes les 5 minutes
   useEffect(()=>{
@@ -192,7 +204,7 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
     </Card>}
 
     {/* ── ÉQUIPE / EXTERNE ── */}
-    {espace!=="visio"&&<div style={{display:"grid",gridTemplateColumns:selConv?"260px 1fr":"1fr",gap:12}}>
+    {espace!=="visio"&&<div style={{display:"grid",gridTemplateColumns:selConv?(contexteOuvert?"240px 1fr 260px":"260px 1fr"):"1fr",gap:12}}>
       <Card style={{padding:0,overflow:"hidden",height:520}}>
         <div style={{padding:"10px 14px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontSize:11,fontWeight:700,color:C.muted}}>{espace==="equipe"?"ÉQUIPE":"CLIENTS & PARTENAIRES"}</span>
@@ -282,6 +294,78 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
       </Card>:<Card style={{height:520,display:"flex",alignItems:"center",justifyContent:"center"}}>
         <div style={{textAlign:"center",color:C.muted}}><div style={{fontSize:32,marginBottom:8}}>💬</div><div style={{fontSize:12}}>Sélectionne une conversation</div></div>
       </Card>}
+      {selConv&&contexteOuvert&&<div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <Card style={{padding:14}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+            <div style={{fontSize:10,color:C.muted,letterSpacing:"0.08em"}}>LE CONTACT</div>
+            <span onClick={()=>setContexteOuvert(false)} style={{fontSize:14,color:C.muted,cursor:"pointer"}}>×</span>
+          </div>
+          <div style={{fontSize:13,fontWeight:700,color:C.text}}>{selConv.contact_nom}</div>
+          {selConv.contact_email&&<div style={{fontSize:10,color:C.muted,marginTop:3}}>{selConv.contact_email}</div>}
+          {selConv.contact_tel&&<div style={{fontSize:10,color:C.muted}}>{selConv.contact_tel}</div>}
+          {contexte?.employe&&<div style={{fontSize:10,color:C.blue,marginTop:6}}>Membre de l&apos;equipe</div>}
+          {contexte?.partenaire&&<div style={{fontSize:10,color:C.gold,marginTop:6}}>Partenaire · {contexte.partenaire.commission}% de commission</div>}
+        </Card>
+
+        {contexte?.resume&&(Number(contexte.resume.ca_facture)>0||Number(contexte.resume.impaye)>0)&&<Card style={{padding:14}}>
+          <div style={{fontSize:10,color:C.muted,letterSpacing:"0.08em",marginBottom:10}}>FINANCIER</div>
+          {Number(contexte.resume.ca_facture)>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:6}}>
+            <span style={{color:C.muted}}>Facture paye</span><span style={{color:C.green,fontWeight:700}}>{Number(contexte.resume.ca_facture).toLocaleString("fr")} €</span>
+          </div>}
+          {Number(contexte.resume.impaye)>0&&<div style={{display:"flex",justifyContent:"space-between",fontSize:11}}>
+            <span style={{color:C.muted}}>Impaye</span><span style={{color:C.red,fontWeight:700}}>{Number(contexte.resume.impaye).toLocaleString("fr")} €</span>
+          </div>}
+        </Card>}
+
+        {contexte?.devis?.length>0&&<Card style={{padding:14}}>
+          <div style={{fontSize:10,color:C.muted,letterSpacing:"0.08em",marginBottom:10}}>DEVIS ({contexte.devis.length})</div>
+          {contexte.devis.map((d)=><div key={d.id} style={{fontSize:11,padding:"6px 0",borderBottom:`1px solid ${C.border}44`}}>
+            <div style={{display:"flex",justifyContent:"space-between"}}>
+              <span style={{color:C.text}}>{d.reference||"—"}</span>
+              <span style={{color:C.gold}}>{Number(d.montant||0).toLocaleString("fr")} €</span>
+            </div>
+            <div style={{fontSize:9,color:C.muted,marginTop:2}}>{d.statut}</div>
+          </div>)}
+        </Card>}
+
+        {contexte?.factures?.length>0&&<Card style={{padding:14}}>
+          <div style={{fontSize:10,color:C.muted,letterSpacing:"0.08em",marginBottom:10}}>FACTURES ({contexte.factures.length})</div>
+          {contexte.factures.map((f)=><div key={f.id} style={{fontSize:11,padding:"6px 0",borderBottom:`1px solid ${C.border}44`}}>
+            <div style={{display:"flex",justifyContent:"space-between"}}>
+              <span style={{color:C.text}}>{f.numero||"—"}</span>
+              <span style={{color:f.statut==="payée"?C.green:C.orange}}>{Number(f.montant_ttc||0).toLocaleString("fr")} €</span>
+            </div>
+            <div style={{fontSize:9,color:C.muted,marginTop:2}}>{f.statut}</div>
+          </div>)}
+        </Card>}
+
+        {contexte?.commandes?.length>0&&<Card style={{padding:14}}>
+          <div style={{fontSize:10,color:C.muted,letterSpacing:"0.08em",marginBottom:10}}>COMMANDES ({contexte.commandes.length})</div>
+          {contexte.commandes.map((c)=><div key={c.id} style={{fontSize:11,padding:"6px 0",borderBottom:`1px solid ${C.border}44`}}>
+            <div style={{display:"flex",justifyContent:"space-between"}}>
+              <span style={{color:C.text}}>{c.reference||"—"}</span>
+              <span style={{color:C.gold}}>{Number(c.montant_total||0).toLocaleString("fr")} €</span>
+            </div>
+            <div style={{fontSize:9,color:C.muted,marginTop:2}}>{c.statut}</div>
+          </div>)}
+        </Card>}
+
+        {contexte?.deals?.length>0&&<Card style={{padding:14}}>
+          <div style={{fontSize:10,color:C.muted,letterSpacing:"0.08em",marginBottom:10}}>DEALS ({contexte.deals.length})</div>
+          {contexte.deals.map((d)=><div key={d.id} style={{fontSize:11,padding:"6px 0",borderBottom:`1px solid ${C.border}44`}}>
+            <div style={{display:"flex",justifyContent:"space-between"}}>
+              <span style={{color:C.text}}>{d.nom}</span>
+              <span style={{color:C.gold}}>{Number(d.valeur||0).toLocaleString("fr")} €</span>
+            </div>
+            <div style={{fontSize:9,color:C.muted,marginTop:2}}>{d.etape}</div>
+          </div>)}
+        </Card>}
+
+        {contexte&&!contexte.devis?.length&&!contexte.factures?.length&&!contexte.commandes?.length&&!contexte.deals?.length&&
+          <Card style={{padding:20,textAlign:"center"}}>
+            <div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>Aucun historique commercial pour ce contact.</div>
+          </Card>}
+      </div>}
     </div>}
   </div>;
 };
