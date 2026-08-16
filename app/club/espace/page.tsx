@@ -30,6 +30,8 @@ export default function EspaceMembre() {
   const [classement, setClassement] = useState<any[]>([]);
   const [places, setPlaces] = useState<any>(null);
   const [avantages, setAvantages] = useState<any[]>([]);
+  const [publications, setPublications] = useState<any[]>([]);
+  const [pubOuverte, setPubOuverte] = useState<any>(null);
   const [onglet, setOnglet] = useState("annuaire");
   const [recherche, setRecherche] = useState("");
   const [filtrePays, setFiltrePays] = useState("");
@@ -44,6 +46,7 @@ export default function EspaceMembre() {
       setMembres(d.membres || []); setDemandes(d.demandes || []);
       setEvenements(d.evenements || []);
       setAvantages(d.avantages || []);
+      setPublications(d.publications || []);
       try {
         const rd = await fetch("/api/club-deals");
         const dd = await rd.json();
@@ -166,7 +169,7 @@ export default function EspaceMembre() {
       )}
 
       <div style={{ display: "flex", gap: 4, padding: "18px 28px 0", maxWidth: 1200, margin: "0 auto", flexWrap: "wrap" }}>
-        {[["annuaire", "Annuaire"], ["demandes", "Demandes"], ["deals", "Mes deals"], ["messages", "Messages"], ["expansion", "International"], ["avantages", "Avantages"], ["bilan", "Mon bilan"], ["evenements", "Evenements"], ["profil", "Mon profil"]].map(([id, label]) => (
+        {[["annuaire", "Annuaire"], ["demandes", "Demandes"], ["deals", "Mes deals"], ["messages", "Messages"], ["expansion", "International"], ["fil", "Le fil"], ["avantages", "Avantages"], ["bilan", "Mon bilan"], ["evenements", "Evenements"], ["profil", "Mon profil"]].map(([id, label]) => (
           <button key={id} onClick={() => { setOnglet(id); setSelection(null); }}
             style={{ background: onglet === id ? CARTE : "transparent", border: "none", borderBottom: onglet === id ? `1px solid ${OR}` : "1px solid transparent", color: onglet === id ? OR : GRIS, padding: "11px 18px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
             {label}
@@ -639,6 +642,76 @@ export default function EspaceMembre() {
           </div>
         )}
 
+        {onglet === "fil" && (
+          <div style={{ maxWidth: 760 }}>
+            {pubOuverte ? (
+              <div>
+                <button onClick={() => setPubOuverte(null)} style={{ background: "none", border: "none", color: GRIS, fontSize: 12, cursor: "pointer", marginBottom: 18, fontFamily: "inherit" }}>&larr; Retour au fil</button>
+                <Carte>
+                  {pubOuverte.categorie && <div style={{ fontSize: 11, color: OR, marginBottom: 10 }}>{pubOuverte.categorie}</div>}
+                  <div style={{ fontFamily: "Georgia,serif", fontSize: 26, lineHeight: 1.3, marginBottom: 12 }}>{pubOuverte.titre}</div>
+                  <div style={{ fontSize: 12, color: GRIS, marginBottom: 26 }}>
+                    {pubOuverte.auteur_nom} &middot; {new Date(pubOuverte.created_at).toLocaleDateString("fr", { day: "numeric", month: "long", year: "numeric" })}
+                  </div>
+                  <div style={{ fontSize: 14, color: GRIS_CLAIR, lineHeight: 1.95, whiteSpace: "pre-wrap" }}>{pubOuverte.contenu}</div>
+                  {pubOuverte.membre_id && pubOuverte.membre_id !== moi?.id && (
+                    <button onClick={async () => {
+                      const r = await fetch("/api/club-messages", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "ouvrir", membre_id: pubOuverte.membre_id }) });
+                      const d = await r.json();
+                      if (d.conversation) { setOnglet("messages"); setPubOuverte(null); ouvrirConv(d.conversation); charger(); }
+                    }} style={{ marginTop: 26, background: "none", border: `0.5px solid ${TRAIT}`, color: GRIS_CLAIR, padding: "9px 20px", fontSize: 11, cursor: "pointer", fontFamily: "inherit" }}>
+                      Ecrire a {pubOuverte.auteur_nom}
+                    </button>
+                  )}
+                </Carte>
+              </div>
+            ) : (
+              <>
+                <Carte style={{ marginBottom: 20 }}>
+                  <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 6 }}>PARTAGER AVEC LES MEMBRES</div>
+                  <div style={{ fontSize: 11, color: "#4f4a43", marginBottom: 16, lineHeight: 1.6 }}>
+                    Une analyse de votre secteur, un retour d&apos;experience, une actualite utile. C&apos;est ce qui fait vivre le club entre deux rencontres.
+                  </div>
+                  <FormPublication onCree={charger} desactive={lectureSeule} />
+                </Carte>
+
+                <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+                  {publications.map((p) => (
+                    <div key={p.id} onClick={() => setPubOuverte(p)}
+                      style={{ background: CARTE, border: `0.5px solid ${p.epingle ? OR + "44" : TRAIT}`, borderRadius: 4, padding: 20, cursor: "pointer" }}>
+                      {p.epingle && <div style={{ fontSize: 10, color: OR, letterSpacing: "0.12em", marginBottom: 8 }}>EPINGLE</div>}
+                      {p.categorie && <div style={{ fontSize: 11, color: OR, marginBottom: 7 }}>{p.categorie}</div>}
+                      <div style={{ fontFamily: "Georgia,serif", fontSize: 19, lineHeight: 1.35, marginBottom: 9 }}>{p.titre}</div>
+                      <div style={{ fontSize: 13, color: GRIS_CLAIR, lineHeight: 1.7, marginBottom: 12 }}>
+                        {String(p.contenu).slice(0, 180)}{String(p.contenu).length > 180 ? "..." : ""}
+                      </div>
+                      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: 11, color: GRIS, paddingTop: 12, borderTop: `0.5px solid ${TRAIT}` }}>
+                        <span>{p.auteur_nom} &middot; {new Date(p.created_at).toLocaleDateString("fr")}</span>
+                        <div style={{ display: "flex", gap: 12 }} onClick={(e) => e.stopPropagation()}>
+                          {moi?.statut === "fondateur" && (
+                            <span onClick={async () => {
+                              await fetch("/api/club-espace", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "epingler_publication", publication_id: p.id, epingle: !p.epingle }) });
+                              charger();
+                            }} style={{ cursor: "pointer", textDecoration: "underline" }}>{p.epingle ? "detacher" : "epingler"}</span>
+                          )}
+                          {(p.membre_id === moi?.id || moi?.statut === "fondateur") && (
+                            <span onClick={async () => {
+                              if (!window.confirm("Retirer cette publication ?")) return;
+                              await fetch("/api/club-espace", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "retirer_publication", publication_id: p.id }) });
+                              charger();
+                            }} style={{ cursor: "pointer", textDecoration: "underline", color: "#c96e6e" }}>retirer</span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  {publications.length === 0 && <div style={{ textAlign: "center", padding: 50, color: GRIS, fontSize: 13 }}>Le fil est vide. Ecrivez la premiere publication.</div>}
+                </div>
+              </>
+            )}
+          </div>
+        )}
+
         {onglet === "evenements" && (
           <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
             {evenements.map((e) => (
@@ -998,6 +1071,45 @@ function FormAvantage({ onCree, desactive }: any) {
       <div style={{ display: "flex", gap: 10 }}>
         <div onClick={proposer} style={{ padding: "11px 26px", background: "#c9a96e", color: "#0a0a0a", fontSize: 12, cursor: envoi ? "default" : "pointer", opacity: envoi ? 0.4 : 1 }}>
           {envoi ? "Envoi..." : "Publier"}
+        </div>
+        <div onClick={() => setOuvert(false)} style={{ padding: "11px 20px", border: "0.5px solid #1f1c16", color: "#78716a", fontSize: 12, cursor: "pointer" }}>Annuler</div>
+      </div>
+    </div>
+  );
+}
+
+function FormPublication({ onCree, desactive }: any) {
+  const [f, setF] = useState({ titre: "", contenu: "", categorie: "" });
+  const [envoi, setEnvoi] = useState(false);
+  const [ouvert, setOuvert] = useState(false);
+
+  const publier = async () => {
+    if (envoi) return;
+    if (!f.titre.trim() || !f.contenu.trim()) { alert("Un titre et un contenu sont necessaires"); return; }
+    setEnvoi(true);
+    await fetch("/api/club-espace", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "publier", ...f }) });
+    setF({ titre: "", contenu: "", categorie: "" });
+    setEnvoi(false); setOuvert(false);
+    onCree();
+  };
+
+  if (!ouvert) {
+    return (
+      <div onClick={() => !desactive && setOuvert(true)}
+        style={{ display: "inline-block", padding: "11px 24px", border: "0.5px solid #c9a96e", color: "#c9a96e", fontSize: 12, cursor: desactive ? "default" : "pointer", opacity: desactive ? 0.4 : 1 }}>
+        Ecrire une publication
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+      <input value={f.titre} onChange={(e) => setF({ ...f, titre: e.target.value })} placeholder="Le titre" />
+      <input value={f.categorie} onChange={(e) => setF({ ...f, categorie: e.target.value })} placeholder="Categorie (facultatif)" />
+      <textarea value={f.contenu} onChange={(e) => setF({ ...f, contenu: e.target.value })} placeholder="Votre texte" rows={9} />
+      <div style={{ display: "flex", gap: 10 }}>
+        <div onClick={publier} style={{ padding: "11px 26px", background: "#c9a96e", color: "#0a0a0a", fontSize: 12, cursor: envoi ? "default" : "pointer", opacity: envoi ? 0.4 : 1 }}>
+          {envoi ? "Publication..." : "Publier"}
         </div>
         <div onClick={() => setOuvert(false)} style={{ padding: "11px 20px", border: "0.5px solid #1f1c16", color: "#78716a", fontSize: 12, cursor: "pointer" }}>Annuler</div>
       </div>

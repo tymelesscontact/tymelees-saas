@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
   const lectureSeule = raison === 'periode_grace';
 
   if (action === 'accueil') {
-    const [annuaire, demandes, evenements, avantages] = await Promise.all([
+    const [annuaire, demandes, evenements, avantages, publications] = await Promise.all([
       sb.from('club_membres')
         .select('id,nom,metier,secteur,ville,pays,bio,services,linkedin,score_reputation,nb_deals,recherche,propose,expansion_pays,tel,tel_visible,numero_adherent,date_adhesion')
         .in('statut', ['actif', 'fondateur']).order('score_reputation', { ascending: false }),
@@ -73,6 +73,8 @@ export async function GET(req: NextRequest) {
         .select('*').gte('date', new Date().toISOString().slice(0, 10)).order('date').limit(10),
       sb.from('club_avantages')
         .select('*').eq('actif', true).order('created_at', { ascending: false }),
+      sb.from('club_publications')
+        .select('*').eq('masque', false).order('epingle', { ascending: false }).order('created_at', { ascending: false }).limit(40),
     ]);
     return NextResponse.json({
       moi: membre,
@@ -81,6 +83,7 @@ export async function GET(req: NextRequest) {
       demandes: demandes.data || [],
       evenements: evenements.data || [],
       avantages: avantages.data || [],
+      publications: publications.data || [],
     });
   }
 
@@ -321,6 +324,44 @@ Classe l'equipe dans l'ordre ou il devrait les contacter. N'invente aucun nom : 
     const { error } = await sb.from('club_avantages')
       .update({ actif: false })
       .eq('id', body.avantage_id).eq('membre_id', membre.id);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  // ── Publier dans le fil ────────────────────────────────
+  if (action === 'publier') {
+    const { titre, contenu, categorie, pays } = body;
+    if (!titre?.trim() || !contenu?.trim()) {
+      return NextResponse.json({ error: 'Titre et contenu necessaires' }, { status: 400 });
+    }
+    const { data, error } = await sb.from('club_publications').insert({
+      membre_id: membre.id,
+      auteur_nom: membre.nom,
+      titre: titre.trim(),
+      contenu: contenu.trim(),
+      categorie: categorie || membre.metier || null,
+      pays: pays || membre.pays || null,
+    }).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, publication: data });
+  }
+
+  // ── Retirer sa publication (ou n'importe laquelle si fondateur) ─
+  if (action === 'retirer_publication') {
+    let q = sb.from('club_publications').update({ masque: true }).eq('id', body.publication_id);
+    if (membre.statut !== 'fondateur') q = q.eq('membre_id', membre.id);
+    const { error } = await q;
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  // ── Epingler (fondateurs uniquement) ───────────────────
+  if (action === 'epingler_publication') {
+    if (membre.statut !== 'fondateur') {
+      return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    }
+    const { error } = await sb.from('club_publications')
+      .update({ epingle: !!body.epingle }).eq('id', body.publication_id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
