@@ -5,7 +5,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 async function sendWhatsApp(to: string, message: string) {
@@ -39,7 +39,10 @@ export async function GET(req: NextRequest) {
   const { data: conversations, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const { data: messages } = await sb.from('chat_messages').select('*').order('created_at', { ascending: true });
+  const idsConv = (conversations || []).map((c: any) => c.id);
+  const { data: messages } = idsConv.length
+    ? await sb.from('chat_messages').select('*').in('conversation_id', idsConv).order('created_at', { ascending: true })
+    : { data: [] };
 
   const enriched = (conversations || []).map((c: any) => {
     const msgs = (messages || []).filter((m: any) => m.conversation_id === c.id);
@@ -64,6 +67,7 @@ export async function POST(req: NextRequest) {
       espace: espace || 'externe', contact_nom, contact_type, contact_id, contact_tel, contact_email,
       jitsi_room: `xyra-${Date.now().toString(36)}`,
       tenant_id: tenantId,
+      company_id: body.company_id && UUID_RE.test(body.company_id) ? body.company_id : null,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -110,12 +114,16 @@ export async function POST(req: NextRequest) {
 
   if (action === 'marquer_lu') {
     const { conversation_id } = body;
+    const { data: c } = await sb.from('conversations').select('tenant_id').eq('id', conversation_id).maybeSingle();
+    if (!c || (tenantId && c.tenant_id !== tenantId)) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
     await sb.from('chat_messages').update({ lu: true }).eq('conversation_id', conversation_id).eq('moi', false);
     return NextResponse.json({ success: true });
   }
 
   if (action === 'supprimer_conversation') {
     const { id } = body;
+    const { data: c } = await sb.from('conversations').select('tenant_id').eq('id', id).maybeSingle();
+    if (!c || (tenantId && c.tenant_id !== tenantId)) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
     const { error } = await sb.from('conversations').delete().eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
@@ -165,7 +173,9 @@ export async function POST(req: NextRequest) {
 
   // Vérifie les conversations sans réponse depuis 1h et fait répondre Claude à la place
   if (action === 'verifier_inactivite') {
-    const { data: conversations } = await sb.from('conversations').select('*').eq('espace', 'externe').eq('ia_actif', true);
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    let qConv = sb.from('conversations').select('*').eq('espace', 'externe').eq('ia_actif', true).eq('tenant_id', tenantId);
+    const { data: conversations } = await qConv;
     const { data: allMessages } = await sb.from('chat_messages').select('*').order('created_at', { ascending: true });
     let nbRepondus = 0;
 
@@ -194,7 +204,6 @@ export async function POST(req: NextRequest) {
         message: 'Aucune réponse depuis 1h — vérifie et reprends la main si besoin',
         action_type: 'chat', action_id: conv.id, lu: false,
         tenant_id: tenantId || null,
-        tenant_id: tenantId || null,
       });
       const ownerTel = process.env.OWNER_WHATSAPP;
       if (ownerTel) { try { await sendWhatsApp(ownerTel, `Xyra - Claude a repondu a ${conv.contact_nom} (pas de reponse depuis 1h). Verifie la conversation.`); } catch { /* non bloquant */ } }
@@ -209,12 +218,12 @@ export async function POST(req: NextRequest) {
     // Raccourci pour créer un devis/deal/note de frais depuis une conversation
     const { type, conversation_id, contact_nom, contact_email, contact_tel } = body;
     if (type === 'deal') {
-      const { data, error } = await sb.from('deals').insert({ nom: `Deal — ${contact_nom}`, client: contact_nom, email: contact_email, tel: contact_tel, etape: 'Identification' }).select().single();
+      const { data, error } = await sb.from('deals').insert({ nom: `Deal — ${contact_nom}`, client_nom: contact_nom, client_email: contact_email, client_tel: contact_tel, etape: 'Identification', tenant_id: tenantId }).select().single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ success: true, type: 'deal', data });
     }
     if (type === 'devis') {
-      const { data, error } = await sb.from('devis').insert({ client_nom: contact_nom, client_email: contact_email, client_tel: contact_tel, statut: 'brouillon' }).select().single();
+      const { data, error } = await sb.from('devis').insert({ client_nom: contact_nom, client_email: contact_email, client_tel: contact_tel, statut: 'brouillon', tenant_id: tenantId }).select().single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ success: true, type: 'devis', data });
     }

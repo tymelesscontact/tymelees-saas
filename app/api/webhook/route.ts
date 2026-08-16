@@ -120,6 +120,49 @@ export async function POST(req: NextRequest) {
 
   const userPhone = message.from
 
+  // ── SYNCHRONISATION AVEC LE CHAT XYRA ───────────────────────
+  // Tout message entrant est enregistre dans la conversation Xyra
+  // correspondante, retrouvee par le numero. Ne remplace aucun
+  // traitement existant : s'ajoute avant eux.
+  try {
+    const numeroBrut = String(userPhone || '').replace(/\D/g, '');
+    if (numeroBrut) {
+      const { data: convs } = await supabase
+        .from('conversations')
+        .select('id,contact_tel,contact_nom,derniere_activite')
+        .not('contact_tel', 'is', null)
+        .order('derniere_activite', { ascending: false });
+
+      const conv = (convs || []).find((c: any) =>
+        String(c.contact_tel || '').replace(/\D/g, '').endsWith(numeroBrut.slice(-9))
+      );
+
+      if (conv) {
+        let contenu = '';
+        let typeMsg = 'texte';
+        if (message.type === 'text') contenu = message.text?.body || '';
+        else if (message.type === 'image') { contenu = message.image?.caption || '[Photo]'; typeMsg = 'image'; }
+        else if (message.type === 'audio') { contenu = '[Message vocal]'; typeMsg = 'vocal'; }
+        else if (message.type === 'document') { contenu = message.document?.filename || '[Document]'; typeMsg = 'document'; }
+        else contenu = `[${message.type}]`;
+
+        await supabase.from('chat_messages').insert({
+          conversation_id: conv.id,
+          auteur: conv.contact_nom || 'Contact',
+          contenu,
+          moi: false,
+          type: typeMsg,
+          lu: false,
+        });
+        await supabase.from('conversations')
+          .update({ derniere_activite: new Date().toISOString() })
+          .eq('id', conv.id);
+      }
+    }
+  } catch (e: any) {
+    console.error('Sync chat WhatsApp:', e.message);
+  }
+
   // ── GESTION IMAGES (tickets de caisse) ──────────────────────
   if (message.type === 'image' && userPhone !== OWNER_PHONE) {
     const mediaId = message.image?.id
