@@ -7,11 +7,11 @@ import Pied from "./composants/Pied";
    hero.jpg  rarete.jpg  relation.jpg  evenement.jpg
    galerie-1.jpg a galerie-6.jpg  */
 
-const OR = "#c9a96e";
-const IVOIRE = "#f0ead6";
-const NOIR = "#0a0a0a";
-const GRIS = "#78716a";
-const TRAIT = "#1f1c16";
+const OR = "#d4b678";
+const IVOIRE = "#f5f0e3";
+const NOIR = "#141130";
+const GRIS = "#9d95c0";
+const TRAIT = "#362e64";
 
 export default function ClubAccueil() {
   return (
@@ -47,7 +47,7 @@ export default function ClubAccueil() {
         <div style={{ fontSize: 14, color: GRIS, lineHeight: 1.9, marginBottom: 30 }}>
           Un reseau qu&apos;on ne rejoint pas seul, et un outil pour travailler ensemble.
         </div>
-        <div style={{ fontFamily: "Georgia,serif", fontSize: 17, fontStyle: "italic", color: "#a39c8e", lineHeight: 1.8 }}>
+        <div style={{ fontFamily: "Georgia,serif", fontSize: 17, fontStyle: "italic", color: "#b3aacf", lineHeight: 1.8 }}>
           &laquo; Le club existe pour que ses membres se donnent du business, pas pour collectionner des contacts. &raquo;
         </div>
         <div style={{ fontSize: 11, color: GRIS, marginTop: 16, letterSpacing: "0.12em" }}>CURTISS &mdash; FONDATEUR</div>
@@ -56,7 +56,7 @@ export default function ClubAccueil() {
       <section className="duo" style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
         <Photo nom="rarete.jpg" hauteur={300} />
         <div style={{ padding: "56px 40px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "#8a7a55", marginBottom: 14 }}>LA RARETE</div>
+          <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "#b9a3f5", marginBottom: 14 }}>LA RARETE</div>
           <div style={{ fontFamily: "Georgia,serif", fontSize: 26, lineHeight: 1.35, marginBottom: 14 }}>Votre place, ou celle d&apos;un autre.</div>
           <div style={{ fontSize: 13, color: GRIS, lineHeight: 1.8 }}>Un architecte a Abidjan. Un notaire a Lyon. Jamais deux.</div>
         </div>
@@ -64,7 +64,7 @@ export default function ClubAccueil() {
 
       <section className="duo" style={{ display: "grid", gridTemplateColumns: "1fr 1fr" }}>
         <div style={{ padding: "56px 40px", display: "flex", flexDirection: "column", justifyContent: "center" }}>
-          <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "#8a7a55", marginBottom: 14 }}>LES MISES EN RELATION</div>
+          <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "#b9a3f5", marginBottom: 14 }}>LES MISES EN RELATION</div>
           <div style={{ fontFamily: "Georgia,serif", fontSize: 26, lineHeight: 1.35, marginBottom: 14 }}>Vous ne cherchez plus.</div>
           <div style={{ fontSize: 13, color: GRIS, lineHeight: 1.8 }}>Vous dites ce dont vous avez besoin. Lea vous presente qui le fait.</div>
         </div>
@@ -72,7 +72,7 @@ export default function ClubAccueil() {
       </section>
 
       <section style={{ padding: "56px 0", borderTop: `0.5px solid ${TRAIT}`, borderBottom: `0.5px solid ${TRAIT}`, overflow: "hidden" }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "#8a7a55", textAlign: "center", marginBottom: 28 }}>LE CLUB EN IMAGES</div>
+        <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "#b9a3f5", textAlign: "center", marginBottom: 28 }}>LE CLUB EN IMAGES</div>
         <div className="piste">
           {[1, 2, 3, 4, 5, 6, 1, 2, 3, 4, 5, 6].map((n, i) => (
             <div key={i} style={{ width: 300, flexShrink: 0 }}>

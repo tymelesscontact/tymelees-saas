@@ -2,11 +2,11 @@
 import { useState } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-const OR = "#c9a96e";
-const IVOIRE = "#f0ead6";
-const NOIR = "#0a0a0a";
-const GRIS = "#78716a";
-const TRAIT = "#1f1c16";
+const OR = "#d4b678";
+const IVOIRE = "#f5f0e3";
+const NOIR = "#141130";
+const GRIS = "#9d95c0";
+const TRAIT = "#362e64";
 
 export default function ConnexionClub() {
   const [email, setEmail] = useState("");
@@ -46,7 +46,7 @@ export default function ConnexionClub() {
     <div style={{ minHeight: "100vh", background: NOIR, color: IVOIRE, fontFamily: "system-ui,-apple-system,sans-serif", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", padding: 32 }}>
       <style>{`
         input { background: transparent; border: 0.5px solid ${TRAIT}; border-radius: 2px; padding: 13px 16px; color: ${IVOIRE}; font-size: 14px; font-family: inherit; outline: none; width: 100%; }
-        input::placeholder { color: #4f4a43; }
+        input::placeholder { color: #7a72a0; }
       `}</style>
 
       <div style={{ fontFamily: "Georgia,serif", fontSize: 26, fontStyle: "italic", color: OR, marginBottom: 8 }}>Xyra Club</div>
@@ -72,7 +72,7 @@ export default function ConnexionClub() {
       <div style={{ marginTop: 36, textAlign: "center" }}>
         <a href="/club/rejoindre" style={{ fontSize: 12, color: GRIS, textDecoration: "underline" }}>Pas encore membre ? Deposer une candidature</a>
         <div style={{ marginTop: 14 }}>
-          <a href="/club" style={{ fontSize: 12, color: "#4f4a43", textDecoration: "none" }}>Retour au club</a>
+          <a href="/club" style={{ fontSize: 12, color: "#7a72a0", textDecoration: "none" }}>Retour au club</a>
         </div>
       </div>
     </div>

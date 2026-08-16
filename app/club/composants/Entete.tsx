@@ -1,9 +1,9 @@
 "use client";
 import { useState } from "react";
 
-const OR = "#c9a96e";
-const NOIR = "#0a0a0a";
-const TRAIT = "#1f1c16";
+const OR = "#d4b678";
+const NOIR = "#141130";
+const TRAIT = "#362e64";
 
 export default function Entete() {
   const [ouvert, setOuvert] = useState(false);
@@ -19,7 +19,7 @@ export default function Entete() {
         <a href="/club" style={{ fontFamily: "Georgia,serif", fontSize: 17, fontStyle: "italic", color: OR, textDecoration: "none" }}>Xyra Club</a>
         <div className="menu-large" style={{ display: "flex", gap: 26, alignItems: "center" }}>
           {liens.map(([texte, url]) => (
-            <a key={url} href={url} style={{ fontSize: 12, color: "#a39c8e", textDecoration: "none" }}>{texte}</a>
+            <a key={url} href={url} style={{ fontSize: 12, color: "#b3aacf", textDecoration: "none" }}>{texte}</a>
           ))}
           <a href="/club/rejoindre" style={{ border: `0.5px solid ${OR}`, color: OR, padding: "9px 18px", fontSize: 11, letterSpacing: "0.1em", textDecoration: "none" }}>DEVENIR MEMBRE</a>
         </div>
@@ -30,7 +30,7 @@ export default function Entete() {
       {ouvert && (
         <div className="menu-mobile" style={{ borderTop: `0.5px solid ${TRAIT}`, padding: "8px 32px 20px" }}>
           {liens.map(([texte, url]) => (
-            <a key={url} href={url} style={{ display: "block", padding: "13px 0", fontSize: 13, color: "#a39c8e", textDecoration: "none", borderBottom: `0.5px solid ${TRAIT}` }}>{texte}</a>
+            <a key={url} href={url} style={{ display: "block", padding: "13px 0", fontSize: 13, color: "#b3aacf", textDecoration: "none", borderBottom: `0.5px solid ${TRAIT}` }}>{texte}</a>
           ))}
         </div>
       )}

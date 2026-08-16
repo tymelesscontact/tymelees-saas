@@ -1,13 +1,13 @@
 "use client";
 import { useState, useEffect } from "react";
 
-const OR = "#c9a96e";
-const IVOIRE = "#f0ead6";
-const NOIR = "#0a0a0a";
-const CARTE = "#111014";
-const GRIS = "#78716a";
-const GRIS_CLAIR = "#a39c8e";
-const TRAIT = "#1f1c16";
+const OR = "#d4b678";
+const IVOIRE = "#f5f0e3";
+const NOIR = "#141130";
+const CARTE = "#1e1943";
+const GRIS = "#9d95c0";
+const GRIS_CLAIR = "#b3aacf";
+const TRAIT = "#362e64";
 
 export default function EspaceMembre() {
   const [chargement, setChargement] = useState(true);
@@ -148,7 +148,7 @@ export default function EspaceMembre() {
     <div style={{ background: NOIR, minHeight: "100vh", color: IVOIRE, fontFamily: "system-ui,-apple-system,sans-serif" }}>
       <style>{`
         input, select, textarea { background: transparent; border: 0.5px solid ${TRAIT}; border-radius: 2px; padding: 10px 13px; color: ${IVOIRE}; font-size: 13px; font-family: inherit; outline: none; width: 100%; }
-        input::placeholder, textarea::placeholder { color: #4f4a43; }
+        input::placeholder, textarea::placeholder { color: #7a72a0; }
         @media (max-width: 780px) { .grille { grid-template-columns: 1fr !important; } .duo { grid-template-columns: 1fr !important; } }
       `}</style>
 
@@ -157,13 +157,13 @@ export default function EspaceMembre() {
           <div style={{ fontFamily: "Georgia,serif", fontSize: 16, fontStyle: "italic", color: OR }}>Xyra Club</div>
           <div style={{ display: "flex", gap: 18, alignItems: "center", fontSize: 12 }}>
             <span style={{ color: GRIS }}>{moi?.nom}</span>
-            <span style={{ color: "#4f4a43", fontSize: 11 }}>N&deg; {moi?.numero_adherent || "—"}</span>
+            <span style={{ color: "#7a72a0", fontSize: 11 }}>N&deg; {moi?.numero_adherent || "—"}</span>
           </div>
         </div>
       </nav>
 
       {lectureSeule && (
-        <div style={{ background: "#3a2a0a", borderBottom: `0.5px solid ${OR}44`, padding: "12px 28px", fontSize: 12, color: "#d4b878", textAlign: "center" }}>
+        <div style={{ background: "#2d2659", borderBottom: `0.5px solid ${OR}44`, padding: "12px 28px", fontSize: 12, color: "#d4b678", textAlign: "center" }}>
           Votre adhesion est arrivee a echeance. Vous disposez d&apos;un mois pour la renouveler.
         </div>
       )}
@@ -188,12 +188,12 @@ export default function EspaceMembre() {
               <div style={{ fontSize: 12, color: GRIS, marginBottom: 18 }}>{[selection.ville, selection.pays].filter(Boolean).join(", ")}</div>
               {selection.bio && <div style={{ fontSize: 13, color: GRIS_CLAIR, lineHeight: 1.8, marginBottom: 20 }}>{selection.bio}</div>}
               <div className="duo" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 18, marginBottom: 20 }}>
-                {selection.propose && <div><div style={{ fontSize: 11, color: "#8a7a55", marginBottom: 6, letterSpacing: "0.1em" }}>PROPOSE</div><div style={{ fontSize: 13, color: GRIS_CLAIR, lineHeight: 1.7 }}>{selection.propose}</div></div>}
-                {selection.recherche && <div><div style={{ fontSize: 11, color: "#8a7a55", marginBottom: 6, letterSpacing: "0.1em" }}>CHERCHE</div><div style={{ fontSize: 13, color: GRIS_CLAIR, lineHeight: 1.7 }}>{selection.recherche}</div></div>}
+                {selection.propose && <div><div style={{ fontSize: 11, color: "#b9a3f5", marginBottom: 6, letterSpacing: "0.1em" }}>PROPOSE</div><div style={{ fontSize: 13, color: GRIS_CLAIR, lineHeight: 1.7 }}>{selection.propose}</div></div>}
+                {selection.recherche && <div><div style={{ fontSize: 11, color: "#b9a3f5", marginBottom: 6, letterSpacing: "0.1em" }}>CHERCHE</div><div style={{ fontSize: 13, color: GRIS_CLAIR, lineHeight: 1.7 }}>{selection.recherche}</div></div>}
               </div>
               {selection.expansion_pays && (
                 <div style={{ borderLeft: `1px solid ${OR}`, paddingLeft: 14, marginBottom: 20 }}>
-                  <div style={{ fontSize: 11, color: "#8a7a55", marginBottom: 4, letterSpacing: "0.1em" }}>SE DEVELOPPE VERS</div>
+                  <div style={{ fontSize: 11, color: "#b9a3f5", marginBottom: 4, letterSpacing: "0.1em" }}>SE DEVELOPPE VERS</div>
                   <div style={{ fontSize: 13, color: IVOIRE }}>{selection.expansion_pays}</div>
                 </div>
               )}
@@ -245,7 +245,7 @@ export default function EspaceMembre() {
         {onglet === "demandes" && (
           <div>
             <Carte style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 14 }}>PUBLIER UNE DEMANDE</div>
+              <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 14 }}>PUBLIER UNE DEMANDE</div>
               <FormDemande onPublie={charger} desactive={lectureSeule} />
             </Carte>
             <div style={{ fontSize: 12, color: GRIS, marginBottom: 14 }}>{demandes.length} demande{demandes.length > 1 ? "s" : ""} en cours</div>
@@ -293,7 +293,7 @@ export default function EspaceMembre() {
                 const nonLu = (c.membre_a === moi?.id && !c.lu_par_a) || (c.membre_b === moi?.id && !c.lu_par_b);
                 return (
                   <div key={c.id} onClick={() => ouvrirConv(c)}
-                    style={{ padding: "14px 16px", borderBottom: `0.5px solid ${TRAIT}`, cursor: "pointer", background: convActive?.id === c.id ? "#16151a" : "transparent" }}>
+                    style={{ padding: "14px 16px", borderBottom: `0.5px solid ${TRAIT}`, cursor: "pointer", background: convActive?.id === c.id ? "#221d47" : "transparent" }}>
                     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                       <div style={{ fontSize: 13, color: nonLu ? IVOIRE : GRIS_CLAIR }}>{autre?.nom || "Membre"}</div>
                       {nonLu && <div style={{ width: 7, height: 7, borderRadius: 4, background: OR }} />}
@@ -324,7 +324,7 @@ export default function EspaceMembre() {
                       const doc = documents.find((d: any) => d.message_id === m.id);
                       return (
                         <div key={m.id} style={{ alignSelf: moiMeme ? "flex-end" : "flex-start", maxWidth: "76%" }}>
-                          <div style={{ background: moiMeme ? "#2a2418" : "#16151a", border: `0.5px solid ${TRAIT}`, borderRadius: 4, padding: "10px 14px", fontSize: 13, color: m.supprime_le ? "#4f4a43" : GRIS_CLAIR, lineHeight: 1.6, fontStyle: m.supprime_le ? "italic" : "normal" }}>
+                          <div style={{ background: moiMeme ? "#2d2659" : "#221d47", border: `0.5px solid ${TRAIT}`, borderRadius: 4, padding: "10px 14px", fontSize: 13, color: m.supprime_le ? "#7a72a0" : GRIS_CLAIR, lineHeight: 1.6, fontStyle: m.supprime_le ? "italic" : "normal" }}>
                             {m.supprime_le ? "Ce message a ete supprime"
                               : doc ? (
                                 <span onClick={() => ouvrirDoc(doc.id)} style={{ cursor: "pointer", color: OR }}>
@@ -332,7 +332,7 @@ export default function EspaceMembre() {
                                 </span>
                               ) : m.contenu}
                           </div>
-                          <div style={{ fontSize: 10, color: "#4f4a43", marginTop: 4, textAlign: moiMeme ? "right" : "left", display: "flex", gap: 8, justifyContent: moiMeme ? "flex-end" : "flex-start" }}>
+                          <div style={{ fontSize: 10, color: "#7a72a0", marginTop: 4, textAlign: moiMeme ? "right" : "left", display: "flex", gap: 8, justifyContent: moiMeme ? "flex-end" : "flex-start" }}>
                             <span>{new Date(m.created_at).toLocaleString("fr", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" })}</span>
                             {m.modifie_le && !m.supprime_le && <span>modifie</span>}
                             {moiMeme && !m.supprime_le && m.type !== "document" && (
@@ -372,18 +372,18 @@ export default function EspaceMembre() {
                 </div>
 
                 <div style={{ background: CARTE, border: `0.5px solid ${TRAIT}`, borderRadius: 4, padding: 16 }}>
-                  <div style={{ fontSize: 10, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 10 }}>DOCUMENTS ({documents.length})</div>
+                  <div style={{ fontSize: 10, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 10 }}>DOCUMENTS ({documents.length})</div>
                   {documents.length === 0 && <div style={{ fontSize: 11, color: GRIS }}>Aucun document echange.</div>}
                   {documents.map((d: any) => (
                     <div key={d.id} onClick={() => ouvrirDoc(d.id)} style={{ fontSize: 11, color: GRIS_CLAIR, padding: "6px 0", cursor: "pointer", borderBottom: `0.5px solid ${TRAIT}` }}>
                       {d.nom}
-                      <div style={{ fontSize: 10, color: "#4f4a43", marginTop: 2 }}>{new Date(d.created_at).toLocaleDateString("fr")}</div>
+                      <div style={{ fontSize: 10, color: "#7a72a0", marginTop: 2 }}>{new Date(d.created_at).toLocaleDateString("fr")}</div>
                     </div>
                   ))}
                 </div>
 
                 <div style={{ background: CARTE, border: `0.5px solid ${TRAIT}`, borderRadius: 4, padding: 16 }}>
-                  <div style={{ fontSize: 10, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 10 }}>DEALS COMMUNS ({dealsConv.length})</div>
+                  <div style={{ fontSize: 10, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 10 }}>DEALS COMMUNS ({dealsConv.length})</div>
                   {dealsConv.length === 0 && <div style={{ fontSize: 11, color: GRIS, marginBottom: 12 }}>Aucun deal entre vous.</div>}
                   {dealsConv.map((d: any) => (
                     <div key={d.id} style={{ fontSize: 11, color: GRIS_CLAIR, padding: "6px 0", borderBottom: `0.5px solid ${TRAIT}` }}>
@@ -401,7 +401,7 @@ export default function EspaceMembre() {
         {onglet === "expansion" && (
           <div style={{ maxWidth: 760 }}>
             <Carte style={{ marginBottom: 18 }}>
-              <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 8 }}>DEVELOPPEMENT INTERNATIONAL</div>
+              <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 8 }}>DEVELOPPEMENT INTERNATIONAL</div>
               <div style={{ fontSize: 13, color: GRIS_CLAIR, lineHeight: 1.8, marginBottom: 18 }}>
                 Vous visez <strong style={{ color: OR }}>{moi?.expansion_pays || "aucun pays"}</strong>
                 {moi?.expansion_type === "vendre" && " pour y vendre a distance."}
@@ -436,12 +436,12 @@ export default function EspaceMembre() {
             {planExp?.plan && (
               <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
                 <Carte>
-                  <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 10 }}>CE QUI VOUS ATTEND</div>
+                  <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 10 }}>CE QUI VOUS ATTEND</div>
                   <div style={{ fontSize: 13, color: GRIS_CLAIR, lineHeight: 1.85 }}>{planExp.plan.synthese}</div>
                 </Carte>
 
                 <Carte>
-                  <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 16 }}>VOTRE EQUIPE SUR PLACE</div>
+                  <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 16 }}>VOTRE EQUIPE SUR PLACE</div>
                   <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                     {(planExp.plan.equipe || []).map((e: any, i: number) => {
                       const m = membres.find((x) => x.nom === e.nom);
@@ -469,13 +469,13 @@ export default function EspaceMembre() {
                 </Carte>
 
                 <Carte>
-                  <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 10 }}>PAR OU COMMENCER</div>
+                  <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 10 }}>PAR OU COMMENCER</div>
                   <div style={{ fontSize: 13, color: GRIS_CLAIR, lineHeight: 1.85 }}>{planExp.plan.premiere_etape}</div>
                 </Carte>
 
                 {(planExp.plan.points_vigilance || []).length > 0 && (
                   <Carte>
-                    <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 12 }}>POINTS DE VIGILANCE</div>
+                    <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 12 }}>POINTS DE VIGILANCE</div>
                     {planExp.plan.points_vigilance.map((p: string, i: number) => (
                       <div key={i} style={{ display: "flex", gap: 10, marginBottom: 9, fontSize: 12, color: GRIS, lineHeight: 1.7 }}>
                         <span style={{ color: OR }}>&middot;</span><span>{p}</span>
@@ -505,7 +505,7 @@ export default function EspaceMembre() {
             {bilan?.success && (
               <div style={{ display: "flex", flexDirection: "column", gap: 16 }}>
                 <Carte>
-                  <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 6 }}>CE QUE LE CLUB VOUS A RAPPORTE</div>
+                  <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 6 }}>CE QUE LE CLUB VOUS A RAPPORTE</div>
                   <div style={{ fontSize: 11, color: GRIS, marginBottom: 22 }}>Depuis le {new Date(bilan.depuis).toLocaleDateString("fr")}{bilan.fin_adhesion ? ` · adhesion jusqu'au ${new Date(bilan.fin_adhesion).toLocaleDateString("fr")}` : ""}</div>
 
                   <div className="grille" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(150px,1fr))", gap: 20, marginBottom: 24 }}>
@@ -543,17 +543,17 @@ export default function EspaceMembre() {
 
                 {Number(bilan.ca_apporte_aux_autres) > 0 && (
                   <Carte>
-                    <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 10 }}>CE QUE VOUS AVEZ APPORTE AUX AUTRES</div>
+                    <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 10 }}>CE QUE VOUS AVEZ APPORTE AUX AUTRES</div>
                     <div style={{ fontFamily: "Georgia,serif", fontSize: 24, color: OR, marginBottom: 6 }}>{Number(bilan.ca_apporte_aux_autres).toLocaleString("fr")} &euro;</div>
                     <div style={{ fontSize: 12, color: GRIS, lineHeight: 1.7 }}>{bilan.deals_apportes} affaire{bilan.deals_apportes > 1 ? "s" : ""} apportee{bilan.deals_apportes > 1 ? "s" : ""} a d&apos;autres membres.</div>
                   </Carte>
                 )}
 
                 <Carte>
-                  <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 16 }}>LES DONNEURS D&apos;AFFAIRES</div>
+                  <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 16 }}>LES DONNEURS D&apos;AFFAIRES</div>
                   {classement.length === 0 && <div style={{ fontSize: 12, color: GRIS }}>Aucune affaire apportee pour le moment.</div>}
                   {classement.map((c, i) => (
-                    <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "11px 0", borderBottom: i < classement.length - 1 ? `0.5px solid ${TRAIT}` : "none", background: c.id === moi?.id ? "#16151a" : "transparent" }}>
+                    <div key={c.id} style={{ display: "flex", alignItems: "center", gap: 16, padding: "11px 0", borderBottom: i < classement.length - 1 ? `0.5px solid ${TRAIT}` : "none", background: c.id === moi?.id ? "#221d47" : "transparent" }}>
                       <div style={{ fontFamily: "Georgia,serif", fontSize: 16, color: i < 3 ? OR : GRIS, minWidth: 26 }}>{i + 1}</div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontSize: 13, color: c.id === moi?.id ? OR : IVOIRE }}>{c.nom}</div>
@@ -569,8 +569,8 @@ export default function EspaceMembre() {
 
                 {places?.zones && (
                   <Carte>
-                    <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 8 }}>LES METIERS DEJA REPRESENTES</div>
-                    <div style={{ fontSize: 11, color: "#4f4a43", marginBottom: 16, lineHeight: 1.6 }}>Un metier absent de votre zone est une place a proposer a quelqu&apos;un.</div>
+                    <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 8 }}>LES METIERS DEJA REPRESENTES</div>
+                    <div style={{ fontSize: 11, color: "#7a72a0", marginBottom: 16, lineHeight: 1.6 }}>Un metier absent de votre zone est une place a proposer a quelqu&apos;un.</div>
                     {places.zones.map((z: any) => (
                       <div key={z.zone} style={{ marginBottom: 16 }}>
                         <div style={{ fontSize: 12, color: z.zone === places.ma_zone ? OR : GRIS_CLAIR, marginBottom: 8 }}>{z.zone}{z.zone === places.ma_zone ? " (votre zone)" : ""}</div>
@@ -591,8 +591,8 @@ export default function EspaceMembre() {
         {onglet === "avantages" && (
           <div>
             <Carte style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 6 }}>CE QUE VOUS OFFREZ AUX MEMBRES</div>
-              <div style={{ fontSize: 11, color: "#4f4a43", marginBottom: 16, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 6 }}>CE QUE VOUS OFFREZ AUX MEMBRES</div>
+              <div style={{ fontSize: 11, color: "#7a72a0", marginBottom: 16, lineHeight: 1.6 }}>
                 Un tarif preferentiel, une remise, une prestation offerte. C&apos;est la meilleure facon de faire venir les autres membres chez vous.
               </div>
               <FormAvantage onCree={charger} desactive={lectureSeule} />
@@ -614,7 +614,7 @@ export default function EspaceMembre() {
                     {a.date_fin && <span>Jusqu&apos;au {new Date(a.date_fin).toLocaleDateString("fr")}</span>}
                   </div>
                   {a.code_promo && (
-                    <div style={{ background: "#0d0c10", border: `0.5px dashed ${OR}55`, borderRadius: 3, padding: "9px 12px", fontSize: 12, color: OR, textAlign: "center", marginBottom: 10 }}>
+                    <div style={{ background: "#191441", border: `0.5px dashed ${OR}55`, borderRadius: 3, padding: "9px 12px", fontSize: 12, color: OR, textAlign: "center", marginBottom: 10 }}>
                       {a.code_promo}
                     </div>
                   )}
@@ -668,8 +668,8 @@ export default function EspaceMembre() {
             ) : (
               <>
                 <Carte style={{ marginBottom: 20 }}>
-                  <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 6 }}>PARTAGER AVEC LES MEMBRES</div>
-                  <div style={{ fontSize: 11, color: "#4f4a43", marginBottom: 16, lineHeight: 1.6 }}>
+                  <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 6 }}>PARTAGER AVEC LES MEMBRES</div>
+                  <div style={{ fontSize: 11, color: "#7a72a0", marginBottom: 16, lineHeight: 1.6 }}>
                     Une analyse de votre secteur, un retour d&apos;experience, une actualite utile. C&apos;est ce qui fait vivre le club entre deux rencontres.
                   </div>
                   <FormPublication onCree={charger} desactive={lectureSeule} />
@@ -729,8 +729,8 @@ export default function EspaceMembre() {
         {onglet === "deals" && (
           <div>
             <Carte style={{ marginBottom: 20 }}>
-              <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 6 }}>PROPOSER UN DEAL</div>
-              <div style={{ fontSize: 11, color: "#4f4a43", marginBottom: 16, lineHeight: 1.6 }}>
+              <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 6 }}>PROPOSER UN DEAL</div>
+              <div style={{ fontSize: 11, color: "#7a72a0", marginBottom: 16, lineHeight: 1.6 }}>
                 Le paiement est bloque jusqu&apos;a validation de la prestation. Xyra preleve 3%.
               </div>
               <FormDeal membres={membres} moi={moi} onCree={charger} desactive={lectureSeule} />
@@ -743,7 +743,7 @@ export default function EspaceMembre() {
                 const app = membres.find((m) => m.id === d.membre_apporteur);
                 const jeSuisClient = d.membre_client === moi?.id;
                 const jeSuisPrest = d.membre_prestataire === moi?.id;
-                const couleurs: any = { propose: "#c9a96e", accepte: "#7ea8c9", paye: "#c9a96e", livre: "#a3c97e", valide: "#7ec99a", refuse: "#c96e6e" };
+                const couleurs: any = { propose: "#d4b678", accepte: "#7ea8c9", paye: "#d4b678", livre: "#a3c97e", valide: "#7ec99a", refuse: "#c96e6e" };
                 const agir = async (act: string) => {
                   const r = await fetch("/api/club-deals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: act, deal_id: d.id }) });
                   const dd = await r.json();
@@ -757,7 +757,7 @@ export default function EspaceMembre() {
                         <div style={{ fontSize: 11, color: GRIS, marginBottom: 4 }}>{d.reference}</div>
                         <div style={{ fontSize: 15, marginBottom: 6 }}>{d.titre}</div>
                         <div style={{ fontSize: 12, color: GRIS }}>
-                          {prest?.nom || "—"} <span style={{ color: "#4f4a43" }}>pour</span> {client?.nom || "—"}
+                          {prest?.nom || "—"} <span style={{ color: "#7a72a0" }}>pour</span> {client?.nom || "—"}
                           {app && <span style={{ color: OR }}> · apporte par {app.nom}</span>}
                         </div>
                       </div>
@@ -801,11 +801,11 @@ export default function EspaceMembre() {
                 <div style={{ fontSize: 12, color: GRIS_CLAIR, marginBottom: 24 }}>{moi?.metier || ""}</div>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
                   <div>
-                    <div style={{ fontSize: 9, color: "#5f5951", letterSpacing: "0.14em", marginBottom: 3 }}>MEMBRE DEPUIS</div>
+                    <div style={{ fontSize: 9, color: "#8b83b5", letterSpacing: "0.14em", marginBottom: 3 }}>MEMBRE DEPUIS</div>
                     <div style={{ fontSize: 12, color: GRIS_CLAIR }}>{moi?.date_adhesion ? new Date(moi.date_adhesion).getFullYear() : "—"}</div>
                   </div>
                   <div style={{ textAlign: "right" }}>
-                    <div style={{ fontSize: 9, color: "#5f5951", letterSpacing: "0.14em", marginBottom: 3 }}>ADHERENT</div>
+                    <div style={{ fontSize: 9, color: "#8b83b5", letterSpacing: "0.14em", marginBottom: 3 }}>ADHERENT</div>
                     <div style={{ fontFamily: "Georgia,serif", fontSize: 20, color: OR }}>{String(moi?.numero_adherent || 0).padStart(3, "0")}</div>
                   </div>
                 </div>
@@ -845,7 +845,7 @@ function FormDemande({ onPublie, desactive }: any) {
         <input value={f.pays} onChange={(e) => setF({ ...f, pays: e.target.value })} placeholder="Pays" />
         <input value={f.budget} onChange={(e) => setF({ ...f, budget: e.target.value })} placeholder="Budget" type="number" />
       </div>
-      <div onClick={desactive ? undefined : publier} style={{ alignSelf: "flex-start", padding: "11px 26px", background: "#c9a96e", color: "#0a0a0a", fontSize: 12, cursor: desactive || envoi ? "default" : "pointer", opacity: desactive || envoi ? 0.4 : 1 }}>
+      <div onClick={desactive ? undefined : publier} style={{ alignSelf: "flex-start", padding: "11px 26px", background: "#d4b678", color: "#141130", fontSize: 12, cursor: desactive || envoi ? "default" : "pointer", opacity: desactive || envoi ? 0.4 : 1 }}>
         {envoi ? "Publication..." : "Publier"}
       </div>
     </div>
@@ -870,43 +870,43 @@ function FormProfil({ moi, onMaj, desactive }: any) {
   };
   const champ = (cle: string, libelle: string, type = "text") => (
     <div>
-      <label style={{ fontSize: 11, color: "#78716a", display: "block", marginBottom: 6 }}>{libelle}</label>
+      <label style={{ fontSize: 11, color: "#9d95c0", display: "block", marginBottom: 6 }}>{libelle}</label>
       <input type={type} value={f[cle]} onChange={(e) => setF({ ...f, [cle]: e.target.value })} />
     </div>
   );
   return (
     <div style={{ maxWidth: 720, display: "flex", flexDirection: "column", gap: 16 }}>
-      <div style={{ background: "#111014", border: "0.5px solid #1f1c16", borderRadius: 4, padding: 20 }}>
-        <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 16 }}>MON ACTIVITE</div>
+      <div style={{ background: "#1e1943", border: "0.5px solid #362e64", borderRadius: 4, padding: 20 }}>
+        <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 16 }}>MON ACTIVITE</div>
         <div className="duo" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           {champ("metier", "Metier")}{champ("secteur", "Secteur")}
           {champ("ville", "Ville")}{champ("pays", "Pays")}
         </div>
         <div style={{ marginTop: 14 }}>
-          <label style={{ fontSize: 11, color: "#78716a", display: "block", marginBottom: 6 }}>Presentation</label>
+          <label style={{ fontSize: 11, color: "#9d95c0", display: "block", marginBottom: 6 }}>Presentation</label>
           <textarea value={f.bio} onChange={(e) => setF({ ...f, bio: e.target.value })} rows={3} />
         </div>
       </div>
 
-      <div style={{ background: "#111014", border: "0.5px solid #1f1c16", borderRadius: 4, padding: 20 }}>
-        <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 16 }}>CE QUE J&apos;APPORTE, CE QUE JE CHERCHE</div>
+      <div style={{ background: "#1e1943", border: "0.5px solid #362e64", borderRadius: 4, padding: 20 }}>
+        <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 16 }}>CE QUE J&apos;APPORTE, CE QUE JE CHERCHE</div>
         <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 11, color: "#78716a", display: "block", marginBottom: 6 }}>Je propose</label>
+          <label style={{ fontSize: 11, color: "#9d95c0", display: "block", marginBottom: 6 }}>Je propose</label>
           <textarea value={f.propose} onChange={(e) => setF({ ...f, propose: e.target.value })} rows={2} />
         </div>
         <div>
-          <label style={{ fontSize: 11, color: "#78716a", display: "block", marginBottom: 6 }}>Je cherche</label>
+          <label style={{ fontSize: 11, color: "#9d95c0", display: "block", marginBottom: 6 }}>Je cherche</label>
           <textarea value={f.recherche} onChange={(e) => setF({ ...f, recherche: e.target.value })} rows={2} />
         </div>
       </div>
 
-      <div style={{ background: "#111014", border: "0.5px solid #1f1c16", borderRadius: 4, padding: 20 }}>
-        <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 6 }}>MON DEVELOPPEMENT INTERNATIONAL</div>
-        <div style={{ fontSize: 11, color: "#4f4a43", marginBottom: 16, lineHeight: 1.6 }}>Les membres sur place seront prevenus, et vous serez mis en relation.</div>
+      <div style={{ background: "#1e1943", border: "0.5px solid #362e64", borderRadius: 4, padding: 20 }}>
+        <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 6 }}>MON DEVELOPPEMENT INTERNATIONAL</div>
+        <div style={{ fontSize: 11, color: "#7a72a0", marginBottom: 16, lineHeight: 1.6 }}>Les membres sur place seront prevenus, et vous serez mis en relation.</div>
         <div className="duo" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
           {champ("expansion_pays", "Pays vises")}
           <div>
-            <label style={{ fontSize: 11, color: "#78716a", display: "block", marginBottom: 6 }}>Objectif</label>
+            <label style={{ fontSize: 11, color: "#9d95c0", display: "block", marginBottom: 6 }}>Objectif</label>
             <select value={f.expansion_type} onChange={(e) => setF({ ...f, expansion_type: e.target.value })}>
               <option value="">—</option>
               <option value="vendre">Vendre a distance</option>
@@ -917,27 +917,27 @@ function FormProfil({ moi, onMaj, desactive }: any) {
         </div>
       </div>
 
-      <div style={{ background: "#111014", border: "0.5px solid #1f1c16", borderRadius: 4, padding: 20 }}>
-        <div style={{ fontSize: 11, color: "#8a7a55", letterSpacing: "0.1em", marginBottom: 16 }}>CONTACT ET REFERENCES</div>
+      <div style={{ background: "#1e1943", border: "0.5px solid #362e64", borderRadius: 4, padding: 20 }}>
+        <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 16 }}>CONTACT ET REFERENCES</div>
         <div className="duo" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, marginBottom: 14 }}>
           {champ("tel", "Telephone")}{champ("linkedin", "LinkedIn")}
         </div>
         <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 11, color: "#78716a", display: "block", marginBottom: 6 }}>References</label>
+          <label style={{ fontSize: 11, color: "#9d95c0", display: "block", marginBottom: 6 }}>References</label>
           <textarea value={f.references_pro} onChange={(e) => setF({ ...f, references_pro: e.target.value })} rows={2} />
         </div>
         <div style={{ marginBottom: 14 }}>
-          <label style={{ fontSize: 11, color: "#78716a", display: "block", marginBottom: 6 }}>Centres d&apos;interet</label>
+          <label style={{ fontSize: 11, color: "#9d95c0", display: "block", marginBottom: 6 }}>Centres d&apos;interet</label>
           <input value={f.interets} onChange={(e) => setF({ ...f, interets: e.target.value })} placeholder="Art, voile, gastronomie..." />
         </div>
-        <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "#a39c8e", cursor: "pointer" }}>
+        <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 12, color: "#b3aacf", cursor: "pointer" }}>
           <input type="checkbox" checked={f.tel_visible} onChange={(e) => setF({ ...f, tel_visible: e.target.checked })} style={{ width: "auto" }} />
           Afficher mon telephone aux autres membres
         </label>
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: 16 }}>
-        <div onClick={desactive ? undefined : enregistrer} style={{ padding: "13px 30px", background: "#c9a96e", color: "#0a0a0a", fontSize: 13, cursor: desactive || envoi ? "default" : "pointer", opacity: desactive || envoi ? 0.4 : 1 }}>
+        <div onClick={desactive ? undefined : enregistrer} style={{ padding: "13px 30px", background: "#d4b678", color: "#141130", fontSize: 13, cursor: desactive || envoi ? "default" : "pointer", opacity: desactive || envoi ? 0.4 : 1 }}>
           {envoi ? "Enregistrement..." : "Enregistrer"}
         </div>
         {ok && <span style={{ fontSize: 12, color: "#7ec99a" }}>Profil enregistre</span>}
@@ -978,20 +978,20 @@ function FormDeal({ membres, moi, onCree, desactive }: any) {
       <textarea value={f.description} onChange={(e) => setF({ ...f, description: e.target.value })} placeholder="Ce qui est convenu" rows={2} />
       <div className="duo" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div>
-          <label style={{ fontSize: 11, color: "#78716a", display: "block", marginBottom: 6 }}>Client</label>
+          <label style={{ fontSize: 11, color: "#9d95c0", display: "block", marginBottom: 6 }}>Client</label>
           <select value={f.membre_client} onChange={(e) => setF({ ...f, membre_client: e.target.value })}>
             <option value="">— Choisir —</option>
             {autres.map((mm: any) => <option key={mm.id} value={mm.id}>{mm.nom} — {mm.metier}</option>)}
           </select>
         </div>
         <div>
-          <label style={{ fontSize: 11, color: "#78716a", display: "block", marginBottom: 6 }}>Montant (&euro;)</label>
+          <label style={{ fontSize: 11, color: "#9d95c0", display: "block", marginBottom: 6 }}>Montant (&euro;)</label>
           <input type="number" value={f.montant} onChange={(e) => setF({ ...f, montant: e.target.value })} />
         </div>
       </div>
       <div className="duo" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
         <div>
-          <label style={{ fontSize: 11, color: "#78716a", display: "block", marginBottom: 6 }}>Apporteur (facultatif)</label>
+          <label style={{ fontSize: 11, color: "#9d95c0", display: "block", marginBottom: 6 }}>Apporteur (facultatif)</label>
           <select value={f.membre_apporteur} onChange={(e) => setF({ ...f, membre_apporteur: e.target.value })}>
             <option value="">— Aucun —</option>
             {autres.filter((mm: any) => mm.id !== f.membre_client).map((mm: any) => <option key={mm.id} value={mm.id}>{mm.nom}</option>)}
@@ -999,33 +999,33 @@ function FormDeal({ membres, moi, onCree, desactive }: any) {
         </div>
         {f.membre_apporteur && (
           <div>
-            <label style={{ fontSize: 11, color: "#78716a", display: "block", marginBottom: 6 }}>Sa commission (%)</label>
+            <label style={{ fontSize: 11, color: "#9d95c0", display: "block", marginBottom: 6 }}>Sa commission (%)</label>
             <input type="number" value={f.commission_apporteur_pct} onChange={(e) => setF({ ...f, commission_apporteur_pct: e.target.value })} />
           </div>
         )}
       </div>
 
       {m > 0 && (
-        <div style={{ background: "#0d0c10", border: "0.5px solid #1f1c16", borderRadius: 3, padding: 14, fontSize: 12 }}>
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, color: "#78716a" }}>
+        <div style={{ background: "#191441", border: "0.5px solid #362e64", borderRadius: 3, padding: 14, fontSize: 12 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, color: "#9d95c0" }}>
             <span>Montant du deal</span><span>{m.toLocaleString("fr")} &euro;</span>
           </div>
           {commApp > 0 && (
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, color: "#78716a" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6, color: "#9d95c0" }}>
               <span>Apporteur ({pctApp}%)</span><span>&minus; {commApp.toLocaleString("fr")} &euro;</span>
             </div>
           )}
-          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, color: "#78716a" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8, color: "#9d95c0" }}>
             <span>Xyra (3%)</span><span>&minus; {commXyra.toLocaleString("fr")} &euro;</span>
           </div>
-          <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 8, borderTop: "0.5px solid #1f1c16", color: "#c9a96e", fontWeight: 600 }}>
+          <div style={{ display: "flex", justifyContent: "space-between", paddingTop: 8, borderTop: "0.5px solid #362e64", color: "#d4b678", fontWeight: 600 }}>
             <span>Vous recevez</span><span>{net.toLocaleString("fr")} &euro;</span>
           </div>
         </div>
       )}
 
       <div onClick={desactive ? undefined : proposer}
-        style={{ alignSelf: "flex-start", padding: "12px 28px", background: "#c9a96e", color: "#0a0a0a", fontSize: 12, cursor: desactive || envoi ? "default" : "pointer", opacity: desactive || envoi ? 0.4 : 1 }}>
+        style={{ alignSelf: "flex-start", padding: "12px 28px", background: "#d4b678", color: "#141130", fontSize: 12, cursor: desactive || envoi ? "default" : "pointer", opacity: desactive || envoi ? 0.4 : 1 }}>
         {envoi ? "Envoi..." : "Proposer le deal"}
       </div>
     </div>
@@ -1050,7 +1050,7 @@ function FormAvantage({ onCree, desactive }: any) {
   if (!ouvert) {
     return (
       <div onClick={() => !desactive && setOuvert(true)}
-        style={{ display: "inline-block", padding: "11px 24px", border: "0.5px solid #c9a96e", color: "#c9a96e", fontSize: 12, cursor: desactive ? "default" : "pointer", opacity: desactive ? 0.4 : 1 }}>
+        style={{ display: "inline-block", padding: "11px 24px", border: "0.5px solid #d4b678", color: "#d4b678", fontSize: 12, cursor: desactive ? "default" : "pointer", opacity: desactive ? 0.4 : 1 }}>
         Proposer un avantage
       </div>
     );
@@ -1069,10 +1069,10 @@ function FormAvantage({ onCree, desactive }: any) {
         <input type="date" value={f.date_fin} onChange={(e) => setF({ ...f, date_fin: e.target.value })} />
       </div>
       <div style={{ display: "flex", gap: 10 }}>
-        <div onClick={proposer} style={{ padding: "11px 26px", background: "#c9a96e", color: "#0a0a0a", fontSize: 12, cursor: envoi ? "default" : "pointer", opacity: envoi ? 0.4 : 1 }}>
+        <div onClick={proposer} style={{ padding: "11px 26px", background: "#d4b678", color: "#141130", fontSize: 12, cursor: envoi ? "default" : "pointer", opacity: envoi ? 0.4 : 1 }}>
           {envoi ? "Envoi..." : "Publier"}
         </div>
-        <div onClick={() => setOuvert(false)} style={{ padding: "11px 20px", border: "0.5px solid #1f1c16", color: "#78716a", fontSize: 12, cursor: "pointer" }}>Annuler</div>
+        <div onClick={() => setOuvert(false)} style={{ padding: "11px 20px", border: "0.5px solid #362e64", color: "#9d95c0", fontSize: 12, cursor: "pointer" }}>Annuler</div>
       </div>
     </div>
   );
@@ -1096,7 +1096,7 @@ function FormPublication({ onCree, desactive }: any) {
   if (!ouvert) {
     return (
       <div onClick={() => !desactive && setOuvert(true)}
-        style={{ display: "inline-block", padding: "11px 24px", border: "0.5px solid #c9a96e", color: "#c9a96e", fontSize: 12, cursor: desactive ? "default" : "pointer", opacity: desactive ? 0.4 : 1 }}>
+        style={{ display: "inline-block", padding: "11px 24px", border: "0.5px solid #d4b678", color: "#d4b678", fontSize: 12, cursor: desactive ? "default" : "pointer", opacity: desactive ? 0.4 : 1 }}>
         Ecrire une publication
       </div>
     );
@@ -1108,10 +1108,10 @@ function FormPublication({ onCree, desactive }: any) {
       <input value={f.categorie} onChange={(e) => setF({ ...f, categorie: e.target.value })} placeholder="Categorie (facultatif)" />
       <textarea value={f.contenu} onChange={(e) => setF({ ...f, contenu: e.target.value })} placeholder="Votre texte" rows={9} />
       <div style={{ display: "flex", gap: 10 }}>
-        <div onClick={publier} style={{ padding: "11px 26px", background: "#c9a96e", color: "#0a0a0a", fontSize: 12, cursor: envoi ? "default" : "pointer", opacity: envoi ? 0.4 : 1 }}>
+        <div onClick={publier} style={{ padding: "11px 26px", background: "#d4b678", color: "#141130", fontSize: 12, cursor: envoi ? "default" : "pointer", opacity: envoi ? 0.4 : 1 }}>
           {envoi ? "Publication..." : "Publier"}
         </div>
-        <div onClick={() => setOuvert(false)} style={{ padding: "11px 20px", border: "0.5px solid #1f1c16", color: "#78716a", fontSize: 12, cursor: "pointer" }}>Annuler</div>
+        <div onClick={() => setOuvert(false)} style={{ padding: "11px 20px", border: "0.5px solid #362e64", color: "#9d95c0", fontSize: 12, cursor: "pointer" }}>Annuler</div>
       </div>
     </div>
   );

@@ -3,12 +3,12 @@ import Entete from "../composants/Entete";
 import Photo from "../composants/Photo";
 import Pied from "../composants/Pied";
 
-const OR = "#c9a96e";
-const IVOIRE = "#f0ead6";
-const NOIR = "#0a0a0a";
-const GRIS = "#78716a";
-const GRIS_CLAIR = "#a39c8e";
-const TRAIT = "#1f1c16";
+const OR = "#d4b678";
+const IVOIRE = "#f5f0e3";
+const NOIR = "#141130";
+const GRIS = "#9d95c0";
+const GRIS_CLAIR = "#b3aacf";
+const TRAIT = "#362e64";
 
 export default function LeClub() {
   return (
@@ -17,7 +17,7 @@ export default function LeClub() {
       <Entete />
 
       <section style={{ padding: "60px 32px 44px", maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "#8a7a55", marginBottom: 14 }}>LE CLUB</div>
+        <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "#b9a3f5", marginBottom: 14 }}>LE CLUB</div>
         <h1 className="grand-titre" style={{ fontFamily: "Georgia,serif", fontSize: 36, fontStyle: "italic", lineHeight: 1.2, maxWidth: 560, margin: "0 0 20px", fontWeight: 400 }}>
           Un cercle ferme, une place par metier
         </h1>
@@ -29,7 +29,7 @@ export default function LeClub() {
       <Photo nom="le-club.jpg" hauteur={380} />
 
       <section style={{ padding: "60px 32px", maxWidth: 1100, margin: "0 auto" }}>
-        <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "#8a7a55", marginBottom: 32 }}>AVANTAGES RESERVES AUX MEMBRES</div>
+        <div style={{ fontSize: 11, letterSpacing: "0.2em", color: "#b9a3f5", marginBottom: 32 }}>AVANTAGES RESERVES AUX MEMBRES</div>
         <div className="six" style={{ display: "grid", gridTemplateColumns: "repeat(2,1fr)", gap: "40px 44px" }}>
           {[
             ["Un seul par metier", "Votre metier n'est represente qu'une fois dans votre zone. Aucune concurrence interne, aucune ambiguite sur qui recoit une recommandation."],

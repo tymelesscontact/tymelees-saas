@@ -32,7 +32,7 @@ export default function Photo({ nom, hauteur, style = {} }: any) {
 
   if (echec) {
     return (
-      <div style={{ height: hauteur, background: "#151208", display: "flex", alignItems: "center", justifyContent: "center", color: "#33302a", fontSize: 11, letterSpacing: "0.15em", ...style }}>
+      <div style={{ height: hauteur, background: "#1e1943", display: "flex", alignItems: "center", justifyContent: "center", color: "#5a5290", fontSize: 11, letterSpacing: "0.15em", ...style }}>
         {nom.toUpperCase()}
       </div>
     );
