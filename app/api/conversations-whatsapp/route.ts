@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { envoyerWhatsApp } from '../../lib/whatsapp';
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -11,20 +12,6 @@ function getAdminClient() {
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
 const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
 
-async function sendWhatsApp(to: string, message: string) {
-  await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      messaging_product: "whatsapp",
-      to,
-      text: { body: message },
-    }),
-  })
-}
 
 export async function GET(req: NextRequest) {
   const sb = getAdminClient()
@@ -60,7 +47,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "whatsapp et message requis" }, { status: 400 })
     }
     try {
-      await sendWhatsApp(whatsapp, message)
+      await envoyerWhatsApp(whatsapp, message)
     } catch (e) {
       return NextResponse.json({ success: false, error: "Erreur envoi WhatsApp" }, { status: 500 })
     }

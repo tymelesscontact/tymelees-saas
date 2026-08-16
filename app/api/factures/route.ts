@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
+import { envoyerWhatsApp } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -8,20 +9,6 @@ const sb = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-async function sendWhatsApp(to: string, message: string) {
-  return fetch(`https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to,
-      text: { body: message },
-    }),
-  });
-}
 
 async function genererPdfFacture(facture: any): Promise<Buffer> {
   const PDFDocument = (await import('pdfkit')).default;
@@ -179,7 +166,7 @@ export async function POST(req: NextRequest) {
     }
     if (facture.client_tel) {
       try {
-        await sendWhatsApp(facture.client_tel, `Bonjour ${facture.client_nom},\n\nVotre facture ${facture.numero} (${facture.montant_ttc}€) est disponible.\nPayer ici : ${paymentUrl}\n\nMerci 🙏`);
+        await envoyerWhatsApp(facture.client_tel, `Bonjour ${facture.client_nom},\n\nVotre facture ${facture.numero} (${facture.montant_ttc}€) est disponible.\nPayer ici : ${paymentUrl}\n\nMerci 🙏`);
       } catch (e) { console.error('WhatsApp error:', e); }
     }
 
@@ -219,7 +206,7 @@ export async function POST(req: NextRequest) {
     }
     if (facture.client_tel) {
       try {
-        await sendWhatsApp(facture.client_tel, `Bonjour ${facture.client_nom}, petit rappel pour votre facture ${facture.numero} (${facture.montant_ttc}€) toujours en attente.${lien ? `\nPayer : ${lien}` : ''}`);
+        await envoyerWhatsApp(facture.client_tel, `Bonjour ${facture.client_nom}, petit rappel pour votre facture ${facture.numero} (${facture.montant_ttc}€) toujours en attente.${lien ? `\nPayer : ${lien}` : ''}`);
         envoye = true;
       } catch (e) { console.error('WhatsApp error:', e); }
     }

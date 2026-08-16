@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { envoyerWhatsApp } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -8,14 +9,6 @@ const sb = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-async function sendWhatsApp(to: string, message: string) {
-  const safe = message.replace(/[^\x00-\xFF]/g, '');
-  return fetch(`https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', to: to.replace(/\D/g, ''), text: { body: safe } }),
-  });
-}
 
 async function askClaude(prompt: string, maxTokens = 300) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -76,7 +69,7 @@ export async function POST(req: NextRequest) {
       const bienvenue = `Bonjour ${contact_nom} ! Bienvenue chez Xyra. Comment pouvons-nous vous aider aujourd'hui ?`;
       await sb.from('chat_messages').insert({ conversation_id: data.id, auteur: 'Xyra', contenu: bienvenue, moi: true, type: 'auto_ia' });
       await sb.from('conversations').update({ premier_message_envoye: true, derniere_activite: new Date().toISOString() }).eq('id', data.id);
-      if (contact_tel) { try { await sendWhatsApp(contact_tel, bienvenue); } catch { /* non bloquant */ } }
+      if (contact_tel) { try { await envoyerWhatsApp(contact_tel, bienvenue); } catch { /* non bloquant */ } }
     }
 
     return NextResponse.json({ success: true, conversation: data });
@@ -86,8 +79,14 @@ export async function POST(req: NextRequest) {
     const { conversation_id, contenu, type, fichier_url, contact_tel } = body;
     if (!conversation_id || (!contenu && !fichier_url)) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
 
+    let expediteur = 'Moi';
+    if (tenantId) {
+      const { data: t } = await sb.from('tenants').select('societe').eq('id', tenantId).maybeSingle();
+      if (t?.societe) expediteur = t.societe;
+    }
+
     const { data, error } = await sb.from('chat_messages').insert({
-      conversation_id, auteur: 'Curtiss', contenu, moi: true, type: type || 'texte', fichier_url, lu: true,
+      conversation_id, auteur: expediteur, contenu, moi: true, type: type || 'texte', fichier_url, lu: true,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -95,7 +94,7 @@ export async function POST(req: NextRequest) {
 
     // Envoi réel WhatsApp si conversation externe avec téléphone
     if (contact_tel && type !== 'auto_ia') {
-      try { await sendWhatsApp(contact_tel, contenu || '[Fichier joint]'); } catch { /* non bloquant */ }
+      try { await envoyerWhatsApp(contact_tel, contenu || '[Fichier joint]'); } catch { /* non bloquant */ }
     }
 
     return NextResponse.json({ success: true, message: data });
@@ -189,15 +188,15 @@ export async function POST(req: NextRequest) {
       // Ne pas répondre deux fois automatiquement à la suite
       if (dernier.type === 'auto_ia') continue;
 
-      const historique = msgs.slice(-10).map((m: any) => `${m.moi ? 'Moi (Curtiss)' : m.auteur}: ${m.contenu}`).join('\n');
-      const prompt = `Tu réponds au nom de Curtiss, fondateur de Xyra/Tymeless, car il n'a pas pu répondre depuis plus d'une heure. Voici la conversation :\n${historique}\n\nRédige une réponse courte, professionnelle et chaleureuse en français pour faire patienter et montrer que la demande est prise en compte, sans t'engager sur des détails que tu ne connais pas.`;
+      const historique = msgs.slice(-10).map((m: any) => `${m.moi ? 'Moi' : m.auteur}: ${m.contenu}`).join('\n');
+      const prompt = `Tu réponds au nom de l'entreprise, car personne n'a pu répondre depuis plus d'une heure. Voici la conversation :\n${historique}\n\nRédige une réponse courte, professionnelle et chaleureuse en français pour faire patienter et montrer que la demande est prise en compte, sans t'engager sur des détails que tu ne connais pas.`;
       const reponse = await askClaude(prompt, 250);
 
       await sb.from('chat_messages').insert({ conversation_id: conv.id, auteur: 'Xyra (IA)', contenu: reponse, moi: true, type: 'auto_ia', lu: true });
       await sb.from('conversations').update({ derniere_activite: new Date().toISOString() }).eq('id', conv.id);
-      if (conv.contact_tel) { try { await sendWhatsApp(conv.contact_tel, reponse); } catch { /* non bloquant */ } }
+      if (conv.contact_tel) { try { await envoyerWhatsApp(conv.contact_tel, reponse); } catch { /* non bloquant */ } }
 
-      // Notification immédiate dashboard + WhatsApp à Curtiss
+      // Notification immédiate dashboard + WhatsApp au responsable
       await sb.from('notifications').insert({
         type: 'info', icon: '🤖', urgence: 'haute',
         titre: `Claude a répondu à ${conv.contact_nom}`,
@@ -206,7 +205,7 @@ export async function POST(req: NextRequest) {
         tenant_id: tenantId || null,
       });
       const ownerTel = process.env.OWNER_WHATSAPP;
-      if (ownerTel) { try { await sendWhatsApp(ownerTel, `Xyra - Claude a repondu a ${conv.contact_nom} (pas de reponse depuis 1h). Verifie la conversation.`); } catch { /* non bloquant */ } }
+      if (ownerTel) { try { await envoyerWhatsApp(ownerTel, `Xyra - Claude a repondu a ${conv.contact_nom} (pas de reponse depuis 1h). Verifie la conversation.`); } catch { /* non bloquant */ } }
 
       nbRepondus++;
     }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { envoyerWhatsApp } from '../../lib/whatsapp';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -19,13 +20,6 @@ async function askClaude(prompt: string) {
   return data.content?.[0]?.text || '';
 }
 
-async function sendWhatsApp(to: string, message: string) {
-  return fetch(`https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', to: to.replace(/\D/g, ''), text: { body: message.replace(/[^\x00-\xFF]/g, '') } }),
-  });
-}
 
 // Compte les inscrits reels dans evenements_inscrits
 async function compterInscrits(evenementId: string) {
@@ -133,7 +127,7 @@ export async function POST(req: NextRequest) {
       await sb.from('evenements').update({ statut: 'complet' }).eq('id', evenement_id);
     }
     if (tel && process.env.WHATSAPP_PHONE_NUMBER_ID) {
-      await sendWhatsApp(tel, `Xyra Events : Inscription confirmee pour ${evt.titre} le ${new Date(evt.date_evenement).toLocaleDateString('fr')} a ${evt.lieu || ''}. A bientot !`);
+      await envoyerWhatsApp(tel, `Xyra Events : Inscription confirmee pour ${evt.titre} le ${new Date(evt.date_evenement).toLocaleDateString('fr')} a ${evt.lieu || ''}. A bientot !`);
     }
     return NextResponse.json({ success: true, inscrits: nb + 1 });
   }
@@ -143,7 +137,7 @@ export async function POST(req: NextRequest) {
     const ownerTel = process.env.OWNER_WHATSAPP;
     if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
     const dateTexte = date_evenement ? new Date(date_evenement).toLocaleDateString('fr') : '';
-    await sendWhatsApp(ownerTel, `Xyra Events : Invitation reseau envoyee pour ${titre} le ${dateTexte} a ${lieu || ''}.`);
+    await envoyerWhatsApp(ownerTel, `Xyra Events : Invitation reseau envoyee pour ${titre} le ${dateTexte} a ${lieu || ''}.`);
     return NextResponse.json({ success: true });
   }
 
@@ -162,7 +156,7 @@ export async function POST(req: NextRequest) {
       const jours = Math.ceil((dateEvt.getTime() - now.getTime()) / 86400000);
       if (jours === 7 || jours === 1) {
         const nb = await compterInscrits(evt.id);
-        await sendWhatsApp(ownerTel, `Xyra Events rappel J-${jours} : ${evt.titre} le ${dateEvt.toLocaleDateString('fr')}. ${nb}/${evt.max_inscrits || 0} inscrits.`);
+        await envoyerWhatsApp(ownerTel, `Xyra Events rappel J-${jours} : ${evt.titre} le ${dateEvt.toLocaleDateString('fr')}. ${nb}/${evt.max_inscrits || 0} inscrits.`);
         rappelsEnvoyes++;
       }
     }

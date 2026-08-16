@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generatePDFFromHTML } from '../../lib/generatePDF'
+import { envoyerWhatsApp } from '../../lib/whatsapp';
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
@@ -87,20 +88,6 @@ Si un employé envoie une photo de ticket/facture avec le mot "note de frais" ou
 - Réponds dans la langue du client (FR/EN/AR/RU)
 - Ne promets JAMAIS un contact "demain" — dis toujours "très prochainement"`
 
-async function sendWhatsApp(to: string, message: string) {
-  await fetch(`https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${WHATSAPP_TOKEN}`,
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to,
-      text: { body: message }
-    })
-  })
-}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
@@ -222,7 +209,7 @@ export async function POST(req: NextRequest) {
             justificatif: true,
             compte_cpt: comptes[ticket.categorie] || '625800',
           })
-          await sendWhatsApp(userPhone,
+          await envoyerWhatsApp(userPhone,
             `✅ Ticket analysé par Lea !\n\n` +
             `📋 ${ticket.marchand || '—'}\n` +
             `💰 ${ticket.montant_ttc}€ (TVA : ${ticket.tva || 0}€)\n` +
@@ -230,11 +217,11 @@ export async function POST(req: NextRequest) {
             `Note de frais créée dans Xyra — en attente de validation. 🙏`
           )
         } else {
-          await sendWhatsApp(userPhone, '⚠️ Ticket difficile à lire. Envoyez une photo plus nette stp.')
+          await envoyerWhatsApp(userPhone, '⚠️ Ticket difficile à lire. Envoyez une photo plus nette stp.')
         }
       } catch (e) {
         console.error('OCR error:', e)
-        await sendWhatsApp(userPhone, '⚠️ Erreur lors de la lecture du ticket. Réessayez.')
+        await envoyerWhatsApp(userPhone, '⚠️ Erreur lors de la lecture du ticket. Réessayez.')
       }
     }
     return NextResponse.json({ status: 'ok' })
@@ -259,7 +246,7 @@ export async function POST(req: NextRequest) {
         .single()
 
       if (devis) {
-        await sendWhatsApp(
+        await envoyerWhatsApp(
           devis.client_tel,
           `Bonjour ${devis.client_nom || ''} 👋\n\nVotre devis Tymeless est confirmé ✅\n\n` +
           `📋 Service : ${devis.service}\n` +
@@ -270,7 +257,7 @@ export async function POST(req: NextRequest) {
         await supabase.from('devis')
           .update({ statut: 'envoyé' })
           .eq('reference', numeroDevis)
-        await sendWhatsApp(OWNER_PHONE, `✅ Devis ${numeroDevis} — Message envoyé au client !`)
+        await envoyerWhatsApp(OWNER_PHONE, `✅ Devis ${numeroDevis} — Message envoyé au client !`)
       }
       return NextResponse.json({ status: 'ok' })
     }
@@ -278,7 +265,7 @@ export async function POST(req: NextRequest) {
     if (nonMatch) {
       const numeroDevis = nonMatch[1]
       await supabase.from('devis').update({ statut: 'annulé' }).eq('reference', numeroDevis)
-      await sendWhatsApp(OWNER_PHONE, `❌ Devis ${numeroDevis} annulé.`)
+      await envoyerWhatsApp(OWNER_PHONE, `❌ Devis ${numeroDevis} annulé.`)
       return NextResponse.json({ status: 'ok' })
     }
 
@@ -363,7 +350,7 @@ export async function POST(req: NextRequest) {
         statut: 'en_attente',
       })
 
-      await sendWhatsApp(
+      await envoyerWhatsApp(
         OWNER_PHONE,
         `🧾 *Nouveau devis à valider*\n\n` +
         `N° ${numeroDevis}\n` +
@@ -387,7 +374,7 @@ export async function POST(req: NextRequest) {
       })
       .eq('whatsapp', userPhone)
 
-    await sendWhatsApp(userPhone, reply)
+    await envoyerWhatsApp(userPhone, reply)
 
   } catch (err) {
     console.error('❌ Erreur:', err)

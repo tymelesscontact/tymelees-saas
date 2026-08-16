@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 import PDFDocument from 'pdfkit';
+import { envoyerWhatsApp } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Client normal (lectures/écritures courantes)
@@ -17,25 +18,6 @@ const sbAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-async function sendWhatsApp(to: string, message: string) {
-  // Remplace les caractères spéciaux non supportés par l'API WhatsApp
-  const safeMessage = message.replace(/[\u0100-\uFFFF]/g, (c) => {
-    const map: Record<string, string> = { '•':'*', '→':'->', '←':'<-', '✅':'OK', '❌':'X', '⚠️':'!', '🤝':'', '📱':'', '💰':'', '📄':'' };
-    return map[c] ?? '';
-  });
-  return fetch(`https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to: to.replace(/\D/g, ''),
-      text: { body: safeMessage },
-    }),
-  });
-}
 
 async function sendEmail(to: string, subject: string, html: string) {
   const { Resend } = await import('resend');
@@ -168,7 +150,7 @@ export async function POST(req: NextRequest) {
         ? `<p>Votre espace partenaire est prêt : <a href="${inviteLink}">cliquez ici pour créer votre mot de passe et vous connecter</a>.</p>`
         : `<p>Votre accès à l'espace partenaire vous sera envoyé séparément.</p>`;
       await sendEmail(email, 'Bienvenue chez Xyra — Votre partenariat', `<div style="font-family:sans-serif;padding:24px;"><p>Bonjour ${nom},</p><p>Bienvenue dans le réseau partenaires Xyra ! Votre taux de commission est fixé à <strong>${comm || 15}%</strong>.</p>${accesHtml}</div>`);
-      if (tel) await sendWhatsApp(tel, `Bonjour ${nom}, bienvenue chez Xyra ! Votre partenariat est actif avec un taux de commission de ${comm || 15}%. 🤝${inviteLink ? ' Vérifiez vos emails pour activer votre espace partenaire.' : ''}`);
+      if (tel) await envoyerWhatsApp(tel, `Bonjour ${nom}, bienvenue chez Xyra ! Votre partenariat est actif avec un taux de commission de ${comm || 15}%. 🤝${inviteLink ? ' Vérifiez vos emails pour activer votre espace partenaire.' : ''}`);
     } catch (e) { /* l'enregistrement réussit même si l'envoi échoue */ }
 
     return NextResponse.json({ success: true, partenaire: data, accesCree: !!userId });
@@ -190,7 +172,7 @@ export async function POST(req: NextRequest) {
     try {
       const accesHtml = inviteLink ? `<p><a href="${inviteLink}">Cliquez ici pour créer votre mot de passe et vous connecter</a>.</p>` : '';
       await sendEmail(p.email, 'Votre espace partenaire Xyra est prêt', `<div style="font-family:sans-serif;padding:24px;"><p>Bonjour ${p.nom},</p><p>Votre espace partenaire est maintenant prêt.</p>${accesHtml}</div>`);
-      if (p.tel) await sendWhatsApp(p.tel, `Bonjour ${p.nom}, votre espace partenaire Xyra est prêt ! Vérifiez vos emails pour vous connecter. 🤝`);
+      if (p.tel) await envoyerWhatsApp(p.tel, `Bonjour ${p.nom}, votre espace partenaire Xyra est prêt ! Vérifiez vos emails pour vous connecter. 🤝`);
     } catch (e) { /* non bloquant */ }
 
     return NextResponse.json({ success: true });
@@ -285,7 +267,7 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     let whatsappEnvoye = false;
     if (estMoi && tel) {
-      try { await sendWhatsApp(tel, message); whatsappEnvoye = true; } catch (e) { /* message gardé en interne même si l'envoi échoue */ }
+      try { await envoyerWhatsApp(tel, message); whatsappEnvoye = true; } catch (e) { /* message gardé en interne même si l'envoi échoue */ }
     }
     return NextResponse.json({ success: true, message: data, whatsappEnvoye });
   }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { envoyerWhatsApp } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -8,13 +9,6 @@ const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-async function sendWhatsApp(to: string, message: string) {
-  return fetch(`https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', to: to.replace(/\D/g, ''), text: { body: message.replace(/[^\x00-\xFF]/g, '') } }),
-  });
-}
 
 async function askClaude(prompt: string) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
@@ -109,7 +103,7 @@ export async function POST(req: NextRequest) {
     // Alerte si > 80%
     const pct = (nouveau / Number(carte.limite)) * 100;
     if (pct >= 80 && process.env.OWNER_WHATSAPP) {
-      await sendWhatsApp(process.env.OWNER_WHATSAPP, `Xyra Alerte carte : ${carte.nom} a utilise ${Math.round(pct)}% de son plafond (${nouveau}/${carte.limite})`);
+      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra Alerte carte : ${carte.nom} a utilise ${Math.round(pct)}% de son plafond (${nouveau}/${carte.limite})`);
     }
     return NextResponse.json({ success: true, nouveau_solde: nouveau });
   }
@@ -123,7 +117,7 @@ export async function POST(req: NextRequest) {
       await sb.from('cartes_virtuelles').update({ solde: Number(montant), updated_at: new Date().toISOString() }).eq('id', carte_id);
     }
     if (approbation_requise && process.env.OWNER_WHATSAPP) {
-      await sendWhatsApp(process.env.OWNER_WHATSAPP, `Xyra Approbation requise : ${libelle} - ${montant}EUR sur carte. Repondez OUI pour approuver.`);
+      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra Approbation requise : ${libelle} - ${montant}EUR sur carte. Repondez OUI pour approuver.`);
     }
     return NextResponse.json({ success: true, transaction: data });
   }

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { envoyerWhatsApp } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -26,14 +27,6 @@ async function askClaude(prompt: string, maxTokens = 400) {
   return data.content?.[0]?.text || '';
 }
 
-async function sendWhatsApp(to: string, message: string) {
-  const safe = message.replace(/[^\x00-\xFF]/g, '');
-  return fetch(`https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', to: to.replace(/\D/g, ''), text: { body: safe } }),
-  });
-}
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const entiteId = searchParams.get('entite_id');
@@ -273,7 +266,7 @@ Commissions dues : ${commissionsDues}€ | Clients en retard : ${(clientsEnRetar
 Inclus : 1 chiffre clé, 1 risque, 1 priorité cette semaine. Commence par "Bonjour Curtiss"`;
 
       const message = await askClaude(prompt, 300);
-      await sendWhatsApp(ownerTel, message);
+      await envoyerWhatsApp(ownerTel, message);
       return NextResponse.json({ success: true });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -286,7 +279,7 @@ Inclus : 1 chiffre clé, 1 risque, 1 priorité cette semaine. Commence par "Bonj
     if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
     const { soldeActuel, seuil } = body;
     try {
-      await sendWhatsApp(ownerTel, `Xyra ALERTE TRESORERIE - Solde actuel : ${soldeActuel}€ est passe sous le seuil critique de ${seuil}€. Action requise immediatement.`);
+      await envoyerWhatsApp(ownerTel, `Xyra ALERTE TRESORERIE - Solde actuel : ${soldeActuel}€ est passe sous le seuil critique de ${seuil}€. Action requise immediatement.`);
       return NextResponse.json({ success: true });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });

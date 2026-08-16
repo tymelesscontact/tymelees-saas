@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { envoyerWhatsApp } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -38,13 +39,6 @@ async function askClaude(prompt: string) {
   return data.content?.[0]?.text || '';
 }
 
-async function sendWhatsApp(to: string, message: string) {
-  return fetch(`https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', to: to.replace(/\D/g, ''), text: { body: message.replace(/[^\x00-\xFF]/g, '') } }),
-  });
-}
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -203,7 +197,7 @@ Marge nette : ${tauxMarge}% | Top client : ${topClients?.[0]?.nom} (${topClients
 Prévision 90j réaliste : ${prevision?.realiste}€
 Commence par "Rapport CA Xyra —" et inclus 1 point fort et 1 priorité ce mois.`;
       const message = await askClaude(prompt);
-      await sendWhatsApp(ownerTel, message);
+      await envoyerWhatsApp(ownerTel, message);
       return NextResponse.json({ success: true });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
+import { envoyerWhatsApp } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -8,14 +9,6 @@ const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-async function sendWhatsApp(to: string, message: string) {
-  const safe = message.replace(/[^\x00-\xFF]/g, '');
-  return fetch(`https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', to: to.replace(/\D/g, ''), text: { body: safe } }),
-  });
-}
 
 async function sendEmail(to: string, subject: string, html: string) {
   const { Resend } = await import('resend');
@@ -195,7 +188,7 @@ Message court, naturel, non commercial, en français. 3-4 phrases max. Objectif 
   if (action === 'envoyer_relance') {
     const { deal, message, canal } = body;
     try {
-      if (canal === 'whatsapp' && deal.tel) await sendWhatsApp(deal.tel, message);
+      if (canal === 'whatsapp' && deal.tel) await envoyerWhatsApp(deal.tel, message);
       if (canal === 'email' && deal.email) await sendEmail(deal.email, `Suivi — ${deal.nom}`, `<p>${message.replace(/\n/g, '<br>')}</p>`);
       await sb.from('deals_timeline').insert({ deal_id: deal.id, type: 'relance', description: `Relance envoyée par ${canal}`, operateur: 'Curtiss' });
       await sb.from('deals').update({ dernierContact: new Date().toISOString().split('T')[0], updated_at: new Date().toISOString() }).eq('id', deal.id);

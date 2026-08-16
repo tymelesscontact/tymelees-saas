@@ -1,20 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
+import { envoyerWhatsApp } from '../../lib/whatsapp';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-async function sendWhatsApp(to: string, message: string) {
-  const safe = message.replace(/[^\x00-\xFF]/g, '');
-  return fetch(`https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
-    method: 'POST',
-    headers: { 'Authorization': `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ messaging_product: 'whatsapp', to: to.replace(/\D/g, ''), text: { body: safe } }),
-  });
-}
 
 // Génère automatiquement les notifications depuis les données réelles
 async function genererNotificationsAuto() {
@@ -131,7 +124,7 @@ export async function POST(req: NextRequest) {
 
     const autoNotifs = await genererNotificationsAuto();
     if (!autoNotifs.length) {
-      await sendWhatsApp(ownerTel, 'Xyra - Bonjour ! Tout est a jour aujourd\'hui. Bonne journee.');
+      await envoyerWhatsApp(ownerTel, 'Xyra - Bonjour ! Tout est a jour aujourd\'hui. Bonne journee.');
       return NextResponse.json({ success: true, nb: 0 });
     }
 
@@ -142,7 +135,7 @@ ${priorites.map((n: any, i: number) => `${i + 1}. ${n.titre} - ${n.message}`).jo
 
 Bonne journee !`;
 
-    try { await sendWhatsApp(ownerTel, msg); } catch (e) { /* non bloquant */ }
+    try { await envoyerWhatsApp(ownerTel, msg); } catch (e) { /* non bloquant */ }
     return NextResponse.json({ success: true, nb: priorites.length });
   }
 
@@ -150,7 +143,7 @@ Bonne journee !`;
     const { tel, titre, message } = body;
     if (!tel) return NextResponse.json({ error: 'Numéro manquant' }, { status: 400 });
     try {
-      await sendWhatsApp(tel, `Xyra - ${titre}\n${message}`);
+      await envoyerWhatsApp(tel, `Xyra - ${titre}\n${message}`);
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
     }
