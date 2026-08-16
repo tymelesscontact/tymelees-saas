@@ -965,7 +965,8 @@ function FormAvantage({ onCree, desactive }: any) {
   const [ouvert, setOuvert] = useState(false);
 
   const proposer = async () => {
-    if (!f.titre || envoi) return;
+    if (envoi) return;
+    if (!f.titre.trim()) { alert("Indiquez au moins un titre pour votre avantage"); return; }
     setEnvoi(true);
     await fetch("/api/club-espace", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "proposer_avantage", ...f }) });
     setF({ titre: "", description: "", reduction: "", code_promo: "", lien: "", date_fin: "" });
