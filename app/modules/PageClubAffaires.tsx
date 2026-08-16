@@ -174,6 +174,7 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
 
     <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>
       {tabs.map(t=><button key={t.id} onClick={()=>setOnglet(t.id)} style={{background:onglet===t.id?C.card:"transparent",color:onglet===t.id?C.gold:C.muted,border:onglet===t.id?`1px solid ${C.border}`:"1px solid transparent",borderRadius:6,padding:"5px 10px",cursor:"pointer",fontSize:11,fontFamily:"inherit",fontWeight:onglet===t.id?600:400,whiteSpace:"nowrap"}}>{t.label}</button>)}
+      <a href="/club/espace" target="_blank" rel="noreferrer" style={{marginLeft:"auto",fontSize:11,color:C.gold,border:`1px solid ${C.gold}44`,padding:"7px 14px",textDecoration:"none",borderRadius:6,whiteSpace:"nowrap"}}>Espace membre &rarr;</a>
     </div>
 
     {/* ── ACCUEIL ── */}
