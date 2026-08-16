@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 async function askClaude(prompt: string) {
@@ -26,6 +27,24 @@ async function sendWhatsApp(to: string, message: string) {
   });
 }
 
+// Compte les inscrits reels dans evenements_inscrits
+async function compterInscrits(evenementId: string) {
+  const { count } = await sb.from('evenements_inscrits')
+    .select('id', { count: 'exact', head: true }).eq('evenement_id', evenementId);
+  return count || 0;
+}
+
+// Un fondateur du Club peut creer des evenements de portee club
+async function estFondateurClub(req: NextRequest) {
+  const token = req.cookies.get('sb-access-token')?.value;
+  if (!token) return false;
+  const { data: auth } = await sb.auth.getUser(token);
+  if (!auth?.user) return false;
+  const { data: m } = await sb.from('club_membres')
+    .select('statut').eq('user_id', auth.user.id).maybeSingle();
+  return m?.statut === 'fondateur';
+}
+
 export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   const { searchParams } = new URL(req.url);
@@ -34,14 +53,27 @@ export async function GET(req: NextRequest) {
   const companyId = searchParams.get('company_id');
 
   if (action === 'list') {
-    let q = sb.from('evenements').select('*').order('date_debut', { ascending: true });
-    if (tenantId) q = q.eq('tenant_id', tenantId);
+    const portee = searchParams.get('portee');
+    let q = sb.from('evenements').select('*').order('date_evenement', { ascending: true });
+    if (portee) q = q.eq('portee', portee);
+    else if (tenantId) q = q.eq('tenant_id', tenantId).eq('portee', 'societe');
     if (companyId && UUID_RE.test(companyId)) q = q.eq('company_id', companyId);
     const { data } = await q;
-    return NextResponse.json({ evenements: data || [] });
+
+    const enrichis = await Promise.all((data || []).map(async (e: any) => ({
+      ...e, inscrits: await compterInscrits(e.id),
+    })));
+    return NextResponse.json({ evenements: enrichis });
   }
 
   if (action === 'inscrits' && eventId) {
+    // L'evenement doit appartenir a l'appelant, ou etre un evenement du club
+    const { data: evt } = await sb.from('evenements')
+      .select('tenant_id,portee').eq('id', eventId).maybeSingle();
+    if (!evt) return NextResponse.json({ error: 'Evenement introuvable' }, { status: 404 });
+    if (evt.portee !== 'club' && tenantId && evt.tenant_id !== tenantId) {
+      return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    }
     const { data } = await sb.from('evenements_inscrits').select('*').eq('evenement_id', eventId);
     return NextResponse.json({ inscrits: data || [] });
   }
@@ -50,16 +82,36 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;
 
   if (action === 'create') {
-    const { titre, description, date_debut, date_fin, lieu, type, prix, max_inscrits, club_only } = body;
+    const { titre, description, date_evenement, lieu, prix, max_inscrits, portee, lien_inscription, company_id } = body;
+    if (!titre || !date_evenement) {
+      return NextResponse.json({ error: 'Titre et date necessaires' }, { status: 400 });
+    }
+
+    let porteeFinale = 'societe';
+    if (portee === 'club') {
+      if (!(await estFondateurClub(req))) {
+        return NextResponse.json({ error: 'Seuls les fondateurs du Club peuvent creer un evenement du Club' }, { status: 403 });
+      }
+      porteeFinale = 'club';
+    } else if (portee === 'public') {
+      porteeFinale = 'public';
+    }
+
     const { data, error } = await sb.from('evenements').insert({
-      titre, description, date_debut, date_fin, lieu,
-      type: type || 'présentiel', prix: Number(prix || 0),
-      max_inscrits: Number(max_inscrits || 50), inscrits: 0,
-      statut: 'ouvert', club_only: club_only || false,
+      titre, description: description || null,
+      date_evenement, lieu: lieu || null,
+      prix: Number(prix || 0),
+      max_inscrits: Number(max_inscrits || 50),
+      statut: 'ouvert',
+      portee: porteeFinale,
+      lien_inscription: lien_inscription || null,
+      tenant_id: tenantId,
+      company_id: company_id && UUID_RE.test(company_id) ? company_id : null,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, evenement: data });
@@ -67,36 +119,50 @@ export async function POST(req: NextRequest) {
 
   if (action === 'inscrire') {
     const { evenement_id, nom, email, tel } = body;
-    const { data: evt } = await sb.from('evenements').select('titre,inscrits,max_inscrits,date_debut,lieu').eq('id', evenement_id).single();
-    if (!evt) return NextResponse.json({ error: 'Événement introuvable' }, { status: 404 });
-    if (evt.inscrits >= evt.max_inscrits) return NextResponse.json({ error: 'Événement complet' }, { status: 400 });
-    await sb.from('evenements_inscrits').insert({ evenement_id, nom, email, tel, statut: 'confirmé' });
-    await sb.from('evenements').update({ inscrits: evt.inscrits + 1, statut: evt.inscrits + 1 >= evt.max_inscrits ? 'complet' : 'ouvert' }).eq('id', evenement_id);
-    if (tel && process.env.WHATSAPP_PHONE_NUMBER_ID) {
-      await sendWhatsApp(tel, `Xyra Events : Inscription confirmee pour ${evt.titre} le ${new Date(evt.date_debut).toLocaleDateString('fr')} a ${evt.lieu}. A bientot !`);
+    const { data: evt } = await sb.from('evenements')
+      .select('titre,max_inscrits,date_evenement,lieu').eq('id', evenement_id).single();
+    if (!evt) return NextResponse.json({ error: 'Evenement introuvable' }, { status: 404 });
+
+    const nb = await compterInscrits(evenement_id);
+    if (evt.max_inscrits && nb >= evt.max_inscrits) {
+      return NextResponse.json({ error: 'Evenement complet' }, { status: 400 });
     }
-    return NextResponse.json({ success: true });
+
+    await sb.from('evenements_inscrits').insert({ evenement_id, nom, email, tel, statut: 'confirmé' });
+    if (evt.max_inscrits && nb + 1 >= evt.max_inscrits) {
+      await sb.from('evenements').update({ statut: 'complet' }).eq('id', evenement_id);
+    }
+    if (tel && process.env.WHATSAPP_PHONE_NUMBER_ID) {
+      await sendWhatsApp(tel, `Xyra Events : Inscription confirmee pour ${evt.titre} le ${new Date(evt.date_evenement).toLocaleDateString('fr')} a ${evt.lieu || ''}. A bientot !`);
+    }
+    return NextResponse.json({ success: true, inscrits: nb + 1 });
   }
 
   if (action === 'inviter_reseau') {
-    const { evenement_id, titre, date_debut, lieu } = body;
+    const { titre, date_evenement, lieu } = body;
     const ownerTel = process.env.OWNER_WHATSAPP;
     if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
-    await sendWhatsApp(ownerTel, `Xyra Events : Invitation reseau envoyee pour ${titre} le ${new Date(date_debut).toLocaleDateString('fr')} a ${lieu}. Vos contacts recevront l'invitation.`);
+    const dateTexte = date_evenement ? new Date(date_evenement).toLocaleDateString('fr') : '';
+    await sendWhatsApp(ownerTel, `Xyra Events : Invitation reseau envoyee pour ${titre} le ${dateTexte} a ${lieu || ''}.`);
     return NextResponse.json({ success: true });
   }
 
   if (action === 'rappels') {
     const ownerTel = process.env.OWNER_WHATSAPP;
     if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
-    const { data: evts } = await sb.from('evenements').select('*').eq('statut', 'ouvert');
+
+    let q = sb.from('evenements').select('*').eq('statut', 'ouvert');
+    if (tenantId) q = q.eq('tenant_id', tenantId);
+    const { data: evts } = await q;
+
     const now = new Date();
     let rappelsEnvoyes = 0;
     for (const evt of (evts || [])) {
-      const dateEvt = new Date(evt.date_debut);
-      const jours = Math.ceil((dateEvt.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+      const dateEvt = new Date(evt.date_evenement);
+      const jours = Math.ceil((dateEvt.getTime() - now.getTime()) / 86400000);
       if (jours === 7 || jours === 1) {
-        await sendWhatsApp(ownerTel, `Xyra Events rappel J-${jours} : ${evt.titre} le ${dateEvt.toLocaleDateString('fr')}. ${evt.inscrits}/${evt.max_inscrits} inscrits.`);
+        const nb = await compterInscrits(evt.id);
+        await sendWhatsApp(ownerTel, `Xyra Events rappel J-${jours} : ${evt.titre} le ${dateEvt.toLocaleDateString('fr')}. ${nb}/${evt.max_inscrits || 0} inscrits.`);
         rappelsEnvoyes++;
       }
     }
@@ -106,7 +172,9 @@ export async function POST(req: NextRequest) {
   if (action === 'analyse_roi') {
     const { evenements } = body;
     try {
-      const resume = (evenements || []).map((e: any) => `${e.titre}: ${e.inscrits}/${e.max_inscrits} inscrits, ${e.prix}€, ${e.type}`).join(' | ');
+      const resume = (evenements || []).map((e: any) =>
+        `${e.titre}: ${e.inscrits ?? 0}/${e.max_inscrits || 0} inscrits, ${e.prix || 0}€`
+      ).join(' | ');
       const analyse = await askClaude(`Tu es expert en événementiel B2B. Analyse le ROI de ces événements et donne 3 recommandations concrètes (4 phrases max, français) : ${resume}`);
       return NextResponse.json({ success: true, analyse });
     } catch (e: any) {
@@ -116,7 +184,19 @@ export async function POST(req: NextRequest) {
 
   if (action === 'checkin') {
     const { inscrit_id } = body;
-    await sb.from('evenements_inscrits').update({ statut: 'présent', checked_in_at: new Date().toISOString() }).eq('id', inscrit_id);
+    // L'inscrit doit appartenir a un evenement de l'appelant, ou du club
+    const { data: insc } = await sb.from('evenements_inscrits')
+      .select('evenement_id').eq('id', inscrit_id).maybeSingle();
+    if (!insc) return NextResponse.json({ error: 'Inscrit introuvable' }, { status: 404 });
+    const { data: evt } = await sb.from('evenements')
+      .select('tenant_id,portee').eq('id', insc.evenement_id).maybeSingle();
+    if (!evt) return NextResponse.json({ error: 'Evenement introuvable' }, { status: 404 });
+    if (evt.portee !== 'club' && tenantId && evt.tenant_id !== tenantId) {
+      return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    }
+    await sb.from('evenements_inscrits')
+      .update({ statut: 'présent', checked_in_at: new Date().toISOString() })
+      .eq('id', inscrit_id);
     return NextResponse.json({ success: true });
   }
 

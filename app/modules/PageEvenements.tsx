@@ -15,7 +15,7 @@ const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
   const[inscrits,setInscrits]=useState([]);
   const[showInscription,setShowInscription]=useState(false);
   const[inscriptionForm,setInscriptionForm]=useState({nom:"",email:"",tel:""});
-  const[newEvt,setNewEvt]=useState({titre:"",description:"",date_debut:"",date_fin:"",lieu:"",type:"présentiel",prix:0,max_inscrits:50,club_only:false});
+  const[newEvt,setNewEvt]=useState({titre:"",description:"",date_evenement:"",lieu:"",prix:0,max_inscrits:50,portee_club:false});
 
   const load=async()=>{
     setLoading(true);
@@ -31,11 +31,11 @@ const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
   useEffect(()=>{load();},[activeCompany?.id]);
 
   const creerEvenement=async()=>{
-    if(!newEvt.titre||!newEvt.date_debut)return showToast("⚠️ Titre et date requis");
+    if(!newEvt.titre||!newEvt.date_evenement)return showToast("⚠️ Titre et date requis");
     try{
       const res=await fetch('/api/evenements',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'create',...newEvt})});
       const d=await res.json();
-      if(d.success){showToast("✅ Événement créé !");setShowForm(false);setNewEvt({titre:"",description:"",date_debut:"",date_fin:"",lieu:"",type:"présentiel",prix:0,max_inscrits:50,club_only:false});load();}
+      if(d.success){showToast("✅ Événement créé !");setShowForm(false);setNewEvt({titre:"",description:"",date_evenement:"",lieu:"",prix:0,max_inscrits:50,portee_club:false});load();}
       else showToast("❌ "+d.error);
     }catch(e){showToast("❌ Erreur");}
   };
@@ -123,11 +123,10 @@ const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
       <STitle>+ Créer un événement</STitle>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10,marginBottom:10}}>
         <div style={{gridColumn:"1/-1"}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Titre *</label><Inp value={newEvt.titre} onChange={e=>setNewEvt(v=>({...v,titre:e.target.value}))} placeholder="Ex: Dîner privé Xyra Club — Paris"/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Date début *</label><Inp type="datetime-local" value={newEvt.date_debut} onChange={e=>setNewEvt(v=>({...v,date_debut:e.target.value}))}/></div>
-        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Date fin</label><Inp type="datetime-local" value={newEvt.date_fin} onChange={e=>setNewEvt(v=>({...v,date_fin:e.target.value}))}/></div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Date début *</label><Inp type="datetime-local" value={newEvt.date_evenement} onChange={e=>setNewEvt(v=>({...v,date_evenement:e.target.value}))}/></div>
         <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Lieu</label><Inp value={newEvt.lieu} onChange={e=>setNewEvt(v=>({...v,lieu:e.target.value}))} placeholder="Paris, Visio, Dubaï..."/></div>
         <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Type</label>
-          <Sel value={newEvt.type} onChange={e=>setNewEvt(v=>({...v,type:e.target.value}))}>
+          <Sel value={newEvt.portee_club} onChange={e=>setNewEvt(v=>({...v,type:e.target.value}))}>
             <option value="présentiel">Présentiel</option>
             <option value="visio">Visio</option>
             <option value="hybride">Hybride</option>
@@ -138,8 +137,8 @@ const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
         <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Capacité max</label><Inp type="number" value={newEvt.max_inscrits} onChange={e=>setNewEvt(v=>({...v,max_inscrits:Number(e.target.value)}))}/></div>
         <div style={{gridColumn:"1/-1"}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Description</label><Inp value={newEvt.description} onChange={e=>setNewEvt(v=>({...v,description:e.target.value}))} placeholder="Décrivez l'événement..."/></div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
-          <input type="checkbox" id="club_only" checked={newEvt.club_only} onChange={e=>setNewEvt(v=>({...v,club_only:e.target.checked}))} style={{accentColor:C.gold}}/>
-          <label htmlFor="club_only" style={{fontSize:11,color:C.muted,cursor:"pointer"}}>🏢 Réservé aux membres Club d'affaires</label>
+          <input type="checkbox" id="portee_club" checked={newEvt.portee_club} onChange={e=>setNewEvt(v=>({...v,portee_club:e.target.checked}))} style={{accentColor:C.gold}}/>
+          <label htmlFor="portee_club" style={{fontSize:11,color:C.muted,cursor:"pointer"}}>🏢 Réservé aux membres Club d'affaires</label>
         </div>
       </div>
       <div style={{display:"flex",gap:8}}><Btn onClick={creerEvenement}>✅ Créer l'événement</Btn><BtnGhost onClick={()=>setShowForm(false)}>Annuler</BtnGhost></div>
@@ -163,17 +162,17 @@ const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
 
     {/* ── LISTE ── */}
     {onglet==="liste"&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:12}}>
-      {evts.map((e,i)=><Card key={i} style={{borderColor:e.statut==="complet"?`${C.red}44`:e.club_only?`${C.gold}44`:`${C.gold}22`}}>
+      {evts.map((e,i)=><Card key={i} style={{borderColor:e.statut==="complet"?`${C.red}44`:e.portee_club?`${C.gold}44`:`${C.gold}22`}}>
         <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,alignItems:"center"}}>
           <div style={{display:"flex",gap:6}}>
             <Pill color={e.statut==="ouvert"?C.green:C.red}>{e.statut==="ouvert"?"🟢 Ouvert":"🔴 Complet"}</Pill>
-            {e.club_only&&<Pill color={C.gold}>🏢 Club</Pill>}
+            {e.portee_club&&<Pill color={C.gold}>🏢 Club</Pill>}
             {e.type&&<Pill color={C.blue}>{e.type}</Pill>}
           </div>
           <div style={{fontSize:12,color:C.gold,fontWeight:700}}>{Number(e.prix||0)===0?"Gratuit":fmt(Number(e.prix||0))}</div>
         </div>
         <div style={{fontSize:15,fontWeight:700,color:C.text,marginBottom:4}}>{e.titre}</div>
-        <div style={{fontSize:11,color:C.muted,marginBottom:2}}>📅 {e.date_debut?new Date(e.date_debut).toLocaleDateString("fr",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):e.date}</div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:2}}>📅 {e.date_evenement?new Date(e.date_evenement).toLocaleDateString("fr",{weekday:"short",day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"}):e.date}</div>
         <div style={{fontSize:11,color:C.muted,marginBottom:10}}>📍 {e.lieu}</div>
         {e.description&&<div style={{fontSize:11,color:C.muted,marginBottom:10,lineHeight:1.5}}>{(e.description||"").slice(0,80)}{(e.description||"").length>80?"...":""}</div>}
         <div style={{marginBottom:12}}>
@@ -204,8 +203,8 @@ const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
       <STitle>🗓 Calendrier événements</STitle>
       {evts.length===0?<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:20}}>Aucun événement à afficher.</div>:
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {[...evts].sort((a,b)=>new Date(a.date_debut||a.date||0).getTime()-new Date(b.date_debut||b.date||0).getTime()).map((e,i)=>{
-          const d=e.date_debut?new Date(e.date_debut):null;
+        {[...evts].sort((a,b)=>new Date(a.date_evenement||0).getTime()-new Date(b.date_evenement||0).getTime()).map((e,i)=>{
+          const d=e.date_evenement?new Date(e.date_evenement):null;
           return <div key={i} style={{display:"flex",gap:12,alignItems:"center",padding:"10px 12px",background:C.card2,borderRadius:8,border:`1px solid ${C.border}`}}>
             {d&&<div style={{textAlign:"center",minWidth:48,background:`${C.gold}22`,borderRadius:8,padding:"6px 4px"}}>
               <div style={{fontSize:18,fontWeight:700,color:C.gold}}>{d.getDate()}</div>
@@ -260,7 +259,7 @@ const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12}}>
         <Card>
           <STitle>📊 Performance événements</STitle>
-          {[["Total événements",evts.length,C.blue],["Total inscrits",totalInscrits,C.green],["Taux de remplissage moyen",tauxRemplissage+"%",tauxRemplissage>=70?C.green:C.gold],["CA généré",fmt(totalCA),C.gold],["Événements Club",evts.filter(e=>e.club_only).length,C.purple],["Événements visio",evts.filter(e=>e.type==="visio"||e.type==="hybride").length,C.teal]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
+          {[["Total événements",evts.length,C.blue],["Total inscrits",totalInscrits,C.green],["Taux de remplissage moyen",tauxRemplissage+"%",tauxRemplissage>=70?C.green:C.gold],["CA généré",fmt(totalCA),C.gold],["Événements Club",evts.filter(e=>e.portee_club).length,C.purple],["Événements visio",evts.filter(e=>e.type==="visio"||e.type==="hybride").length,C.teal]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
             <span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span>
           </div>)}
         </Card>

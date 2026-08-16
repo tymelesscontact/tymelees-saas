@@ -70,7 +70,7 @@ export async function GET(req: NextRequest) {
       sb.from('club_demandes')
         .select('*').eq('statut', 'ouverte').order('created_at', { ascending: false }).limit(30),
       sb.from('evenements')
-        .select('*').gte('date', new Date().toISOString().slice(0, 10)).order('date').limit(10),
+        .select('*').eq('portee', 'club').gte('date_evenement', new Date().toISOString().slice(0, 10)).order('date_evenement').limit(10),
       sb.from('club_avantages')
         .select('*').eq('actif', true).order('created_at', { ascending: false }),
       sb.from('club_publications')

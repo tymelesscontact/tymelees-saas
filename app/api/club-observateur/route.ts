@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
     sb.from('club_demandes').select('*').eq('statut', 'ouverte').order('created_at', { ascending: false }).limit(20),
     sb.from('club_publications').select('id,titre,categorie,auteur_nom,created_at,contenu')
       .eq('masque', false).order('created_at', { ascending: false }).limit(10),
-    sb.from('evenements').select('*').gte('date', new Date().toISOString().slice(0, 10)).order('date').limit(6),
+    sb.from('evenements').select('*').eq('portee', 'club').gte('date_evenement', new Date().toISOString().slice(0, 10)).order('date_evenement').limit(6),
   ]);
 
   const deals = dealsRes.data || [];
