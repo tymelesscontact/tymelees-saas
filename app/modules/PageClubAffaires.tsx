@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, St, inits } from "../lib/ui";
-import { EVENEMENTS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
 const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
@@ -20,6 +19,7 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
   const[contenu,setContenu]=useState([]);
   const[candidatures,setCandidatures]=useState([]);
   const[meetings,setMeetings]=useState([]);
+  const[evenementsClub,setEvenementsClub]=useState([]);
   const[loading,setLoading]=useState(true);
   const[iaMatches,setIaMatches]=useState([]);
   const[iaLoading,setIaLoading]=useState(false);
@@ -29,19 +29,9 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
   const[candidatureForm,setCandidatureForm]=useState({nom:"",email:"",metier:"",message:"",coopte_par:""});
   const[coinvestForm,setCoinvestForm]=useState({titre:"",description:"",montant_total:"",montant_min_ticket:"1000",secteur:"",rendement_estime:"",date_cloture:""});
   const[dealForm,setDealForm]=useState({service:"",valeur:"",detail:""});
-  const[deals,setDeals]=useState([
-    {id:"DA-001",offrant:"Marc Dupont",recevant:"Sofia Al-Rashid",service:"Mise en relation Airbnb Dubai",valeur:2400,statut:"en cours",date:"12/04"},
-    {id:"DA-002",offrant:"Groupe Prestige SARL",recevant:"Fatoumata Diop",service:"Distribution services Dakar",valeur:8000,statut:"validé",date:"10/04"},
-    {id:"DA-003",offrant:"Leila Mansouri",recevant:"Jean-Marc Olivier",service:"Référencement syndic Paris",valeur:1200,statut:"proposé",date:"15/04"},
-  ]);
+  const[deals,setDeals]=useState([]);
 
-  const MEMBRES_DEFAUT=[
-    {id:1,nom:"Isabelle Moreau",metier:"Gestion Airbnb",ville:"Paris",pays:"🇫🇷",plan:"Starter",score_reputation:72,couleur:"#4B7BFF",bio:"Gestionnaire de 8 appartements Airbnb sur Paris.",services:["Gestion locative","Conciergerie","Ménage"],ca_genere:9600,nb_deals:2,email:"i.moreau@mail.fr",tel:"+33 6 12 34 56 78"},
-    {id:2,nom:"Marc Dupont",metier:"Immobilier",ville:"Lyon",pays:"🇫🇷",plan:"Business Pro",score_reputation:88,couleur:"#9B5FFF",bio:"Investisseur immobilier, portefeuille de 15 biens résidentiels.",services:["Vente","Location","Investissement"],ca_genere:38400,nb_deals:5,email:"m.dupont@corp.fr",tel:"+33 6 98 76 54 32"},
-    {id:3,nom:"Sofia Al-Rashid",metier:"Aviation d'affaires",ville:"Dubaï",pays:"🇦🇪",plan:"Enterprise",score_reputation:98,couleur:"#C9A84C",bio:"Directrice d'une flotte de jets privés desservant l'Europe et le Moyen-Orient.",services:["Location jet privé","Conciergerie VIP","Transferts"],ca_genere:110400,nb_deals:8,email:"sofia@vip.ae",tel:"+971 50 123 45 67"},
-    {id:4,nom:"Groupe Prestige SARL",metier:"Syndic & Gestion",ville:"Paris",pays:"🇫🇷",plan:"Enterprise",score_reputation:94,couleur:"#2EC9B0",bio:"Syndic professionnel gérant plus de 200 résidences en Île-de-France.",services:["Syndic","Gestion immeuble","Maintenance"],ca_genere:264000,nb_deals:14,email:"contact@prestige.fr",tel:"+33 1 44 55 66 77"},
-    {id:5,nom:"Fatoumata Diop",metier:"Finance Afrique",ville:"Dakar",pays:"🇸🇳",plan:"Business Pro",score_reputation:89,couleur:"#FF5F9E",bio:"Consultante en finance d'entreprise couvrant l'Afrique de l'Ouest.",services:["Conseil financier","Investissement","Formation"],ca_genere:81600,nb_deals:4,email:"fatou.d@dakar.sn",tel:"+221 77 123 45 67"},
-  ];
+  const MEMBRES_DEFAUT=[];
 
   const[observation,setObservation]=useState(null);
   const load=async()=>{
@@ -67,6 +57,16 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
       setContenu(contenuRes.contenu||[]);
       setCandidatures(candidaturesRes.candidatures||[]);
       setMeetings(meetingsRes.meetings||[]);
+      try{
+        const rd=await fetch('/api/club-deals');
+        const dd=await rd.json();
+        setDeals(dd.deals||[]);
+      }catch(e){}
+      try{
+        const re=await fetch('/api/evenements?action=list&portee=club');
+        const de=await re.json();
+        setEvenementsClub(de.evenements||[]);
+      }catch(e){}
     }catch(e){setMembres(MEMBRES_DEFAUT);}
     setLoading(false);
   };
@@ -242,7 +242,6 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
             </div>
           </div>)}
           <div style={{display:"flex",gap:8,marginTop:8}}>
-            <Btn onClick={()=>showToast("✅ Mise en relation effectuée !")} style={{fontSize:10}}>🤝 Mettre en relation</Btn>
             <BtnGhost onClick={()=>{setIaMatches([]);lancerIaMatch();}} style={{fontSize:10}}>🔄 Relancer</BtnGhost>
           </div>
         </div>}
@@ -251,10 +250,11 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
       {/* Prochains événements */}
       <Card>
         <STitle>📅 Prochains événements</STitle>
-        {EVENEMENTS.map((e,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${C.border}`}}>
+        {evenementsClub.length===0&&<div style={{fontSize:11,color:C.muted,textAlign:"center",padding:16}}>Aucun evenement du Club a venir.</div>}
+        {evenementsClub.map((e,i)=><div key={e.id||i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${C.border}`}}>
           <div style={{fontSize:12,fontWeight:700,marginBottom:2}}>{e.titre}</div>
-          <div style={{fontSize:10,color:C.muted,marginBottom:6}}>📅 {e.date} · 📍 {e.lieu}</div>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><Pill color={C.green}>{e.inscrits}/{e.max_inscrits}</Pill><Btn onClick={()=>showToast(`✅ Inscrit à ${e.titre}`)} style={{fontSize:10,padding:"4px 10px"}}>S'inscrire</Btn></div>
+          <div style={{fontSize:10,color:C.muted,marginBottom:6}}>📅 {e.date_evenement?new Date(e.date_evenement).toLocaleDateString("fr"):"—"} · 📍 {e.lieu||"—"}</div>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}><Pill color={C.green}>{e.inscrits}/{e.max_inscrits}</Pill><a href="/club/espace" target="_blank" rel="noreferrer" style={{background:C.gold,color:"#000",padding:"4px 12px",fontSize:10,textDecoration:"none",borderRadius:5}}>S'inscrire</a></div>
         </div>)}
       </Card>
 
@@ -270,7 +270,7 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
           <div style={{fontSize:10,color:C.muted,marginBottom:6}}>{c.secteur} · Ticket min : {fmt(c.montant_min_ticket||1000)}</div>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <span style={{fontSize:11,color:C.green}}>Rendement estimé : {c.rendement_estime||"—"}</span>
-            <Btn onClick={()=>showToast("✅ Participation enregistrée")} style={{fontSize:10,padding:"4px 8px"}}>Participer</Btn>
+            <a href="/club/espace" target="_blank" rel="noreferrer" style={{background:C.gold,color:"#000",padding:"4px 10px",fontSize:10,textDecoration:"none",borderRadius:5}}>Participer</a>
           </div>
         </div>)}
       </Card>
@@ -312,9 +312,8 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
               <STitle>⚡ Actions</STitle>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
                 <Btn onClick={()=>contacterMembre(selectedMembre)} style={{background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 Contacter</Btn>
-                <Btn onClick={()=>showToast("🤝 Deal proposé")} style={{background:`${C.gold}22`,color:C.gold,border:`1px solid ${C.gold}44`}}>🤝 Proposer un deal</Btn>
+                <a href="/club/espace" target="_blank" rel="noreferrer" style={{background:`${C.gold}22`,color:C.gold,border:`1px solid ${C.gold}44`,padding:"9px",fontSize:12,textAlign:"center",textDecoration:"none",borderRadius:6}}>🤝 Proposer un deal</a>
                 <BtnGhost onClick={()=>{setOnglet("meetings");showToast("📅 Planifiez votre speed meeting ci-dessous");}}>⚡ Speed Meeting</BtnGhost>
-                <BtnGhost onClick={()=>showToast("⭐ Recommandation envoyée")}>⭐ Recommander</BtnGhost>
               </div>
             </Card>
             <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
@@ -403,7 +402,7 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
           {c.rendement_estime&&<div style={{background:`${C.green}11`,border:`1px solid ${C.green}22`,borderRadius:6,padding:"6px 10px",fontSize:11,color:C.green,marginBottom:10}}>📈 Rendement estimé : {c.rendement_estime}</div>}
           {c.description&&<div style={{fontSize:11,color:C.muted,marginBottom:10,lineHeight:1.6}}>{c.description}</div>}
           {c.date_cloture&&<div style={{fontSize:10,color:C.orange,marginBottom:10}}>⏰ Clôture : {c.date_cloture}</div>}
-          <Btn onClick={()=>showToast("✅ Participation enregistrée — notre équipe vous contacte")} style={{width:"100%",fontSize:11}}>💼 Participer à ce projet</Btn>
+          <a href="/club/espace" target="_blank" rel="noreferrer" style={{display:"block",background:C.gold,color:"#000",padding:"9px",fontSize:11,textAlign:"center",textDecoration:"none",borderRadius:6}}>💼 Participer à ce projet</a>
         </Card>)}
       </div>}
     </div>}
@@ -412,21 +411,24 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
     {onglet==="deals"&&<Card>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
         <STitle>🤝 Deals entre membres</STitle>
-        <Btn onClick={()=>showToast("✅ Deal proposé au réseau !")} style={{fontSize:11}}>+ Proposer un deal</Btn>
+        <a href="/club/espace" target="_blank" rel="noreferrer" style={{background:C.gold,color:"#000",padding:"7px 14px",fontSize:11,textDecoration:"none",borderRadius:6}}>+ Proposer un deal</a>
       </div>
       <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Proposant</TH><TH>Bénéficiaire</TH><TH>Service</TH><TH>Valeur</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
-        <tbody>{deals.map((d,i)=><tr key={i}>
-          <Td style={{fontWeight:600}}>{d.offrant}</Td>
-          <Td style={{fontWeight:600}}>{d.recevant}</Td>
-          <Td style={{fontSize:11,color:C.muted}}>{d.service}</Td>
-          <Td style={{color:C.green,fontWeight:700}}>{fmt(d.valeur)}</Td>
-          <Td><St s={d.statut}/></Td>
-          <Td><div style={{display:"flex",gap:4}}>
-            {d.statut==="proposé"&&<Btn onClick={()=>{setDeals(ds=>ds.map((x,j)=>j===i?{...x,statut:"en cours"}:x));showToast("✅ Deal accepté !");}} style={{fontSize:10,padding:"4px 8px",background:C.green}}>✅</Btn>}
-            <BtnGhost onClick={()=>showToast("💬 Chat ouvert")} style={{fontSize:10,padding:"4px 8px"}}>💬</BtnGhost>
-          </div></Td>
-        </tr>)}</tbody>
+        <thead><tr><TH>Reference</TH><TH>Prestataire</TH><TH>Client</TH><TH>Objet</TH><TH>Montant</TH><TH>Xyra 3%</TH><TH>Statut</TH></tr></thead>
+        <tbody>{deals.map((d,i)=>{
+          const prest=membres.find(m=>m.id===d.membre_prestataire);
+          const client=membres.find(m=>m.id===d.membre_client);
+          return <tr key={d.id||i}>
+            <Td style={{fontSize:11,color:C.muted}}>{d.reference}</Td>
+            <Td style={{fontWeight:600}}>{prest?.nom||"—"}</Td>
+            <Td style={{fontWeight:600}}>{client?.nom||"—"}</Td>
+            <Td style={{fontSize:11,color:C.muted}}>{d.titre}</Td>
+            <Td style={{color:C.green,fontWeight:700}}>{fmt(d.montant)}</Td>
+            <Td style={{color:C.gold,fontWeight:700}}>{fmt(d.commission_xyra_montant)}</Td>
+            <Td><St s={d.statut}/></Td>
+          </tr>;})}
+        {deals.length===0&&<tr><Td colSpan={7} style={{textAlign:"center",padding:24,color:C.muted}}>Aucun deal entre membres pour le moment.</Td></tr>}
+        </tbody>
       </table>
     </Card>}
 
@@ -446,7 +448,7 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
             <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Durée</label>
               <Sel><option value="20">20 minutes</option><option value="30">30 minutes</option><option value="45">45 minutes</option></Sel>
             </div>
-            <Btn onClick={()=>showToast("✅ Speed Meeting planifié — lien visio envoyé par email")}>⚡ Confirmer le meeting</Btn>
+            <a href="/club/espace" target="_blank" rel="noreferrer" style={{background:C.gold,color:"#000",padding:"10px",fontSize:12,textAlign:"center",textDecoration:"none",borderRadius:6}}>⚡ Planifier depuis l'espace membre</a>
           </div>
         </Card>
         <Card>
@@ -456,8 +458,8 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
             <div style={{fontSize:13,fontWeight:700,marginBottom:6}}>Salon Visio Club Xyra</div>
             <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Salle privée réservée aux membres Club</div>
             <div style={{display:"flex",gap:8,justifyContent:"center"}}>
-              <Btn onClick={()=>showToast("🎥 Salon : meet.xyra.io/club")}>🎥 Rejoindre</Btn>
-              <BtnGhost onClick={()=>showToast("📅 Visio planifiée !")}>📅 Planifier</BtnGhost>
+              <a href="https://meet.jit.si/xyra-club-salon" target="_blank" rel="noreferrer" style={{background:C.gold,color:"#000",padding:"9px 18px",fontSize:12,textDecoration:"none",borderRadius:6}}>🎥 Rejoindre</a>
+              
             </div>
           </div>
         </Card>
@@ -466,7 +468,7 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
         <STitle>📋 Meetings planifiés</STitle>
         {meetings.map((m,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}>
           <div><div style={{fontWeight:600}}>{new Date(m.date_heure).toLocaleDateString("fr")} à {new Date(m.date_heure).toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"})}</div><div style={{fontSize:10,color:C.muted}}>{m.duree_minutes} min</div></div>
-          <div style={{display:"flex",gap:8}}><Pill color={C.blue}>{m.statut}</Pill><BtnGhost onClick={()=>showToast("🎥 Lien copié")} style={{fontSize:10}}>🔗 Lien</BtnGhost></div>
+          <div style={{display:"flex",gap:8}}><Pill color={C.blue}>{m.statut}</Pill><a href={`https://meet.jit.si/xyra-meeting-${m.id}`} target="_blank" rel="noreferrer" style={{fontSize:10,color:C.gold,border:`1px solid ${C.gold}44`,padding:"4px 10px",textDecoration:"none",borderRadius:5}}>🎥 Rejoindre</a></div>
         </div>)}
       </Card>}
     </div>}
@@ -477,18 +479,12 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
         📚 Contenu exclusif réservé aux membres Club — analyses de marché, masterclass, rapports sectoriels, accès direct aux experts du réseau.
       </div>
       {contenu.length===0?<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
-        {[{icon:"📊",titre:"Analyse marché immobilier luxe Q2 2026",type:"Rapport",auteur:"Équipe Xyra",desc:"Tendances et opportunités sur les marchés France, Dubaï et Afrique du Nord."},
-          {icon:"🎥",titre:"Masterclass : Développer son réseau en Afrique",type:"Masterclass",auteur:"Fatoumata Diop",desc:"Stratégies concrètes pour s'implanter sur les marchés africains francophones."},
-          {icon:"📝",titre:"Guide : Structurer une holding multi-sociétés",type:"Guide",auteur:"Équipe Xyra",desc:"Comment optimiser la gestion de plusieurs entités juridiques depuis Xyra."},
-          {icon:"🤖",titre:"IA & Business : comment automatiser ses opérations",type:"Article",auteur:"Curtiss — Fondateur Xyra",desc:"Retour d'expérience sur l'intégration de l'IA Claude dans les processus business."}
-        ].map((c,i)=><Card key={i} style={{cursor:"pointer"}} onClick={()=>showToast("📖 Contenu ouvert")}>
-          <div style={{fontSize:24,marginBottom:8}}>{c.icon}</div>
-          <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:4}}>{c.titre}</div>
-          <div style={{display:"flex",gap:6,marginBottom:8}}><Pill color={C.purple}>{c.type}</Pill><span style={{fontSize:10,color:C.muted}}>par {c.auteur}</span></div>
-          <div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>{c.desc}</div>
-        </Card>)}
+        <Card style={{textAlign:"center",padding:30}}>
+          <div style={{fontSize:12,color:C.muted}}>Aucun contenu publie pour le moment.</div>
+          <a href="/club/espace" target="_blank" rel="noreferrer" style={{display:"inline-block",marginTop:12,fontSize:11,color:C.gold,textDecoration:"underline"}}>Publier depuis l&apos;espace membre</a>
+        </Card>
       </div>:<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12}}>
-        {contenu.map((c,i)=><Card key={i} style={{cursor:"pointer"}} onClick={()=>showToast("📖 Contenu ouvert")}>
+        {contenu.map((c,i)=><Card key={i} style={{cursor:"pointer"}} onClick={()=>c.contenu&&window.alert(c.contenu)}>
           <div style={{fontSize:13,fontWeight:700,color:C.text,marginBottom:4}}>{c.titre}</div>
           <div style={{display:"flex",gap:6,marginBottom:8}}><Pill color={C.purple}>{c.type}</Pill><span style={{fontSize:10,color:C.muted}}>par {c.auteur}</span></div>
           {c.contenu&&<div style={{fontSize:11,color:C.muted,lineHeight:1.6}}>{c.contenu.slice(0,100)}...</div>}
@@ -558,12 +554,12 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
           <CT><div style={{fontSize:9,color:C.muted}}>Membres actifs</div><div style={{fontSize:22,fontWeight:700,color:C.blue}}>{membres.length}</div></CT>
           <CT><div style={{fontSize:9,color:C.muted}}>Deals conclus</div><div style={{fontSize:22,fontWeight:700,color:C.green}}>{deals.filter(d=>d.statut==="validé").length}</div></CT>
           <CT><div style={{fontSize:9,color:C.muted}}>CA réseau total</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(totalCA)}</div></CT>
-          <CT><div style={{fontSize:9,color:C.muted}}>Taux engagement</div><div style={{fontSize:22,fontWeight:700,color:C.teal}}>84%</div></CT>
+          <CT><div style={{fontSize:9,color:C.muted}}>Candidatures</div><div style={{fontSize:22,fontWeight:700,color:C.teal}}>{candidatures.length}</div></CT>
         </div>
       </Card>
       <Card>
         <STitle>💰 Revenus Club Xyra</STitle>
-        {[["Abonnements annuels (2 000€/an)",fmt(membres.length*2000),C.gold],["Commissions deals (5%)",fmt(deals.filter(d=>d.statut==="validé").reduce((a,d)=>a+d.valeur*0.05,0)),C.green],["Co-investissements",fmt(coinvestissements.reduce((a,c)=>a+Number(c.montant_total||0)*0.02,0)),C.blue],["Total annuel estimé",fmt(membres.length*2000+deals.filter(d=>d.statut==="validé").reduce((a,d)=>a+d.valeur*0.05,0)),C.teal]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
+        {[["Abonnements annuels (2 000€/an)",fmt(membres.length*2000),C.gold],["Commissions deals (3%)",fmt(deals.filter(d=>d.statut==="valide").reduce((a,d)=>a+Number(d.commission_xyra_montant||0),0)),C.green],["Co-investissements",fmt(coinvestissements.reduce((a,c)=>a+Number(c.montant_total||0)*0.02,0)),C.blue],["Total annuel estimé",fmt(membres.length*2000+deals.filter(d=>d.statut==="validé").reduce((a,d)=>a+d.valeur*0.05,0)),C.teal]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"7px 0",borderBottom:`1px solid ${C.border}22`,fontSize:12}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
       </Card>
     </div>}
   </div>;
