@@ -15,6 +15,8 @@ const PageServices=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
   const[scanCode,setScanCode]=useState("");
   const[recherchant,setRecherchant]=useState(false);
   const[selProduit,setSelProduit]=useState(null);
+  const[articlesStock,setArticlesStock]=useState([]);
+  const[editProduit,setEditProduit]=useState(null);
   const[sel,setSel]=useState(null);
   const[showAdd,setShowAdd]=useState(false);
   const[addForm,setAddForm]=useState({nom:"",categorie:"",description:"",photo_url:"",prix_standard:"",prix_vip:"",prix_enterprise:"",cout_reel:"",duree:""});
@@ -40,11 +42,35 @@ const PageServices=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
     try{
       const cp=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
       const res=await fetch('/api/produits-catalogue?action=liste'+cp);
+      try{
+        const rs=await fetch('/api/stock'+cp);
+        const ds=await rs.json();
+        setArticlesStock(ds.articles||[]);
+      }catch(e){}
       const data=await res.json();
       if(data.produits)setProduits(data.produits);
     }catch(e){console.error("Produits:",e);}
   };
   useEffect(()=>{loadProduits();},[activeCompany?.id]);
+  const relierAuStock=async(produit,articleId)=>{
+    try{
+      const r=await fetch('/api/produits-catalogue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        action:'modifier', id:produit.id, article_stock_id:articleId||null,
+      })});
+      const d=await r.json();
+      if(d.success){showToast(articleId?"✅ Produit relie au stock":"Lien retire");loadProduits();}
+      else showToast("❌ "+(d.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const basculerVente=async(produit)=>{
+    try{
+      const r=await fetch('/api/produits-catalogue',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        action:'modifier', id:produit.id, vente_active:!produit.vente_active,
+      })});
+      const d=await r.json();
+      if(d.success){showToast(produit.vente_active?"Retire de la boutique":"✅ Mis en vente");loadProduits();}
+    }catch(e){showToast("❌ Erreur");}
+  };
   const rechercherCodeBarre=async()=>{
     if(!scanCode)return showToast("⚠️ Entrez ou scannez un code-barres");
     setRecherchant(true);
@@ -225,6 +251,51 @@ const PageServices=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
         <BtnGhost onClick={()=>setShowAddProduit(false)}>Annuler</BtnGhost>
       </div>
     </Card>}
+
+    {produits.length===0&&!showAddProduit&&<Card style={{textAlign:"center",padding:30}}>
+      <div style={{fontSize:12,color:C.muted}}>Aucun produit au catalogue.</div>
+    </Card>}
+
+    {produits.length>0&&<div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(300px,1fr))",gap:12}}>
+      {produits.map(p=>{
+        const art=articlesStock.find(a=>a.id===p.article_stock_id);
+        const qteReelle=art?Number(art.qte??art.quantite??0):Number(p.quantite_stock||0);
+        const rupture=qteReelle<=0;
+        return <Card key={p.id} style={{borderColor:p.vente_active?`${C.green}33`:C.border}}>
+          {p.photo_url&&<img src={p.photo_url} alt="" style={{width:"100%",height:110,objectFit:"cover",borderRadius:8,marginBottom:10}}/>}
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:6}}>
+            <div>
+              <div style={{fontSize:14,fontWeight:700,color:C.text}}>{p.nom}</div>
+              {p.marque&&<div style={{fontSize:10,color:C.muted}}>{p.marque}</div>}
+            </div>
+            <div style={{fontSize:15,fontWeight:700,color:C.gold,whiteSpace:"nowrap"}}>{Number(p.prix_vente||0).toFixed(2)} €</div>
+          </div>
+
+          <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:10}}>
+            <Pill color={rupture?C.red:qteReelle<=Number(p.seuil_alerte||0)?C.orange:C.green}>
+              {rupture?"Rupture":`${qteReelle} en stock`}
+            </Pill>
+            {p.vente_active&&<Pill color={C.blue}>En boutique</Pill>}
+          </div>
+
+          <div style={{marginBottom:10}}>
+            <label style={{fontSize:10,color:C.muted,display:"block",marginBottom:4}}>Article de stock lie</label>
+            <Sel value={p.article_stock_id||""} onChange={e=>relierAuStock(p,e.target.value)} style={{fontSize:11}}>
+              <option value="">— Suivi dans le catalogue —</option>
+              {articlesStock.map(a=><option key={a.id} value={a.id}>{a.art} ({a.qte} {a.u})</option>)}
+            </Sel>
+            {art&&<div style={{fontSize:10,color:C.green,marginTop:4}}>La quantite vient du stock reel</div>}
+          </div>
+
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+            <Btn onClick={()=>basculerVente(p)} style={{fontSize:10,padding:"6px 4px",background:p.vente_active?C.card2:C.green,color:p.vente_active?C.muted:"#000"}}>
+              {p.vente_active?"Retirer":"Mettre en vente"}
+            </Btn>
+            <BtnGhost onClick={()=>{if(window.confirm(`Supprimer ${p.nom} ?`))supprimerProduit(p.id);}} style={{fontSize:10,padding:"6px 4px",color:C.red,borderColor:`${C.red}44`}}>Supprimer</BtnGhost>
+          </div>
+        </Card>;
+      })}
+    </div>}
   </>}
   </div>;
 };
