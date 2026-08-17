@@ -1,3 +1,5 @@
+const PLAN_PRIX_LOCAL: Record<string, number> = { white_label_starter: 500, white_label_business: 1000, white_label_enterprise: 2000 };
+
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
@@ -200,6 +202,35 @@ Commence par "Rapport SaaS Xyra —" et donne 1 insight et 1 priorité.`;
     try { await sb.from('revendeur_demandes').insert({ plan_revendeur, nom, email, societe, tel, message, statut: 'nouveau' }); } catch(e) {}
 
     return NextResponse.json({ success: true });
+  }
+
+  if (action === 'revendeurs') {
+    const { data: revs } = await sb.from('revendeurs').select('*').order('created_at', { ascending: false });
+    const { data: tousTenants } = await sb.from('tenants').select('id,revendeur_id,statut,created_at');
+
+    const debutMois = new Date(); debutMois.setDate(1); debutMois.setHours(0, 0, 0, 0);
+
+    const detail = (revs || []).map((r: any) => {
+      const siens = (tousTenants || []).filter((t: any) => t.revendeur_id === r.id);
+      const actifs = siens.filter((t: any) => t.statut === 'actif');
+      const essais = siens.filter((t: any) => t.statut === 'essai');
+      const nouveaux = siens.filter((t: any) => new Date(t.created_at) >= debutMois);
+      const forfait = PLAN_PRIX_LOCAL[r.plan] || 500;
+      const aFacturer = forfait + actifs.length * 10;
+      return {
+        id: r.id, societe: r.societe, marque_nom: r.marque_nom, plan: r.plan,
+        pays: r.pays, statut: r.statut, date_debut: r.date_debut,
+        total_clients: siens.length, actifs: actifs.length, essais: essais.length,
+        nouveaux_ce_mois: nouveaux.length, forfait, a_facturer: aFacturer,
+      };
+    });
+
+    return NextResponse.json({
+      success: true,
+      revendeurs: detail,
+      total_clients_revendus: (tousTenants || []).filter((t: any) => t.revendeur_id).length,
+      total_a_facturer: detail.reduce((a: number, r: any) => a + r.a_facturer, 0),
+    });
   }
 
   if (action === 'commission_deal') {

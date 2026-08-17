@@ -22,6 +22,18 @@ const PageDeploiementTenant=({plan,showToast,UpgradeWall})=>{
   const[showRevendeurForm,setShowRevendeurForm]=useState(false);
   const[revendeurForm,setRevendeurForm]=useState({nom:"",email:"",societe:"",tel:"",message:"",plan_revendeur:""});
   const[revendeurLoading,setRevendeurLoading]=useState(false);
+  const[revendeurs,setRevendeurs]=useState([]);
+  const[revendeursLoading,setRevendeursLoading]=useState(true);
+  const[revendeursTotal,setRevendeursTotal]=useState({total_clients_revendus:0,total_a_facturer:0});
+  const chargerRevendeurs=async()=>{
+    setRevendeursLoading(true);
+    try{
+      const r=await fetch('/api/deploiement?action=revendeurs');
+      const d=await r.json();
+      if(d.success){setRevendeurs(d.revendeurs||[]);setRevendeursTotal({total_clients_revendus:d.total_clients_revendus,total_a_facturer:d.total_a_facturer});}
+    }catch(e){}
+    setRevendeursLoading(false);
+  };
 
   const envoyerDemandeRevendeur=async()=>{
     if(!revendeurForm.nom||!revendeurForm.email||!revendeurForm.societe)return showToast("⚠️ Nom, email et société requis");
@@ -349,6 +361,27 @@ const PageDeploiementTenant=({plan,showToast,UpgradeWall})=>{
     </div>}
 
     {/* ── ANALYSE CHURN IA ── */}
+    {onglet==="revendeurs"&&(revendeursLoading?(()=>{chargerRevendeurs();return<div style={{padding:30,textAlign:"center",color:C.muted,fontSize:12}}>Chargement...</div>;})():<div>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:16}}>
+        <CT><div style={{fontSize:10,color:C.muted}}>Clients revendus au total</div><div style={{fontSize:22,fontWeight:700,color:C.blue}}>{revendeursTotal.total_clients_revendus}</div></CT>
+        <CT><div style={{fontSize:10,color:C.muted}}>A facturer ce mois</div><div style={{fontSize:22,fontWeight:700,color:C.gold}}>{fmt(revendeursTotal.total_a_facturer)}</div></CT>
+      </div>
+      {revendeurs.length===0?<Card style={{textAlign:"center",padding:30}}><div style={{fontSize:12,color:C.muted}}>Aucun revendeur pour le moment.</div></Card>:
+      <Card style={{padding:0,overflow:"hidden"}}>
+        <table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Revendeur</TH><TH>Forfait</TH><TH>Pays</TH><TH>Clients</TH><TH>Actifs</TH><TH>Nouveaux</TH><TH>A facturer</TH></tr></thead>
+          <tbody>{revendeurs.map((r,i)=><tr key={r.id||i}>
+            <Td style={{fontWeight:600}}>{r.marque_nom||r.societe}<div style={{fontSize:10,color:C.muted}}>{r.societe}</div></Td>
+            <Td style={{fontSize:11}}>{r.plan}</Td>
+            <Td style={{fontSize:11,color:C.muted}}>{r.pays||"—"}</Td>
+            <Td style={{fontWeight:700}}>{r.total_clients}</Td>
+            <Td style={{color:C.green}}>{r.actifs}</Td>
+            <Td style={{color:C.blue}}>{r.nouveaux_ce_mois}</Td>
+            <Td style={{color:C.gold,fontWeight:700}}>{fmt(r.a_facturer)}</Td>
+          </tr>)}</tbody>
+        </table>
+      </Card>}
+    </div>)}
     {onglet==="churn"&&<div>
       <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:16,marginBottom:14}}>
         <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Scoring prédictif Churn — Claude Sonnet</div>
