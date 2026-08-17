@@ -86,6 +86,31 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
   const[sessions]=useState([{device:"MacBook Pro — Chrome",ip:"92.168.1.1",lieu:"Paris, France",date:"Maintenant",actuelle:true},{device:"iPhone 14 — Safari",ip:"92.168.1.2",lieu:"Paris, France",date:"Il y a 2h",actuelle:false}]);
   const[logs]=useState([{date:"Aujourd'hui 09:00",action:"Connexion réussie",ip:"92.168.1.1",statut:"ok"},{date:"Hier 18:30",action:"Modification devis TYM-0044",ip:"92.168.1.1",statut:"ok"},{date:"Hier 14:00",action:"Tentative connexion échouée",ip:"203.45.67.89",statut:"echec"}]);
 
+  const[waForm,setWaForm]=useState({whatsapp_numero:"",whatsapp_phone_number_id:"",whatsapp_token:"",whatsapp_actif:false});
+  const[waCharge,setWaCharge]=useState(false);
+  const[waEnCours,setWaEnCours]=useState(false);
+  useEffect(()=>{
+    if(onglet!=="whatsapp"||waCharge)return;
+    (async()=>{
+      try{
+        const r=await fetch('/api/whatsapp-config');
+        const d=await r.json();
+        if(d.success)setWaForm(f=>({...f,whatsapp_numero:d.numero||"",whatsapp_phone_number_id:d.phone_number_id||"",whatsapp_actif:!!d.actif}));
+      }catch(e){}
+      setWaCharge(true);
+    })();
+  },[onglet]);
+  const enregistrerWa=async()=>{
+    if(waEnCours)return;
+    setWaEnCours(true);
+    try{
+      const r=await fetch('/api/whatsapp-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(waForm)});
+      const d=await r.json();
+      if(d.success){showToast("✅ Configuration WhatsApp enregistree");setWaForm(f=>({...f,whatsapp_token:""}));}
+      else showToast("❌ "+(d.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setWaEnCours(false);
+  };
   const tabs=[
     {id:"entreprise",label:"🏢 Entreprise"},
     {id:"profil",label:"👤 Mon profil"},
@@ -94,6 +119,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     {id:"apparence",label:"🎨 Apparence"},
     {id:"securite",label:"🛡 Sécurité"},
     {id:"integrations",label:"🔗 Intégrations"},
+    {id:"whatsapp",label:"💬 WhatsApp"},
     {id:"ia",label:"🤖 IA & Claude"},
     {id:"notifications_param",label:"🔔 Notifications"},
     {id:"secteur",label:"⊛ Secteur métier"},
@@ -350,6 +376,46 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     </div>}
 
     {/* ── INTÉGRATIONS ── */}
+    {onglet==="whatsapp"&&<div style={{maxWidth:560}}>
+      <Card style={{marginBottom:14}}>
+        <STitle>💬 Votre compte WhatsApp Business</STitle>
+        <div style={{fontSize:11,color:C.muted,lineHeight:1.7,marginBottom:16}}>
+          Vos messages partiront de votre propre numero au lieu de celui de Xyra.
+          Sans configuration, le compte Xyra est utilise.
+        </div>
+        <div style={{display:"flex",flexDirection:"column",gap:12}}>
+          <div>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Votre numero WhatsApp Business</label>
+            <Inp value={waForm.whatsapp_numero} onChange={e=>setWaForm(f=>({...f,whatsapp_numero:e.target.value}))} placeholder="+33 6 12 34 56 78"/>
+          </div>
+          <div>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Identifiant du numero (Meta)</label>
+            <Inp value={waForm.whatsapp_phone_number_id} onChange={e=>setWaForm(f=>({...f,whatsapp_phone_number_id:e.target.value}))} placeholder="106540352242922"/>
+            <div style={{fontSize:10,color:C.muted,marginTop:3}}>Dans Meta Business, section WhatsApp, en face de votre numero.</div>
+          </div>
+          <div>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Jeton d&apos;acces permanent</label>
+            <Inp type="password" value={waForm.whatsapp_token} onChange={e=>setWaForm(f=>({...f,whatsapp_token:e.target.value}))} placeholder={waForm.whatsapp_actif?"Deja enregistre — laissez vide pour ne pas changer":"EAAxxxxx..."}/>
+            <div style={{fontSize:10,color:C.muted,marginTop:3}}>Il n&apos;est jamais reaffiche apres enregistrement.</div>
+          </div>
+          <label style={{display:"flex",alignItems:"center",gap:10,fontSize:12,color:C.text,cursor:"pointer",marginTop:4}}>
+            <input type="checkbox" checked={waForm.whatsapp_actif} onChange={e=>setWaForm(f=>({...f,whatsapp_actif:e.target.checked}))} style={{width:"auto"}}/>
+            Utiliser mon compte pour envoyer les messages
+          </label>
+          <div style={{display:"flex",gap:8,marginTop:6}}>
+            <Btn onClick={enregistrerWa} style={{opacity:waEnCours?.5:1}}>{waEnCours?"Enregistrement...":"✅ Enregistrer"}</Btn>
+          </div>
+        </div>
+      </Card>
+      <Card style={{background:`${C.blue}0d`,borderColor:`${C.blue}33`}}>
+        <div style={{fontSize:11,color:C.text,lineHeight:1.8}}>
+          Pour obtenir ces informations : creez une application sur Meta for Developers,
+          ajoutez le produit WhatsApp, puis recuperez l&apos;identifiant de votre numero
+          et generez un jeton permanent depuis Meta Business.
+        </div>
+      </Card>
+    </div>}
+
     {onglet==="integrations"&&<div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
       {INTEGRATIONS.map((it,i)=><Card key={i} style={{borderColor:`${it.color}22`}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
