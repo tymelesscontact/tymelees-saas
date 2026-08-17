@@ -1,9 +1,10 @@
 "use client";
+import { ouvrirChat } from "../lib/ouvrirChat";
 import { useState, useEffect } from "react";
 import { C, fmt, Card, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM, Tabs } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
-const PageCRM=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
+const PageCRM=({plan,showToast,profil,UpgradeWall,activeCompany,setPage})=>{
   const[leads,setLeads]=useState([]);
   const[loadingLeads,setLoadingLeads]=useState(true);
   const[onglet,setOnglet]=useState("pipeline");
@@ -156,6 +157,7 @@ const PageCRM=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
           </tr>)}</tbody>
         </table>
       </Card>
+      {sel&&(sel.email||sel.tel)&&<Btn onClick={()=>ouvrirChat({nom:sel.nom,email:sel.email,tel:sel.tel,type:"lead"},setPage,showToast)} style={{marginBottom:10,background:C.green}}>💬 Discuter</Btn>}
       {sel&&<Card>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start",marginBottom:12}}>
           <div><div style={{fontSize:15,fontWeight:700}}>{sel.nom}</div><div style={{fontSize:11,color:C.muted}}>{sel.contact||"—"} · {sel.metier||"—"} · source : {sel.source||"—"}</div></div>

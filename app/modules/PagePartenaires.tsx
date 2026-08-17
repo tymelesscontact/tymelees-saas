@@ -3,8 +3,9 @@ import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM, St } from "../lib/ui";
 import { PARTENAIRES, ANNUAIRE, CONTRATS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
+import { ouvrirChat } from "../lib/ouvrirChat";
 
-const PagePartenaires=({plan,showToast,UpgradeWall,activeCompany,Chat})=>{
+const PagePartenaires=({plan,showToast,UpgradeWall,activeCompany,Chat,setPage})=>{
   const[parts,setParts]=useState([]);
   const[loadingParts,setLoadingParts]=useState(true);
   const[alertes,setAlertes]=useState([]);
@@ -254,6 +255,7 @@ const PagePartenaires=({plan,showToast,UpgradeWall,activeCompany,Chat})=>{
             <Card>
               <STitle>⚡ Actions rapides</STitle>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
+                <Btn onClick={()=>ouvrirChat({nom:sel.nom,email:sel.email,tel:sel.tel,type:"partenaire"},setPage,showToast)} style={{background:C.green}}>💬 Discuter</Btn>
                 {sel.dues>0&&<Btn onClick={()=>payerCommission(sel)} style={{background:C.orange}}>💰 Payer {fmt(sel.dues)} commission</Btn>}
                 {!sel.accesPortail&&<Btn onClick={()=>activerPortail(sel)} style={{background:C.purple}}>🔑 Activer l'espace partenaire</Btn>}
                 <Btn onClick={()=>genererContratPdf(sel)} style={{background:C.blue}}>📄 Générer contrat PDF</Btn>

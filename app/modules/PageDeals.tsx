@@ -1,9 +1,10 @@
 "use client";
+import { ouvrirChat } from "../lib/ouvrirChat";
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
-const PageDeals=({plan,showToast,UpgradeWall,activeCompany})=>{
+const PageDeals=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
   const[_dealsReal,setDealsReal]=useState([]);
   const[_partenairesReal,setPartenairesReal]=useState([]);
   const[_caPipeline,setCaPipeline]=useState(0);
@@ -164,6 +165,7 @@ const PageDeals=({plan,showToast,UpgradeWall,activeCompany})=>{
     {onglet==="fiche"&&<div>
       {sel?<div>
         <BtnGhost onClick={()=>setSel(null)} style={{marginBottom:14}}>← Retour</BtnGhost>
+        {(sel.client_email||sel.client_tel)&&<Btn onClick={()=>ouvrirChat({nom:sel.client_nom||sel.nom,email:sel.client_email,tel:sel.client_tel,type:"client"},setPage,showToast)} style={{marginBottom:14,marginLeft:8,background:C.green}}>💬 Discuter</Btn>}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <Card style={{borderColor:`${etapeColor[sel.etape]||C.border}44`}}>
