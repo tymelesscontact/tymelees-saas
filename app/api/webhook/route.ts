@@ -111,11 +111,13 @@ export async function POST(req: NextRequest) {
     try {
       const destinataire = String(echo.to || '').replace(/\D/g, '')
       if (destinataire) {
-        const { data: convs } = await supabase
+        let qEcho = supabase
           .from('conversations')
           .select('id,contact_tel,derniere_activite')
           .not('contact_tel', 'is', null)
           .order('derniere_activite', { ascending: false })
+        if (tenantRecepteur) qEcho = qEcho.eq('tenant_id', tenantRecepteur)
+        const { data: convs } = await qEcho
 
         const conv = (convs || []).find((c: any) =>
           String(c.contact_tel || '').replace(/\D/g, '').endsWith(destinataire.slice(-9))
@@ -150,6 +152,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: 'ok' })
   }
 
+  // Quel numero WhatsApp a recu ce message ? Sert a retrouver le client.
+  const numeroRecepteur = body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id
+  let tenantRecepteur: string | null = null
+  if (numeroRecepteur && numeroRecepteur !== process.env.WHATSAPP_PHONE_NUMBER_ID) {
+    try {
+      const { data: t } = await supabase.from('tenants')
+        .select('id').eq('whatsapp_phone_number_id', numeroRecepteur).eq('whatsapp_actif', true).maybeSingle()
+      tenantRecepteur = t?.id || null
+    } catch (e: any) { console.error('Tenant recepteur:', e.message) }
+  }
+
   const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]
   if (!message) return NextResponse.json({ status: 'ok' })
 
@@ -162,11 +175,13 @@ export async function POST(req: NextRequest) {
   try {
     const numeroBrut = String(userPhone || '').replace(/\D/g, '');
     if (numeroBrut) {
-      const { data: convs } = await supabase
+      let qConvs = supabase
         .from('conversations')
         .select('id,contact_tel,contact_nom,derniere_activite')
         .not('contact_tel', 'is', null)
         .order('derniere_activite', { ascending: false });
+      if (tenantRecepteur) qConvs = qConvs.eq('tenant_id', tenantRecepteur);
+      const { data: convs } = await qConvs;
 
       const conv = (convs || []).find((c: any) =>
         String(c.contact_tel || '').replace(/\D/g, '').endsWith(numeroBrut.slice(-9))
