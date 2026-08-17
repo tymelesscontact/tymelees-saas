@@ -102,6 +102,54 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
+  // ── ECHOS : messages envoyes depuis l'application WhatsApp ──
+  // Permet de repondre depuis le telephone et de retrouver le message
+  // dans Xyra. Necessite la Coexistence et l'abonnement au champ
+  // smb_message_echoes cote Meta.
+  const echo = body?.entry?.[0]?.changes?.[0]?.value?.message_echoes?.[0]
+  if (echo) {
+    try {
+      const destinataire = String(echo.to || '').replace(/\D/g, '')
+      if (destinataire) {
+        const { data: convs } = await supabase
+          .from('conversations')
+          .select('id,contact_tel,derniere_activite')
+          .not('contact_tel', 'is', null)
+          .order('derniere_activite', { ascending: false })
+
+        const conv = (convs || []).find((c: any) =>
+          String(c.contact_tel || '').replace(/\D/g, '').endsWith(destinataire.slice(-9))
+        )
+
+        if (conv) {
+          let contenu = ''
+          let typeMsg = 'texte'
+          if (echo.type === 'text') contenu = echo.text?.body || ''
+          else if (echo.type === 'image') { contenu = echo.image?.caption || '[Photo]'; typeMsg = 'image' }
+          else if (echo.type === 'audio') { contenu = '[Message vocal]'; typeMsg = 'vocal' }
+          else if (echo.type === 'document') { contenu = echo.document?.filename || '[Document]'; typeMsg = 'document' }
+          else contenu = `[${echo.type}]`
+
+          // moi: true — c'est un message sortant, envoye depuis le telephone
+          await supabase.from('chat_messages').insert({
+            conversation_id: conv.id,
+            auteur: 'Moi (WhatsApp)',
+            contenu,
+            moi: true,
+            type: typeMsg,
+            lu: true,
+          })
+          await supabase.from('conversations')
+            .update({ derniere_activite: new Date().toISOString() })
+            .eq('id', conv.id)
+        }
+      }
+    } catch (e: any) {
+      console.error('Echo WhatsApp:', e.message)
+    }
+    return NextResponse.json({ status: 'ok' })
+  }
+
   const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]
   if (!message) return NextResponse.json({ status: 'ok' })
 

@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, KPI, STitle, Pill, Inp, Sel, SM, inits } from "../lib/ui";
 import { PARTENAIRES } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
+import { ouvrirChat } from "../lib/ouvrirChat";
 
 const PageClients=({plan,showToast,profil,setPage,UpgradeWall,activeCompany})=>{
   const[clients,setClients]=useState([]);
@@ -151,6 +152,7 @@ const PageClients=({plan,showToast,profil,setPage,UpgradeWall,activeCompany})=>{
         <Card>
           <STitle>⚡ Actions rapides</STitle>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
+            <Btn onClick={()=>ouvrirChat({nom:sel.nom,email:sel.email,tel:sel.tel,type:"client"},setPage,showToast)} style={{fontSize:11,background:C.green}}>💬 Discuter</Btn>
             <Btn onClick={()=>ouvrirWhatsApp(sel.tel)} style={{fontSize:11}}>📱 WhatsApp</Btn>
             <Btn onClick={()=>creerDevisPour(sel)} style={{fontSize:11,background:C.blue}}>◧ Créer devis</Btn>
             <BtnGhost onClick={()=>envoyerEmail(sel,"Je reviens vers vous concernant votre dossier.","Suivi de votre dossier")} style={{fontSize:11}}>📧 Email</BtnGhost>

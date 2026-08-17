@@ -56,6 +56,17 @@ export async function POST(req: NextRequest) {
     const { espace, contact_nom, contact_type, contact_id, contact_tel, contact_email, premier_contact } = body;
     if (!contact_nom) return NextResponse.json({ error: 'Nom du contact requis' }, { status: 400 });
 
+    // Retrouver une conversation existante plutot que d'en creer une seconde
+    if (tenantId && (contact_email || contact_tel)) {
+      let qExist = sb.from('conversations').select('*').eq('tenant_id', tenantId);
+      if (contact_email) qExist = qExist.eq('contact_email', contact_email);
+      else qExist = qExist.eq('contact_tel', contact_tel);
+      const { data: existante } = await qExist.order('derniere_activite', { ascending: false }).limit(1).maybeSingle();
+      if (existante) {
+        return NextResponse.json({ success: true, conversation: existante, existante: true });
+      }
+    }
+
     const { data, error } = await sb.from('conversations').insert({
       espace: espace || 'externe', contact_nom, contact_type, contact_id, contact_tel, contact_email,
       jitsi_room: `xyra-${Date.now().toString(36)}`,
