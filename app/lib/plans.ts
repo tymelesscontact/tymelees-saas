@@ -41,7 +41,18 @@ export const PLAN_PRIX: Record<string, number> = {
   multi_societes_pro: 799,
   holding: 1200,
   club_affaires: 2000,
+  white_label_starter: 500,
+  white_label_business: 1000,
+  white_label_enterprise: 2000,
   owner: 0,
+}
+
+// Revendeurs : forfait mensuel + montant par client actif
+export const WHITE_LABEL_PAR_CLIENT = 10
+export const WHITE_LABEL_MAX_CLIENTS: Record<string, number | null> = {
+  white_label_starter: 50,
+  white_label_business: null,
+  white_label_enterprise: null,
 }
 
 export const PLAN_LABELS: Record<string, string> = {
@@ -57,7 +68,8 @@ export const PLAN_LABELS: Record<string, string> = {
   white_label_enterprise: "White-label Enterprise",
   owner: "Owner",
 }
-export const MULTI_PLANS = ["multi_societes", "multi_societes_pro", "holding", "enterprise", "owner"]
+export const WHITE_LABEL_PLANS = ["white_label_starter", "white_label_business", "white_label_enterprise"]
+export const MULTI_PLANS = ["multi_societes", "multi_societes_pro", "holding", "enterprise", ...WHITE_LABEL_PLANS, "owner"]
 
 export const PAGE_ACCESS: Record<string, string[]> = {
   wallet: ["starter", "business", "enterprise", ...MULTI_PLANS, "owner"],
@@ -83,6 +95,8 @@ export const PAGE_ACCESS: Record<string, string[]> = {
   deals: ["business", "enterprise", ...MULTI_PLANS, "owner"],
   stock: ["business", "enterprise", ...MULTI_PLANS, "owner"],
   services: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  fournisseurs: ["business", "enterprise", ...MULTI_PLANS, "owner"],
+  revendeur: [...WHITE_LABEL_PLANS, "owner"],
   notifications: ["starter", "business", "enterprise", ...MULTI_PLANS, "club_affaires", "owner"],
   prospection: ["enterprise", "owner"],
   club_affaires: ["enterprise", "club_affaires", "owner"],
