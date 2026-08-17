@@ -157,6 +157,44 @@ export async function POST(req: NextRequest) {
           .eq('id', session.metadata.commande_id)
           .select()
           .single();
+
+        // ── Sortie de stock : la commande est payee, la marchandise part ──
+        for (const it of (commande?.items || [])) {
+          try {
+            if (it.suivi_stock === 'stock' && it.article_stock_id) {
+              // Le produit est relie a un article : vrai mouvement de sortie
+              const { data: art } = await sb.from('stock')
+                .select('qte,quantite,tenant_id,company_id').eq('id', it.article_stock_id).maybeSingle();
+              if (art) {
+                const avant = Number(art.qte ?? art.quantite ?? 0);
+                const apres = Math.max(0, avant - Number(it.quantite || 0));
+                await sb.from('stock').update({ qte: apres, quantite: apres }).eq('id', it.article_stock_id);
+                await sb.from('mouvements_stock').insert({
+                  article_id: it.article_stock_id,
+                  type: 'sortie',
+                  quantite: Number(it.quantite || 0),
+                  quantite_avant: avant,
+                  quantite_apres: apres,
+                  note: `Vente en ligne — ${commande.reference}`,
+                  tenant_id: art.tenant_id || commande.tenant_id,
+                  date_mouvement: new Date().toISOString(),
+                });
+              }
+            } else if (it.suivi_stock !== 'aucun' && it.produit_id) {
+              // Produit suivi dans le catalogue seulement
+              const { data: pr } = await sb.from('produits_catalogue')
+                .select('quantite_stock').eq('id', it.produit_id).maybeSingle();
+              if (pr) {
+                const reste = Math.max(0, Number(pr.quantite_stock || 0) - Number(it.quantite || 0));
+                await sb.from('produits_catalogue')
+                  .update({ quantite_stock: reste, vente_active: reste > 0 })
+                  .eq('id', it.produit_id);
+              }
+            }
+          } catch (e: any) {
+            console.error('Sortie stock commande:', e.message);
+          }
+        }
         try {
           const { Resend } = await import('resend');
           const resend = new Resend(process.env.RESEND_API_KEY);
