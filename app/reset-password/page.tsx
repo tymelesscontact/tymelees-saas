@@ -8,6 +8,46 @@ export default function ResetPassword() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [error, setError] = useState("");
+  const [sessionPrete, setSessionPrete] = useState(false);
+  const [sessionErreur, setSessionErreur] = useState("");
+
+  // Le lien d'invitation/reinitialisation place les identifiants dans
+  // l'adresse (fragment ou code) : il faut les recuperer pour ouvrir
+  // une session avant de pouvoir changer le mot de passe.
+  useEffect(() => {
+    const etablirSession = async () => {
+      try {
+        const hash = window.location.hash;
+        if (hash.includes("access_token")) {
+          const params = new URLSearchParams(hash.slice(1));
+          const access_token = params.get("access_token");
+          const refresh_token = params.get("refresh_token");
+          if (access_token && refresh_token) {
+            const { error: err } = await supabase.auth.setSession({ access_token, refresh_token });
+            if (err) throw err;
+            setSessionPrete(true);
+            return;
+          }
+        }
+
+        const code = new URLSearchParams(window.location.search).get("code");
+        if (code) {
+          const { error: err } = await supabase.auth.exchangeCodeForSession(code);
+          if (err) throw err;
+          setSessionPrete(true);
+          return;
+        }
+
+        const { data } = await supabase.auth.getSession();
+        if (data.session) { setSessionPrete(true); return; }
+
+        setSessionErreur("Lien invalide ou expire. Demandez un nouveau lien.");
+      } catch (e: any) {
+        setSessionErreur("Lien invalide ou expire. Demandez un nouveau lien.");
+      }
+    };
+    etablirSession();
+  }, []);
 
   const handleReset = async () => {
     if (!password || password.length < 8) return setError("Minimum 8 caractères");
@@ -24,6 +64,15 @@ export default function ResetPassword() {
     }
     setLoading(false);
   };
+
+  if (sessionErreur) return (
+    <div style={{ minHeight:"100vh", background:"#0a0a0a", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif", color:"#f0ead6", textAlign:"center", padding:24 }}>
+      <div style={{ maxWidth:380 }}>
+        <div style={{ fontSize:22, color:"#c9a96e", marginBottom:12 }}>Lien expire</div>
+        <div style={{ fontFamily:"'DM Sans',sans-serif", fontSize:14, color:"rgba(240,234,214,0.6)", lineHeight:1.6 }}>{sessionErreur}</div>
+      </div>
+    </div>
+  );
 
   if (success) return (
     <div style={{ minHeight:"100vh", background:"#0a0a0a", display:"flex", alignItems:"center", justifyContent:"center", fontFamily:"Georgia,serif", color:"#f0ead6", textAlign:"center" }}>
