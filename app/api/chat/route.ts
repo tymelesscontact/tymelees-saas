@@ -232,6 +232,27 @@ export async function POST(req: NextRequest) {
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ success: true, type: 'deal', data });
     }
+    if (type === 'reception') {
+      // Reception de marchandise annoncee par un fournisseur
+      const { article_id, quantite, numero_lot, date_peremption, note } = body;
+      if (!article_id || !quantite) {
+        return NextResponse.json({ error: 'Article et quantite necessaires' }, { status: 400 });
+      }
+      const resStock = await fetch(`${process.env.NEXT_PUBLIC_SITE_URL || 'https://xyraio.fr'}/api/stock`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', cookie: req.headers.get('cookie') || '' },
+        body: JSON.stringify({
+          action: 'mouvement', article_id, type: 'reception',
+          quantite: Number(quantite), numero_lot: numero_lot || null,
+          date_peremption: date_peremption || null,
+          note: note || `Annonce par ${contact_nom} dans le chat`,
+        }),
+      });
+      const dataStock = await resStock.json();
+      if (!dataStock.success) return NextResponse.json({ error: dataStock.error || 'Erreur stock' }, { status: 500 });
+      return NextResponse.json({ success: true, type: 'reception', data: dataStock });
+    }
+
     if (type === 'devis') {
       const { data, error } = await sb.from('devis').insert({ client_nom: contact_nom, client_email: contact_email, client_tel: contact_tel, statut: 'brouillon', tenant_id: tenantId }).select().single();
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });

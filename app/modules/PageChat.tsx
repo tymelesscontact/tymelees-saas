@@ -10,6 +10,9 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
   const[selConv,setSelConv]=useState(null);
   const[contexte,setContexte]=useState(null);
   const[contexteOuvert,setContexteOuvert]=useState(true);
+  const[showReception,setShowReception]=useState(false);
+  const[articlesStock,setArticlesStock]=useState([]);
+  const[receptionForm,setReceptionForm]=useState({article_id:"",quantite:"",numero_lot:"",date_peremption:""});
   const[msgInput,setMsgInput]=useState("");
   const[showNewConv,setShowNewConv]=useState(false);
   const[newConvForm,setNewConvForm]=useState({contact_nom:"",contact_type:"client",contact_tel:"",contact_email:"",premier_contact:true});
@@ -103,6 +106,30 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
     setResumeLoading(false);
   };
 
+  const ouvrirReception=async()=>{
+    setShowReception(true);
+    try{
+      const r=await fetch('/api/stock');
+      const d=await r.json();
+      setArticlesStock(d.articles||[]);
+    }catch(e){setArticlesStock([]);}
+  };
+  const validerReception=async()=>{
+    if(!receptionForm.article_id||!receptionForm.quantite)return showToast("⚠️ Article et quantite necessaires");
+    try{
+      const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        action:'creer_action', type:'reception',
+        contact_nom:selConv?.contact_nom,
+        ...receptionForm, quantite:Number(receptionForm.quantite),
+      })});
+      const d=await r.json();
+      if(d.success){
+        showToast("✅ Reception enregistree en stock");
+        setShowReception(false);
+        setReceptionForm({article_id:"",quantite:"",numero_lot:"",date_peremption:""});
+      }else showToast("❌ "+(d.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const creerActionDepuis=async(type)=>{
     if(!selConv)return;
     showToast(`⏳ Création ${type}...`);
@@ -278,10 +305,11 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
           <div style={{marginTop:8,display:"flex",gap:6}}><Btn onClick={()=>{setMsgInput(suggestion);setSuggestion("");}} style={{fontSize:10,padding:"4px 10px"}}>Utiliser</Btn><BtnGhost onClick={()=>setSuggestion("")} style={{fontSize:10,padding:"4px 10px"}}>Ignorer</BtnGhost></div>
         </div>}
         <div style={{padding:"8px 16px",borderTop:`1px solid ${C.border}`,display:"flex",gap:6,flexWrap:"wrap"}}>
-          {espace==="externe"&&<>
+          {espace==="externe"&&selConv?.contact_type!=="fournisseur"&&<>
             <BtnGhost onClick={()=>creerActionDepuis("deal")} style={{fontSize:9,padding:"3px 8px"}}>+ Deal</BtnGhost>
             <BtnGhost onClick={()=>creerActionDepuis("devis")} style={{fontSize:9,padding:"3px 8px"}}>+ Devis</BtnGhost>
           </>}
+          {selConv?.contact_type==="fournisseur"&&<BtnGhost onClick={ouvrirReception} style={{fontSize:9,padding:"3px 8px",color:C.green,borderColor:`${C.green}44`}}>+ Reception stock</BtnGhost>}
           <BtnGhost onClick={demanderSuggestion} style={{fontSize:9,padding:"3px 8px",color:C.blue,borderColor:`${C.blue}44`}}>{suggestionLoading?"⏳":"💡 Suggestion IA"}</BtnGhost>
         </div>
         <div style={{padding:"10px 16px",borderTop:`1px solid ${C.border}`,display:"flex",gap:8,alignItems:"center"}}>
@@ -409,6 +437,37 @@ export const SwipeableNotif=({n,i,onOpen,onDelete,typeColor})=>{
         <Pill color={typeColor[n.type]||C.blue}>{n.type}</Pill>
       </div>
     </div>
+  {showReception&&<div onClick={()=>setShowReception(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+    <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:440,background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
+      <div style={{fontSize:15,fontWeight:700,marginBottom:4}}>Reception de marchandise</div>
+      <div style={{fontSize:11,color:C.muted,marginBottom:18}}>Annoncee par {selConv?.contact_nom}</div>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <div>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Article</label>
+          <Sel value={receptionForm.article_id} onChange={e=>setReceptionForm(f=>({...f,article_id:e.target.value}))}>
+            <option value="">— Choisir —</option>
+            {articlesStock.map(a=><option key={a.id} value={a.id}>{a.art} ({a.qte} {a.u})</option>)}
+          </Sel>
+        </div>
+        <div>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Quantite recue</label>
+          <Inp type="number" value={receptionForm.quantite} onChange={e=>setReceptionForm(f=>({...f,quantite:e.target.value}))}/>
+        </div>
+        <div>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>N° de lot (facultatif)</label>
+          <Inp value={receptionForm.numero_lot} onChange={e=>setReceptionForm(f=>({...f,numero_lot:e.target.value}))}/>
+        </div>
+        <div>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Date de peremption (facultatif)</label>
+          <Inp type="date" value={receptionForm.date_peremption} onChange={e=>setReceptionForm(f=>({...f,date_peremption:e.target.value}))}/>
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:6}}>
+          <Btn onClick={validerReception} style={{background:C.green}}>✅ Enregistrer</Btn>
+          <BtnGhost onClick={()=>setShowReception(false)}>Annuler</BtnGhost>
+        </div>
+      </div>
+    </div>
+  </div>}
   </div>;
 };
 
