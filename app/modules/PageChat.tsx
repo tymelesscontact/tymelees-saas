@@ -161,9 +161,9 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
           const{createClient}=await import('@supabase/supabase-js');
           const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
           const path=`chat/${selConv.id}/${Date.now()}_${file.name}`;
-          const{data:upData,error:upErr}=await sb.storage.from('attachments').upload(path,file);
-          if(upErr){showToast("❌ Échec de l'envoi — vérifie que le bucket 'attachments' existe");return;}
-          const{data:urlData}=sb.storage.from('attachments').getPublicUrl(path);
+          const{data:upData,error:upErr}=await sb.storage.from('chat-fichiers').upload(path,file);
+          if(upErr){showToast("❌ Échec de l'envoi — vérifie que le bucket 'chat-fichiers' existe");return;}
+          const{data:urlData}=sb.storage.from('chat-fichiers').getPublicUrl(path);
           await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_message',conversation_id:selConv.id,contenu:"📎 "+file.name,type:file.type.startsWith("image/")?"image":"fichier",fichier_url:urlData.publicUrl})});
           loadConvs();showToast("✅ Fichier envoyé");
         }catch(e2){showToast("❌ Erreur d'envoi");}
@@ -187,9 +187,9 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
           const{createClient}=await import('@supabase/supabase-js');
           const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
           const path=`chat/${selConv.id}/${Date.now()}_vocal.webm`;
-          const{error:upErr}=await sb.storage.from('attachments').upload(path,blob);
-          if(upErr){showToast("❌ Échec — vérifie le bucket 'attachments'");return;}
-          const{data:urlData}=sb.storage.from('attachments').getPublicUrl(path);
+          const{error:upErr}=await sb.storage.from('chat-fichiers').upload(path,blob);
+          if(upErr){showToast("❌ Échec — vérifie le bucket 'chat-fichiers'");return;}
+          const{data:urlData}=sb.storage.from('chat-fichiers').getPublicUrl(path);
           await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_message',conversation_id:selConv.id,contenu:"🎤 Message vocal",type:"audio",fichier_url:urlData.publicUrl})});
           loadConvs();showToast("✅ Message vocal envoyé");
         }catch(e){showToast("❌ Erreur d'envoi");}
@@ -395,6 +395,37 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
           </Card>}
       </div>}
     </div>}
+  {showReception&&<div onClick={()=>setShowReception(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+    <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:440,background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
+      <div style={{fontSize:15,fontWeight:700,marginBottom:4}}>Reception de marchandise</div>
+      <div style={{fontSize:11,color:C.muted,marginBottom:18}}>Annoncee par {selConv?.contact_nom}</div>
+      <div style={{display:"flex",flexDirection:"column",gap:12}}>
+        <div>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Article</label>
+          <Sel value={receptionForm.article_id} onChange={e=>setReceptionForm(f=>({...f,article_id:e.target.value}))}>
+            <option value="">— Choisir —</option>
+            {articlesStock.map(a=><option key={a.id} value={a.id}>{a.art} ({a.qte} {a.u})</option>)}
+          </Sel>
+        </div>
+        <div>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Quantite recue</label>
+          <Inp type="number" value={receptionForm.quantite} onChange={e=>setReceptionForm(f=>({...f,quantite:e.target.value}))}/>
+        </div>
+        <div>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>N° de lot (facultatif)</label>
+          <Inp value={receptionForm.numero_lot} onChange={e=>setReceptionForm(f=>({...f,numero_lot:e.target.value}))}/>
+        </div>
+        <div>
+          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Date de peremption (facultatif)</label>
+          <Inp type="date" value={receptionForm.date_peremption} onChange={e=>setReceptionForm(f=>({...f,date_peremption:e.target.value}))}/>
+        </div>
+        <div style={{display:"flex",gap:8,marginTop:6}}>
+          <Btn onClick={validerReception} style={{background:C.green}}>✅ Enregistrer</Btn>
+          <BtnGhost onClick={()=>setShowReception(false)}>Annuler</BtnGhost>
+        </div>
+      </div>
+    </div>
+  </div>}
   </div>;
 };
 
@@ -437,37 +468,6 @@ export const SwipeableNotif=({n,i,onOpen,onDelete,typeColor})=>{
         <Pill color={typeColor[n.type]||C.blue}>{n.type}</Pill>
       </div>
     </div>
-  {showReception&&<div onClick={()=>setShowReception(false)} style={{position:"fixed",inset:0,background:"rgba(0,0,0,.7)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
-    <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:440,background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:22}}>
-      <div style={{fontSize:15,fontWeight:700,marginBottom:4}}>Reception de marchandise</div>
-      <div style={{fontSize:11,color:C.muted,marginBottom:18}}>Annoncee par {selConv?.contact_nom}</div>
-      <div style={{display:"flex",flexDirection:"column",gap:12}}>
-        <div>
-          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Article</label>
-          <Sel value={receptionForm.article_id} onChange={e=>setReceptionForm(f=>({...f,article_id:e.target.value}))}>
-            <option value="">— Choisir —</option>
-            {articlesStock.map(a=><option key={a.id} value={a.id}>{a.art} ({a.qte} {a.u})</option>)}
-          </Sel>
-        </div>
-        <div>
-          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Quantite recue</label>
-          <Inp type="number" value={receptionForm.quantite} onChange={e=>setReceptionForm(f=>({...f,quantite:e.target.value}))}/>
-        </div>
-        <div>
-          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>N° de lot (facultatif)</label>
-          <Inp value={receptionForm.numero_lot} onChange={e=>setReceptionForm(f=>({...f,numero_lot:e.target.value}))}/>
-        </div>
-        <div>
-          <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Date de peremption (facultatif)</label>
-          <Inp type="date" value={receptionForm.date_peremption} onChange={e=>setReceptionForm(f=>({...f,date_peremption:e.target.value}))}/>
-        </div>
-        <div style={{display:"flex",gap:8,marginTop:6}}>
-          <Btn onClick={validerReception} style={{background:C.green}}>✅ Enregistrer</Btn>
-          <BtnGhost onClick={()=>setShowReception(false)}>Annuler</BtnGhost>
-        </div>
-      </div>
-    </div>
-  </div>}
   </div>;
 };
 

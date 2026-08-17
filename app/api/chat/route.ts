@@ -307,5 +307,23 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  // ── Lien temporaire vers un fichier du chat ────────────
+  if (action === 'lien_fichier') {
+    const { chemin, conversation_id } = body;
+    if (!chemin) return NextResponse.json({ error: 'chemin requis' }, { status: 400 });
+
+    if (conversation_id) {
+      const { data: c } = await sb.from('conversations')
+        .select('tenant_id').eq('id', conversation_id).maybeSingle();
+      if (!c || (tenantId && c.tenant_id !== tenantId)) {
+        return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+      }
+    }
+
+    const { data: lien } = await sb.storage.from('chat-fichiers').createSignedUrl(chemin, 600);
+    if (!lien?.signedUrl) return NextResponse.json({ error: 'Fichier inaccessible' }, { status: 404 });
+    return NextResponse.json({ success: true, url: lien.signedUrl });
+  }
+
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });
 }
