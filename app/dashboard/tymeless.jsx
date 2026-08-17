@@ -15,6 +15,7 @@ import PageTresorerieModule from "../modules/PageTresorerie";
 import PageAnalytiqueModule from "../modules/PageAnalytique";
 import PageClientsModule from "../modules/PageClients";
 import PageFournisseursModule from "../modules/PageFournisseurs";
+import PageRevendeurModule from "../modules/PageRevendeur";
 import PagePartenairesModule from "../modules/PagePartenaires";
 import PageMultiSocietesModule from "../modules/PageMultiSocietes";
 import PageClubAffairesModule from "../modules/PageClubAffaires";
@@ -100,9 +101,11 @@ const PAGE_ACCESS = {
   club_affaires:  ["enterprise","club_affaires","owner"],
   // Multi-Sociétés — plans multi uniquement
   multi_societes: ["multi_societes","multi_pro","holding","owner"],
+  fournisseurs:   ["business","enterprise","multi_societes","multi_societes_pro","holding","white_label_starter","white_label_business","white_label_enterprise","owner"],
   signature:      ["business","enterprise","owner"],
   formation:      ["business","enterprise","owner"],
   // Enterprise (249€)
+  revendeur:      ["white_label_starter","white_label_business","white_label_enterprise","owner"],
   deploiement:    ["enterprise","owner"],
   api:            ["enterprise","owner"],
 };
@@ -128,6 +131,7 @@ const NAV = [
   { group:"RÉSEAU", items:[
     { id:"clients",       icon:"◬",  label:"Clients"              },
     { id:"fournisseurs",  icon:"⊞",  label:"Fournisseurs"         },
+    { id:"revendeur",     icon:"◈",  label:"Espace revendeur"     },
     { id:"partenaires",   icon:"⬡",  label:"Partenaires & AA",    badge:"comm"   },
     { id:"club_affaires", icon:"◈",  label:"Club d'affaires"      },
     { id:"multi_societes",icon:"🏢", label:"Multi-Sociétés"       },
@@ -660,6 +664,7 @@ export default function Xyra() {
     analytique:<PageAnalytiqueModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     clients:<PageClientsModule plan={plan} showToast={showToast} profil={profil} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     fournisseurs:<PageFournisseursModule plan={plan} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    revendeur:<PageRevendeurModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
     partenaires:<PagePartenairesModule plan={plan} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany} Chat={Chat}/>,
     club_affaires:<PageClubAffairesModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} setPage={setPage}/>,
     multi_societes:<PageMultiSocietesModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
