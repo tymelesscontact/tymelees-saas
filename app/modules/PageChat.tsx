@@ -32,6 +32,8 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
   const fileRef=useRef(null);
   const audioRef=useRef(null);
   const[recording,setRecording]=useState(false);
+  const recoRef=useRef(null);
+  const transcriptionRef=useRef("");
   const endRef=useRef();
 
   const espaces=[{id:"equipe",label:"👥 Équipe"},{id:"externe",label:"💬 Clients & Partenaires"},{id:"visio",label:"🎥 Visio Jitsi"}];
@@ -220,15 +222,34 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
           const{error:upErr}=await sb.storage.from('chat-fichiers').upload(path,blob);
           if(upErr){showToast("❌ Échec — vérifie le bucket 'chat-fichiers'");return;}
           const{data:urlData}=sb.storage.from('chat-fichiers').getPublicUrl(path);
-          await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_message',conversation_id:selConv.id,contenu:"🎤 Message vocal",type:"audio",fichier_url:urlData.publicUrl})});
+          await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_message',conversation_id:selConv.id,contenu:transcriptionRef.current?`🎤 ${transcriptionRef.current}`:"🎤 Message vocal",type:"audio",fichier_url:urlData.publicUrl})});
           loadConvs();showToast("✅ Message vocal envoyé");
         }catch(e){showToast("❌ Erreur d'envoi");}
         stream.getTracks().forEach(t=>t.stop());
       };
+      // Le navigateur transcrit pendant que le micro enregistre — gratuit
+      try{
+        const Reco=window.SpeechRecognition||window.webkitSpeechRecognition;
+        if(Reco){
+          const reco=new Reco();
+          reco.lang="fr-FR";reco.continuous=true;reco.interimResults=false;
+          let texte="";
+          reco.onresult=ev=>{
+            for(let i=ev.resultIndex;i<ev.results.length;i++){
+              if(ev.results[i].isFinal)texte+=ev.results[i][0].transcript+" ";
+            }
+            transcriptionRef.current=texte.trim();
+          };
+          reco.onerror=()=>{};
+          reco.start();
+          recoRef.current=reco;
+        }
+      }catch(e){/* la transcription est un bonus, jamais bloquante */}
+
       recorder.start();audioRef.current=recorder;setRecording(true);
     }catch(e){showToast("⚠️ Micro non accessible");}
   };
-  const stopRecording=()=>{audioRef.current?.stop();setRecording(false);};
+  const stopRecording=()=>{audioRef.current?.stop();try{recoRef.current?.stop();}catch(e){}setRecording(false);};
   const creerGroupe=async()=>{
     const valides=groupeForm.participants.filter(p=>p.nom.trim());
     if(!groupeForm.titre.trim())return showToast("⚠️ Donnez un nom au groupe");
