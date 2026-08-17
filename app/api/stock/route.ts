@@ -30,7 +30,9 @@ export async function GET(req: NextRequest) {
   let empQuery = sb.from('emplacements').select('*').eq('actif', true).order('nom');
   if (tenantId) empQuery = empQuery.eq('tenant_id', tenantId);
   const { data: emplacements } = await empQuery;
-  const { data: fournisseurs } = await sb.from('fournisseurs').select('*').order('nom');
+  let fourQuery = sb.from('fournisseurs').select('*').order('nom');
+  if (tenantId) fourQuery = fourQuery.eq('tenant_id', tenantId);
+  const { data: fournisseurs } = await fourQuery;
 
   // Enrichir chaque article
   const enriched = (articles || []).map((a: any) => {

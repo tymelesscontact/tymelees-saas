@@ -22,19 +22,39 @@ export async function POST(req: NextRequest) {
   const { action } = body;
   const tenantId = await getTenantIdFromRequest(req);
   if (action === 'creer') {
-    const { nom, categorie, contact, iban, delai_livraison, company_id } = body;
+    const { nom, categorie, contact, email, tel, iban, delai_livraison, company_id } = body;
     if (!nom) return NextResponse.json({ success: false, error: 'Nom requis' }, { status: 400 });
     const { data, error } = await sb.from('fournisseurs').insert({
-      nom, categorie, contact, iban, delai_livraison,
+      nom, categorie, contact, email: email || null, tel: tel || null, iban, delai_livraison,
       tenant_id: tenantId,
       company_id: company_id || null,
     }).select().single();
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, fournisseur: data });
   }
+  if (action === 'modifier') {
+    const { id, nom, categorie, contact, email, tel, iban, delai_livraison } = body;
+    if (!id) return NextResponse.json({ success: false, error: 'id requis' }, { status: 400 });
+    const champs: any = {};
+    if (nom !== undefined) champs.nom = nom;
+    if (categorie !== undefined) champs.categorie = categorie;
+    if (contact !== undefined) champs.contact = contact;
+    if (email !== undefined) champs.email = email || null;
+    if (tel !== undefined) champs.tel = tel || null;
+    if (iban !== undefined) champs.iban = iban;
+    if (delai_livraison !== undefined) champs.delai_livraison = delai_livraison;
+    let qMaj = sb.from('fournisseurs').update(champs).eq('id', id);
+    if (tenantId) qMaj = qMaj.eq('tenant_id', tenantId);
+    const { error } = await qMaj;
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
   if (action === 'supprimer') {
     const { id } = body;
-    const { error } = await sb.from('fournisseurs').delete().eq('id', id);
+    let qDel = sb.from('fournisseurs').delete().eq('id', id);
+    if (tenantId) qDel = qDel.eq('tenant_id', tenantId);
+    const { error } = await qDel;
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }

@@ -16,6 +16,7 @@ import PageComptaModule from "../modules/PageCompta";
 import PageTresorerieModule from "../modules/PageTresorerie";
 import PageAnalytiqueModule from "../modules/PageAnalytique";
 import PageClientsModule from "../modules/PageClients";
+import PageFournisseursModule from "../modules/PageFournisseurs";
 import PagePartenairesModule from "../modules/PagePartenaires";
 import PageMultiSocietesModule from "../modules/PageMultiSocietes";
 import PageClubAffairesModule from "../modules/PageClubAffaires";
@@ -126,6 +127,7 @@ const NAV = [
   ]},
   { group:"RÉSEAU", items:[
     { id:"clients",       icon:"◬",  label:"Clients"              },
+    { id:"fournisseurs",  icon:"⊞",  label:"Fournisseurs"         },
     { id:"partenaires",   icon:"⬡",  label:"Partenaires & AA",    badge:"comm"   },
     { id:"club_affaires", icon:"◈",  label:"Club d'affaires"      },
     { id:"multi_societes",icon:"🏢", label:"Multi-Sociétés"       },
@@ -731,6 +733,7 @@ export default function Xyra() {
     tresorerie:<PageTresorerieModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     analytique:<PageAnalytiqueModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     clients:<PageClientsModule plan={plan} showToast={showToast} profil={profil} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    fournisseurs:<PageFournisseursModule plan={plan} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     partenaires:<PagePartenairesModule plan={plan} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany} Chat={Chat}/>,
     club_affaires:<PageClubAffairesModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} setPage={setPage}/>,
     multi_societes:<PageMultiSocietesModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
