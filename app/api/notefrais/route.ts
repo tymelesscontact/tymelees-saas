@@ -20,7 +20,13 @@ export async function GET(req: NextRequest) {
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
   }
-  return NextResponse.json({ notes: data || [] })
+  const { data: budgetsData } = await sb.from("budgets_frais")
+    .select("categorie,montant")
+    .eq("tenant_id", tenantId || "00000000-0000-0000-0000-000000000000")
+  const budgets: Record<string, number> = {}
+  for (const b of (budgetsData || [])) budgets[b.categorie] = Number(b.montant)
+
+  return NextResponse.json({ notes: data || [], budgets })
 }
 export async function POST(req: NextRequest) {
   const body = await req.json()
@@ -85,6 +91,25 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ note: data })
   }
+  if (action === "budgets") {
+    const { budgets, company_id } = body;
+    if (!tenantId) return NextResponse.json({ error: "non_connecte" }, { status: 401 });
+    if (!budgets || typeof budgets !== "object") {
+      return NextResponse.json({ error: "budgets requis" }, { status: 400 });
+    }
+    const lignes = Object.entries(budgets).map(([categorie, montant]) => ({
+      tenant_id: tenantId,
+      company_id: company_id || null,
+      categorie,
+      montant: Number(montant) || 0,
+      updated_at: new Date().toISOString(),
+    }));
+    const { error } = await sb.from("budgets_frais")
+      .upsert(lignes, { onConflict: "tenant_id,company_id,categorie" });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
   if (action === "update") {
     const { id, statut } = body
     if (!id || !statut) {

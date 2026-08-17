@@ -13,6 +13,7 @@ const PageNoteFrais=({plan,showToast,activeCompany})=>{
       const res=await fetch('/api/notefrais?action=list'+companyParam);
       const data=await res.json();
       if(data.notes)setNotes(data.notes);
+      if(data.budgets&&Object.keys(data.budgets).length)setBudget(b=>({...b,...data.budgets}));
     }catch(e){console.error('Notes frais:',e);}
     setLoadingNotes(false);
   };
@@ -24,6 +25,16 @@ const PageNoteFrais=({plan,showToast,activeCompany})=>{
   const[envoiEnCours,setEnvoiEnCours]=useState(false);
   const[justifInfo,setJustifInfo]=useState(null);
   const[budget,setBudget]=useState({Transport:500,Repas:300,Hébergement:800,Fournitures:200,Télécom:150,Formation:1000,Autre:200});
+  const enregistrerBudgets=async()=>{
+    try{
+      const r=await fetch('/api/notefrais',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        action:'budgets', budgets:budget, company_id:activeCompany?.id||null,
+      })});
+      const d=await r.json();
+      if(d.success)showToast("✅ Budgets enregistres");
+      else showToast("❌ "+(d.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const[showBudget,setShowBudget]=useState(false);
   const[filterStatut,setFilterStatut]=useState("tous");
 
@@ -470,7 +481,7 @@ const PageNoteFrais=({plan,showToast,activeCompany})=>{
           {["Sage","EBP","Ciel","QuickBooks","Pennylane","Odoo"].map((l,i)=>(
             <div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 10px",background:C.card,borderRadius:6,border:`1px solid ${C.border}`}}>
               <span style={{fontSize:12,fontWeight:600}}>{l}</span>
-              <button onClick={()=>showToast(`🔗 Connexion ${l} configurée !`)} style={{background:C.blue,color:"#fff",border:"none",borderRadius:4,padding:"4px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>Connecter</button>
+              <button onClick={()=>showToast(`${l} : integration a venir. En attendant, exportez vos ecritures depuis Comptabilite.`)} style={{background:C.blue,color:"#fff",border:"none",borderRadius:4,padding:"4px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>Connecter</button>
             </div>
           ))}
         </div>
@@ -489,7 +500,7 @@ const PageNoteFrais=({plan,showToast,activeCompany})=>{
             <span style={{fontSize:11,color:C.muted}}>€/mois</span>
           </div>
         ))}
-        <Btn onClick={()=>showToast("✅ Politique de dépenses sauvegardée !")} style={{width:"100%",justifyContent:"center",marginTop:8}}>💾 Sauvegarder</Btn>
+        <Btn onClick={enregistrerBudgets} style={{width:"100%",justifyContent:"center",marginTop:8}}>💾 Sauvegarder</Btn>
       </CT>
       <CT>
         <STitle>👤 Règles par rôle</STitle>
