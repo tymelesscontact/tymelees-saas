@@ -13,6 +13,27 @@ export default function ConnexionClub() {
   const [motDePasse, setMotDePasse] = useState("");
   const [erreur, setErreur] = useState("");
   const [chargement, setChargement] = useState(false);
+  const [resetLoading, setResetLoading] = useState(false);
+  const [resetSent, setResetSent] = useState(false);
+
+  const reinitialiser = async () => {
+    if (!email) { setErreur("Entrez votre email d'abord"); return; }
+    setResetLoading(true); setErreur("");
+    try {
+      const supabase = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      const { error } = await supabase.auth.resetPasswordForEmail(email.trim(), {
+        redirectTo: `${window.location.origin}/reset-password`,
+      });
+      if (error) throw error;
+      setResetSent(true);
+    } catch {
+      setErreur("Erreur lors de l'envoi de l'email");
+    }
+    setResetLoading(false);
+  };
 
   const connecter = async () => {
     if (chargement) return;
@@ -66,6 +87,15 @@ export default function ConnexionClub() {
         {erreur && <div style={{ fontSize: 12, color: "#c96e6e" }}>{erreur}</div>}
         <div onClick={connecter} style={{ marginTop: 8, padding: "14px", background: OR, color: NOIR, fontSize: 13, textAlign: "center", cursor: chargement ? "default" : "pointer", opacity: chargement ? 0.5 : 1 }}>
           {chargement ? "Connexion..." : "Entrer"}
+        </div>
+        <div style={{ textAlign: "center", marginTop: 4 }}>
+          {resetSent ? (
+            <span style={{ fontSize: 11, color: "#2EC9B0" }}>Email envoye — verifiez votre boite mail.</span>
+          ) : (
+            <span onClick={reinitialiser} style={{ fontSize: 11, color: GRIS, textDecoration: "underline", cursor: resetLoading ? "default" : "pointer" }}>
+              {resetLoading ? "Envoi..." : "Mot de passe oublie ?"}
+            </span>
+          )}
         </div>
       </div>
 
