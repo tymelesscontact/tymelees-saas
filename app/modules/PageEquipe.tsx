@@ -28,6 +28,7 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
     setEnvoiMsgGroupe(false);
   };
   // Chargement des vraies données Supabase
+  const[alertes,setAlertes]=useState([]);
   const loadRealData=async()=>{
     try{
       const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
@@ -43,7 +44,6 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
     }catch(e){console.log("Mode local");}
   };
   useEffect(()=>{loadRealData();},[activeCompany?.id]);
-  const[alertes,setAlertes]=useState([]);
   const[equipe,setEquipe]=useState([
     {id:1,nom:"Thomas Beaumont",prenom:"Thomas",role:"Responsable missions premium",statut:"En mission",localisation:"Airbnb Montmartre",pointage:"09:02",heures:6.5,conges:12,soldeConges:12,salaire:2800,perf:94,contrat:"CDI",email:"thomas@xyra.io",tel:"+33 6 12 34 56 78",embauche:"01/03/2024",nss:"1 85 06 75 056 042 28",rib:"FR76 3000 4000 0100 0012 3456 789",adresse:"12 rue de la Paix, 75001 Paris",dateNaissance:"15/06/1985",couleur:"#4B7BFF",
     missions:[{date:"15/04",service:"Nettoyage Airbnb Montmartre",client:"Isabelle Moreau",duree:"3h",note:5},{date:"14/04",service:"Nettoyage bureaux La Défense",client:"Marc Dupont",duree:"4h",note:5},{date:"12/04",service:"Rapatriement corps — Lefevre",client:"Pierre Lefevre",duree:"8h",note:5}],
@@ -524,14 +524,16 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
     {/* ─── ALERTES RH ────────────────────────────────────────── */}
     {onglet==="alertes"&&<div>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
-        {[
-          {niveau:"critique",icon:"🚨",titre:"CDD Abou Diallo — Expire dans 2 mois",detail:"Contrat CDD expire le 15/09/2025. Décision requise avant le 15/07. Options : conversion CDI ou fin de contrat.",action:"Convertir en CDI",couleur:"#FF5252"},
-          {niveau:"urgent",icon:"⚠️",titre:"Visite médicale obligatoire — Thomas Beaumont",detail:"Dernière visite : 01/03/2024. Renouvellement obligatoire avant le 30/04/2026. Médecin du travail à contacter.",action:"Planifier visite",couleur:"#FF8C3A"},
-          {niveau:"urgent",icon:"📋",titre:"Entretien professionnel — Tous les collaborateur",detail:"Les entretiens professionnels doivent être réalisés tous les 2 ans. Fatou Sarr : à planifier avant septembre 2026.",action:"Planifier entretien",couleur:"#FF8C3A"},
-          {niveau:"info",icon:"📅",titre:"Solde congés — Abou Diallo",detail:"Abou a 15 jours de congés. Encourager la prise avant fin juin pour éviter le report.",action:"Contacter Abou",couleur:"#4B7BFF"},
-          {niveau:"info",icon:"🎓",titre:"Formation Abou — Nettoyage yacht à compléter",detail:"Module 'Nettoyage yacht — produits nacrés' assigné et non commencé. Deadline suggérée : 30/04.",action:"Relancer",couleur:"#9B5FFF"},
-          {niveau:"good",icon:"✅",titre:"Formation SST — Thomas et Abou à jour",detail:"Certifications Secourisme au Travail valides jusqu'en 2027.",action:null,couleur:"#2EC9B0"},
-        ].map((a,i)=><div key={i} style={{background:`${a.couleur}11`,border:`1px solid ${a.couleur}33`,borderRadius:10,padding:14}}>
+        {alertes.length===0&&<Card style={{textAlign:"center",padding:30}}>
+          <div style={{fontSize:12,color:C.muted}}>Aucune alerte RH pour le moment.</div>
+        </Card>}
+        {alertes.map(al=>({
+          niveau: al.type==="contrat"?"critique":al.type==="acompte"?"urgent":"info",
+          icon: al.type==="contrat"?"🚨":al.type==="conge"?"📅":al.type==="acompte"?"💰":"📊",
+          titre: `${al.nom} — ${al.detail}`,
+          detail: al.detail,
+          couleur: al.type==="contrat"?C.red:al.type==="acompte"?C.orange:C.blue,
+        })).map((a,i)=><div key={i} style={{background:`${a.couleur}11`,border:`1px solid ${a.couleur}33`,borderRadius:10,padding:14}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
             <div style={{flex:1}}>
               <div style={{display:"flex",gap:8,alignItems:"center",marginBottom:4}}>
