@@ -11,6 +11,9 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
   const[contexte,setContexte]=useState(null);
   const[contexteOuvert,setContexteOuvert]=useState(true);
   const[showReception,setShowReception]=useState(false);
+  const[recherche,setRecherche]=useState("");
+  const[resultats,setResultats]=useState(null);
+  const[rechercheEnCours,setRechercheEnCours]=useState(false);
   const[articlesStock,setArticlesStock]=useState([]);
   const[receptionForm,setReceptionForm]=useState({article_id:"",quantite:"",numero_lot:"",date_peremption:""});
   const[msgInput,setMsgInput]=useState("");
@@ -219,6 +222,16 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
     }catch(e){showToast("⚠️ Micro non accessible");}
   };
   const stopRecording=()=>{audioRef.current?.stop();setRecording(false);};
+  const lancerRecherche=async()=>{
+    if(recherche.trim().length<2){setResultats(null);return;}
+    setRechercheEnCours(true);
+    try{
+      const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'rechercher',terme:recherche})});
+      const d=await r.json();
+      setResultats(d.success?d.resultats:[]);
+    }catch(e){setResultats([]);}
+    setRechercheEnCours(false);
+  };
 
   const catColor={nouveau_lead:C.orange,suivi:C.blue,vip:C.gold,cloture:C.muted};
   const catLabel={nouveau_lead:"🆕 Nouveau lead",suivi:"💬 Suivi",vip:"⭐ VIP",cloture:"✅ Clôturé"};
@@ -251,6 +264,30 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
     </Card>}
 
     {/* ── ÉQUIPE / EXTERNE ── */}
+    {espace!=="visio"&&<div style={{marginBottom:12,display:"flex",gap:8,alignItems:"center"}}>
+      <Inp value={recherche} onChange={e=>{setRecherche(e.target.value);if(!e.target.value)setResultats(null);}} onKeyDown={e=>e.key==="Enter"&&lancerRecherche()} placeholder="Rechercher dans toutes les conversations..."/>
+      <Btn onClick={lancerRecherche} style={{fontSize:11,whiteSpace:"nowrap"}}>{rechercheEnCours?"...":"Rechercher"}</Btn>
+      {resultats&&<BtnGhost onClick={()=>{setRecherche("");setResultats(null);}} style={{fontSize:11,whiteSpace:"nowrap"}}>Effacer</BtnGhost>}
+    </div>}
+
+    {resultats&&<Card style={{marginBottom:12,padding:0,overflow:"hidden",maxHeight:400,overflowY:"auto"}}>
+      <div style={{padding:"10px 16px",borderBottom:`1px solid ${C.border}`,fontSize:11,color:C.muted}}>
+        {resultats.length} resultat{resultats.length>1?"s":""} pour « {recherche} »
+      </div>
+      {resultats.length===0&&<div style={{padding:24,textAlign:"center",fontSize:12,color:C.muted}}>Aucun message trouve.</div>}
+      {resultats.map(r=><div key={r.message_id} onClick={()=>{const c=convs.find(x=>x.id===r.conversation_id);if(c){setSelConv(c);setResultats(null);setRecherche("");}}}
+        style={{padding:"10px 16px",borderBottom:`1px solid ${C.border}44`,cursor:"pointer"}}>
+        <div style={{display:"flex",justifyContent:"space-between",marginBottom:3}}>
+          <span style={{fontSize:12,fontWeight:600,color:C.text}}>{r.contact_nom}</span>
+          <span style={{fontSize:10,color:C.muted}}>{r.created_at?new Date(r.created_at).toLocaleDateString("fr"):""}</span>
+        </div>
+        <div style={{fontSize:11,color:C.muted,lineHeight:1.5}}>
+          <span style={{color:r.moi?C.gold:C.blue}}>{r.moi?"Moi":r.auteur} : </span>
+          {String(r.contenu||"").slice(0,140)}{String(r.contenu||"").length>140?"...":""}
+        </div>
+      </div>)}
+    </Card>}
+
     {espace!=="visio"&&<div style={{display:"grid",gridTemplateColumns:selConv?(contexteOuvert?"240px 1fr 260px":"260px 1fr"):"1fr",gap:12}}>
       <Card style={{padding:0,overflow:"hidden",height:520}}>
         <div style={{padding:"10px 14px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>

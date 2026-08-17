@@ -325,5 +325,44 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, url: lien.signedUrl });
   }
 
+  // ── Recherche dans les conversations ───────────────────
+  if (action === 'rechercher') {
+    const terme = String(body.terme || '').trim();
+    if (terme.length < 2) {
+      return NextResponse.json({ error: 'Au moins deux caracteres' }, { status: 400 });
+    }
+
+    let qConv = sb.from('conversations').select('id,contact_nom,contact_type,espace');
+    if (tenantId) qConv = qConv.eq('tenant_id', tenantId);
+    const { data: convs } = await qConv;
+    const ids = (convs || []).map((c: any) => c.id);
+    if (!ids.length) return NextResponse.json({ success: true, resultats: [] });
+
+    const { data: msgs } = await sb.from('chat_messages')
+      .select('*')
+      .in('conversation_id', ids)
+      .ilike('contenu', `%${terme}%`)
+      .order('created_at', { ascending: false })
+      .limit(60);
+
+    const resultats = (msgs || []).map((m: any) => {
+      const conv = (convs || []).find((c: any) => c.id === m.conversation_id);
+      return {
+        message_id: m.id,
+        conversation_id: m.conversation_id,
+        contact_nom: conv?.contact_nom || 'Contact',
+        contact_type: conv?.contact_type || null,
+        espace: conv?.espace || null,
+        auteur: m.auteur,
+        moi: m.moi,
+        type: m.type,
+        contenu: m.contenu,
+        created_at: m.created_at,
+      };
+    });
+
+    return NextResponse.json({ success: true, resultats, terme });
+  }
+
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });
 }
