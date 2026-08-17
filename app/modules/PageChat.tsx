@@ -130,6 +130,26 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
       }else showToast("❌ "+(d.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
   };
+  // Les fichiers sont dans un bucket prive : il faut un lien temporaire
+  const FichierChat=({url,type,conversationId})=>{
+    const[lien,setLien]=useState(null);
+    useEffect(()=>{
+      if(!url)return;
+      const chemin=String(url).split('/chat-fichiers/').pop()?.split('?')[0];
+      if(!chemin){setLien(url);return;}
+      (async()=>{
+        try{
+          const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'lien_fichier',chemin,conversation_id:conversationId})});
+          const d=await r.json();
+          setLien(d.url||null);
+        }catch(e){setLien(null);}
+      })();
+    },[url]);
+    if(!lien)return <div style={{fontSize:10,color:C.muted,marginBottom:4}}>Chargement du fichier...</div>;
+    if(type==="image")return <img src={lien} alt="" style={{maxWidth:200,borderRadius:6,marginBottom:4,display:"block"}}/>;
+    return <audio controls src={lien} style={{maxWidth:220,marginBottom:4}}/>;
+  };
+
   const creerActionDepuis=async(type)=>{
     if(!selConv)return;
     showToast(`⏳ Création ${type}...`);
@@ -290,8 +310,8 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
             <div style={{width:26,height:26,borderRadius:"50%",background:m.moi?`${C.gold}22`:`${C.blue}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,fontWeight:700,color:m.moi?C.gold:C.blue,flexShrink:0}}>{m.moi?(m.type==="auto_ia"?"🤖":"C"):selConv.contact_nom?.[0]}</div>
             <div style={{maxWidth:"70%"}}>
               <div style={{background:m.moi?(m.type==="auto_ia"?`${C.purple}18`:`${C.gold}18`):C.card2,border:`1px solid ${m.moi?(m.type==="auto_ia"?C.purple+"33":C.gold+"33"):C.border}`,borderRadius:10,padding:"8px 12px"}}>
-                {m.type==="image"&&m.fichier_url&&<img src={m.fichier_url} alt="" style={{maxWidth:200,borderRadius:6,marginBottom:4,display:"block"}}/>}
-                {m.type==="audio"&&m.fichier_url&&<audio controls src={m.fichier_url} style={{maxWidth:220,marginBottom:4}}/>}
+                {m.type==="image"&&m.fichier_url&&<FichierChat url={m.fichier_url} type="image" conversationId={selConv.id}/>}
+                {m.type==="audio"&&m.fichier_url&&<FichierChat url={m.fichier_url} type="audio" conversationId={selConv.id}/>}
                 <div style={{fontSize:12,color:C.text,lineHeight:1.5}}>{m.contenu}</div>
               </div>
               <div style={{fontSize:9,color:C.muted,textAlign:m.moi?"right":"left",marginTop:2}}>{m.created_at?new Date(m.created_at).toLocaleString("fr",{day:"2-digit",month:"2-digit",hour:"2-digit",minute:"2-digit"}):""}{m.type==="auto_ia"?" · réponse IA":""}</div>
