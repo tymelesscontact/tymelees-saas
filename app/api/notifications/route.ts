@@ -124,7 +124,7 @@ export async function POST(req: NextRequest) {
 
     const autoNotifs = await genererNotificationsAuto();
     if (!autoNotifs.length) {
-      await envoyerWhatsApp(ownerTel, 'Xyra - Bonjour ! Tout est a jour aujourd\'hui. Bonne journee.');
+      await envoyerWhatsApp(ownerTel, 'Xyra - Bonjour ! Tout est a jour aujourd\'hui. Bonne journee.', tenantId);
       return NextResponse.json({ success: true, nb: 0 });
     }
 
@@ -135,7 +135,7 @@ ${priorites.map((n: any, i: number) => `${i + 1}. ${n.titre} - ${n.message}`).jo
 
 Bonne journee !`;
 
-    try { await envoyerWhatsApp(ownerTel, msg); } catch (e) { /* non bloquant */ }
+    try { await envoyerWhatsApp(ownerTel, msg, tenantId); } catch (e) { /* non bloquant */ }
     return NextResponse.json({ success: true, nb: priorites.length });
   }
 
@@ -143,7 +143,7 @@ Bonne journee !`;
     const { tel, titre, message } = body;
     if (!tel) return NextResponse.json({ error: 'Numéro manquant' }, { status: 400 });
     try {
-      await envoyerWhatsApp(tel, `Xyra - ${titre}\n${message}`);
+      await envoyerWhatsApp(tel, `Xyra - ${titre}\n${message}`, tenantId);
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
     }

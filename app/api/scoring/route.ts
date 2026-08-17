@@ -97,6 +97,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;
 
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest) {
 
     // Alerte WhatsApp si avis négatif
     if (Number(note) <= 2 && process.env.OWNER_WHATSAPP) {
-      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra ALERTE AVIS NEGATIF : ${client_nom} a laisse ${note}/5 etoiles pour ${service||'votre service'}. Commentaire : "${(commentaire||'').slice(0,100)}". Repondez rapidement !`);
+      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra ALERTE AVIS NEGATIF : ${client_nom} a laisse ${note}/5 etoiles pour ${service||'votre service'}. Commentaire : "${(commentaire||'').slice(0,100)}". Repondez rapidement !`, tenantId);
     }
     return NextResponse.json({ success: true, avis: data });
   }
@@ -142,9 +143,9 @@ Commence par "Bonjour ${client_nom},"`;
 
     // Routage intelligent
     if (Number(score) >= 9 && process.env.OWNER_WHATSAPP) {
-      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra NPS : ${client_nom} vous donne 9+/10 ! Invitez-le a laisser un avis Google maintenant.`);
+      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra NPS : ${client_nom} vous donne 9+/10 ! Invitez-le a laisser un avis Google maintenant.`, tenantId);
     } else if (Number(score) <= 6 && process.env.OWNER_WHATSAPP) {
-      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra NPS DETRACTEUR : ${client_nom} donne ${score}/10. Contactez-le rapidement en prive pour resoudre le probleme.`);
+      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra NPS DETRACTEUR : ${client_nom} donne ${score}/10. Contactez-le rapidement en prive pour resoudre le probleme.`, tenantId);
     }
     return NextResponse.json({ success: true });
   }
@@ -158,7 +159,7 @@ Commence par "Bonjour ${client_nom},"`;
   if (action === 'demander_avis_whatsapp') {
     const { client_tel, client_nom, service } = body;
     if (!client_tel) return NextResponse.json({ error: 'Numéro requis' }, { status: 400 });
-    await envoyerWhatsApp(client_tel, `Bonjour ${client_nom}, merci d'avoir fait appel a nos services pour ${service||'votre prestation'}. Votre avis compte beaucoup pour nous ! Notez-nous sur Google en 1 minute : https://g.page/r/xyra/review`);
+    await envoyerWhatsApp(client_tel, `Bonjour ${client_nom}, merci d'avoir fait appel a nos services pour ${service||'votre prestation'}. Votre avis compte beaucoup pour nous ! Notez-nous sur Google en 1 minute : https://g.page/r/xyra/review`, tenantId);
     return NextResponse.json({ success: true });
   }
 
@@ -181,7 +182,7 @@ Commence par "Bonjour ${client_nom},"`;
 Score réputation : ${scoreReputation}/100 | Note Google : ${noteGoogle}/5 | NPS : ${npsScore} | CSAT : ${csatScore}% | Avis total : ${totalAvis} | Taux réponse : ${tauxReponse}%
 Commence par "Rapport Réputation Xyra —" et donne 1 point fort et 1 priorité.`;
       const message = await askClaude(prompt, 200);
-      await envoyerWhatsApp(ownerTel, message);
+      await envoyerWhatsApp(ownerTel, message, tenantId);
       return NextResponse.json({ success: true });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });

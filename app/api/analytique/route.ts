@@ -155,6 +155,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;
 
@@ -197,7 +198,7 @@ Marge nette : ${tauxMarge}% | Top client : ${topClients?.[0]?.nom} (${topClients
 Prévision 90j réaliste : ${prevision?.realiste}€
 Commence par "Rapport CA Xyra —" et inclus 1 point fort et 1 priorité ce mois.`;
       const message = await askClaude(prompt);
-      await envoyerWhatsApp(ownerTel, message);
+      await envoyerWhatsApp(ownerTel, message, tenantId);
       return NextResponse.json({ success: true });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });

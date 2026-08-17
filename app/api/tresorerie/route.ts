@@ -198,6 +198,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;
 
@@ -266,7 +267,7 @@ Commissions dues : ${commissionsDues}€ | Clients en retard : ${(clientsEnRetar
 Inclus : 1 chiffre clé, 1 risque, 1 priorité cette semaine. Commence par "Bonjour Curtiss"`;
 
       const message = await askClaude(prompt, 300);
-      await envoyerWhatsApp(ownerTel, message);
+      await envoyerWhatsApp(ownerTel, message, tenantId);
       return NextResponse.json({ success: true });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -279,7 +280,7 @@ Inclus : 1 chiffre clé, 1 risque, 1 priorité cette semaine. Commence par "Bonj
     if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
     const { soldeActuel, seuil } = body;
     try {
-      await envoyerWhatsApp(ownerTel, `Xyra ALERTE TRESORERIE - Solde actuel : ${soldeActuel}€ est passe sous le seuil critique de ${seuil}€. Action requise immediatement.`);
+      await envoyerWhatsApp(ownerTel, `Xyra ALERTE TRESORERIE - Solde actuel : ${soldeActuel}€ est passe sous le seuil critique de ${seuil}€. Action requise immediatement.`, tenantId);
       return NextResponse.json({ success: true });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });

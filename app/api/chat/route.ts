@@ -80,7 +80,7 @@ export async function POST(req: NextRequest) {
       const bienvenue = `Bonjour ${contact_nom} ! Bienvenue chez Xyra. Comment pouvons-nous vous aider aujourd'hui ?`;
       await sb.from('chat_messages').insert({ conversation_id: data.id, auteur: 'Xyra', contenu: bienvenue, moi: true, type: 'auto_ia' });
       await sb.from('conversations').update({ premier_message_envoye: true, derniere_activite: new Date().toISOString() }).eq('id', data.id);
-      if (contact_tel) { try { await envoyerWhatsApp(contact_tel, bienvenue); } catch { /* non bloquant */ } }
+      if (contact_tel) { try { await envoyerWhatsApp(contact_tel, bienvenue, tenantId); } catch { /* non bloquant */ } }
     }
 
     return NextResponse.json({ success: true, conversation: data });
@@ -223,7 +223,7 @@ export async function POST(req: NextRequest) {
 
       await sb.from('chat_messages').insert({ conversation_id: conv.id, auteur: 'Xyra (IA)', contenu: reponse, moi: true, type: 'auto_ia', lu: true });
       await sb.from('conversations').update({ derniere_activite: new Date().toISOString() }).eq('id', conv.id);
-      if (conv.contact_tel) { try { await envoyerWhatsApp(conv.contact_tel, reponse); } catch { /* non bloquant */ } }
+      if (conv.contact_tel) { try { await envoyerWhatsApp(conv.contact_tel, reponse, tenantId); } catch { /* non bloquant */ } }
 
       // Notification immédiate dashboard + WhatsApp au responsable
       await sb.from('notifications').insert({
@@ -234,7 +234,7 @@ export async function POST(req: NextRequest) {
         tenant_id: tenantId || null,
       });
       const ownerTel = process.env.OWNER_WHATSAPP;
-      if (ownerTel) { try { await envoyerWhatsApp(ownerTel, `Xyra - Claude a repondu a ${conv.contact_nom} (pas de reponse depuis 1h). Verifie la conversation.`); } catch { /* non bloquant */ } }
+      if (ownerTel) { try { await envoyerWhatsApp(ownerTel, `Xyra - Claude a repondu a ${conv.contact_nom} (pas de reponse depuis 1h). Verifie la conversation.`, tenantId); } catch { /* non bloquant */ } }
 
       nbRepondus++;
     }

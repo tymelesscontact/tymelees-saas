@@ -70,6 +70,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantIdPost = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;
 
@@ -166,7 +167,7 @@ export async function POST(req: NextRequest) {
     }
     if (facture.client_tel) {
       try {
-        await envoyerWhatsApp(facture.client_tel, `Bonjour ${facture.client_nom},\n\nVotre facture ${facture.numero} (${facture.montant_ttc}€) est disponible.\nPayer ici : ${paymentUrl}\n\nMerci 🙏`);
+        await envoyerWhatsApp(facture.client_tel, `Bonjour ${facture.client_nom},\n\nVotre facture ${facture.numero} (${facture.montant_ttc}€) est disponible.\nPayer ici : ${paymentUrl}\n\nMerci 🙏`, tenantIdPost);
       } catch (e) { console.error('WhatsApp error:', e); }
     }
 
@@ -206,7 +207,7 @@ export async function POST(req: NextRequest) {
     }
     if (facture.client_tel) {
       try {
-        await envoyerWhatsApp(facture.client_tel, `Bonjour ${facture.client_nom}, petit rappel pour votre facture ${facture.numero} (${facture.montant_ttc}€) toujours en attente.${lien ? `\nPayer : ${lien}` : ''}`);
+        await envoyerWhatsApp(facture.client_tel, `Bonjour ${facture.client_nom}, petit rappel pour votre facture ${facture.numero} (${facture.montant_ttc}€) toujours en attente.${lien ? `\nPayer : ${lien}` : ''}`, tenantIdPost);
         envoye = true;
       } catch (e) { console.error('WhatsApp error:', e); }
     }

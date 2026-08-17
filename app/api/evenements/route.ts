@@ -127,7 +127,7 @@ export async function POST(req: NextRequest) {
       await sb.from('evenements').update({ statut: 'complet' }).eq('id', evenement_id);
     }
     if (tel && process.env.WHATSAPP_PHONE_NUMBER_ID) {
-      await envoyerWhatsApp(tel, `Xyra Events : Inscription confirmee pour ${evt.titre} le ${new Date(evt.date_evenement).toLocaleDateString('fr')} a ${evt.lieu || ''}. A bientot !`);
+      await envoyerWhatsApp(tel, `Xyra Events : Inscription confirmee pour ${evt.titre} le ${new Date(evt.date_evenement).toLocaleDateString('fr')} a ${evt.lieu || ''}. A bientot !`, tenantId);
     }
     return NextResponse.json({ success: true, inscrits: nb + 1 });
   }
@@ -137,7 +137,7 @@ export async function POST(req: NextRequest) {
     const ownerTel = process.env.OWNER_WHATSAPP;
     if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
     const dateTexte = date_evenement ? new Date(date_evenement).toLocaleDateString('fr') : '';
-    await envoyerWhatsApp(ownerTel, `Xyra Events : Invitation reseau envoyee pour ${titre} le ${dateTexte} a ${lieu || ''}.`);
+    await envoyerWhatsApp(ownerTel, `Xyra Events : Invitation reseau envoyee pour ${titre} le ${dateTexte} a ${lieu || ''}.`, tenantId);
     return NextResponse.json({ success: true });
   }
 
@@ -156,7 +156,7 @@ export async function POST(req: NextRequest) {
       const jours = Math.ceil((dateEvt.getTime() - now.getTime()) / 86400000);
       if (jours === 7 || jours === 1) {
         const nb = await compterInscrits(evt.id);
-        await envoyerWhatsApp(ownerTel, `Xyra Events rappel J-${jours} : ${evt.titre} le ${dateEvt.toLocaleDateString('fr')}. ${nb}/${evt.max_inscrits || 0} inscrits.`);
+        await envoyerWhatsApp(ownerTel, `Xyra Events rappel J-${jours} : ${evt.titre} le ${dateEvt.toLocaleDateString('fr')}. ${nb}/${evt.max_inscrits || 0} inscrits.`, tenantId);
         rappelsEnvoyes++;
       }
     }

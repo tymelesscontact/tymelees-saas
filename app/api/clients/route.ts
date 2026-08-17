@@ -39,6 +39,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;
 
@@ -77,7 +78,7 @@ export async function POST(req: NextRequest) {
     const { id, tel, message } = body;
     if (!tel || !message) return NextResponse.json({ error: 'Téléphone et message requis' }, { status: 400 });
     try {
-      await envoyerWhatsApp(tel, message);
+      await envoyerWhatsApp(tel, message, tenantId);
     } catch (e) {
       return NextResponse.json({ error: 'Échec envoi WhatsApp' }, { status: 500 });
     }

@@ -61,6 +61,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;
 
@@ -103,7 +104,7 @@ export async function POST(req: NextRequest) {
     // Alerte si > 80%
     const pct = (nouveau / Number(carte.limite)) * 100;
     if (pct >= 80 && process.env.OWNER_WHATSAPP) {
-      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra Alerte carte : ${carte.nom} a utilise ${Math.round(pct)}% de son plafond (${nouveau}/${carte.limite})`);
+      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra Alerte carte : ${carte.nom} a utilise ${Math.round(pct)}% de son plafond (${nouveau}/${carte.limite})`, tenantId);
     }
     return NextResponse.json({ success: true, nouveau_solde: nouveau });
   }
@@ -117,7 +118,7 @@ export async function POST(req: NextRequest) {
       await sb.from('cartes_virtuelles').update({ solde: Number(montant), updated_at: new Date().toISOString() }).eq('id', carte_id);
     }
     if (approbation_requise && process.env.OWNER_WHATSAPP) {
-      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra Approbation requise : ${libelle} - ${montant}EUR sur carte. Repondez OUI pour approuver.`);
+      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra Approbation requise : ${libelle} - ${montant}EUR sur carte. Repondez OUI pour approuver.`, tenantId);
     }
     return NextResponse.json({ success: true, transaction: data });
   }

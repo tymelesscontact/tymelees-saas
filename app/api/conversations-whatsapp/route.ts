@@ -38,6 +38,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
   const body = await req.json()
   const { action, whatsapp, message, messageIndex } = body
   const sb = getAdminClient()
@@ -47,7 +48,7 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "whatsapp et message requis" }, { status: 400 })
     }
     try {
-      await envoyerWhatsApp(whatsapp, message)
+      await envoyerWhatsApp(whatsapp, message, tenantId)
     } catch (e) {
       return NextResponse.json({ success: false, error: "Erreur envoi WhatsApp" }, { status: 500 })
     }

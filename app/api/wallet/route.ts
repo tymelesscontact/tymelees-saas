@@ -36,6 +36,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantIdPost = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;
 
@@ -114,7 +115,7 @@ export async function POST(req: NextRequest) {
     }
     if (paymentUrl && tel) {
       try {
-        await envoyerWhatsApp(tel, `Bonjour ${nom},\n\nVoici votre lien de paiement sécurisé pour ${montant}${devise === 'USD' ? '$' : '€'} :\n${paymentUrl}\n\nMerci 🙏`);
+        await envoyerWhatsApp(tel, `Bonjour ${nom},\n\nVoici votre lien de paiement sécurisé pour ${montant}${devise === 'USD' ? '$' : '€'} :\n${paymentUrl}\n\nMerci 🙏`, tenantIdPost);
       } catch (e) { console.error('WhatsApp error:', e); }
     }
 

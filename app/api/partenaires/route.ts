@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
         ? `<p>Votre espace partenaire est prêt : <a href="${inviteLink}">cliquez ici pour créer votre mot de passe et vous connecter</a>.</p>`
         : `<p>Votre accès à l'espace partenaire vous sera envoyé séparément.</p>`;
       await sendEmail(email, 'Bienvenue chez Xyra — Votre partenariat', `<div style="font-family:sans-serif;padding:24px;"><p>Bonjour ${nom},</p><p>Bienvenue dans le réseau partenaires Xyra ! Votre taux de commission est fixé à <strong>${comm || 15}%</strong>.</p>${accesHtml}</div>`);
-      if (tel) await envoyerWhatsApp(tel, `Bonjour ${nom}, bienvenue chez Xyra ! Votre partenariat est actif avec un taux de commission de ${comm || 15}%. 🤝${inviteLink ? ' Vérifiez vos emails pour activer votre espace partenaire.' : ''}`);
+      if (tel) await envoyerWhatsApp(tel, `Bonjour ${nom}, bienvenue chez Xyra ! Votre partenariat est actif avec un taux de commission de ${comm || 15}%. 🤝${inviteLink ? ' Vérifiez vos emails pour activer votre espace partenaire.' : ''}`, tenantId);
     } catch (e) { /* l'enregistrement réussit même si l'envoi échoue */ }
 
     return NextResponse.json({ success: true, partenaire: data, accesCree: !!userId });
@@ -172,7 +172,7 @@ export async function POST(req: NextRequest) {
     try {
       const accesHtml = inviteLink ? `<p><a href="${inviteLink}">Cliquez ici pour créer votre mot de passe et vous connecter</a>.</p>` : '';
       await sendEmail(p.email, 'Votre espace partenaire Xyra est prêt', `<div style="font-family:sans-serif;padding:24px;"><p>Bonjour ${p.nom},</p><p>Votre espace partenaire est maintenant prêt.</p>${accesHtml}</div>`);
-      if (p.tel) await envoyerWhatsApp(p.tel, `Bonjour ${p.nom}, votre espace partenaire Xyra est prêt ! Vérifiez vos emails pour vous connecter. 🤝`);
+      if (p.tel) await envoyerWhatsApp(p.tel, `Bonjour ${p.nom}, votre espace partenaire Xyra est prêt ! Vérifiez vos emails pour vous connecter. 🤝`, tenantId);
     } catch (e) { /* non bloquant */ }
 
     return NextResponse.json({ success: true });
@@ -267,7 +267,7 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     let whatsappEnvoye = false;
     if (estMoi && tel) {
-      try { await envoyerWhatsApp(tel, message); whatsappEnvoye = true; } catch (e) { /* message gardé en interne même si l'envoi échoue */ }
+      try { await envoyerWhatsApp(tel, message, tenantId); whatsappEnvoye = true; } catch (e) { /* message gardé en interne même si l'envoi échoue */ }
     }
     return NextResponse.json({ success: true, message: data, whatsappEnvoye });
   }
