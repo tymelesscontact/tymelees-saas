@@ -105,7 +105,25 @@ export async function POST(req: NextRequest) {
 
     // Envoi réel WhatsApp si conversation externe avec téléphone
     if (contact_tel && type !== 'auto_ia') {
-      try { await envoyerWhatsApp(contact_tel, contenu || '[Fichier joint]'); } catch { /* non bloquant */ }
+      try { await envoyerWhatsApp(contact_tel, contenu || '[Fichier joint]', tenantId); } catch { /* non bloquant */ }
+    }
+
+    // Groupe : le message part a chaque participant qui a un telephone.
+    // Meta ne permet pas a une entreprise de creer un groupe WhatsApp,
+    // donc chacun le recoit individuellement.
+    if (!contact_tel && type !== 'auto_ia') {
+      const { data: conv } = await sb.from('conversations')
+        .select('est_groupe').eq('id', conversation_id).maybeSingle();
+      if (conv?.est_groupe) {
+        const { data: participants } = await sb.from('conversation_participants')
+          .select('nom,tel').eq('conversation_id', conversation_id);
+        const texte = `${expediteur} : ${contenu || '[Fichier joint]'}`;
+        for (const p of (participants || [])) {
+          if (p.tel) {
+            try { await envoyerWhatsApp(p.tel, texte, tenantId); } catch { /* non bloquant */ }
+          }
+        }
+      }
     }
 
     return NextResponse.json({ success: true, message: data });
@@ -362,6 +380,75 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true, resultats, terme });
+  }
+
+  // ── Creer un groupe ────────────────────────────────────
+  if (action === 'creer_groupe') {
+    const { titre, participants, espace } = body;
+    if (!titre?.trim()) return NextResponse.json({ error: 'Titre requis' }, { status: 400 });
+    if (!Array.isArray(participants) || participants.length < 2) {
+      return NextResponse.json({ error: 'Au moins deux participants' }, { status: 400 });
+    }
+
+    const { data: conv, error } = await sb.from('conversations').insert({
+      espace: espace || 'externe',
+      contact_nom: titre.trim(),
+      est_groupe: true,
+      titre_groupe: titre.trim(),
+      jitsi_room: `xyra-groupe-${Date.now().toString(36)}`,
+      tenant_id: tenantId,
+      company_id: body.company_id && UUID_RE.test(body.company_id) ? body.company_id : null,
+    }).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    const lignes = participants
+      .filter((p: any) => p?.nom)
+      .map((p: any) => ({
+        conversation_id: conv.id,
+        nom: p.nom,
+        email: p.email || null,
+        tel: p.tel || null,
+        type: p.type || null,
+      }));
+    if (lignes.length) await sb.from('conversation_participants').insert(lignes);
+
+    return NextResponse.json({ success: true, conversation: conv, participants: lignes.length });
+  }
+
+  // ── Les participants d'un groupe ───────────────────────
+  if (action === 'participants') {
+    const { conversation_id } = body;
+    const { data: c } = await sb.from('conversations')
+      .select('tenant_id').eq('id', conversation_id).maybeSingle();
+    if (!c || (tenantId && c.tenant_id !== tenantId)) {
+      return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    }
+    const { data } = await sb.from('conversation_participants')
+      .select('*').eq('conversation_id', conversation_id).order('ajoute_le');
+    return NextResponse.json({ success: true, participants: data || [] });
+  }
+
+  // ── Ajouter ou retirer un participant ──────────────────
+  if (action === 'ajouter_participant' || action === 'retirer_participant') {
+    const { conversation_id } = body;
+    const { data: c } = await sb.from('conversations')
+      .select('tenant_id').eq('id', conversation_id).maybeSingle();
+    if (!c || (tenantId && c.tenant_id !== tenantId)) {
+      return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    }
+
+    if (action === 'ajouter_participant') {
+      const { nom, email, tel, type } = body;
+      if (!nom) return NextResponse.json({ error: 'Nom requis' }, { status: 400 });
+      const { error } = await sb.from('conversation_participants')
+        .insert({ conversation_id, nom, email: email || null, tel: tel || null, type: type || null });
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    } else {
+      const { error } = await sb.from('conversation_participants')
+        .delete().eq('id', body.participant_id).eq('conversation_id', conversation_id);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ success: true });
   }
 
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });

@@ -14,6 +14,9 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
   const[recherche,setRecherche]=useState("");
   const[resultats,setResultats]=useState(null);
   const[rechercheEnCours,setRechercheEnCours]=useState(false);
+  const[showGroupe,setShowGroupe]=useState(false);
+  const[groupeForm,setGroupeForm]=useState({titre:"",participants:[{nom:"",tel:"",email:""}]});
+  const[participants,setParticipants]=useState([]);
   const[articlesStock,setArticlesStock]=useState([]);
   const[receptionForm,setReceptionForm]=useState({article_id:"",quantite:"",numero_lot:"",date_peremption:""});
   const[msgInput,setMsgInput]=useState("");
@@ -56,6 +59,10 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
       }catch(e){setContexte(null);}
     })();
   },[selConv?.id]);
+  useEffect(()=>{
+    if(selConv?.est_groupe)chargerParticipants(selConv.id);
+    else setParticipants([]);
+  },[selConv?.id,selConv?.est_groupe]);
 
   // Vérifie l'inactivité 1h toutes les 5 minutes
   useEffect(()=>{
@@ -222,6 +229,31 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
     }catch(e){showToast("⚠️ Micro non accessible");}
   };
   const stopRecording=()=>{audioRef.current?.stop();setRecording(false);};
+  const creerGroupe=async()=>{
+    const valides=groupeForm.participants.filter(p=>p.nom.trim());
+    if(!groupeForm.titre.trim())return showToast("⚠️ Donnez un nom au groupe");
+    if(valides.length<2)return showToast("⚠️ Au moins deux participants");
+    try{
+      const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        action:'creer_groupe', titre:groupeForm.titre, participants:valides, espace,
+        company_id:activeCompany?.id||null,
+      })});
+      const d=await r.json();
+      if(d.success){
+        showToast(`✅ Groupe cree avec ${d.participants} participants`);
+        setShowGroupe(false);
+        setGroupeForm({titre:"",participants:[{nom:"",tel:"",email:""}]});
+        loadConvs();
+      }else showToast("❌ "+(d.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const chargerParticipants=async(convId)=>{
+    try{
+      const r=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'participants',conversation_id:convId})});
+      const d=await r.json();
+      setParticipants(d.participants||[]);
+    }catch(e){setParticipants([]);}
+  };
   const lancerRecherche=async()=>{
     if(recherche.trim().length<2){setResultats(null);return;}
     setRechercheEnCours(true);
@@ -293,7 +325,22 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
         <div style={{padding:"10px 14px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
           <span style={{fontSize:11,fontWeight:700,color:C.muted}}>{espace==="equipe"?"ÉQUIPE":"CLIENTS & PARTENAIRES"}</span>
           <button onClick={()=>setShowNewConv(s=>!s)} style={{background:"transparent",border:"none",color:C.gold,cursor:"pointer",fontSize:16}}>+</button>
+          <button onClick={()=>setShowGroupe(s=>!s)} title="Nouveau groupe" style={{background:"transparent",border:"none",color:C.blue,cursor:"pointer",fontSize:15,padding:"0 4px"}}>⊕</button>
         </div>
+        {showGroupe&&<div style={{padding:10,borderBottom:`1px solid ${C.border}`,background:C.card2}}>
+          <div style={{fontSize:11,fontWeight:700,color:C.blue,marginBottom:8}}>Nouveau groupe</div>
+          <Inp value={groupeForm.titre} onChange={e=>setGroupeForm(f=>({...f,titre:e.target.value}))} placeholder="Nom du groupe" style={{marginBottom:8}}/>
+          {groupeForm.participants.map((p,i)=><div key={i} style={{display:"flex",gap:4,marginBottom:6}}>
+            <Inp value={p.nom} onChange={e=>setGroupeForm(f=>{const l=[...f.participants];l[i]={...l[i],nom:e.target.value};return{...f,participants:l};})} placeholder="Nom" style={{fontSize:11}}/>
+            <Inp value={p.tel} onChange={e=>setGroupeForm(f=>{const l=[...f.participants];l[i]={...l[i],tel:e.target.value};return{...f,participants:l};})} placeholder="Telephone" style={{fontSize:11}}/>
+            {groupeForm.participants.length>1&&<button onClick={()=>setGroupeForm(f=>({...f,participants:f.participants.filter((_,j)=>j!==i)}))} style={{background:"transparent",border:"none",color:C.red,cursor:"pointer",fontSize:14}}>×</button>}
+          </div>)}
+          <BtnGhost onClick={()=>setGroupeForm(f=>({...f,participants:[...f.participants,{nom:"",tel:"",email:""}]}))} style={{fontSize:10,marginBottom:8,width:"100%"}}>+ Ajouter un participant</BtnGhost>
+          <div style={{display:"flex",gap:6}}>
+            <Btn onClick={creerGroupe} style={{fontSize:11,flex:1}}>Creer le groupe</Btn>
+            <BtnGhost onClick={()=>setShowGroupe(false)} style={{fontSize:11}}>Annuler</BtnGhost>
+          </div>
+        </div>}
         {showNewConv&&<div style={{padding:10,borderBottom:`1px solid ${C.border}`,background:C.card2}}>
           <Inp value={newConvForm.contact_nom} onChange={e=>setNewConvForm(f=>({...f,contact_nom:e.target.value}))} placeholder="Nom du contact" style={{marginBottom:6,fontSize:11}}/>
           {espace==="externe"&&<Sel value={newConvForm.contact_type} onChange={e=>setNewConvForm(f=>({...f,contact_type:e.target.value}))} style={{width:"100%",marginBottom:6,fontSize:11}}>
