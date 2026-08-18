@@ -15,6 +15,9 @@ export default function EspaceMembre() {
   const [moi, setMoi] = useState<any>(null);
   const [lectureSeule, setLectureSeule] = useState(false);
   const [membres, setMembres] = useState<any[]>([]);
+  const [meetings, setMeetings] = useState<any[]>([]);
+  const [showProposerMeeting, setShowProposerMeeting] = useState(false);
+  const [meetingForm, setMeetingForm] = useState({ avec_membre_id: "", date_rdv: "", heure_debut: "" });
   const [demandes, setDemandes] = useState<any[]>([]);
   const [evenements, setEvenements] = useState<any[]>([]);
   const [deals, setDeals] = useState<any[]>([]);
@@ -59,6 +62,50 @@ export default function EspaceMembre() {
       } catch {}
     } catch { setErreur("connexion"); }
     setChargement(false);
+  };
+
+  const chargerMeetings = async () => {
+    try {
+      const r = await fetch("/api/rendez-vous/meetings");
+      const d = await r.json();
+      if (r.ok) setMeetings(d.rendez_vous || []);
+    } catch {}
+  };
+
+  const proposerMeeting = async () => {
+    if (!meetingForm.avec_membre_id || !meetingForm.date_rdv || !meetingForm.heure_debut) return;
+    try {
+      const r = await fetch("/api/rendez-vous/meetings", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "proposer", ...meetingForm }),
+      });
+      const d = await r.json();
+      if (r.ok) {
+        setShowProposerMeeting(false);
+        setMeetingForm({ avec_membre_id: "", date_rdv: "", heure_debut: "" });
+        chargerMeetings();
+      }
+    } catch {}
+  };
+
+  const repondreMeeting = async (id: string, accepter: boolean) => {
+    try {
+      await fetch("/api/rendez-vous/meetings", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "repondre", id, accepter }),
+      });
+      chargerMeetings();
+    } catch {}
+  };
+
+  const annulerMeeting = async (id: string) => {
+    try {
+      await fetch("/api/rendez-vous/meetings", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "annuler", id }),
+      });
+      chargerMeetings();
+    } catch {}
   };
   const ouvrirConv = async (conv: any) => {
     setConvActive(conv);
@@ -107,6 +154,7 @@ export default function EspaceMembre() {
     ouvrirConv(convActive);
   };
   useEffect(() => { charger(); }, []);
+  useEffect(() => { chargerMeetings(); }, []);
 
   const pays = Array.from(new Set(membres.map((m) => m.pays).filter(Boolean))).sort();
   const filtres = membres.filter((m) => {
@@ -169,7 +217,7 @@ export default function EspaceMembre() {
       )}
 
       <div style={{ display: "flex", gap: 4, padding: "18px 28px 0", maxWidth: 1200, margin: "0 auto", flexWrap: "wrap" }}>
-        {[["annuaire", "Annuaire"], ["demandes", "Demandes"], ["deals", "Mes deals"], ["messages", "Messages"], ["expansion", "International"], ["fil", "Le fil"], ["avantages", "Avantages"], ["bilan", "Mon bilan"], ["evenements", "Evenements"], ["profil", "Mon profil"]].map(([id, label]) => (
+        {[["annuaire", "Annuaire"], ["demandes", "Demandes"], ["deals", "Mes deals"], ["messages", "Messages"], ["expansion", "International"], ["fil", "Le fil"], ["avantages", "Avantages"], ["bilan", "Mon bilan"], ["evenements", "Evenements"], ["profil", "Mon profil"], ["meetings", "Speed Meetings"]].map(([id, label]) => (
           <button key={id} onClick={() => { setOnglet(id); setSelection(null); }}
             style={{ background: onglet === id ? CARTE : "transparent", border: "none", borderBottom: onglet === id ? `1px solid ${OR}` : "1px solid transparent", color: onglet === id ? OR : GRIS, padding: "11px 18px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}>
             {label}
@@ -283,6 +331,58 @@ export default function EspaceMembre() {
           </div>
         )}
 
+        {onglet === "meetings" && (
+          <div>
+            <Carte style={{ marginBottom: 20 }}>
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: showProposerMeeting ? 14 : 0 }}>
+                <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em" }}>SPEED MEETINGS &mdash; 20 minutes chrono avec un membre</div>
+                {!lectureSeule && <button onClick={() => setShowProposerMeeting((v) => !v)} style={{ background: "none", border: `0.5px solid ${OR}`, color: OR, fontSize: 11, padding: "6px 14px", cursor: "pointer" }}>+ Proposer un meeting</button>}
+              </div>
+              {showProposerMeeting && (
+                <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                  <select value={meetingForm.avec_membre_id} onChange={(e) => setMeetingForm((f) => ({ ...f, avec_membre_id: e.target.value }))} style={{ background: NOIR, border: `0.5px solid ${TRAIT}`, color: IVOIRE, padding: 10, fontSize: 13 }}>
+                    <option value="">Choisir un membre&hellip;</option>
+                    {membres.filter((m) => m.id !== moi?.id).map((m) => <option key={m.id} value={m.id}>{m.nom} &mdash; {m.metier}</option>)}
+                  </select>
+                  <input type="date" value={meetingForm.date_rdv} onChange={(e) => setMeetingForm((f) => ({ ...f, date_rdv: e.target.value }))} style={{ background: NOIR, border: `0.5px solid ${TRAIT}`, color: IVOIRE, padding: 10, fontSize: 13 }} />
+                  <input type="time" value={meetingForm.heure_debut} onChange={(e) => setMeetingForm((f) => ({ ...f, heure_debut: e.target.value }))} style={{ background: NOIR, border: `0.5px solid ${TRAIT}`, color: IVOIRE, padding: 10, fontSize: 13 }} />
+                  <button onClick={proposerMeeting} style={{ background: OR, border: "none", color: "#141130", fontSize: 12, padding: "10px", cursor: "pointer" }}>Proposer</button>
+                </div>
+              )}
+            </Carte>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              {meetings.map((r) => {
+                const autre = membres.find((m) => m.id === (r.client_id === moi?.id ? r.collaborateur_id : r.client_id));
+                const jeSuisDestinataire = r.collaborateur_id === moi?.id;
+                return (
+                  <div key={r.id} style={{ background: CARTE, border: `0.5px solid ${TRAIT}`, borderRadius: 4, padding: 18 }}>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
+                      <div>
+                        <div style={{ fontSize: 14, marginBottom: 4 }}>{autre?.nom || "Membre"}</div>
+                        <div style={{ fontSize: 11, color: GRIS }}>{r.date_rdv} &agrave; {r.heure_debut} &middot; {r.statut}</div>
+                      </div>
+                      <div style={{ display: "flex", gap: 8 }}>
+                        {r.statut === "propose" && jeSuisDestinataire && (
+                          <>
+                            <button onClick={() => repondreMeeting(r.id, true)} style={{ background: OR, border: "none", color: "#141130", fontSize: 11, padding: "6px 12px", cursor: "pointer" }}>Accepter</button>
+                            <button onClick={() => repondreMeeting(r.id, false)} style={{ background: "none", border: `0.5px solid ${TRAIT}`, color: GRIS, fontSize: 11, padding: "6px 12px", cursor: "pointer" }}>Refuser</button>
+                          </>
+                        )}
+                        {r.statut === "confirme" && r.lien_meeting && (
+                          <a href={r.lien_meeting} target="_blank" rel="noreferrer" style={{ background: OR, color: "#141130", fontSize: 11, padding: "6px 12px", textDecoration: "none" }}>Rejoindre</a>
+                        )}
+                        {(r.statut === "propose" || r.statut === "confirme") && (
+                          <button onClick={() => annulerMeeting(r.id)} style={{ background: "none", border: `0.5px solid ${TRAIT}`, color: GRIS, fontSize: 11, padding: "6px 12px", cursor: "pointer" }}>Annuler</button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
+              {meetings.length === 0 && <div style={{ textAlign: "center", padding: 50, color: GRIS, fontSize: 13 }}>Aucun Speed Meeting pour le moment.</div>}
+            </div>
+          </div>
+        )}
         {onglet === "messages" && (
           <div className="duo" style={{ display: "grid", gridTemplateColumns: convActive ? "260px 1fr 260px" : "260px 1fr", gap: 14, minHeight: 500 }}>
             <div style={{ background: CARTE, border: `0.5px solid ${TRAIT}`, borderRadius: 4, overflow: "hidden" }}>
