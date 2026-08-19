@@ -45,7 +45,7 @@ export async function envoyerPartout(tel: string | null, email: string | null, t
  * aussi bien par une route normale que par le cron.
  */
 export async function envoyerRappelMission(missionId: string, tenantId: string, cible: 'client' | 'collaborateurs' | 'tous') {
-  const { data: mission } = await sb.from('missions_planning')
+  const { data: mission } = await sb.from('missions')
     .select('*, missions_collaborateurs(collaborateur_id)').eq('id', missionId).eq('tenant_id', tenantId).maybeSingle();
   if (!mission) return { success: false, error: 'introuvable' };
 
@@ -71,7 +71,7 @@ export async function envoyerRappelMission(missionId: string, tenantId: string, 
   }
 
   const champRappel = cible === 'client' ? { rappel_24h_envoye: true } : {};
-  if (Object.keys(champRappel).length) await sb.from('missions_planning').update(champRappel).eq('id', missionId);
+  if (Object.keys(champRappel).length) await sb.from('missions').update(champRappel).eq('id', missionId);
 
   return { success: true, envoyesClient, envoyesCollab };
 }

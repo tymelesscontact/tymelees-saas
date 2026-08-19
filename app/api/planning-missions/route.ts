@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const dateDebut = searchParams.get('date_debut');
   const dateFin = searchParams.get('date_fin');
 
-  let q = sb.from('missions_planning').select('*, missions_collaborateurs(collaborateur_id, role, statut_presence)')
+  let q = sb.from('missions').select('*, missions_collaborateurs(collaborateur_id, role, statut_presence)')
     .eq('tenant_id', tenantId).order('date_mission');
   if (dateDebut) q = q.gte('date_mission', dateDebut);
   if (dateFin) q = q.lte('date_mission', dateFin);
@@ -66,12 +66,12 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Un collaborateur est invalide' }, { status: 403 });
     }
 
-    const { data: mission, error } = await sb.from('missions_planning').insert({
+    const { data: mission, error } = await sb.from('missions').insert({
       tenant_id: tenantId, company_id: company_id || null,
       type_mission_id: type_mission_id || null,
       client_id: client_id || null, client_nom: client_nom || null,
       client_email: client_email || null, client_tel: client_tel || null,
-      date_mission, heure_debut, heure_fin: heure_fin || null,
+      date_mission, heure: heure_debut,
       adresse: adresse || null, notes: notes || null,
       acompte_montant: acompte_montant || null,
       recurrence_frequence: recurrence_frequence || null,
@@ -90,7 +90,7 @@ export async function POST(req: NextRequest) {
     const { id, statut } = body;
     const valides = ['propose', 'confirme', 'en_cours', 'termine', 'annule', 'reporte'];
     if (!valides.includes(statut)) return NextResponse.json({ error: 'Statut invalide' }, { status: 400 });
-    const { error } = await sb.from('missions_planning')
+    const { error } = await sb.from('missions')
       .update({ statut }).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
