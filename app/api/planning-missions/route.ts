@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
-import { envoyerSMS } from '../../lib/sms';
+import { envoyerRappelMission } from '../../lib/rappels';
 
 export const dynamic = 'force-dynamic';
 
@@ -98,63 +98,9 @@ export async function POST(req: NextRequest) {
 
   // Rappel de mission — WhatsApp d'abord, email si echec, SMS en dernier recours
   if (action === 'envoyer_rappel') {
-    const { id, cible } = body; // cible: 'client' | 'collaborateurs' | 'tous'
-    const { data: mission } = await sb.from('missions_planning')
-      .select('*, missions_collaborateurs(collaborateur_id)').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
-    if (!mission) return NextResponse.json({ error: 'introuvable' }, { status: 404 });
-
-    const texteClient = `Rappel : votre rendez-vous du ${mission.date_mission} a ${mission.heure_debut} approche.`;
-    const texteCollab = `Rappel : mission le ${mission.date_mission} a ${mission.heure_debut} chez ${mission.client_nom || 'un client'}.`;
-
-    async function envoyerPartout(tel: string | null, email: string | null, texte: string) {
-      if (tel) {
-        try {
-          const wa = await envoyerWhatsApp(tel, texte, tenantId);
-          if (wa?.ok) return 'whatsapp';
-        } catch (e: any) { console.error('Rappel WhatsApp:', e.message); }
-      }
-      if (email) {
-        try {
-          const { Resend } = await import('resend');
-          const resend = new Resend(process.env.RESEND_API_KEY);
-          await resend.emails.send({
-            from: 'Xyra <notifications@xyraio.fr>', to: email, subject: 'Rappel de rendez-vous',
-            html: `<p>${texte}</p>`,
-          });
-          return 'email';
-        } catch (e: any) { console.error('Rappel email:', e.message); }
-      }
-      if (tel) {
-        try {
-          const sms = await envoyerSMS(tel, texte);
-          if (sms?.ok) return 'sms';
-        } catch (e: any) { console.error('Rappel SMS:', e.message); }
-      }
-      return null;
-    }
-
-    let envoyesClient = 0, envoyesCollab = 0;
-
-    if ((cible === 'client' || cible === 'tous') && (mission.client_tel || mission.client_email)) {
-      const canal = await envoyerPartout(mission.client_tel, mission.client_email, texteClient);
-      if (canal) envoyesClient = 1;
-    }
-
-    if (cible === 'collaborateurs' || cible === 'tous') {
-      const ids = (mission.missions_collaborateurs || []).map((c: any) => c.collaborateur_id);
-      if (ids.length) {
-        const { data: collabs } = await sb.from('equipe').select('id,tel,email').in('id', ids);
-        for (const c of (collabs || [])) {
-          const canal = await envoyerPartout(c.tel, c.email, texteCollab);
-          if (canal) envoyesCollab++;
-        }
-      }
-    }
-
-    const champRappel = cible === 'client' ? { rappel_24h_envoye: true } : {};
-    if (Object.keys(champRappel).length) await sb.from('missions_planning').update(champRappel).eq('id', id);
-
-    return NextResponse.json({ success: true, envoyesClient, envoyesCollab });
+    const { id, cible } = body;
+    const resultat = await envoyerRappelMission(id, tenantId, cible || 'tous');
+    return NextResponse.json(resultat);
   }
 
   if (action === 'presence_collaborateur') {
