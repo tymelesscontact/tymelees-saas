@@ -1,11 +1,5 @@
 "use client";
 import { useState, useEffect } from "react";
-import { createClient } from "@supabase/supabase-js";
-
-const sb = createClient(
-  process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-);
 
 const C = {
   dark:"#06060E", card:"#0C0C1A", card2:"#121222",
@@ -14,97 +8,115 @@ const C = {
   blue:"#4B7BFF", purple:"#9B5FFF", orange:"#FF8C3A",
 };
 
+const TYPE_ABSENCE_LABELS: Record<string, string> = {
+  conge_paye: "Congé payé", conge_sans_solde: "Congé sans solde",
+  arret_maladie: "Arrêt maladie", accident_travail: "Accident du travail",
+  evenement_familial: "Événement familial", enfant_malade: "Enfant malade",
+  absence_injustifiee: "Absence injustifiée", retard: "Retard",
+};
+
+const TYPE_SIGNALEMENT_LABELS: Record<string, string> = {
+  degat: "Dégât constaté", acces_impossible: "Accès impossible",
+  client_absent: "Client absent", materiel_manquant: "Matériel manquant",
+  probleme_client: "Problème client", autre: "Autre",
+};
+
 export default function EspaceEquipe() {
   const [page, setPage] = useState("dashboard");
-  const [user, setUser] = useState<any>(null);
   const [membre, setMembre] = useState<any>(null);
   const [missions, setMissions] = useState<any[]>([]);
-  const [conges, setConges] = useState<any[]>([]);
   const [absences, setAbsences] = useState<any[]>([]);
-  const [pointages, setPointages] = useState<any[]>([]);
-  const [msgs, setMsgs] = useState<any[]>([]);
-  const [newMsg, setNewMsg] = useState("");
-  const [pointed, setPointed] = useState(false);
-  const [showCongeForm, setShowCongeForm] = useState(false);
-  const [congeForm, setCongeForm] = useState({ debut: "", fin: "", type: "Congés payés", motif: "" });
+  const [signalements, setSignalements] = useState<any[]>([]);
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [erreur, setErreur] = useState("");
 
-  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3000); };
+  const [showAbsenceForm, setShowAbsenceForm] = useState(false);
+  const [absenceForm, setAbsenceForm] = useState({ type: "conge_paye", debut: "", fin: "", motif: "" });
 
-  useEffect(() => {
-    const init = async () => {
-      const { data: { user } } = await sb.auth.getUser();
-      if (!user) { window.location.href = "/login"; return; }
-      setUser(user);
+  const [showSignalementForm, setShowSignalementForm] = useState(false);
+  const [signalementMissionId, setSignalementMissionId] = useState<string | null>(null);
+  const [signalementForm, setSignalementForm] = useState({ type: "autre", gravite: "moyen", contenu: "" });
 
-      // Charger données équipe
-      const [m, c, a, p, msgs] = await Promise.all([
-        sb.from("missions").select("*").eq("employe_id", user.id).order("date", { ascending: true }),
-        sb.from("conges").select("*").eq("user_id", user.id).order("created_at", { ascending: false }),
-        sb.from("absences").select("*").eq("user_id", user.id).order("debut", { ascending: false }),
-        sb.from("pointages").select("*").eq("user_id", user.id).eq("date", new Date().toISOString().split("T")[0]),
-        sb.from("equipe").select("*").eq("user_id", user.id).single(),
+  const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3500); };
+
+  const charger = async () => {
+    setLoading(true);
+    try {
+      const who = await fetch("/api/whoami").then(r => r.json());
+      if (!who.email || !who.isCollaborateur) { window.location.href = "/login"; return; }
+
+      const [mis, abs, sig] = await Promise.all([
+        fetch("/api/planning-missions").then(r => r.json()).catch(() => ({})),
+        fetch("/api/absences").then(r => r.json()).catch(() => ({})),
+        fetch("/api/signalements?vue=equipe").then(r => r.json()).catch(() => ({})),
       ]);
-
-      if (m.data) setMissions(m.data);
-      if (c.data) setConges(c.data);
-      if (a.data) setAbsences(a.data);
-      if (p.data && p.data.length > 0) setPointed(true);
-      if (msgs.data) setMembre(msgs.data);
-      setLoading(false);
-    };
-    init();
-  }, []);
-
-  const handlePointage = async () => {
-    if (!user) return;
-    const heure = new Date().toLocaleTimeString("fr", { hour: "2-digit", minute: "2-digit" });
-    await sb.from("pointages").insert({
-      user_id: user.id,
-      date: new Date().toISOString().split("T")[0],
-      heure_arrivee: heure,
-      localisation: "Paris",
-    });
-    setPointed(true);
-    showToast("✅ Pointage enregistré — " + heure);
-  };
-
-  const handleDemandeConge = async () => {
-    if (!congeForm.debut || !congeForm.fin) return showToast("⚠️ Remplissez les dates");
-    const jours = Math.ceil((new Date(congeForm.fin).getTime() - new Date(congeForm.debut).getTime()) / (1000 * 60 * 60 * 24)) + 1;
-    const { data, error } = await sb.from("conges").insert({
-      user_id: user.id,
-      nom_employe: membre?.nom || user.email,
-      debut: congeForm.debut,
-      fin: congeForm.fin,
-      jours,
-      type: congeForm.type,
-      motif: congeForm.motif,
-      statut: "en_attente",
-    }).select().single();
-    if (!error && data) {
-      setConges(cs => [data, ...cs]);
-      setShowCongeForm(false);
-      setCongeForm({ debut: "", fin: "", type: "Congés payés", motif: "" });
-      showToast("✅ Demande envoyée — en attente de validation");
+      if (mis.missions) setMissions(mis.missions);
+      if (abs.absences) setAbsences(abs.absences);
+      if (sig.signalements) setSignalements(sig.signalements);
+      setMembre({ email: who.email, employe_id: who.employeId });
+    } catch (e: any) {
+      setErreur("connexion");
     }
+    setLoading(false);
   };
+  useEffect(() => { charger(); }, []);
 
   const updateMissionStatut = async (id: string, statut: string) => {
-    await sb.from("missions").update({ statut }).eq("id", id);
-    setMissions(ms => ms.map(m => m.id === id ? { ...m, statut } : m));
-    showToast(statut === "en_cours" ? "🚀 Mission démarrée !" : "✅ Mission terminée !");
+    try {
+      await fetch("/api/planning-missions", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "modifier_statut", id, statut }),
+      });
+      setMissions(ms => ms.map(m => m.id === id ? { ...m, statut } : m));
+      showToast(statut === "en_cours" ? "🚀 Mission démarrée" : "✅ Mission terminée");
+    } catch { showToast("❌ Erreur"); }
+  };
+
+  const demanderAbsence = async () => {
+    if (!absenceForm.debut) return showToast("⚠️ Date de début nécessaire");
+    try {
+      const r = await fetch("/api/absences", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "declarer", employe_id: membre?.employe_id, ...absenceForm, declaree_par: "collaborateur" }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        showToast("✅ Demande envoyée — en attente de validation");
+        setShowAbsenceForm(false);
+        setAbsenceForm({ type: "conge_paye", debut: "", fin: "", motif: "" });
+        charger();
+      } else showToast("❌ " + (d.error || "Erreur"));
+    } catch { showToast("❌ Erreur de connexion"); }
+  };
+
+  const envoyerSignalement = async () => {
+    if (!signalementForm.contenu.trim()) return showToast("⚠️ Décrivez le problème");
+    try {
+      const r = await fetch("/api/signalements", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "creer", mission_id: signalementMissionId, employe_id: membre?.employe_id, ...signalementForm }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        showToast("✅ Signalement envoyé — vous protégez la mission");
+        setShowSignalementForm(false);
+        setSignalementForm({ type: "autre", gravite: "moyen", contenu: "" });
+        charger();
+      } else showToast("❌ " + (d.error || "Erreur"));
+    } catch { showToast("❌ Erreur de connexion"); }
+  };
+
+  const ouvrirGPS = (adresse: string, mode: "walking" | "driving" | "transit") => {
+    window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(adresse)}&travelmode=${mode}`, "_blank");
   };
 
   const Card = ({ children, style = {} }: any) => (
     <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18, ...style }}>{children}</div>
   );
-
   const Pill = ({ children, color = C.gold }: any) => (
     <span style={{ background: color + "22", color, border: `1px solid ${color}44`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>{children}</span>
   );
-
   const Btn = ({ children, onClick, color = C.gold, style = {} }: any) => (
     <button onClick={onClick} style={{ background: color, color: color === C.gold ? "#000" : "#fff", border: "none", borderRadius: 7, padding: "8px 16px", cursor: "pointer", fontWeight: 600, fontSize: 13, fontFamily: "inherit", ...style }}>{children}</button>
   );
@@ -112,10 +124,7 @@ export default function EspaceEquipe() {
   const NAV = [
     { id: "dashboard", icon: "🏠", label: "Tableau de bord" },
     { id: "missions", icon: "✅", label: "Mes missions" },
-    { id: "planning", icon: "📅", label: "Mon planning" },
-    { id: "conges", icon: "🏖", label: "Congés & Absences" },
-    { id: "paie", icon: "💸", label: "Mes fiches de paie" },
-    { id: "messages", icon: "💬", label: "Messages" },
+    { id: "absences", icon: "🏖", label: "Congés & Absences" },
     { id: "profil", icon: "👤", label: "Mon profil" },
   ];
 
@@ -126,12 +135,17 @@ export default function EspaceEquipe() {
     </div>
   );
 
-  const missionsDuJour = missions.filter(m => m.date === new Date().toISOString().split("T")[0]);
-  const soldeConges = membre?.solde_conges || 25;
+  if (erreur) return (
+    <div style={{ minHeight: "100vh", background: C.dark, display: "flex", alignItems: "center", justifyContent: "center", color: C.text }}>
+      Une erreur est survenue. <a href="/login" style={{ color: C.gold, marginLeft: 6 }}>Se reconnecter</a>
+    </div>
+  );
+
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const missionsDuJour = missions.filter(m => m.date_mission === aujourdhui);
 
   return (
     <div style={{ display: "flex", height: "100vh", background: C.dark, color: C.text, fontFamily: "'Segoe UI', sans-serif", overflow: "hidden" }}>
-      {/* Sidebar */}
       <div style={{ width: 220, background: C.card, borderRight: `1px solid ${C.border}`, display: "flex", flexDirection: "column" }}>
         <div style={{ padding: "16px 14px", borderBottom: `1px solid ${C.border}` }}>
           <div style={{ fontSize: 18, fontWeight: 700, color: C.gold, fontFamily: "Georgia, serif" }}>XYRA</div>
@@ -145,38 +159,18 @@ export default function EspaceEquipe() {
           ))}
         </div>
         <div style={{ padding: "12px 14px", borderTop: `1px solid ${C.border}` }}>
-          <div style={{ fontSize: 11, fontWeight: 600 }}>{membre?.nom || user?.email}</div>
-          <div style={{ fontSize: 9, color: C.muted }}>{membre?.role || "Équipe Xyra"}</div>
+          <div style={{ fontSize: 11, fontWeight: 600 }}>{membre?.email}</div>
         </div>
       </div>
 
-      {/* Main */}
       <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
 
         {page === "dashboard" && <div>
           <div style={{ background: `linear-gradient(135deg, ${C.card}, #0A1A14)`, border: `1px solid ${C.gold}33`, borderRadius: 16, padding: 24, marginBottom: 16 }}>
             <div style={{ fontSize: 9, color: C.gold, letterSpacing: "0.2em", marginBottom: 6 }}>XYRA · ESPACE ÉQUIPE</div>
-            <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 4 }}>Bonjour {membre?.prenom || "👋"}</div>
-            <div style={{ fontSize: 11, color: C.muted, marginBottom: 16 }}>{new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</div>
-            <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-              {[["Missions aujourd'hui", missionsDuJour.length, C.gold], ["Congés restants", soldeConges + "j", C.blue], ["Pointage", pointed ? "✅ Fait" : "⏳ À faire", pointed ? C.green : C.orange]].map(([l, v, c]: any, i) => (
-                <div key={i} style={{ borderLeft: `2px solid ${c}`, paddingLeft: 12 }}>
-                  <div style={{ fontSize: 9, color: C.muted }}>{l}</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: c }}>{v}</div>
-                </div>
-              ))}
-            </div>
+            <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 4 }}>Bonjour 👋</div>
+            <div style={{ fontSize: 11, color: C.muted }}>{new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</div>
           </div>
-
-          {!pointed && (
-            <div style={{ background: `${C.orange}11`, border: `1px solid ${C.orange}33`, borderRadius: 12, padding: 16, marginBottom: 16, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <div>
-                <div style={{ fontSize: 13, fontWeight: 700, color: C.orange }}>📍 Pointage du matin</div>
-                <div style={{ fontSize: 11, color: C.muted }}>N'oubliez pas de pointer votre arrivée</div>
-              </div>
-              <Btn onClick={handlePointage} color={C.orange} style={{ color: "#000" }}>📍 Pointer maintenant</Btn>
-            </div>
-          )}
 
           <Card>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>✅ Missions du jour</div>
@@ -185,92 +179,21 @@ export default function EspaceEquipe() {
             ) : missionsDuJour.map((m, i) => (
               <div key={i} style={{ background: C.card2, borderRadius: 10, padding: 14, marginBottom: 10, border: `1px solid ${m.statut === "en_cours" ? C.gold + "44" : C.border}` }}>
                 <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 6 }}>
-                  <div style={{ fontSize: 13, fontWeight: 700 }}>{m.heure} — {m.service}</div>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{m.heure_debut} — {m.client_nom}</div>
                   <Pill color={m.statut === "en_cours" ? C.gold : m.statut === "termine" ? C.green : C.muted}>{m.statut}</Pill>
                 </div>
-                <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>👤 {m.client} · 📍 {m.adresse}</div>
-                <div style={{ display: "flex", gap: 6 }}>
-                  <Btn onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(m.adresse)}`)} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>🗺 GPS</Btn>
-                  {m.statut !== "termine" && <Btn onClick={() => updateMissionStatut(m.id, m.statut === "a_faire" ? "en_cours" : "termine")} style={{ fontSize: 11, padding: "5px 10px", background: m.statut === "a_faire" ? C.blue : C.green }}>{m.statut === "a_faire" ? "▶ Démarrer" : "✅ Terminer"}</Btn>}
+                <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>📍 {m.adresse}</div>
+                <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                  {m.adresse && <>
+                    <Btn onClick={() => ouvrirGPS(m.adresse, "driving")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>🚗 Voiture</Btn>
+                    <Btn onClick={() => ouvrirGPS(m.adresse, "walking")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>🚶 À pied</Btn>
+                    <Btn onClick={() => ouvrirGPS(m.adresse, "transit")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>🚌 Transport</Btn>
+                  </>}
+                  {m.statut !== "termine" && <Btn onClick={() => updateMissionStatut(m.id, m.statut === "confirme" ? "en_cours" : "termine")} style={{ fontSize: 11, padding: "5px 10px", background: m.statut === "confirme" ? C.blue : C.green }}>{m.statut === "confirme" ? "▶ Démarrer" : "✅ Terminer"}</Btn>}
+                  <Btn onClick={() => { setSignalementMissionId(m.id); setShowSignalementForm(true); }} style={{ fontSize: 11, padding: "5px 10px", background: C.red }}>⚠️ Signaler un problème</Btn>
                 </div>
               </div>
             ))}
-          </Card>
-        </div>}
-
-        {page === "conges" && <div>
-          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif" }}>🏖 Congés & Absences</div>
-            <Btn onClick={() => setShowCongeForm(s => !s)}>+ Demander des congés</Btn>
-          </div>
-
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(3,1fr)", gap: 10, marginBottom: 16 }}>
-            {[["Solde restant", soldeConges + "j", C.green], ["En attente", conges.filter(c => c.statut === "en_attente").length, C.orange], ["Absences", absences.length, C.red]].map(([l, v, c]: any, i) => (
-              <div key={i} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 10, padding: 14, textAlign: "center" }}>
-                <div style={{ fontSize: 9, color: C.muted, textTransform: "uppercase", marginBottom: 6 }}>{l}</div>
-                <div style={{ fontSize: 24, fontWeight: 700, color: c }}>{v}</div>
-              </div>
-            ))}
-          </div>
-
-          {showCongeForm && (
-            <Card style={{ marginBottom: 16, borderColor: `${C.gold}44` }}>
-              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Nouvelle demande</div>
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
-                <div>
-                  <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>Date début</label>
-                  <input type="date" value={congeForm.debut} onChange={e => setCongeForm(f => ({ ...f, debut: e.target.value }))} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%", boxSizing: "border-box" as any }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>Date fin</label>
-                  <input type="date" value={congeForm.fin} onChange={e => setCongeForm(f => ({ ...f, fin: e.target.value }))} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%", boxSizing: "border-box" as any }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>Type</label>
-                  <select value={congeForm.type} onChange={e => setCongeForm(f => ({ ...f, type: e.target.value }))} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%" }}>
-                    <option>Congés payés</option><option>RTT</option><option>Congé sans solde</option><option>Congé exceptionnel</option>
-                  </select>
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>Motif</label>
-                  <input value={congeForm.motif} onChange={e => setCongeForm(f => ({ ...f, motif: e.target.value }))} placeholder="Motif..." style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%", boxSizing: "border-box" as any }} />
-                </div>
-              </div>
-              <div style={{ display: "flex", gap: 8 }}>
-                <Btn onClick={handleDemandeConge}>✅ Envoyer</Btn>
-                <button onClick={() => setShowCongeForm(false)} style={{ background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 14px", cursor: "pointer", fontFamily: "inherit" }}>Annuler</button>
-              </div>
-            </Card>
-          )}
-
-          <Card style={{ marginBottom: 16 }}>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Mes demandes de congés</div>
-            {conges.length === 0 ? <div style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: 20 }}>Aucune demande</div> :
-              conges.map((c, i) => (
-                <div key={i} style={{ background: C.card2, borderRadius: 8, padding: 12, marginBottom: 8, border: `1px solid ${c.statut === "valide" ? C.green + "33" : c.statut === "refuse" ? C.red + "33" : C.orange + "33"}` }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700 }}>{c.debut} → {c.fin} ({c.jours}j)</div>
-                    <Pill color={c.statut === "valide" ? C.green : c.statut === "refuse" ? C.red : C.orange}>{c.statut === "valide" ? "✓ Validé" : c.statut === "refuse" ? "✗ Refusé" : "⏳ En attente"}</Pill>
-                  </div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{c.type} · {c.motif}</div>
-                </div>
-              ))
-            }
-          </Card>
-
-          <Card>
-            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>🏥 Mes absences</div>
-            {absences.length === 0 ? <div style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: 20 }}>Aucune absence</div> :
-              absences.map((a, i) => (
-                <div key={i} style={{ background: C.card2, borderRadius: 8, padding: 12, marginBottom: 8, border: `1px solid ${C.border}` }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
-                    <div style={{ fontSize: 12, fontWeight: 700 }}>{a.debut} → {a.fin} ({a.jours}j)</div>
-                    <Pill color={C.green}>✓ {a.statut}</Pill>
-                  </div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{a.motif} · {a.justif}</div>
-                </div>
-              ))
-            }
           </Card>
         </div>}
 
@@ -282,79 +205,124 @@ export default function EspaceEquipe() {
             <Card key={i} style={{ marginBottom: 12, borderColor: m.statut === "en_cours" ? `${C.gold}44` : C.border }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 8 }}>
                 <div>
-                  <div style={{ fontSize: 14, fontWeight: 700 }}>{m.service}</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>{m.date} · {m.heure} · {m.duree}</div>
-                  <div style={{ fontSize: 11, color: C.muted }}>👤 {m.client} · 📍 {m.adresse}</div>
+                  <div style={{ fontSize: 14, fontWeight: 700 }}>{m.client_nom}</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>{m.date_mission} · {m.heure_debut}</div>
+                  <div style={{ fontSize: 11, color: C.muted }}>📍 {m.adresse}</div>
                 </div>
                 <Pill color={m.statut === "en_cours" ? C.gold : m.statut === "termine" ? C.green : C.muted}>{m.statut}</Pill>
               </div>
-              <div style={{ display: "flex", gap: 6 }}>
-                {m.statut !== "termine" && <Btn onClick={() => updateMissionStatut(m.id, m.statut === "a_faire" ? "en_cours" : "termine")} style={{ fontSize: 11, padding: "6px 12px", background: m.statut === "a_faire" ? C.blue : C.green }}>{m.statut === "a_faire" ? "▶ Démarrer" : "✅ Terminer"}</Btn>}
-                <Btn onClick={() => window.open(`https://maps.google.com/?q=${encodeURIComponent(m.adresse)}`)} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>🗺 GPS</Btn>
-                <Btn onClick={() => showToast("⚠️ Problème signalé")} style={{ fontSize: 11, padding: "6px 12px", background: C.red }}>⚠️ Problème</Btn>
+              <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+                {m.statut !== "termine" && <Btn onClick={() => updateMissionStatut(m.id, m.statut === "confirme" ? "en_cours" : "termine")} style={{ fontSize: 11, padding: "6px 12px", background: m.statut === "confirme" ? C.blue : C.green }}>{m.statut === "confirme" ? "▶ Démarrer" : "✅ Terminer"}</Btn>}
+                {m.adresse && <Btn onClick={() => ouvrirGPS(m.adresse, "driving")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>🗺 GPS</Btn>}
+                <Btn onClick={() => { setSignalementMissionId(m.id); setShowSignalementForm(true); }} style={{ fontSize: 11, padding: "6px 12px", background: C.red }}>⚠️ Problème</Btn>
               </div>
             </Card>
           ))}
+
+          {signalements.length > 0 && <Card style={{ marginTop: 16 }}>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>⚠️ Signalements sur les chantiers</div>
+            <div style={{ fontSize: 10, color: C.muted, marginBottom: 12 }}>Visible par toute l'équipe, pour que chacun fasse attention.</div>
+            {signalements.map((s, i) => (
+              <div key={i} style={{ background: C.card2, borderRadius: 8, padding: 12, marginBottom: 8, border: `1px solid ${s.gravite === "urgent" ? C.red + "44" : C.border}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                  <Pill color={TYPE_SIGNALEMENT_LABELS[s.type] ? C.orange : C.muted}>{TYPE_SIGNALEMENT_LABELS[s.type] || s.type}</Pill>
+                  <Pill color={s.gravite === "urgent" ? C.red : s.gravite === "grave" ? C.orange : C.muted}>{s.gravite}</Pill>
+                </div>
+                <div style={{ fontSize: 12, color: C.text }}>{s.contenu}</div>
+              </div>
+            ))}
+          </Card>}
+        </div>}
+
+        {page === "absences" && <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif" }}>🏖 Congés & Absences</div>
+            <Btn onClick={() => setShowAbsenceForm(s => !s)}>+ Déclarer une absence</Btn>
+          </div>
+
+          {showAbsenceForm && (
+            <Card style={{ marginBottom: 16, borderColor: `${C.gold}44` }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Nouvelle déclaration</div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+                <div>
+                  <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>Type</label>
+                  <select value={absenceForm.type} onChange={e => setAbsenceForm(f => ({ ...f, type: e.target.value }))} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%" }}>
+                    {Object.entries(TYPE_ABSENCE_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>Date début</label>
+                  <input type="date" value={absenceForm.debut} onChange={e => setAbsenceForm(f => ({ ...f, debut: e.target.value }))} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%", boxSizing: "border-box" as any }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>Date fin</label>
+                  <input type="date" value={absenceForm.fin} onChange={e => setAbsenceForm(f => ({ ...f, fin: e.target.value }))} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%", boxSizing: "border-box" as any }} />
+                </div>
+                <div>
+                  <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>Motif (facultatif)</label>
+                  <input value={absenceForm.motif} onChange={e => setAbsenceForm(f => ({ ...f, motif: e.target.value }))} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%", boxSizing: "border-box" as any }} />
+                </div>
+              </div>
+              {absenceForm.type === "accident_travail" && (
+                <div style={{ background: `${C.red}11`, border: `1px solid ${C.red}33`, borderRadius: 6, padding: 10, fontSize: 11, marginBottom: 10 }}>
+                  ⚠️ Prévenez aussi directement Xyra par téléphone dans les 24h — c'est une obligation légale.
+                </div>
+              )}
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn onClick={demanderAbsence}>✅ Envoyer</Btn>
+                <button onClick={() => setShowAbsenceForm(false)} style={{ background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 14px", cursor: "pointer", fontFamily: "inherit" }}>Annuler</button>
+              </div>
+            </Card>
+          )}
+
+          <Card>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Mes demandes</div>
+            {absences.length === 0 ? <div style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: 20 }}>Aucune demande</div> :
+              absences.map((a, i) => (
+                <div key={i} style={{ background: C.card2, borderRadius: 8, padding: 12, marginBottom: 8, border: `1px solid ${a.statut === "validee" ? C.green + "33" : a.statut === "refusee" ? C.red + "33" : C.orange + "33"}` }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 4 }}>
+                    <div style={{ fontSize: 12, fontWeight: 700 }}>{a.debut} → {a.fin}</div>
+                    <Pill color={a.statut === "validee" ? C.green : a.statut === "refusee" ? C.red : C.orange}>{a.statut}</Pill>
+                  </div>
+                  <div style={{ fontSize: 11, color: C.muted }}>{TYPE_ABSENCE_LABELS[a.type] || a.type}</div>
+                </div>
+              ))
+            }
+          </Card>
         </div>}
 
         {page === "profil" && <div>
           <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>👤 Mon profil</div>
           <Card>
-            <div style={{ textAlign: "center", marginBottom: 16 }}>
-              <div style={{ width: 72, height: 72, borderRadius: "50%", background: `${C.blue}22`, border: `3px solid ${C.blue}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 28, fontWeight: 700, color: C.blue, margin: "0 auto 12px" }}>{membre?.nom?.[0] || user?.email?.[0]?.toUpperCase()}</div>
-              <div style={{ fontSize: 18, fontWeight: 700 }}>{membre?.nom || "Membre équipe"}</div>
-              <div style={{ fontSize: 12, color: C.muted }}>{membre?.role || "Équipe Xyra"}</div>
-            </div>
-            {[["📧", user?.email], ["📅", "Membre depuis " + (membre?.embauche || "—")], ["📋", membre?.contrat || "CDI"]].map(([k, v], i) => (
-              <div key={i} style={{ display: "flex", gap: 10, padding: "7px 0", borderBottom: `1px solid ${C.border}22`, fontSize: 12 }}>
-                <span>{k}</span><span style={{ color: C.muted }}>{v}</span>
-              </div>
-            ))}
+            <div style={{ fontSize: 12, color: C.muted }}>{membre?.email}</div>
           </Card>
-        </div>}
-
-        {page === "paie" && <div>
-          <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>💸 Mes fiches de paie</div>
-          <Card>
-            <div style={{ textAlign: "center", padding: 40, color: C.muted }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>📄</div>
-              <div>Vos fiches de paie sont disponibles ici dès leur génération</div>
-              <div style={{ fontSize: 11, marginTop: 8 }}>Contact : <a href="https://wa.me/33765189527" style={{ color: C.gold }}>WhatsApp Xyra</a></div>
-            </div>
-          </Card>
-        </div>}
-
-        {page === "planning" && <div>
-          <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>📅 Mon planning</div>
-          <Card>
-            {missions.length === 0 ? (
-              <div style={{ textAlign: "center", padding: 40, color: C.muted }}>Aucune mission planifiée</div>
-            ) : missions.sort((a, b) => a.date > b.date ? 1 : -1).map((m, i) => (
-              <div key={i} style={{ display: "flex", gap: 12, padding: "10px 0", borderBottom: `1px solid ${C.border}22`, alignItems: "center" }}>
-                <div style={{ width: 70, textAlign: "center" }}>
-                  <div style={{ fontSize: 9, color: C.muted }}>{m.date}</div>
-                  <div style={{ fontSize: 13, fontWeight: 700, color: C.gold }}>{m.heure}</div>
-                </div>
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 600 }}>{m.service}</div>
-                  <div style={{ fontSize: 10, color: C.muted }}>{m.client} · {m.adresse}</div>
-                </div>
-                <Pill color={m.statut === "termine" ? C.green : m.statut === "en_cours" ? C.gold : C.muted}>{m.statut}</Pill>
-              </div>
-            ))}
-          </Card>
-        </div>}
-
-        {page === "messages" && <div style={{ height: "calc(100vh - 100px)", display: "flex", flexDirection: "column" }}>
-          <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>💬 Messages</div>
-          <div style={{ flex: 1, background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 16, display: "flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
-            <div style={{ textAlign: "center", color: C.muted }}>
-              <div style={{ fontSize: 32, marginBottom: 8 }}>💬</div>
-              <div>Messagerie connectée au dashboard owner</div>
-            </div>
-          </div>
         </div>}
       </div>
+
+      {showSignalementForm && (
+        <div onClick={() => setShowSignalementForm(false)} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 9999 }}>
+          <div onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 420, background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 12 }}>⚠️ Signaler un problème</div>
+            <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+              <select value={signalementForm.type} onChange={e => setSignalementForm(f => ({ ...f, type: e.target.value }))} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: 10, color: C.text, fontSize: 12 }}>
+                {Object.entries(TYPE_SIGNALEMENT_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+              </select>
+              <select value={signalementForm.gravite} onChange={e => setSignalementForm(f => ({ ...f, gravite: e.target.value }))} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: 10, color: C.text, fontSize: 12 }}>
+                <option value="mineur">Mineur</option>
+                <option value="moyen">Moyen</option>
+                <option value="grave">Grave</option>
+                <option value="urgent">Urgent — prévenir immédiatement</option>
+              </select>
+              <textarea value={signalementForm.contenu} onChange={e => setSignalementForm(f => ({ ...f, contenu: e.target.value }))} placeholder="Décrivez ce qui se passe..." rows={4} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: 10, color: C.text, fontSize: 12, fontFamily: "inherit", resize: "vertical" as any }} />
+              <div style={{ fontSize: 10, color: C.muted }}>Ce signalement reste dans le dossier de la mission et vous protège.</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <Btn onClick={envoyerSignalement} color={C.red}>✅ Envoyer</Btn>
+                <button onClick={() => setShowSignalementForm(false)} style={{ background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 14px", cursor: "pointer", fontFamily: "inherit" }}>Annuler</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {toast && (
         <div style={{ position: "fixed", bottom: 24, right: 24, background: C.card, border: `1px solid ${C.gold}44`, borderRadius: 10, padding: "12px 20px", fontSize: 13, color: C.text, zIndex: 9999 }}>

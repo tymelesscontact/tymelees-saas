@@ -23,10 +23,12 @@ export async function GET(req: NextRequest) {
   const isOwner = !!ownerEmail && userData.user.email?.toLowerCase() === ownerEmail.toLowerCase()
 
   let isCollaborateur = false
+  let employeId: string | null = null
   if (!isOwner) {
     const { data: membre } = await sb.from("equipe").select("id").eq("user_id", userData.user.id).maybeSingle()
     isCollaborateur = !!membre
+    employeId = membre?.id || null
   }
 
-  return NextResponse.json({ isOwner, isCollaborateur, email: userData.user.email })
+  return NextResponse.json({ isOwner, isCollaborateur, employeId, email: userData.user.email })
 }
