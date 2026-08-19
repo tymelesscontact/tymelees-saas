@@ -60,6 +60,8 @@ export default function LoginPage() {
         const who = await res.json();
         if (who.isOwner) {
           window.location.replace("/dashboard");
+        } else if (who.isCollaborateur) {
+          window.location.replace("/espace-equipe");
         } else {
           window.location.replace("/mon-espace");
         }

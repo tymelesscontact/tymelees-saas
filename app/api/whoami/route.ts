@@ -22,5 +22,11 @@ export async function GET(req: NextRequest) {
   const ownerEmail = process.env.OWNER_EMAIL
   const isOwner = !!ownerEmail && userData.user.email?.toLowerCase() === ownerEmail.toLowerCase()
 
-  return NextResponse.json({ isOwner, email: userData.user.email })
+  let isCollaborateur = false
+  if (!isOwner) {
+    const { data: membre } = await sb.from("equipe").select("id").eq("user_id", userData.user.id).maybeSingle()
+    isCollaborateur = !!membre
+  }
+
+  return NextResponse.json({ isOwner, isCollaborateur, email: userData.user.email })
 }
