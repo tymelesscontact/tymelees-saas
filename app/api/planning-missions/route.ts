@@ -93,6 +93,40 @@ export async function POST(req: NextRequest) {
     const { error } = await sb.from('missions')
       .update({ statut }).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+
+    // Chaine automatique quand une mission se termine : demande d'avis + facture si devis lie
+    if (statut === 'termine') {
+      try {
+        const { data: mission } = await sb.from('missions').select('*').eq('id', id).maybeSingle();
+        if (mission?.client_tel) {
+          const site = process.env.NEXT_PUBLIC_SITE_URL || 'https://xyraio.fr';
+          await fetch(`${site}/api/scoring`, {
+            method: 'POST', headers: { 'Content-Type': 'application/json', cookie: req.headers.get('cookie') || '' },
+            body: JSON.stringify({
+              action: 'demander_avis_whatsapp',
+              client_tel: mission.client_tel, client_nom: mission.client_nom, service: mission.service,
+            }),
+          });
+        }
+        if (mission?.devis_id) {
+          const { data: devis } = await sb.from('devis').select('*').eq('id', mission.devis_id).maybeSingle();
+          if (devis) {
+            const site = process.env.NEXT_PUBLIC_SITE_URL || 'https://xyraio.fr';
+            await fetch(`${site}/api/factures`, {
+              method: 'POST', headers: { 'Content-Type': 'application/json', cookie: req.headers.get('cookie') || '' },
+              body: JSON.stringify({
+                action: 'creer',
+                client_nom: mission.client_nom, client_email: mission.client_email, client_tel: mission.client_tel,
+                description: mission.service || 'Prestation', montant_ht: devis.montant,
+              }),
+            });
+          }
+        }
+      } catch (e: any) {
+        console.error('Chaine post-mission:', e.message);
+      }
+    }
+
     return NextResponse.json({ success: true });
   }
 
