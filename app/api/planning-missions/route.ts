@@ -137,6 +137,51 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(resultat);
   }
 
+  // Suggere les meilleurs collaborateurs pour une mission, sans jamais assigner a la place de Bene
+  if (action === 'suggerer_collaborateurs') {
+    const { date_mission, heure_debut, zone, competence } = body;
+    if (!date_mission || !heure_debut) return NextResponse.json({ error: 'Date et heure necessaires' }, { status: 400 });
+
+    const { data: tousCollabs } = await sb.from('equipe')
+      .select('id,nom,prenom,zones_intervention,competences,statut')
+      .eq('tenant_id', tenantId).eq('statut', 'actif');
+
+    const { data: missionsJour } = await sb.from('missions')
+      .select('id,heure,missions_collaborateurs(collaborateur_id)')
+      .eq('tenant_id', tenantId).eq('date_mission', date_mission).neq('statut', 'annule');
+
+    const chargeParCollab: Record<string, number> = {};
+    const dejaAssigneCreneauProche: Record<string, boolean> = {};
+    for (const m of (missionsJour || [])) {
+      for (const c of (m.missions_collaborateurs || [])) {
+        const id = c.collaborateur_id;
+        chargeParCollab[id] = (chargeParCollab[id] || 0) + 1;
+        // meme heure a une heure pres = conflit
+        if (m.heure && Math.abs(parseInt(m.heure) - parseInt(heure_debut)) < 1) {
+          dejaAssigneCreneauProche[id] = true;
+        }
+      }
+    }
+
+    const suggestions = (tousCollabs || [])
+      .filter((c: any) => !dejaAssigneCreneauProche[c.id])
+      .map((c: any) => {
+        let score = 100;
+        score -= (chargeParCollab[c.id] || 0) * 15;
+        if (zone && c.zones_intervention?.length && !c.zones_intervention.includes(zone)) score -= 40;
+        if (competence && c.competences?.length && !c.competences.includes(competence)) score -= 30;
+        return {
+          id: c.id, nom: `${c.prenom || ''} ${c.nom}`.trim(), score: Math.max(0, score),
+          missions_ce_jour: chargeParCollab[c.id] || 0,
+          zone_compatible: !zone || !c.zones_intervention?.length || c.zones_intervention.includes(zone),
+          competence_compatible: !competence || !c.competences?.length || c.competences.includes(competence),
+        };
+      })
+      .sort((a: any, b: any) => b.score - a.score);
+
+    return NextResponse.json({ success: true, suggestions });
+  }
+
   if (action === 'presence_collaborateur') {
     const { mission_id, collaborateur_id, statut_presence } = body;
     const valides = ['prevu', 'arrive', 'termine', 'absent'];
