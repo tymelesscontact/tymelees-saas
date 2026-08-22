@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 
 const C = {
   dark:"#06060E", card:"#0C0C1A", card2:"#121222",
@@ -30,6 +30,7 @@ export default function EspaceEquipe() {
   const [conversations, setConversations] = useState<any[]>([]);
   const [convSelectionnee, setConvSelectionnee] = useState<any>(null);
   const [texteMessage, setTexteMessage] = useState("");
+  const finMessagesRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [erreur, setErreur] = useState("");
@@ -111,6 +112,10 @@ export default function EspaceEquipe() {
       } else showToast("❌ " + (d.error || "Erreur"));
     } catch { showToast("❌ Erreur de connexion"); }
   };
+
+  useEffect(() => {
+    finMessagesRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [convSelectionnee?.messages?.length]);
 
   const envoyerMessageCollab = async () => {
     if (!texteMessage.trim() || !convSelectionnee) return;
@@ -330,13 +335,15 @@ export default function EspaceEquipe() {
               </div>
               <div style={{ flex: 1, overflowY: "auto", padding: "8px 4px" }}>
                 {(convSelectionnee.messages || []).map((m: any, i: number) => (
-                  <div key={i} style={{ display: "flex", justifyContent: m.moi ? "flex-end" : "flex-start", marginBottom: 8 }}>
-                    <div style={{ background: m.moi ? C.gold : C.card2, color: m.moi ? "#000" : C.text, borderRadius: 8, padding: "8px 12px", maxWidth: "80%", fontSize: 13, wordBreak: "break-word" as any }}>{m.contenu}</div>
+                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.moi ? "flex-end" : "flex-start", marginBottom: 10 }}>
+                    <div style={{ background: m.moi ? C.gold : C.card2, color: m.moi ? "#000" : C.text, borderRadius: 8, padding: "8px 12px", maxWidth: "80%", fontSize: 14, wordBreak: "break-word" as any }}>{m.contenu}</div>
+                    <div style={{ fontSize: 9, color: C.muted, marginTop: 3 }}>{m.auteur} · {m.created_at ? new Date(m.created_at).toLocaleTimeString("fr", { hour: "2-digit", minute: "2-digit" }) : ""}</div>
                   </div>
                 ))}
+                <div ref={finMessagesRef} />
               </div>
               <div style={{ display: "flex", gap: 8, padding: "10px 4px", borderTop: `1px solid ${C.border}` }}>
-                <input value={texteMessage} onChange={e => setTexteMessage(e.target.value)} onKeyDown={e => { if (e.key === "Enter") envoyerMessageCollab(); }} placeholder="Écrire un message..." style={{ flex: 1, background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: 10, color: C.text, fontSize: 13, fontFamily: "inherit", minWidth: 0 }} />
+                <input value={texteMessage} onChange={e => setTexteMessage(e.target.value)} onKeyDown={e => { if (e.key === "Enter") envoyerMessageCollab(); }} placeholder="Écrire un message..." style={{ flex: 1, background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: 10, color: C.text, fontSize: 16, fontFamily: "inherit", minWidth: 0 }} />
                 <Btn onClick={envoyerMessageCollab}>Envoyer</Btn>
               </div>
             </>
