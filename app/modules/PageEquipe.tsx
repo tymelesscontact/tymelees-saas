@@ -34,7 +34,7 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
       const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
       const res=await fetch('/api/equipe'+companyParam);
       const data=await res.json();
-      if(data.membres&&data.membres.length>0){
+      if(data.membres){
         setEquipe(data.membres.map((m,idx)=>({
           heures:0,conges:25,soldeConges:m.conges_solde??25,perf:m.performance||0,localisation:"—",pointage:"—",
           nss:"",rib:"",couleur:m.couleur||["#4B7BFF","#9B5FFF","#FF5F9E","#2EC9B0","#FF8C3A"][idx%5],
