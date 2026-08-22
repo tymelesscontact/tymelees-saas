@@ -58,7 +58,7 @@ export async function POST(req: NextRequest) {
 
     // Retrouver une conversation existante plutot que d'en creer une seconde
     if (tenantId && (contact_email || contact_tel)) {
-      let qExist = sb.from('conversations').select('*').eq('tenant_id', tenantId);
+      let qExist = sb.from('conversations').select('*').eq('tenant_id', tenantId).eq('espace', espace || 'externe');
       if (contact_email) qExist = qExist.eq('contact_email', contact_email);
       else qExist = qExist.eq('contact_tel', contact_tel);
       const { data: existante } = await qExist.order('derniere_activite', { ascending: false }).limit(1).maybeSingle();
