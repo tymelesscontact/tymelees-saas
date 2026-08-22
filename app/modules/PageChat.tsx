@@ -98,7 +98,10 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
     try{
       const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_message',conversation_id:selConv.id,contenu:texte,contact_tel:selConv.contact_tel})});
       const data=await res.json();
-      if(data.success)loadConvs();
+      if(data.success){
+        loadConvs();
+        if(data.whatsappDiagnostic)showToast("⚠️ Message enregistre mais WhatsApp a echoue : "+data.whatsappDiagnostic);
+      }
       else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
   };

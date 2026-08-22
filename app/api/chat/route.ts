@@ -104,8 +104,12 @@ export async function POST(req: NextRequest) {
     await sb.from('conversations').update({ derniere_activite: new Date().toISOString() }).eq('id', conversation_id);
 
     // Envoi réel WhatsApp si conversation externe avec téléphone
+    let whatsappDiagnostic = null;
     if (contact_tel && type !== 'auto_ia') {
-      try { await envoyerWhatsApp(contact_tel, contenu || '[Fichier joint]', tenantId); } catch { /* non bloquant */ }
+      try {
+        const resultat = await envoyerWhatsApp(contact_tel, contenu || '[Fichier joint]', tenantId);
+        if (!resultat.ok) whatsappDiagnostic = resultat.raison || 'echec inconnu';
+      } catch (e: any) { whatsappDiagnostic = 'exception: ' + e.message; }
     }
 
     // Groupe : le message part a chaque participant qui a un telephone.
@@ -126,7 +130,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, message: data });
+    return NextResponse.json({ success: true, message: data, whatsappDiagnostic });
   }
 
   if (action === 'recevoir_message') {
