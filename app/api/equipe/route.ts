@@ -148,14 +148,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, envoyes });
   }
   if (action === 'creer') {
-    const { nom, prenom, role, email, tel, adresse, date_naissance, nss, rib, contrat, salaire_brut, couleur, date_embauche } = body;
+    const { nom, prenom, role, email, tel, adresse, date_naissance, nss, rib, contrat, salaire_brut, couleur, date_embauche, zones_intervention, competences, company_id } = body;
     if (!nom || !email) return NextResponse.json({ error: 'Nom et email requis' }, { status: 400 });
 
+    const tenantIdCreation = await getTenantIdFromRequest(req);
     const { userId, inviteLink } = await inviterCompte(email);
     const salaireNet = Math.round(Number(salaire_brut || 0) * 0.78);
 
     const { data, error } = await sb.from('equipe').insert({
       nom, prenom, role, email, tel, adresse, date_naissance, nss, rib,
+      tenant_id: tenantIdCreation, company_id: company_id || null,
+      zones_intervention: zones_intervention || null, competences: competences || null,
       contrat: contrat || 'CDI',
       salaire: salaireNet,
       salaire_brut: Number(salaire_brut || 0),
