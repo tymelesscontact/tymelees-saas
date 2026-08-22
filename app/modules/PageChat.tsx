@@ -96,11 +96,11 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
     if(!msgInput.trim()||!selConv)return;
     const texte=msgInput;setMsgInput("");setSuggestion("");
     try{
-      const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_message',conversation_id:selConv.id,contenu:texte,contact_tel:selConv.contact_tel})});
+      const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_message',conversation_id:selConv.id,contenu:texte,contact_tel:selConv.contact_tel,contact_email:selConv.contact_email})});
       const data=await res.json();
       if(data.success){
         loadConvs();
-        if(data.whatsappDiagnostic)showToast("⚠️ Message enregistre mais WhatsApp a echoue : "+data.whatsappDiagnostic);
+        if(data.echecTotal)showToast("⚠️ Message enregistre mais aucun canal (WhatsApp/email/SMS) n a pu joindre le contact");
       }
       else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}

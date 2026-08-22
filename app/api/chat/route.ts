@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { envoyerPartout } from '../../lib/rappels';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -87,7 +88,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'envoyer_message') {
-    const { conversation_id, contenu, type, fichier_url, contact_tel } = body;
+    const { conversation_id, contenu, type, fichier_url, contact_tel, contact_email } = body;
     if (!conversation_id || (!contenu && !fichier_url)) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
 
     let expediteur = 'Moi';
@@ -103,13 +104,12 @@ export async function POST(req: NextRequest) {
 
     await sb.from('conversations').update({ derniere_activite: new Date().toISOString() }).eq('id', conversation_id);
 
-    // Envoi réel WhatsApp si conversation externe avec téléphone
-    let whatsappDiagnostic = null;
-    if (contact_tel && type !== 'auto_ia') {
+    // Envoi reel : WhatsApp d'abord, email si echec, SMS en dernier recours
+    let canalUtilise = null;
+    if ((contact_tel || contact_email) && type !== 'auto_ia') {
       try {
-        const resultat = await envoyerWhatsApp(contact_tel, contenu || '[Fichier joint]', tenantId);
-        if (!resultat.ok) whatsappDiagnostic = resultat.raison || 'echec inconnu';
-      } catch (e: any) { whatsappDiagnostic = 'exception: ' + e.message; }
+        canalUtilise = await envoyerPartout(contact_tel || null, contact_email || null, contenu || '[Fichier joint]', tenantId || '');
+      } catch (e: any) { canalUtilise = null; }
     }
 
     // Groupe : le message part a chaque participant qui a un telephone.
@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true, message: data, whatsappDiagnostic });
+    return NextResponse.json({ success: true, message: data, canalUtilise, echecTotal: (contact_tel || contact_email) && type !== 'auto_ia' && !canalUtilise });
   }
 
   if (action === 'recevoir_message') {
