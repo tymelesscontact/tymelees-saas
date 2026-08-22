@@ -15,9 +15,9 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
         showToast(`✅ Conversation ouverte avec ${m.nom}`);setPage('chat');
       }
       else{
-        alert("ECHEC creer_conversation - reponse complete : "+JSON.stringify(data));
+        setDebugErreur("ECHEC creer_conversation (status "+res.status+") : "+JSON.stringify(data));
       }
-    }catch(e){alert("ERREUR JS dans contacterMembreEquipe : "+e.message);}
+    }catch(e){setDebugErreur("ERREUR JS dans contacterMembreEquipe : "+e.message);}
   };
   const[showMsgGroupe,setShowMsgGroupe]=useState(false);
   const[msgGroupeTexte,setMsgGroupeTexte]=useState("");
@@ -85,6 +85,7 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
   const[onglet,setOnglet]=useState("dashboard");
   const[sel,setSel]=useState(null);
   const[showAdd,setShowAdd]=useState(false);
+  const[debugErreur,setDebugErreur]=useState(null);
   const[addForm,setAddForm]=useState({nom:"",role:"",salaire:"",contrat:"CDI",email:"",tel:"",adresse:"",dateNaissance:""});
   const[moisCal,setMoisCal]=useState(4);
 
@@ -114,6 +115,11 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
   const perfMoy=Math.round(equipe.reduce((a,e)=>a+e.perf,0)/equipe.length);
 
   return <div style={{padding:20}}>
+    {debugErreur&&<div style={{background:"#3a0000",border:"2px solid #FF5252",borderRadius:8,padding:14,marginBottom:14,color:"#fff",fontSize:12,wordBreak:"break-all"}}>
+      <div style={{fontWeight:700,marginBottom:6}}>🔴 ERREUR DEBUG (a copier-coller a Claude) :</div>
+      {debugErreur}
+      <button onClick={()=>setDebugErreur(null)} style={{marginTop:8,background:"#fff",color:"#000",border:"none",borderRadius:4,padding:"4px 10px",cursor:"pointer"}}>Fermer</button>
+    </div>}
     {/* HEADER */}
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
       <div>
