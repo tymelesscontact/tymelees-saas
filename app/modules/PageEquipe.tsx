@@ -171,7 +171,7 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
                 ...data.membre,
               }]);setShowAdd(false);
               setAddForm({nom:"",role:"",salaire:"",contrat:"CDI",email:"",tel:"",adresse:"",dateNaissance:""});
-              showToast(data.accesCree?`✅ ${addForm.nom} ajouté, email d'invitation envoyé !`:`✅ ${addForm.nom} ajouté à l'équipe !`);
+              showToast(data.accesCree?`✅ ${addForm.nom} ajouté, email d'invitation envoyé !`:`⚠️ ${addForm.nom} ajouté MAIS pas de compte : ${data.erreurDiagnostic||"raison inconnue"}`);
             }else{
               showToast("❌ "+(data.error||"Erreur"));
             }

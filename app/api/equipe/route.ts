@@ -21,10 +21,10 @@ async function sendEmail(to: string, subject: string, html: string) {
 async function inviterCompte(email: string) {
   try {
     const { data, error } = await sbAdmin.auth.admin.generateLink({ type: 'invite', email });
-    if (error) { console.error('generateLink ERREUR pour', email, ':', error.message, JSON.stringify(error)); return { userId: null, inviteLink: null }; }
-    if (!data?.user) { console.error('generateLink SANS UTILISATEUR pour', email); return { userId: null, inviteLink: null }; }
-    return { userId: data.user.id, inviteLink: (data as any)?.properties?.action_link || null };
-  } catch (e: any) { console.error('generateLink EXCEPTION pour', email, ':', e.message); return { userId: null, inviteLink: null }; }
+    if (error) { return { userId: null, inviteLink: null, erreurDiagnostic: error.message }; }
+    if (!data?.user) { return { userId: null, inviteLink: null, erreurDiagnostic: 'pas d utilisateur retourne' }; }
+    return { userId: data.user.id, inviteLink: (data as any)?.properties?.action_link || null, erreurDiagnostic: null };
+  } catch (e: any) { return { userId: null, inviteLink: null, erreurDiagnostic: 'exception: ' + e.message }; }
 }
 
 // Calcul charges sociales simplifié (approximation France)
@@ -153,7 +153,7 @@ export async function POST(req: NextRequest) {
     if (!nom || !email) return NextResponse.json({ error: 'Nom et email requis' }, { status: 400 });
 
     const tenantIdCreation = await getTenantIdFromRequest(req);
-    const { userId, inviteLink } = await inviterCompte(email);
+    const { userId, inviteLink, erreurDiagnostic } = await inviterCompte(email);
     const salaireNet = Math.round(Number(salaire_brut || 0) * 0.78);
 
     const { data, error } = await sb.from('equipe').insert({
@@ -184,7 +184,7 @@ export async function POST(req: NextRequest) {
       );
     } catch { /* non bloquant */ }
 
-    return NextResponse.json({ success: true, membre: data, accesCree: !!userId });
+    return NextResponse.json({ success: true, membre: data, accesCree: !!userId, erreurDiagnostic });
   }
 
   if (action === 'inviter_espace') {
