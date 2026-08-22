@@ -87,6 +87,25 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, conversation: data });
   }
 
+  if (action === 'mes_conversations') {
+    if (!tenantId) return NextResponse.json({ error: 'non_connecte' }, { status: 401 });
+    const token = req.cookies.get('sb-access-token')?.value;
+    if (!token) return NextResponse.json({ error: 'non_connecte' }, { status: 401 });
+    const { data: authData } = await sb.auth.getUser(token);
+    if (!authData?.user) return NextResponse.json({ error: 'non_connecte' }, { status: 401 });
+    const { data: moi } = await sb.from('equipe').select('email,tel').eq('user_id', authData.user.id).maybeSingle();
+    if (!moi) return NextResponse.json({ conversations: [] });
+    let q = sb.from('conversations').select('*').eq('tenant_id', tenantId).eq('espace', 'equipe');
+    if (moi.email) q = q.eq('contact_email', moi.email);
+    else if (moi.tel) q = q.eq('contact_tel', moi.tel);
+    const { data: convs } = await q.order('derniere_activite', { ascending: false });
+    const avecMessages = [];
+    for (const c of (convs || [])) {
+      const { data: msgs } = await sb.from('chat_messages').select('*').eq('conversation_id', c.id).order('created_at');
+      avecMessages.push({ ...c, messages: msgs || [] });
+    }
+    return NextResponse.json({ conversations: avecMessages });
+  }
   if (action === 'envoyer_message') {
     const { conversation_id, contenu, type, fichier_url, contact_tel, contact_email } = body;
     if (!conversation_id || (!contenu && !fichier_url)) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
