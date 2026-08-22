@@ -21,9 +21,10 @@ async function sendEmail(to: string, subject: string, html: string) {
 async function inviterCompte(email: string) {
   try {
     const { data, error } = await sbAdmin.auth.admin.generateLink({ type: 'invite', email });
-    if (error || !data?.user) return { userId: null, inviteLink: null };
+    if (error) { console.error('generateLink ERREUR pour', email, ':', error.message, JSON.stringify(error)); return { userId: null, inviteLink: null }; }
+    if (!data?.user) { console.error('generateLink SANS UTILISATEUR pour', email); return { userId: null, inviteLink: null }; }
     return { userId: data.user.id, inviteLink: (data as any)?.properties?.action_link || null };
-  } catch { return { userId: null, inviteLink: null }; }
+  } catch (e: any) { console.error('generateLink EXCEPTION pour', email, ':', e.message); return { userId: null, inviteLink: null }; }
 }
 
 // Calcul charges sociales simplifié (approximation France)
