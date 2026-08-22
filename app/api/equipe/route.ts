@@ -172,6 +172,12 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
+    if (userId && tenantIdCreation) {
+      try {
+        await sb.from("tenant_membres").insert({ user_id: userId, tenant_id: tenantIdCreation, role: "collaborateur" });
+      } catch (e) {}
+    }
+
     try {
       const lien = inviteLink ? `<p><a href="${inviteLink}" style="color:#C9A84C">Cliquez ici pour créer votre mot de passe et accéder à votre espace équipe</a></p>` : '';
       await sendEmail(email, 'Bienvenue dans l\'équipe Xyra !',
