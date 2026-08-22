@@ -6,6 +6,7 @@ import { hasAccess } from "../lib/plans";
 
 const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
   const contacterMembreEquipe=async(m)=>{
+    setDebugErreur("TENTATIVE - m = "+JSON.stringify(m));
     try{
       const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer_conversation',espace:'equipe',contact_nom:m.nom,contact_tel:m.tel,contact_email:m.email})});
       const data=await res.json();
