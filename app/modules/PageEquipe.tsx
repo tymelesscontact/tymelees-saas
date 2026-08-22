@@ -134,11 +134,24 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
         <select value={addForm.contrat} onChange={e=>setAddForm(f=>({...f,contrat:e.target.value}))} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 12px",color:"#EAE6DE",fontSize:12,fontFamily:"inherit"}}><option>CDI</option><option>CDD</option><option>Auto-entrepreneur</option><option>Intérim</option><option>Stage</option></select>
       </div>
       <div style={{display:"flex",gap:8}}>
-        <button onClick={()=>{
+        <button onClick={async()=>{
+          if(!addForm.nom||!addForm.email){showToast("⚠️ Nom et email requis");return;}
           const colors=["#4B7BFF","#9B5FFF","#FF5F9E","#2EC9B0","#FF8C3A"];
-          const n={id:Date.now(),nom:addForm.nom,prenom:addForm.nom.split(" ")[0],role:addForm.role,statut:"Disponible",localisation:"—",pointage:"—",heures:0,conges:25,soldeConges:25,salaire:Number(addForm.salaire)||0,perf:0,contrat:addForm.contrat,email:addForm.email,tel:addForm.tel,embauche:new Date().toLocaleDateString("fr"),nss:"",rib:"",adresse:addForm.adresse,dateNaissance:addForm.dateNaissance,couleur:colors[equipe.length%colors.length],missions:[],evaluations:[],formations:[],documents:[],arrets:[],objectifs:[],carriere:[{date:new Date().toLocaleDateString("fr"),poste:addForm.role,salaire:Number(addForm.salaire)||0}]};
-          setEquipe(eq=>[...eq,n]);setShowAdd(false);setAddForm({nom:"",role:"",salaire:"",contrat:"CDI",email:"",tel:"",adresse:"",dateNaissance:""});
-          showToast(`✅ ${addForm.nom} ajouté à l'équipe !`);
+          try{
+            const res=await fetch("/api/equipe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
+              action:"creer",nom:addForm.nom,prenom:addForm.nom.split(" ")[0],role:addForm.role,
+              email:addForm.email,tel:addForm.tel,adresse:addForm.adresse,date_naissance:addForm.dateNaissance,
+              contrat:addForm.contrat,salaire_brut:Number(addForm.salaire)||0,couleur:colors[equipe.length%colors.length],
+            })});
+            const data=await res.json();
+            if(data.success){
+              setEquipe(eq=>[...eq,data.membre]);setShowAdd(false);
+              setAddForm({nom:"",role:"",salaire:"",contrat:"CDI",email:"",tel:"",adresse:"",dateNaissance:""});
+              showToast(data.accesCree?`✅ ${addForm.nom} ajouté, email d'invitation envoyé !`:`✅ ${addForm.nom} ajouté à l'équipe !`);
+            }else{
+              showToast("❌ "+(data.error||"Erreur"));
+            }
+          }catch(e){showToast("❌ Erreur de connexion");}
         }} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13,fontFamily:"inherit"}}>✅ Ajouter</button>
         <button onClick={()=>setShowAdd(false)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>Annuler</button>
       </div>
