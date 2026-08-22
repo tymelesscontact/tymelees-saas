@@ -43,7 +43,16 @@ const PageChat=({plan,showToast,Chat,activeCompany})=>{
       const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
       const res=await fetch(`/api/chat?espace=${espace==="visio"?"externe":espace}`+companyParam);
       const data=await res.json();
-      if(data.conversations)setConvs(data.conversations);
+      if(data.conversations){
+        setConvs(data.conversations);
+        const aOuvrir=sessionStorage.getItem("xyra_ouvrir_conv");
+        if(aOuvrir){
+          const trouvee=data.conversations.find(c=>c.id===aOuvrir);
+          if(trouvee)setSelConv(trouvee);
+          sessionStorage.removeItem("xyra_ouvrir_conv");
+          sessionStorage.removeItem("xyra_ouvrir_conv_espace");
+        }
+      }
     }catch(e){console.error("Chat:",e);}
     setLoadingConvs(false);
   };
