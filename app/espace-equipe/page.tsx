@@ -27,6 +27,9 @@ export default function EspaceEquipe() {
   const [missions, setMissions] = useState<any[]>([]);
   const [absences, setAbsences] = useState<any[]>([]);
   const [signalements, setSignalements] = useState<any[]>([]);
+  const [conversations, setConversations] = useState<any[]>([]);
+  const [convSelectionnee, setConvSelectionnee] = useState<any>(null);
+  const [texteMessage, setTexteMessage] = useState("");
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [erreur, setErreur] = useState("");
@@ -46,14 +49,16 @@ export default function EspaceEquipe() {
       const who = await fetch("/api/whoami").then(r => r.json());
       if (!who.email || !who.isCollaborateur) { window.location.href = "/login"; return; }
 
-      const [mis, abs, sig] = await Promise.all([
+      const [mis, abs, sig, msgs] = await Promise.all([
         fetch("/api/planning-missions").then(r => r.json()).catch(() => ({})),
         fetch("/api/absences").then(r => r.json()).catch(() => ({})),
         fetch("/api/signalements?vue=equipe").then(r => r.json()).catch(() => ({})),
+        fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "mes_conversations" }) }).then(r => r.json()).catch(() => ({})),
       ]);
       if (mis.missions) setMissions(mis.missions);
       if (abs.absences) setAbsences(abs.absences);
       if (sig.signalements) setSignalements(sig.signalements);
+      if (msgs.conversations) setConversations(msgs.conversations);
       setMembre({ email: who.email, employe_id: who.employeId });
     } catch (e: any) {
       setErreur("connexion");
@@ -107,6 +112,21 @@ export default function EspaceEquipe() {
     } catch { showToast("❌ Erreur de connexion"); }
   };
 
+  const envoyerMessageCollab = async () => {
+    if (!texteMessage.trim() || !convSelectionnee) return;
+    const texte = texteMessage;
+    setTexteMessage("");
+    try {
+      const r = await fetch("/api/chat", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "envoyer_message", conversation_id: convSelectionnee.id, contenu: texte }),
+      });
+      const d = await r.json();
+      if (d.success) charger();
+      else showToast("❌ " + (d.error || "Erreur"));
+    } catch { showToast("❌ Erreur de connexion"); }
+  };
+
   const ouvrirGPS = (adresse: string, mode: "walking" | "driving" | "transit") => {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(adresse)}&travelmode=${mode}`, "_blank");
   };
@@ -125,6 +145,7 @@ export default function EspaceEquipe() {
     { id: "dashboard", icon: "🏠", label: "Tableau de bord" },
     { id: "missions", icon: "✅", label: "Mes missions" },
     { id: "absences", icon: "🏖", label: "Congés & Absences" },
+    { id: "messages", icon: "💬", label: "Messages" },
     { id: "profil", icon: "👤", label: "Mon profil" },
   ];
 
@@ -289,6 +310,37 @@ export default function EspaceEquipe() {
               ))
             }
           </Card>
+        </div>}
+
+        {page === "messages" && <div style={{ display: "flex", gap: 14, height: "calc(100vh - 100px)" }}>
+          <div style={{ width: 220, overflowY: "auto" }}>
+            {conversations.length === 0 && <div style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: 20 }}>Aucune conversation</div>}
+            {conversations.map((c, i) => (
+              <div key={i} onClick={() => setConvSelectionnee(c)} style={{ background: convSelectionnee?.id === c.id ? C.card2 : "transparent", borderRadius: 8, padding: 10, marginBottom: 6, cursor: "pointer", border: `1px solid ${C.border}` }}>
+                <div style={{ fontSize: 12, fontWeight: 700 }}>{c.contact_nom || "Xyra"}</div>
+                <div style={{ fontSize: 10, color: C.muted }}>{c.messages?.length ? c.messages[c.messages.length - 1].contenu?.slice(0, 30) : "Aucun message"}</div>
+              </div>
+            ))}
+          </div>
+          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+            {!convSelectionnee ? (
+              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted, fontSize: 13 }}>Sélectionne une conversation</div>
+            ) : (
+              <>
+                <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
+                  {(convSelectionnee.messages || []).map((m: any, i: number) => (
+                    <div key={i} style={{ display: "flex", justifyContent: m.moi ? "flex-end" : "flex-start", marginBottom: 8 }}>
+                      <div style={{ background: m.moi ? C.gold : C.card2, color: m.moi ? "#000" : C.text, borderRadius: 8, padding: "8px 12px", maxWidth: "70%", fontSize: 13 }}>{m.contenu}</div>
+                    </div>
+                  ))}
+                </div>
+                <div style={{ display: "flex", gap: 8, padding: 10, borderTop: `1px solid ${C.border}` }}>
+                  <input value={texteMessage} onChange={e => setTexteMessage(e.target.value)} onKeyDown={e => { if (e.key === "Enter") envoyerMessageCollab(); }} placeholder="Écrire un message..." style={{ flex: 1, background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: 10, color: C.text, fontSize: 13, fontFamily: "inherit" }} />
+                  <Btn onClick={envoyerMessageCollab}>Envoyer</Btn>
+                </div>
+              </>
+            )}
+          </div>
         </div>}
 
         {page === "profil" && <div>
