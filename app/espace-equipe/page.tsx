@@ -312,35 +312,35 @@ export default function EspaceEquipe() {
           </Card>
         </div>}
 
-        {page === "messages" && <div style={{ display: "flex", gap: 14, height: "calc(100vh - 100px)" }}>
-          <div style={{ width: 220, overflowY: "auto" }}>
-            {conversations.length === 0 && <div style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: 20 }}>Aucune conversation</div>}
-            {conversations.map((c, i) => (
-              <div key={i} onClick={() => setConvSelectionnee(c)} style={{ background: convSelectionnee?.id === c.id ? C.card2 : "transparent", borderRadius: 8, padding: 10, marginBottom: 6, cursor: "pointer", border: `1px solid ${C.border}` }}>
-                <div style={{ fontSize: 12, fontWeight: 700 }}>{c.contact_nom || "Xyra"}</div>
-                <div style={{ fontSize: 10, color: C.muted }}>{c.messages?.length ? c.messages[c.messages.length - 1].contenu?.slice(0, 30) : "Aucun message"}</div>
+        {page === "messages" && <div style={{ height: "calc(100vh - 120px)", display: "flex", flexDirection: "column" }}>
+          {!convSelectionnee ? (
+            <div style={{ overflowY: "auto" }}>
+              {conversations.length === 0 && <div style={{ fontSize: 12, color: C.muted, textAlign: "center", padding: 30 }}>Aucune conversation</div>}
+              {conversations.map((c, i) => (
+                <div key={i} onClick={() => setConvSelectionnee(c)} style={{ background: C.card, borderRadius: 8, padding: 12, marginBottom: 8, cursor: "pointer", border: `1px solid ${C.border}` }}>
+                  <div style={{ fontSize: 13, fontWeight: 700 }}>{c.contact_nom || "Xyra"}</div>
+                  <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{c.messages?.length ? c.messages[c.messages.length - 1].contenu?.slice(0, 40) : "Aucun message"}</div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <>
+              <div onClick={() => setConvSelectionnee(null)} style={{ display: "flex", alignItems: "center", gap: 8, padding: "8px 4px", cursor: "pointer", color: C.gold, fontSize: 13, fontWeight: 600 }}>
+                ← {convSelectionnee.contact_nom || "Xyra"}
               </div>
-            ))}
-          </div>
-          <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-            {!convSelectionnee ? (
-              <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", color: C.muted, fontSize: 13 }}>Sélectionne une conversation</div>
-            ) : (
-              <>
-                <div style={{ flex: 1, overflowY: "auto", padding: 12 }}>
-                  {(convSelectionnee.messages || []).map((m: any, i: number) => (
-                    <div key={i} style={{ display: "flex", justifyContent: m.moi ? "flex-end" : "flex-start", marginBottom: 8 }}>
-                      <div style={{ background: m.moi ? C.gold : C.card2, color: m.moi ? "#000" : C.text, borderRadius: 8, padding: "8px 12px", maxWidth: "70%", fontSize: 13 }}>{m.contenu}</div>
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display: "flex", gap: 8, padding: 10, borderTop: `1px solid ${C.border}` }}>
-                  <input value={texteMessage} onChange={e => setTexteMessage(e.target.value)} onKeyDown={e => { if (e.key === "Enter") envoyerMessageCollab(); }} placeholder="Écrire un message..." style={{ flex: 1, background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: 10, color: C.text, fontSize: 13, fontFamily: "inherit" }} />
-                  <Btn onClick={envoyerMessageCollab}>Envoyer</Btn>
-                </div>
-              </>
-            )}
-          </div>
+              <div style={{ flex: 1, overflowY: "auto", padding: "8px 4px" }}>
+                {(convSelectionnee.messages || []).map((m: any, i: number) => (
+                  <div key={i} style={{ display: "flex", justifyContent: m.moi ? "flex-end" : "flex-start", marginBottom: 8 }}>
+                    <div style={{ background: m.moi ? C.gold : C.card2, color: m.moi ? "#000" : C.text, borderRadius: 8, padding: "8px 12px", maxWidth: "80%", fontSize: 13, wordBreak: "break-word" as any }}>{m.contenu}</div>
+                  </div>
+                ))}
+              </div>
+              <div style={{ display: "flex", gap: 8, padding: "10px 4px", borderTop: `1px solid ${C.border}` }}>
+                <input value={texteMessage} onChange={e => setTexteMessage(e.target.value)} onKeyDown={e => { if (e.key === "Enter") envoyerMessageCollab(); }} placeholder="Écrire un message..." style={{ flex: 1, background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: 10, color: C.text, fontSize: 13, fontFamily: "inherit", minWidth: 0 }} />
+                <Btn onClick={envoyerMessageCollab}>Envoyer</Btn>
+              </div>
+            </>
+          )}
         </div>}
 
         {page === "profil" && <div>
