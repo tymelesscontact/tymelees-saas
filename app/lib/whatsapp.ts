@@ -42,7 +42,12 @@ export async function envoyerWhatsApp(to: string, message: string, tenantId?: st
         text: { body: safe },
       }),
     });
-    return { ok: res.ok };
+    if (!res.ok) {
+      const corpsErreur = await res.text();
+      console.error('WhatsApp REFUSE par Meta, statut', res.status, ':', corpsErreur);
+      return { ok: false, raison: corpsErreur };
+    }
+    return { ok: true };
   } catch (e: any) {
     console.error('WhatsApp envoi:', e.message);
     return { ok: false, raison: e.message };
