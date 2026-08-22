@@ -9,13 +9,15 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
     try{
       const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer_conversation',espace:'equipe',contact_nom:m.nom,contact_tel:m.tel,contact_email:m.email})});
       const data=await res.json();
-      if(data.success){
+      if(data.success&&data.conversation&&data.conversation.id){
         sessionStorage.setItem("xyra_ouvrir_conv", data.conversation.id);
         sessionStorage.setItem("xyra_ouvrir_conv_espace", "equipe");
         showToast(`✅ Conversation ouverte avec ${m.nom}`);setPage('chat');
       }
-      else showToast("❌ "+(data.error||"Erreur"));
-    }catch(e){showToast("❌ Erreur de connexion");}
+      else{
+        alert("ECHEC creer_conversation - reponse complete : "+JSON.stringify(data));
+      }
+    }catch(e){alert("ERREUR JS dans contacterMembreEquipe : "+e.message);}
   };
   const[showMsgGroupe,setShowMsgGroupe]=useState(false);
   const[msgGroupeTexte,setMsgGroupeTexte]=useState("");
