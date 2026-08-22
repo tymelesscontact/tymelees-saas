@@ -35,10 +35,14 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
       const res=await fetch('/api/equipe'+companyParam);
       const data=await res.json();
       if(data.membres&&data.membres.length>0){
-        setEquipe(prev=>prev.map(m=>{
-          const real=data.membres.find(r=>r.email===m.email||r.nom===m.nom);
-          return real?{...m,...real,missions:real.missions?.length>0?real.missions:m.missions}:m;
-        }));
+        setEquipe(data.membres.map((m,idx)=>({
+          heures:0,conges:25,soldeConges:m.conges_solde??25,perf:m.performance||0,localisation:"—",pointage:"—",
+          nss:"",rib:"",couleur:m.couleur||["#4B7BFF","#9B5FFF","#FF5F9E","#2EC9B0","#FF8C3A"][idx%5],
+          missions:[],evaluations:[],formations:[],documents:[],arrets:[],objectifs:[],carriere:[],
+          embauche:m.date_embauche||"—",dateNaissance:m.date_naissance||"",
+          salaire:m.salaire||0,contrat:m.contrat||"CDI",statut:m.statut||"Disponible",
+          ...m,
+        })));
         setAlertes(data.alertes||[]);
       }
     }catch(e){console.log("Mode local");}
