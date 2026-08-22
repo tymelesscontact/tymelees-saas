@@ -145,7 +145,8 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
     {showAdd&&<div style={{background:"#0C0C1A",border:"1px solid #C9A84C44",borderRadius:12,padding:18,marginBottom:14}}>
       <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:10,fontWeight:600}}>Nouveau collaborateur</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
-        {[["Nom complet","nom"],["Poste / rôle","role"],["Email pro","email"],["Téléphone","tel"],["Date de naissance","dateNaissance"],["Adresse domicile","adresse"],["Zones (villes, separees par virgule)","zonesTexte"],["Competences (separees par virgule)","competencesTexte"]].map(([ph,k])=><input key={k} value={addForm[k]} onChange={e=>setAddForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:"8px 12px",color:"#EAE6DE",fontSize:13,fontFamily:"inherit",outline:"none"}}/>)}
+        {[["Nom complet","nom"],["Poste / rôle","role"],["Email pro","email"],["Téléphone","tel"],["Adresse domicile","adresse"],["Zones (villes, separees par virgule)","zonesTexte"],["Competences (separees par virgule)","competencesTexte"]].map(([ph,k])=><input key={k} value={addForm[k]} onChange={e=>setAddForm(f=>({...f,[k]:e.target.value}))} placeholder={ph} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:"8px 12px",color:"#EAE6DE",fontSize:13,fontFamily:"inherit",outline:"none"}}/>)}
+        <input type="date" value={addForm.dateNaissance} onChange={e=>setAddForm(f=>({...f,dateNaissance:e.target.value}))} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:"8px 12px",color:"#EAE6DE",fontSize:13,fontFamily:"inherit",outline:"none"}}/>
         <input value={addForm.salaire} onChange={e=>setAddForm(f=>({...f,salaire:e.target.value}))} placeholder="Salaire net (€)" style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:"8px 12px",color:"#EAE6DE",fontSize:13,fontFamily:"inherit",outline:"none"}}/>
         <select value={addForm.contrat} onChange={e=>setAddForm(f=>({...f,contrat:e.target.value}))} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 12px",color:"#EAE6DE",fontSize:12,fontFamily:"inherit"}}><option>CDI</option><option>CDD</option><option>Auto-entrepreneur</option><option>Intérim</option><option>Stage</option></select>
       </div>
@@ -156,7 +157,7 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
           try{
             const res=await fetch("/api/equipe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
               action:"creer",nom:addForm.nom,prenom:addForm.nom.split(" ")[0],role:addForm.role,
-              email:addForm.email,tel:addForm.tel,adresse:addForm.adresse,date_naissance:(()=>{const p=addForm.dateNaissance.split("/");return p.length===3?`${p[2]}-${p[1].padStart(2,"0")}-${p[0].padStart(2,"0")}`:null;})(),
+              email:addForm.email,tel:addForm.tel,adresse:addForm.adresse,date_naissance:addForm.dateNaissance||null,
               contrat:addForm.contrat,salaire_brut:Number(addForm.salaire)||0,couleur:colors[equipe.length%colors.length],
               zones_intervention:(addForm.zonesTexte||"").split(",").map(z=>z.trim()).filter(Boolean),
               competences:(addForm.competencesTexte||"").split(",").map(c=>c.trim()).filter(Boolean),
