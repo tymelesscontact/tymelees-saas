@@ -140,7 +140,7 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
           try{
             const res=await fetch("/api/equipe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({
               action:"creer",nom:addForm.nom,prenom:addForm.nom.split(" ")[0],role:addForm.role,
-              email:addForm.email,tel:addForm.tel,adresse:addForm.adresse,date_naissance:addForm.dateNaissance,
+              email:addForm.email,tel:addForm.tel,adresse:addForm.adresse,date_naissance:(()=>{const p=addForm.dateNaissance.split("/");return p.length===3?`${p[2]}-${p[1].padStart(2,"0")}-${p[0].padStart(2,"0")}`:null;})(),
               contrat:addForm.contrat,salaire_brut:Number(addForm.salaire)||0,couleur:colors[equipe.length%colors.length],
               zones_intervention:(addForm.zonesTexte||"").split(",").map(z=>z.trim()).filter(Boolean),
               competences:(addForm.competencesTexte||"").split(",").map(c=>c.trim()).filter(Boolean),
