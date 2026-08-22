@@ -147,7 +147,12 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
             })});
             const data=await res.json();
             if(data.success){
-              setEquipe(eq=>[...eq,data.membre]);setShowAdd(false);
+              setEquipe(eq=>[...eq,{
+                heures:0,conges:25,soldeConges:25,perf:0,localisation:"—",pointage:"—",
+                nss:"",rib:"",couleur:colors[equipe.length%colors.length],
+                missions:[],evaluations:[],formations:[],documents:[],arrets:[],objectifs:[],carriere:[],
+                ...data.membre,
+              }]);setShowAdd(false);
               setAddForm({nom:"",role:"",salaire:"",contrat:"CDI",email:"",tel:"",adresse:"",dateNaissance:""});
               showToast(data.accesCree?`✅ ${addForm.nom} ajouté, email d'invitation envoyé !`:`✅ ${addForm.nom} ajouté à l'équipe !`);
             }else{
