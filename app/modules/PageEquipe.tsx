@@ -225,8 +225,16 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
           {[["Heures/j",e.heures+"h","#4B7BFF"],["Congés",e.soldeConges+"j","#C9A84C"],["Perf",e.perf+"%","#2EC9B0"],["Salaire",e.salaire.toLocaleString("fr")+"€","#C9A84C"]].map(([l,v,c],j)=><div key={j} style={{background:"#121222",borderRadius:6,padding:"6px 4px",textAlign:"center"}}><div style={{fontSize:8,color:"#5A5A7A",marginBottom:2}}>{l}</div><div style={{fontSize:11,fontWeight:700,color:c}}>{v}</div></div>)}
         </div>
         <div style={{height:3,borderRadius:2,background:"#1E1E36",marginBottom:10}}><div style={{height:"100%",width:e.perf+"%",background:e.perf>=90?"#2EC9B0":e.perf>=70?"#C9A84C":"#FF8C3A",borderRadius:2}}/></div>
-        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr",gap:5}}>
-          {[["💸 Paie",()=>showToast(`✅ Fiche paie ${e.nom} générée`)],["📍 GPS",()=>showToast("📍 GPS ouvert")],["💬 Chat",()=>contacterMembreEquipe(e)],["📋 Fiche",()=>setSel(sel?.id===e.id?null:e)]].map(([l,fn],j)=><button key={j} onClick={ev=>{ev.stopPropagation();fn();}} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 2px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>{l}</button>)}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr",gap:5}}>
+          {[["💸 Paie",()=>showToast(`✅ Fiche paie ${e.nom} générée`)],["📍 GPS",()=>showToast("📍 GPS ouvert")],["💬 Chat",()=>contacterMembreEquipe(e)],["📋 Fiche",()=>setSel(sel?.id===e.id?null:e)],["🗑 Suppr.",async()=>{
+            if(!window.confirm(`Supprimer ${e.nom} de l'equipe ? Son compte de connexion sera aussi supprime.`))return;
+            try{
+              const res=await fetch("/api/equipe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"supprimer",id:e.id})});
+              const data=await res.json();
+              if(data.success){setEquipe(eq=>eq.filter(m=>m.id!==e.id));showToast(`✅ ${e.nom} supprime`);}
+              else showToast("❌ "+(data.error||"Erreur"));
+            }catch(err){showToast("❌ Erreur de connexion");}
+          }]].map(([l,fn],j)=><button key={j} onClick={ev=>{ev.stopPropagation();fn();}} style={{background:"transparent",color:l==="🗑 Suppr."?"#FF5252":"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 2px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>{l}</button>)}
         </div>
         {/* FICHE COMPLÈTE */}
         {sel?.id===e.id&&<div style={{marginTop:12,borderTop:"1px solid #1E1E3644",paddingTop:12}}>
