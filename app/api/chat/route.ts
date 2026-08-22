@@ -111,13 +111,29 @@ export async function POST(req: NextRequest) {
     if (!conversation_id || (!contenu && !fichier_url)) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
 
     let expediteur = 'Moi';
-    if (tenantId) {
+    let moi = true;
+    const tokenExp = req.cookies.get('sb-access-token')?.value;
+    if (tokenExp) {
+      const { data: authExp } = await sb.auth.getUser(tokenExp);
+      if (authExp?.user) {
+        const ownerEmail = process.env.OWNER_EMAIL;
+        const estProprietaire = !!ownerEmail && authExp.user.email?.toLowerCase() === ownerEmail.toLowerCase();
+        if (!estProprietaire) {
+          const { data: membreExp } = await sb.from('equipe').select('nom,prenom').eq('user_id', authExp.user.id).maybeSingle();
+          if (membreExp) {
+            moi = false;
+            expediteur = membreExp.prenom ? (membreExp.prenom + ' ' + membreExp.nom) : membreExp.nom;
+          }
+        }
+      }
+    }
+    if (moi && tenantId) {
       const { data: t } = await sb.from('tenants').select('societe').eq('id', tenantId).maybeSingle();
       if (t?.societe) expediteur = t.societe;
     }
 
     const { data, error } = await sb.from('chat_messages').insert({
-      conversation_id, auteur: expediteur, contenu, moi: true, type: type || 'texte', fichier_url, lu: true,
+      conversation_id, auteur: expediteur, contenu, moi, type: type || 'texte', fichier_url, lu: true,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
