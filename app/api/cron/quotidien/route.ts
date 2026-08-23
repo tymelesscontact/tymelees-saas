@@ -85,5 +85,24 @@ export async function GET(req: NextRequest) {
     resultats.listeAttente = { error: e.message };
   }
 
+  // 4 - Essais expires jamais convertis : suppression pour liberer l'email, seconde chance possible
+  try {
+    const { data: essaisExpires } = await sb.from('tenants')
+      .select('id').eq('statut', 'essai').lt('trial_ends_at', new Date().toISOString());
+
+    let essaisSupprimes = 0;
+    for (const t of (essaisExpires || [])) {
+      const { count } = await sb.from('clients').select('id', { count: 'exact', head: true }).eq('tenant_id', t.id);
+      if (!count || count === 0) {
+        await sb.from('tenant_membres').delete().eq('tenant_id', t.id);
+        await sb.from('tenants').delete().eq('id', t.id);
+        essaisSupprimes++;
+      }
+    }
+    resultats.essaisNettoyes = { supprimes: essaisSupprimes };
+  } catch (e: any) {
+    resultats.essaisNettoyes = { error: e.message };
+  }
+
   return NextResponse.json({ success: true, resultats, executee_le: new Date().toISOString() });
 }
