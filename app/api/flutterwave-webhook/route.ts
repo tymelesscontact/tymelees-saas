@@ -99,6 +99,19 @@ export async function POST(req: NextRequest) {
       plan: planNorm,
       flutterwave_tx_ref: payload.data.tx_ref,
     }).eq('email', email);
+
+    // Notifier Bene si un client devient revendeur white-label
+    if (planNorm.startsWith('white_label_')) {
+      try {
+        await sb.from('notifications').insert({
+          type: 'info', icon: '◈', urgence: 'haute',
+          titre: `Nouveau revendeur : ${societe}`,
+          message: `${societe} (${email}) vient de souscrire au plan ${planNorm}`,
+          action_type: 'revendeur', lu: false,
+          tenant_id: '264153ba-2e0f-404a-9bf9-f3d129a0d56e',
+        });
+      } catch (e) { console.error('Notification revendeur:', e); }
+    }
     const montantNum = PLAN_PRIX[planNorm] ?? 0;
     await sb.from('abonnements_paiements').insert({
       tenant_email: email, societe, plan, montant: montantNum, devise: 'EUR',
