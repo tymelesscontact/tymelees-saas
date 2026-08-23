@@ -24,6 +24,7 @@ const PagePlanning = ({ plan, showToast, profil, UpgradeWall, activeCompany }: a
   const [showDeclarerAbsence, setShowDeclarerAbsence] = useState(false);
   const [absenceForm, setAbsenceForm] = useState({ employe_id: "", type: "conge_paye", debut: "", fin: "", motif: "" });
   const [positions, setPositions] = useState<any[]>([]);
+  const [signalements, setSignalements] = useState<any[]>([]);
   const carteDiv = useRef<HTMLDivElement>(null);
   const carteObjet = useRef<any>(null);
   const marqueurs = useRef<any[]>([]);
@@ -31,16 +32,18 @@ const PagePlanning = ({ plan, showToast, profil, UpgradeWall, activeCompany }: a
   const charger = async () => {
     setChargement(true);
     try {
-      const [rEquipe, rMissions, rAbsences, rPositions] = await Promise.all([
+      const [rEquipe, rMissions, rAbsences, rPositions, rSignalements] = await Promise.all([
         fetch("/api/equipe").then((r) => r.json()).catch(() => ({})),
         fetch("/api/planning-missions").then((r) => r.json()).catch(() => ({})),
         fetch("/api/absences").then((r) => r.json()).catch(() => ({})),
         fetch("/api/position").then((r) => r.json()).catch(() => ({})),
+        fetch("/api/signalements").then((r) => r.json()).catch(() => ({})),
       ]);
       setCollaborateurs(rEquipe.membres || []);
       setMissions(rMissions.missions || []);
       setAbsences(rAbsences.absences || []);
       setPositions(rPositions.positions || []);
+      setSignalements((rSignalements.signalements || []).filter((s: any) => s.statut !== "resolu"));
     } catch (e) { console.error("Planning:", e); }
     setChargement(false);
   };
@@ -219,6 +222,31 @@ const PagePlanning = ({ plan, showToast, profil, UpgradeWall, activeCompany }: a
             </Td>
           </tr>)}</tbody>
         </table>
+      </Card>}
+
+      {signalements.length > 0 && <Card style={{ marginTop: 16, borderColor: C.red + "44" }}>
+        <STitle>🚨 Signalements en attente ({signalements.length})</STitle>
+        {signalements.map((s: any) => {
+          const auteur = collaborateurs.find((c) => c.id === s.collaborateur_id);
+          const mission = missions.find((m) => m.id === s.mission_id);
+          const couleurGravite = s.gravite === "haute" ? C.red : s.gravite === "moyen" ? C.orange : C.muted;
+          return (
+            <div key={s.id} style={{ padding: 12, borderBottom: `1px solid ${C.border}`, display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ display: "flex", gap: 8, alignItems: "center", marginBottom: 4 }}>
+                  <Pill color={couleurGravite}>{s.gravite}</Pill>
+                  <span style={{ fontSize: 11, color: C.muted }}>{s.type}</span>
+                  <span style={{ fontSize: 11, color: C.muted }}>— {auteur ? `${auteur.prenom || ""} ${auteur.nom}`.trim() : "Collaborateur"}{mission?.client_nom ? ` chez ${mission.client_nom}` : ""}</span>
+                </div>
+                <div style={{ fontSize: 13 }}>{s.contenu}</div>
+              </div>
+              <BtnGhost onClick={async () => {
+                await fetch("/api/signalements", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "resoudre", id: s.id }) });
+                setSignalements((sig) => sig.filter((x) => x.id !== s.id));
+              }} style={{ fontSize: 10, padding: "4px 10px", whiteSpace: "nowrap" as any }}>✓ Résolu</BtnGhost>
+            </div>
+          );
+        })}
       </Card>}
 
       {absencesEnAttente.length > 0 && <Card style={{ marginTop: 16 }}>
