@@ -113,23 +113,23 @@ export async function POST(req: NextRequest) {
 
   if (action === 'inscrire') {
     const { evenement_id, nom, email, tel } = body;
+
+    const { data: resultat, error: erreurRpc } = await sb.rpc('inscrire_evenement_atomique', {
+      p_evenement_id: evenement_id, p_nom: nom, p_email: email, p_tel: tel,
+    });
+    if (erreurRpc) return NextResponse.json({ error: erreurRpc.message }, { status: 500 });
+    if (resultat?.error) {
+      const statut = resultat.error === 'Evenement introuvable' ? 404 : 400;
+      return NextResponse.json({ error: resultat.error }, { status: statut });
+    }
+
     const { data: evt } = await sb.from('evenements')
       .select('titre,max_inscrits,date_evenement,lieu').eq('id', evenement_id).single();
     if (!evt) return NextResponse.json({ error: 'Evenement introuvable' }, { status: 404 });
-
-    const nb = await compterInscrits(evenement_id);
-    if (evt.max_inscrits && nb >= evt.max_inscrits) {
-      return NextResponse.json({ error: 'Evenement complet' }, { status: 400 });
-    }
-
-    await sb.from('evenements_inscrits').insert({ evenement_id, nom, email, tel, statut: 'confirmé' });
-    if (evt.max_inscrits && nb + 1 >= evt.max_inscrits) {
-      await sb.from('evenements').update({ statut: 'complet' }).eq('id', evenement_id);
-    }
     if (tel && process.env.WHATSAPP_PHONE_NUMBER_ID) {
       await envoyerWhatsApp(tel, `Xyra Events : Inscription confirmee pour ${evt.titre} le ${new Date(evt.date_evenement).toLocaleDateString('fr')} a ${evt.lieu || ''}. A bientot !`, tenantId);
     }
-    return NextResponse.json({ success: true, inscrits: nb + 1 });
+    return NextResponse.json({ success: true, inscrits: resultat.inscrits });
   }
 
   if (action === 'inviter_reseau') {
