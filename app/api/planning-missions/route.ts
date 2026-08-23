@@ -138,6 +138,19 @@ export async function POST(req: NextRequest) {
   }
 
   // Suggere les meilleurs collaborateurs pour une mission, sans jamais assigner a la place de Bene
+  // Inscrire un client en liste d'attente pour un creneau complet
+  if (action === 'rejoindre_liste_attente') {
+    const { client_nom, client_email, client_tel, type_mission_id, date_souhaitee } = body;
+    if (!client_nom || !date_souhaitee) return NextResponse.json({ error: 'Nom et date necessaires' }, { status: 400 });
+    const { data, error } = await sb.from('liste_attente_planning').insert({
+      tenant_id: tenantId, client_nom, client_email: client_email || null,
+      client_tel: client_tel || null, type_mission_id: type_mission_id || null,
+      date_souhaitee, notifie: false,
+    }).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, inscription: data });
+  }
+
   if (action === 'suggerer_collaborateurs') {
     const { date_mission, heure_debut, zone, competence } = body;
     if (!date_mission || !heure_debut) return NextResponse.json({ error: 'Date et heure necessaires' }, { status: 400 });

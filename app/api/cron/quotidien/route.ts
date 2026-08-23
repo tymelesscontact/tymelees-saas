@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { envoyerPartout } from '../../../lib/rappels';
 import { envoyerRappelMission } from '../../../lib/rappels';
 
 export const dynamic = 'force-dynamic';
@@ -57,6 +58,31 @@ export async function GET(req: NextRequest) {
     resultats.rappels = { missions_traitees: envoyes };
   } catch (e: any) {
     resultats.rappels = { error: e.message };
+  }
+
+  // 3 - Liste d'attente : notifier si une mission a ete annulee/liberee a une date attendue
+  try {
+    const { data: attentes } = await sb.from('liste_attente_planning')
+      .select('*').eq('notifie', false);
+
+    let notifiesAttente = 0;
+    for (const a of (attentes || [])) {
+      const { data: missionsCeJour } = await sb.from('missions')
+        .select('id').eq('tenant_id', a.tenant_id).eq('date_mission', a.date_souhaitee)
+        .neq('statut', 'annule');
+
+      // Simplification : si moins de 5 missions ce jour-la, on considere qu'il y a de la place
+      if ((missionsCeJour || []).length < 5) {
+        await envoyerPartout(a.client_tel || null, a.client_email || null,
+          `Bonne nouvelle : un creneau s'est libere le ${a.date_souhaitee}. Contactez-nous pour reserver !`,
+          a.tenant_id);
+        await sb.from('liste_attente_planning').update({ notifie: true }).eq('id', a.id);
+        notifiesAttente++;
+      }
+    }
+    resultats.listeAttente = { notifies: notifiesAttente };
+  } catch (e: any) {
+    resultats.listeAttente = { error: e.message };
   }
 
   return NextResponse.json({ success: true, resultats, executee_le: new Date().toISOString() });
