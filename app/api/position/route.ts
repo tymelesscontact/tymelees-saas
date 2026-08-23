@@ -29,7 +29,7 @@ export async function POST(req: NextRequest) {
   const { data: enCours } = await sb.from('missions_collaborateurs')
     .select('mission_id, missions!inner(id,statut)')
     .eq('collaborateur_id', moi.id)
-    .eq('missions.statut', 'en_cours')
+    .in('missions.statut', ['en_route', 'en_cours'])
     .limit(1).maybeSingle();
 
   if (!enCours) return NextResponse.json({ error: 'aucune_mission_en_cours' }, { status: 403 });

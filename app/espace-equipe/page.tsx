@@ -113,8 +113,8 @@ export default function EspaceEquipe() {
   };
 
   useEffect(() => {
-    const enCours = missions.some((m) => m.statut === "en_cours");
-    if (!enCours) return;
+    const enDeplacement = missions.some((m) => m.statut === "en_route" || m.statut === "en_cours");
+    if (!enDeplacement) return;
     envoyerPosition();
     const intervalle = setInterval(envoyerPosition, 2 * 60 * 1000);
     return () => clearInterval(intervalle);
@@ -245,6 +245,24 @@ export default function EspaceEquipe() {
 
       <div style={{ flex: 1, overflowY: "auto", padding: 20 }}>
 
+        {(() => {
+          const maintenant = new Date();
+          const missionProche = missions.find((m: any) => {
+            if (m.statut !== "confirme") return false;
+            if (!m.date_mission || !m.heure) return false;
+            const heureMission = new Date(`${m.date_mission}T${m.heure}`);
+            const minutesAvant = (heureMission.getTime() - maintenant.getTime()) / 60000;
+            return minutesAvant > 0 && minutesAvant <= 30;
+          });
+          if (!missionProche) return null;
+          return (
+            <div style={{ background: `${C.orange}22`, border: `1px solid ${C.orange}`, borderRadius: 8, padding: 12, marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
+              <div style={{ fontSize: 12, color: C.text }}>⏰ Mission a {missionProche.heure} chez {missionProche.client_nom || "un client"} — n'oublie pas de partir</div>
+              <Btn onClick={() => updateMissionStatut(missionProche.id, "en_route")} style={{ fontSize: 11, padding: "6px 12px", background: C.orange, whiteSpace: "nowrap" as any }}>🚗 Je pars</Btn>
+            </div>
+          );
+        })()}
+
         {page === "dashboard" && <div>
           <div style={{ background: `linear-gradient(135deg, ${C.card}, #0A1A14)`, border: `1px solid ${C.gold}33`, borderRadius: 16, padding: 24, marginBottom: 16 }}>
             <div style={{ fontSize: 9, color: C.gold, letterSpacing: "0.2em", marginBottom: 6 }}>XYRA · ESPACE ÉQUIPE</div>
@@ -270,7 +288,8 @@ export default function EspaceEquipe() {
                     <Btn onClick={() => ouvrirGPS(m.adresse, "transit")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>🚌 Transport</Btn>
                   </>}
                   {m.statut === "propose" && <Btn onClick={() => updateMissionStatut(m.id, "confirme")} style={{ fontSize: 11, padding: "5px 10px", background: C.orange }}>Prise de connaissance</Btn>}
-                  {m.statut === "confirme" && <Btn onClick={() => updateMissionStatut(m.id, "en_cours")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>▶ Démarrer</Btn>}
+                  {m.statut === "confirme" && <Btn onClick={() => updateMissionStatut(m.id, "en_route")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>🚗 Je pars en mission</Btn>}
+                  {m.statut === "en_route" && <Btn onClick={() => updateMissionStatut(m.id, "en_cours")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>📍 Je suis arrive</Btn>}
                   {m.statut === "en_cours" && <Btn onClick={() => updateMissionStatut(m.id, "termine")} style={{ fontSize: 11, padding: "5px 10px", background: C.green }}>✅ Terminer</Btn>}
                   <Btn onClick={() => { setSignalementMissionId(m.id); setShowSignalementForm(true); }} style={{ fontSize: 11, padding: "5px 10px", background: C.red }}>⚠️ Signaler un problème</Btn>
                 </div>
@@ -320,7 +339,8 @@ export default function EspaceEquipe() {
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {m.statut === "propose" && <Btn onClick={() => updateMissionStatut(m.id, "confirme")} style={{ fontSize: 11, padding: "6px 12px", background: C.orange }}>Prise de connaissance</Btn>}
-                {m.statut === "confirme" && <Btn onClick={() => updateMissionStatut(m.id, "en_cours")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>▶ Démarrer</Btn>}
+                {m.statut === "confirme" && <Btn onClick={() => updateMissionStatut(m.id, "en_route")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>🚗 Je pars en mission</Btn>}
+                {m.statut === "en_route" && <Btn onClick={() => updateMissionStatut(m.id, "en_cours")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>📍 Je suis arrive</Btn>}
                 {m.statut === "en_cours" && <Btn onClick={() => updateMissionStatut(m.id, "termine")} style={{ fontSize: 11, padding: "6px 12px", background: C.green }}>✅ Terminer</Btn>}
                 {m.adresse && <Btn onClick={() => ouvrirGPS(m.adresse, "driving")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>🗺 GPS</Btn>}
                 <Btn onClick={() => { setSignalementMissionId(m.id); setShowSignalementForm(true); }} style={{ fontSize: 11, padding: "6px 12px", background: C.red }}>⚠️ Problème</Btn>
