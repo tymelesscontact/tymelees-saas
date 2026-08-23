@@ -70,6 +70,12 @@ export default function EspaceEquipe() {
   };
   useEffect(() => { charger(); }, []);
 
+  const seDeconnecter = () => {
+    document.cookie = "sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+    localStorage.removeItem("sb-access-token");
+    window.location.href = "/login";
+  };
+
   const pointerArrivee = async () => {
     try {
       const r = await fetch("/api/pointage", {
@@ -467,6 +473,7 @@ export default function EspaceEquipe() {
                 <span>{valeur || "—"}</span>
               </div>
             ))}
+            <Btn onClick={seDeconnecter} style={{ marginTop: 16, width: "100%", background: C.red }}>🚪 Se déconnecter</Btn>
           </Card>
         </div>}
       </div>
