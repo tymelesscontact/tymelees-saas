@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { C, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
@@ -23,22 +23,80 @@ const PagePlanning = ({ plan, showToast, profil, UpgradeWall, activeCompany }: a
   });
   const [showDeclarerAbsence, setShowDeclarerAbsence] = useState(false);
   const [absenceForm, setAbsenceForm] = useState({ employe_id: "", type: "conge_paye", debut: "", fin: "", motif: "" });
+  const [positions, setPositions] = useState<any[]>([]);
+  const carteDiv = useRef<HTMLDivElement>(null);
+  const carteObjet = useRef<any>(null);
+  const marqueurs = useRef<any[]>([]);
 
   const charger = async () => {
     setChargement(true);
     try {
-      const [rEquipe, rMissions, rAbsences] = await Promise.all([
+      const [rEquipe, rMissions, rAbsences, rPositions] = await Promise.all([
         fetch("/api/equipe").then((r) => r.json()).catch(() => ({})),
         fetch("/api/planning-missions").then((r) => r.json()).catch(() => ({})),
         fetch("/api/absences").then((r) => r.json()).catch(() => ({})),
+        fetch("/api/position").then((r) => r.json()).catch(() => ({})),
       ]);
       setCollaborateurs(rEquipe.membres || []);
       setMissions(rMissions.missions || []);
       setAbsences(rAbsences.absences || []);
+      setPositions(rPositions.positions || []);
     } catch (e) { console.error("Planning:", e); }
     setChargement(false);
   };
   useEffect(() => { charger(); }, [activeCompany?.id]);
+
+  useEffect(() => {
+    const i = setInterval(() => {
+      fetch("/api/position").then((r) => r.json()).then((d) => { if (d.positions) setPositions(d.positions); }).catch(() => {});
+    }, 30000);
+    return () => clearInterval(i);
+  }, []);
+
+  useEffect(() => {
+    if (onglet !== "carte" || !carteDiv.current) return;
+
+    const initCarte = () => {
+      const L = (window as any).L;
+      if (!L) return;
+      if (!carteObjet.current) {
+        carteObjet.current = L.map(carteDiv.current).setView([48.8566, 2.3522], 11);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", { attribution: "© OpenStreetMap" }).addTo(carteObjet.current);
+      }
+      marqueurs.current.forEach((m) => carteObjet.current.removeLayer(m));
+      marqueurs.current = [];
+
+      const icone = L.divIcon({
+        className: "", html: `<div style="background:${C.gold};width:14px;height:14px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 6px rgba(0,0,0,.4)"></div>`,
+        iconSize: [14, 14],
+      });
+
+      positions.forEach((p: any) => {
+        const nom = p.equipe ? `${p.equipe.prenom || ""} ${p.equipe.nom}`.trim() : "Collaborateur";
+        const client = p.missions?.client_nom ? ` — ${p.missions.client_nom}` : "";
+        const marker = L.marker([p.latitude, p.longitude], { icon: icone }).addTo(carteObjet.current);
+        marker.bindPopup(`<b>${nom}</b>${client}`);
+        marqueurs.current.push(marker);
+      });
+
+      if (positions.length > 0) {
+        const groupe = L.featureGroup(marqueurs.current);
+        carteObjet.current.fitBounds(groupe.getBounds().pad(0.3));
+      }
+    };
+
+    if ((window as any).L) { initCarte(); return; }
+
+    const lienCss = document.createElement("link");
+    lienCss.rel = "stylesheet";
+    lienCss.href = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.css";
+    document.head.appendChild(lienCss);
+
+    const scriptJs = document.createElement("script");
+    scriptJs.src = "https://unpkg.com/leaflet@1.9.4/dist/leaflet.js";
+    scriptJs.onload = initCarte;
+    document.body.appendChild(scriptJs);
+  }, [onglet, positions]);
 
   const creerMission = async () => {
     if (!missionForm.date_mission || !missionForm.heure_debut) return showToast("⚠️ Date et heure necessaires");
@@ -112,6 +170,7 @@ const PagePlanning = ({ plan, showToast, profil, UpgradeWall, activeCompany }: a
     ["dispatch", "📊 Dispatch"],
     ["missions", "📋 Missions"],
     ["absences", "🏥 Absences"],
+    ["carte", "📍 Carte"],
   ];
 
   const aujourdhui = new Date().toISOString().slice(0, 10);
@@ -211,6 +270,16 @@ const PagePlanning = ({ plan, showToast, profil, UpgradeWall, activeCompany }: a
           </tr>)}</tbody>
         </table>
       </Card>}
+    </div>}
+
+    {!chargement && onglet === "carte" && <div>
+      <Card style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 12, color: C.muted }}>{positions.length} collaborateur{positions.length > 1 ? "s" : ""} en mission actuellement — position mise à jour toutes les 2 minutes</div>
+      </Card>
+      <Card style={{ padding: 0, overflow: "hidden" }}>
+        <div ref={carteDiv} style={{ width: "100%", height: 480 }} />
+        {positions.length === 0 && <div style={{ padding: 30, textAlign: "center", color: C.muted, fontSize: 12 }}>Aucun collaborateur en mission pour le moment.</div>}
+      </Card>
     </div>}
 
     {!chargement && onglet === "absences" && <div>
