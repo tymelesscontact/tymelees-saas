@@ -149,6 +149,13 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, envoyes });
   }
   if (action === 'creer') {
+    const tokenVerif = req.cookies.get('sb-access-token')?.value;
+    if (!tokenVerif) return NextResponse.json({ error: 'non_connecte' }, { status: 401 });
+    const { data: authVerif } = await sb.auth.getUser(tokenVerif);
+    const ownerEmailVerif = process.env.OWNER_EMAIL;
+    const estProprietaireVerif = !!ownerEmailVerif && authVerif?.user?.email?.toLowerCase() === ownerEmailVerif.toLowerCase();
+    if (!estProprietaireVerif) return NextResponse.json({ error: 'reserve_au_proprietaire' }, { status: 403 });
+
     const { nom, prenom, role, email, tel, adresse, date_naissance, nss, rib, contrat, salaire_brut, couleur, date_embauche, zones_intervention, competences, company_id } = body;
     if (!nom || !email) return NextResponse.json({ error: 'Nom et email requis' }, { status: 400 });
 
