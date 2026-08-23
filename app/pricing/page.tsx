@@ -54,17 +54,17 @@ const PLANS_MULTI = [
 
 const PLANS_SAAS = [
   {
-    name: "White-label Starter", emoji: "⚡", setup: 5000, mensuel: 500,
+    name: "White-label Starter", emoji: "⚡", setup: 5000, mensuel: 500, parClient: 10,
     desc: "Revendez Xyra sous votre marque", color: C.green,
     modules: ["Dashboard à votre marque & logo","Jusqu'à 10 clients revendeurs","Domaine personnalisé inclus","Panneau d'administration revendeur","Onboarding clients automatisé","Support technique inclus"],
   },
   {
-    name: "White-label Business", emoji: "🚀", setup: 12000, mensuel: 1000,
+    name: "White-label Business", emoji: "🚀", setup: 12000, mensuel: 1000, parClient: 10,
     desc: "Pour les agences & intégrateurs", color: C.gold, highlight: true,
     modules: ["Tout White-label Starter","Clients illimités","API partenaire complète","Rapports de revenus revendeur","Formation & certification revendeur","Support dédié prioritaire","Co-marketing inclus"],
   },
   {
-    name: "White-label Enterprise", emoji: "🏆", setup: null, mensuel: null,
+    name: "White-label Enterprise", emoji: "🏆", setup: 20000, mensuel: 2000, parClient: 10,
     desc: "Solution sur mesure", color: C.purple,
     modules: ["Tout White-label Business","Infrastructure dédiée","SLA garanti 99.9%","Développements spécifiques","Intégrations sur mesure","Account manager dédié","Contrat personnalisé"],
   },
@@ -339,6 +339,9 @@ function PricingContent() {
                       <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 16, color: C.text, fontWeight: 600 }}>
                         + {plan.mensuel?.toLocaleString("fr")}€<span style={{ fontSize: 13, color: C.muted, fontWeight: 300 }}>/mois</span>
                       </div>
+                      {plan.parClient && <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: C.muted, marginTop: 2 }}>
+                        + {plan.parClient}€ par client actif
+                      </div>}
                     </>
                   ) : (
                     <div style={{ fontFamily: "Cormorant Garamond, Georgia, serif", fontSize: 36, fontWeight: 300, color: plan.color, lineHeight: 1 }}>Sur devis</div>
