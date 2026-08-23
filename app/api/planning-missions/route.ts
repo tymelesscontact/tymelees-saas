@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
 
   if (action === 'modifier_statut') {
     const { id, statut } = body;
-    const valides = ['propose', 'confirme', 'en_cours', 'termine', 'annule', 'reporte'];
+    const valides = ['propose', 'confirme', 'en_route', 'en_cours', 'termine', 'annule', 'reporte'];
     if (!valides.includes(statut)) return NextResponse.json({ error: 'Statut invalide' }, { status: 400 });
     const champsMaj: any = { statut };
     if (statut === 'confirme') champsMaj.prise_connaissance_le = new Date().toISOString();
