@@ -66,9 +66,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Un collaborateur est invalide' }, { status: 403 });
     }
 
+    let serviceNom = notes ? notes.slice(0, 60) : 'Mission';
+    if (type_mission_id) {
+      const { data: typePresta } = await sb.from('types_rdv').select('nom').eq('id', type_mission_id).maybeSingle();
+      if (typePresta?.nom) serviceNom = typePresta.nom;
+    }
+
     const { data: mission, error } = await sb.from('missions').insert({
       tenant_id: tenantId, company_id: company_id || null,
       type_mission_id: type_mission_id || null,
+      service: serviceNom,
       client_id: client_id || null, client_nom: client_nom || null,
       client_email: client_email || null, client_tel: client_tel || null,
       date_mission, heure: heure_debut,

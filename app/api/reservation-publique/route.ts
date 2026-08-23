@@ -34,8 +34,14 @@ export async function POST(req: NextRequest) {
   const { data: tenant } = await sb.from('tenants').select('id').eq('id', tenant_id).maybeSingle();
   if (!tenant) return NextResponse.json({ error: 'societe_introuvable' }, { status: 404 });
 
+  let serviceNom = 'Demande client';
+  if (type_mission_id) {
+    const { data: typePresta } = await sb.from('types_rdv').select('nom').eq('id', type_mission_id).maybeSingle();
+    if (typePresta?.nom) serviceNom = typePresta.nom;
+  }
+
   const { data: mission, error } = await sb.from('missions').insert({
-    tenant_id, type_mission_id: type_mission_id || null,
+    tenant_id, type_mission_id: type_mission_id || null, service: serviceNom,
     client_nom, client_email: client_email || null, client_tel: client_tel || null,
     date_mission, heure: heure_debut, adresse: adresse || null, notes: notes || null,
     statut: 'propose', cree_par: 'client',
