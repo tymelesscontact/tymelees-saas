@@ -30,6 +30,7 @@ export default function EspaceEquipe() {
   const [conversations, setConversations] = useState<any[]>([]);
   const [convSelectionnee, setConvSelectionnee] = useState<any>(null);
   const [texteMessage, setTexteMessage] = useState("");
+  const [monPointage, setMonPointage] = useState<any>(null);
   const finMessagesRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -60,6 +61,7 @@ export default function EspaceEquipe() {
       if (abs.absences) setAbsences(abs.absences);
       if (sig.signalements) setSignalements(sig.signalements);
       if (msgs.conversations) setConversations(msgs.conversations);
+      fetch("/api/pointage").then(r => r.json()).then(d => setMonPointage(d.pointage)).catch(() => {});
       setMembre({ email: who.email, employe_id: who.employeId, ...(who.profil || {}) });
     } catch (e: any) {
       setErreur("connexion");
@@ -67,6 +69,30 @@ export default function EspaceEquipe() {
     setLoading(false);
   };
   useEffect(() => { charger(); }, []);
+
+  const pointerArrivee = async () => {
+    try {
+      const r = await fetch("/api/pointage", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "arrivee" }),
+      });
+      const d = await r.json();
+      if (d.success) { setMonPointage(d.pointage); showToast("✅ Arrivee pointee"); }
+      else showToast("❌ " + (d.error === "deja_pointe_aujourdhui" ? "Deja pointe aujourd'hui" : (d.error || "Erreur")));
+    } catch { showToast("❌ Erreur de connexion"); }
+  };
+
+  const pointerDepart = async () => {
+    try {
+      const r = await fetch("/api/pointage", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "depart" }),
+      });
+      const d = await r.json();
+      if (d.success) { showToast(`✅ Depart pointe — ${d.heures_travaillees}h travaillees`); charger(); }
+      else showToast("❌ " + (d.error || "Erreur"));
+    } catch { showToast("❌ Erreur de connexion"); }
+  };
 
   const envoyerPosition = () => {
     if (!navigator.geolocation) { showToast("⚠️ Ce telephone ne supporte pas la localisation"); return; }
@@ -175,6 +201,7 @@ export default function EspaceEquipe() {
 
   const NAV = [
     { id: "dashboard", icon: "🏠", label: "Tableau de bord" },
+    { id: "pointage", icon: "⏰", label: "Pointage" },
     { id: "missions", icon: "✅", label: "Mes missions" },
     { id: "absences", icon: "🏖", label: "Congés & Absences" },
     { id: "messages", icon: "💬", label: "Messages" },
@@ -249,6 +276,31 @@ export default function EspaceEquipe() {
                 </div>
               </div>
             ))}
+          </Card>
+        </div>}
+
+        {page === "pointage" && <div>
+          <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>⏰ Pointage</div>
+          <Card style={{ textAlign: "center", padding: 30 }}>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 20 }}>{new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</div>
+            {!monPointage ? (
+              <>
+                <div style={{ fontSize: 13, color: C.muted, marginBottom: 16 }}>Vous n'avez pas encore pointe aujourd'hui</div>
+                <Btn onClick={pointerArrivee} color={C.green} style={{ fontSize: 15, padding: "14px 30px" }}>📍 Pointer mon arrivee</Btn>
+              </>
+            ) : !monPointage.heure_depart ? (
+              <>
+                <div style={{ fontSize: 13, color: C.green, marginBottom: 6 }}>✅ Arrivee pointee a {monPointage.heure_arrivee}</div>
+                <div style={{ fontSize: 12, color: C.muted, marginBottom: 20 }}>Bonne journee !</div>
+                <Btn onClick={pointerDepart} color={C.red} style={{ fontSize: 15, padding: "14px 30px" }}>🏁 Pointer mon depart</Btn>
+              </>
+            ) : (
+              <>
+                <div style={{ fontSize: 13, color: C.text, marginBottom: 4 }}>Journee terminee</div>
+                <div style={{ fontSize: 11, color: C.muted }}>Arrivee {monPointage.heure_arrivee} — Depart {monPointage.heure_depart}</div>
+                <div style={{ fontSize: 16, color: C.gold, fontWeight: 700, marginTop: 10 }}>{monPointage.heures_travaillees}h travaillees</div>
+              </>
+            )}
           </Card>
         </div>}
 
