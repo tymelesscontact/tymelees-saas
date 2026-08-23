@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { PLAN_PRIX } from '../../lib/plans';
 export const dynamic = 'force-dynamic';
 export async function POST(req: NextRequest) {
   try {
@@ -91,12 +92,14 @@ export async function POST(req: NextRequest) {
     const { societe, plan } = meta;
     const customer = payload.data.customer || {};
     const email = customer.email;
+    const planNorm = plan === 'multi_pro' ? 'multi_societes_pro' : (plan || 'starter');
 
     await sb.from('tenants').update({
       statut: 'actif',
+      plan: planNorm,
       flutterwave_tx_ref: payload.data.tx_ref,
     }).eq('email', email);
-    const montantNum = plan === 'starter' ? 59 : plan === 'business' ? 129 : 249;
+    const montantNum = PLAN_PRIX[planNorm] ?? 0;
     await sb.from('abonnements_paiements').insert({
       tenant_email: email, societe, plan, montant: montantNum, devise: 'EUR',
       provider: 'flutterwave', reference: payload.data.tx_ref,

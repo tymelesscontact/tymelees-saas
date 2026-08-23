@@ -222,12 +222,13 @@ export async function POST(req: NextRequest) {
 
       const { email, societe, plan } = session.metadata || {};
 
+      const planNorm = plan === 'multi_pro' ? 'multi_societes_pro' : (plan || 'starter');
       await sb.from('tenants').update({
         statut: 'actif',
+        plan: planNorm,
         stripe_customer_id: session.customer,
         stripe_subscription_id: session.subscription,
       }).eq('email', email);
-      const planNorm = plan === 'multi_pro' ? 'multi_societes_pro' : (plan || 'starter');
       const montantNum = PLAN_PRIX[planNorm] ?? 0;
       await sb.from('abonnements_paiements').insert({
         tenant_email: email, societe, plan, montant: montantNum, devise: 'EUR',
