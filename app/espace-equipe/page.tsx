@@ -68,6 +68,28 @@ export default function EspaceEquipe() {
   };
   useEffect(() => { charger(); }, []);
 
+  const envoyerPosition = () => {
+    if (!navigator.geolocation) return;
+    navigator.geolocation.getCurrentPosition(
+      (pos) => {
+        fetch("/api/position", {
+          method: "POST", headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
+        }).catch(() => {});
+      },
+      () => {},
+      { enableHighAccuracy: false, timeout: 8000 }
+    );
+  };
+
+  useEffect(() => {
+    const enCours = missions.some((m) => m.statut === "en_cours");
+    if (!enCours) return;
+    envoyerPosition();
+    const intervalle = setInterval(envoyerPosition, 2 * 60 * 1000);
+    return () => clearInterval(intervalle);
+  }, [missions]);
+
   const updateMissionStatut = async (id: string, statut: string) => {
     try {
       await fetch("/api/planning-missions", {
@@ -76,6 +98,7 @@ export default function EspaceEquipe() {
       });
       setMissions(ms => ms.map(m => m.id === id ? { ...m, statut } : m));
       showToast(statut === "en_cours" ? "🚀 Mission démarrée" : "✅ Mission terminée");
+      if (statut === "en_cours") setTimeout(envoyerPosition, 500);
     } catch { showToast("❌ Erreur"); }
   };
 
