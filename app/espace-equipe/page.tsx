@@ -69,15 +69,19 @@ export default function EspaceEquipe() {
   useEffect(() => { charger(); }, []);
 
   const envoyerPosition = () => {
-    if (!navigator.geolocation) return;
+    if (!navigator.geolocation) { showToast("⚠️ Ce telephone ne supporte pas la localisation"); return; }
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         fetch("/api/position", {
           method: "POST", headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ latitude: pos.coords.latitude, longitude: pos.coords.longitude }),
-        }).catch(() => {});
+        }).then(async (r) => {
+          const d = await r.json();
+          if (d.success) showToast("📍 Position envoyee");
+          else showToast("⚠️ Position refusee: " + (d.error || "inconnue"));
+        }).catch((e) => showToast("⚠️ Erreur reseau position: " + e.message));
       },
-      () => {},
+      (err) => showToast("⚠️ Localisation refusee ou indisponible: " + err.message),
       { enableHighAccuracy: false, timeout: 8000 }
     );
   };
