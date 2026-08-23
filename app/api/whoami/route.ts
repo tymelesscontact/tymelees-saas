@@ -30,5 +30,13 @@ export async function GET(req: NextRequest) {
     employeId = membre?.id || null
   }
 
-  return NextResponse.json({ isOwner, isCollaborateur, employeId, email: userData.user.email })
+  let profilCollaborateur = null
+  if (isCollaborateur && employeId) {
+    const { data: monProfil } = await sb.from('equipe')
+      .select('nom,prenom,role,tel,adresse,contrat,date_embauche')
+      .eq('id', employeId).maybeSingle()
+    profilCollaborateur = monProfil
+  }
+
+  return NextResponse.json({ isOwner, isCollaborateur, employeId, email: userData.user.email, profil: profilCollaborateur })
 }

@@ -60,7 +60,7 @@ export default function EspaceEquipe() {
       if (abs.absences) setAbsences(abs.absences);
       if (sig.signalements) setSignalements(sig.signalements);
       if (msgs.conversations) setConversations(msgs.conversations);
-      setMembre({ email: who.email, employe_id: who.employeId });
+      setMembre({ email: who.email, employe_id: who.employeId, ...(who.profil || {}) });
     } catch (e: any) {
       setErreur("connexion");
     }
@@ -380,7 +380,17 @@ export default function EspaceEquipe() {
         {page === "profil" && <div>
           <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>👤 Mon profil</div>
           <Card>
-            <div style={{ fontSize: 12, color: C.muted }}>{membre?.email}</div>
+            <div style={{ textAlign: "center", marginBottom: 16 }}>
+              <div style={{ width: 56, height: 56, borderRadius: "50%", background: `${C.gold}22`, border: `2px solid ${C.gold}44`, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 22, fontWeight: 700, color: C.gold, margin: "0 auto 10px" }}>{(membre?.prenom || membre?.nom || "?")[0]}</div>
+              <div style={{ fontSize: 16, fontWeight: 700 }}>{membre?.prenom ? `${membre.prenom} ${membre.nom}` : membre?.nom || "—"}</div>
+              <div style={{ fontSize: 12, color: C.muted }}>{membre?.role || "Collaborateur"}</div>
+            </div>
+            {[["📧 Email", membre?.email], ["📱 Téléphone", membre?.tel], ["🏠 Adresse", membre?.adresse], ["📋 Contrat", membre?.contrat], ["📅 Depuis le", membre?.date_embauche]].map(([label, valeur], i) => (
+              <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}22`, fontSize: 12 }}>
+                <span style={{ color: C.muted }}>{label}</span>
+                <span>{valeur || "—"}</span>
+              </div>
+            ))}
           </Card>
         </div>}
       </div>
