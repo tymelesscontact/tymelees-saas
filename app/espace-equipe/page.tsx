@@ -238,7 +238,9 @@ export default function EspaceEquipe() {
                     <Btn onClick={() => ouvrirGPS(m.adresse, "walking")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>🚶 À pied</Btn>
                     <Btn onClick={() => ouvrirGPS(m.adresse, "transit")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>🚌 Transport</Btn>
                   </>}
-                  {m.statut !== "termine" && <Btn onClick={() => updateMissionStatut(m.id, m.statut === "confirme" ? "en_cours" : "termine")} style={{ fontSize: 11, padding: "5px 10px", background: m.statut === "confirme" ? C.blue : C.green }}>{m.statut === "confirme" ? "▶ Démarrer" : "✅ Terminer"}</Btn>}
+                  {m.statut === "propose" && <Btn onClick={() => updateMissionStatut(m.id, "confirme")} style={{ fontSize: 11, padding: "5px 10px", background: C.orange }}>Prise de connaissance</Btn>}
+                  {m.statut === "confirme" && <Btn onClick={() => updateMissionStatut(m.id, "en_cours")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>▶ Démarrer</Btn>}
+                  {m.statut === "en_cours" && <Btn onClick={() => updateMissionStatut(m.id, "termine")} style={{ fontSize: 11, padding: "5px 10px", background: C.green }}>✅ Terminer</Btn>}
                   <Btn onClick={() => { setSignalementMissionId(m.id); setShowSignalementForm(true); }} style={{ fontSize: 11, padding: "5px 10px", background: C.red }}>⚠️ Signaler un problème</Btn>
                 </div>
               </div>
@@ -261,7 +263,9 @@ export default function EspaceEquipe() {
                 <Pill color={m.statut === "en_cours" ? C.gold : m.statut === "termine" ? C.green : C.muted}>{m.statut}</Pill>
               </div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
-                {m.statut !== "termine" && <Btn onClick={() => updateMissionStatut(m.id, m.statut === "confirme" ? "en_cours" : "termine")} style={{ fontSize: 11, padding: "6px 12px", background: m.statut === "confirme" ? C.blue : C.green }}>{m.statut === "confirme" ? "▶ Démarrer" : "✅ Terminer"}</Btn>}
+                {m.statut === "propose" && <Btn onClick={() => updateMissionStatut(m.id, "confirme")} style={{ fontSize: 11, padding: "6px 12px", background: C.orange }}>Prise de connaissance</Btn>}
+                {m.statut === "confirme" && <Btn onClick={() => updateMissionStatut(m.id, "en_cours")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>▶ Démarrer</Btn>}
+                {m.statut === "en_cours" && <Btn onClick={() => updateMissionStatut(m.id, "termine")} style={{ fontSize: 11, padding: "6px 12px", background: C.green }}>✅ Terminer</Btn>}
                 {m.adresse && <Btn onClick={() => ouvrirGPS(m.adresse, "driving")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>🗺 GPS</Btn>}
                 <Btn onClick={() => { setSignalementMissionId(m.id); setShowSignalementForm(true); }} style={{ fontSize: 11, padding: "6px 12px", background: C.red }}>⚠️ Problème</Btn>
               </div>

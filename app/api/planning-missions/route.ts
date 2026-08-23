@@ -97,8 +97,11 @@ export async function POST(req: NextRequest) {
     const { id, statut } = body;
     const valides = ['propose', 'confirme', 'en_cours', 'termine', 'annule', 'reporte'];
     if (!valides.includes(statut)) return NextResponse.json({ error: 'Statut invalide' }, { status: 400 });
+    const champsMaj: any = { statut };
+    if (statut === 'confirme') champsMaj.prise_connaissance_le = new Date().toISOString();
+
     const { error } = await sb.from('missions')
-      .update({ statut }).eq('id', id).eq('tenant_id', tenantId);
+      .update(champsMaj).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     // Chaine automatique quand une mission se termine : demande d'avis + facture si devis lie
