@@ -236,9 +236,17 @@ Commence par "Rapport SaaS Xyra —" et donne 1 insight et 1 priorité.`;
   if (action === 'commission_deal') {
     const { deal_id, valeur, societe } = body;
     const commission = Math.round(Number(valeur) * 0.05);
+    let tenantIdDeal: string | null = null;
+    let companyIdDeal: string | null = null;
+    if (deal_id) {
+      const { data: dealTrouve } = await sb.from('deals').select('tenant_id,company_id').eq('id', deal_id).maybeSingle();
+      tenantIdDeal = dealTrouve?.tenant_id || null;
+      companyIdDeal = dealTrouve?.company_id || null;
+    }
     await sb.from('wallet_transactions').insert({
       type: 'commission_platform', montant: commission, statut: 'confirmé',
       libelle: `Commission Xyra 5% — Deal ${societe}`, created_at: new Date().toISOString(),
+      tenant_id: tenantIdDeal, company_id: companyIdDeal,
     });
     return NextResponse.json({ success: true, commission });
   }
