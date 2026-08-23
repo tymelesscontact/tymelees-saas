@@ -4,6 +4,11 @@ import { C, fmt, Card, CT, STitle } from "../lib/ui";
 
 const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
   const nonLus=notifs.filter(n=>!n.lu).length;
+  useEffect(()=>{
+    fetch("/api/signalements").then(r=>r.json()).then(d=>{
+      if(d.signalements)setSignalementsOuverts(d.signalements.filter((s)=>s.statut!=="resolu"));
+    }).catch(()=>{});
+  },[]);
   const[loading,setLoading]=useState(true);
   const[caReel,setCaReel]=useState(0);
   const[caMoisDernier,setCaMoisDernier]=useState(0);
@@ -17,6 +22,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
   const[scoreBusiness,setScoreBusiness]=useState(0);
   const[tendance,setTendance]=useState("stable");
   const[totalCharges,setTotalCharges]=useState(0);
+  const[signalementsOuverts,setSignalementsOuverts]=useState([]);
 
   useEffect(()=>{
     const load=async()=>{
@@ -104,6 +110,10 @@ const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
   const maxCa=Math.max(...ca7j.map(d=>d.ca),1);
 
   return <div style={{padding:20}}>
+    {signalementsOuverts.length>0 && <div onClick={()=>setPage("planning")} style={{background:`${C.red}18`,border:`1px solid ${C.red}`,borderRadius:8,padding:12,marginBottom:14,cursor:"pointer",display:"flex",justifyContent:"space-between",alignItems:"center"}}>
+      <div style={{fontSize:13,fontWeight:600}}>🚨 {signalementsOuverts.length} signalement{signalementsOuverts.length>1?"s":""} en attente</div>
+      <div style={{fontSize:11,color:C.red}}>Voir →</div>
+    </div>}
     <div style={{background:`linear-gradient(135deg,${C.card},#0A1A14)`,border:`1px solid ${C.gold}33`,borderRadius:16,padding:24,marginBottom:16}}>
       <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:6}}>XYRA · OWNER DASHBOARD</div>
       <div style={{fontSize:26,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>Bonjour ✦</div>
