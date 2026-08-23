@@ -160,7 +160,7 @@ export default function EspaceEquipe() {
     try {
       const r = await fetch("/api/signalements", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "creer", mission_id: signalementMissionId, employe_id: membre?.employe_id, ...signalementForm }),
+        body: JSON.stringify({ action: "creer", mission_id: signalementMissionId, collaborateur_id: membre?.employe_id, ...signalementForm }),
       });
       const d = await r.json();
       if (d.success) {
