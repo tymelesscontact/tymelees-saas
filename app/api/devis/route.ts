@@ -165,11 +165,9 @@ export async function GET(req: NextRequest) {
     const action = searchParams.get('action')
     if (action === 'list') {
       const tenantId = await getTenantIdFromRequest(req)
+      if (!tenantId) return NextResponse.json({ devis: [] })
       const companyId = searchParams.get('company_id')
-      let query = supabase.from('devis').select('*').order('created_at', { ascending: false })
-      if (tenantId) {
-        query = query.eq('tenant_id', tenantId)
-      }
+      let query = supabase.from('devis').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false })
       if (companyId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(companyId)) {
         query = query.eq('company_id', companyId)
       }

@@ -14,13 +14,13 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
-  let clientsQuery = sb.from('clients').select('*').order('created_at', { ascending: false });
-  if (tenantId) clientsQuery = clientsQuery.eq('tenant_id', tenantId);
+  if (!tenantId) return NextResponse.json({ clients: [] });
+  let clientsQuery = sb.from('clients').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (companyId && UUID_RE.test(companyId)) clientsQuery = clientsQuery.eq('company_id', companyId);
   const { data: clients, error } = await clientsQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const { data: factures } = await sb.from('factures').select('client_email,client_nom,montant_ttc,statut');
+  const { data: factures } = await sb.from('factures').select('client_email,client_nom,montant_ttc,statut').eq('tenant_id', tenantId);
   const { data: echanges } = await sb.from('client_echanges').select('*').order('created_at', { ascending: false });
 
   const enriched = (clients || []).map((c: any) => {

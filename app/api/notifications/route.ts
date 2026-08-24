@@ -68,8 +68,8 @@ async function genererNotificationsAuto() {
 
 export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
-  let notifsQuery = sb.from('notifications').select('*').order('created_at', { ascending: false }).limit(100);
-  if (tenantId) notifsQuery = notifsQuery.eq('tenant_id', tenantId);
+  if (!tenantId) return NextResponse.json({ notifications: [] });
+  let notifsQuery = sb.from('notifications').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(100);
   const { data: notifs, error } = await notifsQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

@@ -14,11 +14,14 @@ export async function GET(req: NextRequest) {
   const statutConnexion = !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)
 
   const tenantId = await getTenantIdFromRequest(req)
-  let qConv = sb.from("conduit").select("*")
-  let qDevis = sb.from("devis").select("*")
-  if (tenantId) { qConv = qConv.eq("tenant_id", tenantId); qDevis = qDevis.eq("tenant_id", tenantId); }
-  const { data: conversations } = await qConv
-  const { data: devisGeneres } = await qDevis
+  let conversations: any[] = []
+  let devisGeneres: any[] = []
+  if (tenantId) {
+    const { data: conv } = await sb.from("conduit").select("*").eq("tenant_id", tenantId)
+    const { data: dev } = await sb.from("devis").select("*").eq("tenant_id", tenantId)
+    conversations = conv || []
+    devisGeneres = dev || []
+  }
 
   const totalConversations = conversations?.length || 0
 
