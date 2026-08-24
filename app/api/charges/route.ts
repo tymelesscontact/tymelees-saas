@@ -12,8 +12,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
-  let query = sb.from('charges').select('*').order('created_at', { ascending: false });
-  if (tenantId) query = query.eq('tenant_id', tenantId);
+  if (!tenantId) return NextResponse.json({ charges: [] });
+  let query = sb.from('charges').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (companyId && UUID_RE.test(companyId)) query = query.eq('company_id', companyId);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -21,24 +21,26 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
+  if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
   const body = await req.json();
   const { action } = body;
 
   if (action === 'creer' || action === 'modifier') {
     const { id, categorie, libelle, montant, frequence } = body;
     if (action === 'modifier' && id) {
-      const { error } = await sb.from('charges').update({ categorie, libelle, montant: Number(montant), frequence }).eq('id', id);
+      const { error } = await sb.from('charges').update({ categorie, libelle, montant: Number(montant), frequence }).eq('id', id).eq('tenant_id', tenantId);
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
       return NextResponse.json({ success: true });
     }
-    const { data, error } = await sb.from('charges').insert({ categorie, libelle, montant: Number(montant), frequence: frequence || 'mensuelle' }).select().single();
+    const { data, error } = await sb.from('charges').insert({ categorie, libelle, montant: Number(montant), frequence: frequence || 'mensuelle', tenant_id: tenantId }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, charge: data });
   }
 
   if (action === 'supprimer') {
     const { id } = body;
-    const { error } = await sb.from('charges').delete().eq('id', id);
+    const { error } = await sb.from('charges').delete().eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
