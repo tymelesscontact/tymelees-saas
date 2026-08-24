@@ -20,8 +20,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
-  let query = sb.from('crm_leads').select('*').order('updated_at', { ascending: false });
-  if (tenantId) query = query.eq('tenant_id', tenantId);
+  if (!tenantId) return NextResponse.json({ leads: [] });
+  let query = sb.from('crm_leads').select('*').eq('tenant_id', tenantId).order('updated_at', { ascending: false });
   if (companyId && UUID_RE.test(companyId)) query = query.eq('company_id', companyId);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -30,6 +30,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
+  if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
   const body = await req.json();
   const { action } = body;
 
@@ -38,7 +39,7 @@ export async function POST(req: NextRequest) {
     if (!nom) return NextResponse.json({ error: 'Nom requis' }, { status: 400 });
     const { data, error } = await sb.from('crm_leads').insert({
       nom, contact, email, tel, metier, ca_potentiel: Number(ca_potentiel) || 0, source, notes,
-      etape: 'Nouveau', score: 50,
+      etape: 'Nouveau', score: 50, tenant_id: tenantId,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, lead: data });
@@ -46,14 +47,14 @@ export async function POST(req: NextRequest) {
 
   if (action === 'modifier') {
     const { id, ...fields } = body;
-    const { error } = await sb.from('crm_leads').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', id);
+    const { error } = await sb.from('crm_leads').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
 
   if (action === 'supprimer') {
     const { id } = body;
-    const { error } = await sb.from('crm_leads').delete().eq('id', id);
+    const { error } = await sb.from('crm_leads').delete().eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
@@ -66,7 +67,7 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       return NextResponse.json({ error: 'Échec envoi WhatsApp' }, { status: 500 });
     }
-    if (id) await sb.from('crm_leads').update({ updated_at: new Date().toISOString() }).eq('id', id);
+    if (id) await sb.from('crm_leads').update({ updated_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true });
   }
 
@@ -78,7 +79,7 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       return NextResponse.json({ error: 'Échec envoi email' }, { status: 500 });
     }
-    if (id) await sb.from('crm_leads').update({ updated_at: new Date().toISOString() }).eq('id', id);
+    if (id) await sb.from('crm_leads').update({ updated_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true });
   }
 
