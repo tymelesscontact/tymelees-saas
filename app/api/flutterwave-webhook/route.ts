@@ -94,10 +94,21 @@ export async function POST(req: NextRequest) {
     const email = customer.email;
     const planNorm = plan === 'multi_pro' ? 'multi_societes_pro' : (plan || 'starter');
 
+    // Paiement Flutterwave = paiement unique, pas de prelevement automatique cote Flutterwave.
+    // On pose donc une vraie date d'expiration : le robot quotidien coupera l'acces
+    // si la personne n'a pas repaye a temps, plutot que de laisser un acces illimite
+    // apres un seul paiement.
+    const dureeAnnuelle = planNorm === 'club_affaires';
+    const dateExpiration = new Date();
+    if (dureeAnnuelle) dateExpiration.setFullYear(dateExpiration.getFullYear() + 1);
+    else dateExpiration.setMonth(dateExpiration.getMonth() + 1);
+
     await sb.from('tenants').update({
       statut: 'actif',
       plan: planNorm,
       flutterwave_tx_ref: payload.data.tx_ref,
+      abonnement_expire_le: dateExpiration.toISOString(),
+      rappel_expiration_envoye: false,
     }).eq('email', email);
 
     // Notifier Bene si un client devient revendeur white-label

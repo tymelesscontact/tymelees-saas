@@ -104,5 +104,53 @@ export async function GET(req: NextRequest) {
     resultats.essaisNettoyes = { error: e.message };
   }
 
+  // 5 - Abonnements Flutterwave (paiement unique, jamais reconduit automatiquement) :
+  // rappel avant echeance, puis suspension si non renouvele a temps
+  try {
+    const maintenant = new Date();
+    const dans3Jours = new Date(maintenant.getTime() + 3 * 86400000);
+
+    const { data: aRappeler } = await sb.from('tenants')
+      .select('id,societe,email,abonnement_expire_le')
+      .eq('statut', 'actif')
+      .not('flutterwave_tx_ref', 'is', null)
+      .eq('rappel_expiration_envoye', false)
+      .lt('abonnement_expire_le', dans3Jours.toISOString())
+      .gt('abonnement_expire_le', maintenant.toISOString());
+
+    let rappelsAbonnement = 0;
+    for (const t of (aRappeler || [])) {
+      const canal = await envoyerPartout(null, t.email,
+        `Xyra : votre abonnement ${t.societe} arrive a echeance le ${new Date(t.abonnement_expire_le).toLocaleDateString('fr')}. Connectez-vous a votre espace pour renouveler et garder l'acces.`,
+        t.id);
+      if (canal) {
+        await sb.from('tenants').update({ rappel_expiration_envoye: true }).eq('id', t.id);
+        rappelsAbonnement++;
+      }
+    }
+
+    const { data: aExpirer } = await sb.from('tenants')
+      .select('id,societe,email')
+      .eq('statut', 'actif')
+      .not('flutterwave_tx_ref', 'is', null)
+      .lt('abonnement_expire_le', maintenant.toISOString());
+
+    let abonnementsSuspendus = 0;
+    for (const t of (aExpirer || [])) {
+      await sb.from('tenants').update({
+        statut: 'suspendu',
+        statut_avant_suspension: 'actif',
+      }).eq('id', t.id);
+      await envoyerPartout(null, t.email,
+        `Xyra : votre abonnement ${t.societe} a expire et l'acces a ete suspendu. Connectez-vous pour renouveler et retrouver votre espace immediatement.`,
+        t.id);
+      abonnementsSuspendus++;
+    }
+
+    resultats.abonnementsFlutterwave = { rappels: rappelsAbonnement, suspendus: abonnementsSuspendus };
+  } catch (e: any) {
+    resultats.abonnementsFlutterwave = { error: e.message };
+  }
+
   return NextResponse.json({ success: true, resultats, executee_le: new Date().toISOString() });
 }
