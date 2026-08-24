@@ -51,6 +51,7 @@ export async function GET(req: NextRequest) {
     let q = sb.from('evenements').select('*').order('date_evenement', { ascending: true });
     if (portee) q = q.eq('portee', portee);
     else if (tenantId) q = q.eq('tenant_id', tenantId).eq('portee', 'societe');
+    else q = q.in('portee', ['club', 'public']);
     if (companyId && UUID_RE.test(companyId)) q = q.eq('company_id', companyId);
     const { data } = await q;
 
@@ -145,9 +146,8 @@ export async function POST(req: NextRequest) {
     const ownerTel = process.env.OWNER_WHATSAPP;
     if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
 
-    let q = sb.from('evenements').select('*').eq('statut', 'ouvert');
-    if (tenantId) q = q.eq('tenant_id', tenantId);
-    const { data: evts } = await q;
+    if (!tenantId) return NextResponse.json({ success: true, rappels: 0 });
+    const { data: evts } = await sb.from('evenements').select('*').eq('statut', 'ouvert').eq('tenant_id', tenantId);
 
     const now = new Date();
     let rappelsEnvoyes = 0;
