@@ -12,8 +12,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const companyId = searchParams.get("company_id")
   const tenantId = await getTenantIdFromRequest(req)
-  let q = sb.from("notes_frais").select("*").order("date", { ascending: false })
-  if (tenantId) q = q.eq("tenant_id", tenantId)
+  if (!tenantId) return NextResponse.json({ notes: [] })
+  let q = sb.from("notes_frais").select("*").eq("tenant_id", tenantId).order("date", { ascending: false })
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   if (companyId && UUID.test(companyId)) q = q.eq("company_id", companyId)
   const { data, error } = await q
@@ -115,8 +115,8 @@ export async function POST(req: NextRequest) {
     if (!id || !statut) {
       return NextResponse.json({ success: false, error: "id et statut requis" }, { status: 400 })
     }
-    let uq = sb.from("notes_frais").update({ statut }).eq("id", id)
-    if (tenantId) uq = uq.eq("tenant_id", tenantId)
+    if (!tenantId) return NextResponse.json({ success: false, error: "non_autorise" }, { status: 401 })
+    const uq = sb.from("notes_frais").update({ statut }).eq("id", id).eq("tenant_id", tenantId)
     const { data: note, error } = await uq.select().single()
 
     // Note validee -> vraie ligne dans le Wallet (donc visible en Compta et Tresorerie)
