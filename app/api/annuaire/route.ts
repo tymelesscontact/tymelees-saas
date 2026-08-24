@@ -10,16 +10,14 @@ export async function GET(req: NextRequest) {
   const action = searchParams.get('action') || 'contacts';
   const tenantId = await getTenantIdFromRequest(req);
   if (action === 'contacts') {
-    let q = sb.from('reseau_contacts').select('*').order('nom');
-    if (tenantId) q = q.eq('tenant_id', tenantId);
-    const { data, error } = await q;
+    if (!tenantId) return NextResponse.json({ contacts: [] });
+    const { data, error } = await sb.from('reseau_contacts').select('*').eq('tenant_id', tenantId).order('nom');
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ contacts: data || [] });
   }
   if (action === 'deals') {
-    let q = sb.from('reseau_deals').select('*, reseau_contacts(nom,secteur)').order('created_at', { ascending: false });
-    if (tenantId) q = q.eq('tenant_id', tenantId);
-    const { data, error } = await q;
+    if (!tenantId) return NextResponse.json({ deals: [] });
+    const { data, error } = await sb.from('reseau_deals').select('*, reseau_contacts(nom,secteur)').eq('tenant_id', tenantId).order('created_at', { ascending: false });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ deals: data || [] });
   }
