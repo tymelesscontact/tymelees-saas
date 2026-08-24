@@ -27,7 +27,8 @@ export async function GET(req: NextRequest) {
   const espace = searchParams.get('espace');
   const companyId = searchParams.get('company_id');
 
-  let query = tenantId ? sb.from('conversations').select('*').eq('tenant_id', tenantId).order('derniere_activite', { ascending: false }) : sb.from('conversations').select('*').order('derniere_activite', { ascending: false });
+  if (!tenantId) return NextResponse.json({ conversations: [] });
+  let query = sb.from('conversations').select('*').eq('tenant_id', tenantId).order('derniere_activite', { ascending: false });
   if (espace) query = query.eq('espace', espace);
   if (companyId && UUID_RE.test(companyId)) query = query.eq('company_id', companyId);
   const { data: conversations, error } = await query;
@@ -333,7 +334,8 @@ export async function POST(req: NextRequest) {
     const email = conv.contact_email;
     const tel = conv.contact_tel;
     const nom = conv.contact_nom;
-    const filtreTenant = (q: any) => tenantId ? q.eq('tenant_id', tenantId) : q;
+    if (!tenantId) return NextResponse.json({ devis: [], factures: [], commandes: [], deals: [], partenaire: null, equipe: null });
+    const filtreTenant = (q: any) => q.eq('tenant_id', tenantId);
 
     const [devisRes, facturesRes, commandesRes, dealsRes, partenaireRes, equipeRes] = await Promise.all([
       email ? filtreTenant(sb.from('devis').select('id,reference,montant,statut,created_at').eq('client_email', email)).order('created_at', { ascending: false }).limit(5) : { data: [] },
@@ -389,8 +391,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Au moins deux caracteres' }, { status: 400 });
     }
 
-    let qConv = sb.from('conversations').select('id,contact_nom,contact_type,espace');
-    if (tenantId) qConv = qConv.eq('tenant_id', tenantId);
+    if (!tenantId) return NextResponse.json({ success: true, resultats: [] });
+    const qConv = sb.from('conversations').select('id,contact_nom,contact_type,espace').eq('tenant_id', tenantId);
     const { data: convs } = await qConv;
     const ids = (convs || []).map((c: any) => c.id);
     if (!ids.length) return NextResponse.json({ success: true, resultats: [] });
