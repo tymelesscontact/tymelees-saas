@@ -17,6 +17,7 @@ export async function GET(req: NextRequest) {
     return q;
   }
   if (action === 'liste') {
+    if (!tenantId) return NextResponse.json({ produits: [] });
     const { data } = await scoped(sb.from('produits_catalogue').select('*').order('nom'));
     return NextResponse.json({ produits: data || [] });
   }
