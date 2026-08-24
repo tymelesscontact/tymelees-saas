@@ -10,8 +10,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
-  let query = sb.from('fournisseurs').select('*').order('nom');
-  if (tenantId) query = query.eq('tenant_id', tenantId);
+  if (!tenantId) return NextResponse.json({ fournisseurs: [] });
+  let query = sb.from('fournisseurs').select('*').eq('tenant_id', tenantId).order('nom');
   if (companyId && UUID_RE.test(companyId)) query = query.eq('company_id', companyId);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -43,18 +43,16 @@ export async function POST(req: NextRequest) {
     if (tel !== undefined) champs.tel = tel || null;
     if (iban !== undefined) champs.iban = iban;
     if (delai_livraison !== undefined) champs.delai_livraison = delai_livraison;
-    let qMaj = sb.from('fournisseurs').update(champs).eq('id', id);
-    if (tenantId) qMaj = qMaj.eq('tenant_id', tenantId);
-    const { error } = await qMaj;
+    if (!tenantId) return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 401 });
+    const { error } = await sb.from('fournisseurs').update(champs).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
 
   if (action === 'supprimer') {
     const { id } = body;
-    let qDel = sb.from('fournisseurs').delete().eq('id', id);
-    if (tenantId) qDel = qDel.eq('tenant_id', tenantId);
-    const { error } = await qDel;
+    if (!tenantId) return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 401 });
+    const { error } = await sb.from('fournisseurs').delete().eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
