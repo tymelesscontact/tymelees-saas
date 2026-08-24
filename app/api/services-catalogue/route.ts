@@ -10,6 +10,7 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const action = searchParams.get('action') || 'catalogue';
   const tenantId = await getTenantIdFromRequest(req);
+  if (!tenantId) return NextResponse.json({ services: [], packages: [], devis: [] });
   const companyId = searchParams.get('company_id');
   function scoped(q: any) {
     if (tenantId) q = q.eq('tenant_id', tenantId);
@@ -46,15 +47,17 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, service: data });
   }
   if (action === 'modifier_service') {
+    if (!tenantId) return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 401 });
     const { id, ...champs } = body;
     delete champs.action;
-    const { error } = await sb.from('services_catalogue').update(champs).eq('id', id);
+    const { error } = await sb.from('services_catalogue').update(champs).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
   if (action === 'supprimer_service') {
+    if (!tenantId) return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 401 });
     const { id } = body;
-    const { error } = await sb.from('services_catalogue').delete().eq('id', id);
+    const { error } = await sb.from('services_catalogue').delete().eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
@@ -68,8 +71,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, package: data });
   }
   if (action === 'supprimer_package') {
+    if (!tenantId) return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 401 });
     const { id } = body;
-    const { error } = await sb.from('services_packages').delete().eq('id', id);
+    const { error } = await sb.from('services_packages').delete().eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
