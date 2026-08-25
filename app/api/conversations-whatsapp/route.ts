@@ -16,9 +16,8 @@ const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
 export async function GET(req: NextRequest) {
   const sb = getAdminClient()
   const tenantId = await getTenantIdFromRequest(req)
-  let q = sb.from("conduit").select("*").order("created_at", { ascending: false })
-  if (tenantId) q = q.eq("tenant_id", tenantId)
-  const { data, error } = await q
+  if (!tenantId) return NextResponse.json({ conversations: [] })
+  const { data, error } = await sb.from("conduit").select("*").eq("tenant_id", tenantId).order("created_at", { ascending: false })
 
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -39,6 +38,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
+  if (!tenantId) return NextResponse.json({ success: false, error: "non_autorise" }, { status: 401 })
   const body = await req.json()
   const { action, whatsapp, message, messageIndex } = body
   const sb = getAdminClient()
@@ -52,7 +52,8 @@ export async function POST(req: NextRequest) {
     } catch (e) {
       return NextResponse.json({ success: false, error: "Erreur envoi WhatsApp" }, { status: 500 })
     }
-    const { data: existing } = await sb.from("conduit").select("historique").eq("whatsapp", whatsapp).single()
+    const { data: existing } = await sb.from("conduit").select("historique").eq("whatsapp", whatsapp).eq("tenant_id", tenantId).maybeSingle()
+    if (!existing) return NextResponse.json({ success: false, error: "conversation_introuvable" }, { status: 404 })
     let historique = []
     try {
       historique = existing?.historique ? JSON.parse(existing.historique) : []
@@ -60,7 +61,7 @@ export async function POST(req: NextRequest) {
       historique = []
     }
     historique.push({ role: "owner", content: message })
-    await sb.from("conduit").update({ historique: JSON.stringify(historique), ia_pausee: true }).eq("whatsapp", whatsapp)
+    await sb.from("conduit").update({ historique: JSON.stringify(historique), ia_pausee: true }).eq("whatsapp", whatsapp).eq("tenant_id", tenantId)
     return NextResponse.json({ success: true })
   }
 
@@ -68,7 +69,7 @@ export async function POST(req: NextRequest) {
     if (!whatsapp) {
       return NextResponse.json({ success: false, error: "whatsapp requis" }, { status: 400 })
     }
-    await sb.from("conduit").update({ ia_pausee: false }).eq("whatsapp", whatsapp)
+    await sb.from("conduit").update({ ia_pausee: false }).eq("whatsapp", whatsapp).eq("tenant_id", tenantId)
     return NextResponse.json({ success: true })
   }
 
@@ -76,7 +77,8 @@ export async function POST(req: NextRequest) {
     if (!whatsapp || messageIndex === undefined) {
       return NextResponse.json({ success: false, error: "whatsapp et messageIndex requis" }, { status: 400 })
     }
-    const { data: existing } = await sb.from("conduit").select("historique").eq("whatsapp", whatsapp).single()
+    const { data: existing } = await sb.from("conduit").select("historique").eq("whatsapp", whatsapp).eq("tenant_id", tenantId).maybeSingle()
+    if (!existing) return NextResponse.json({ success: false, error: "conversation_introuvable" }, { status: 404 })
     let historique = []
     try {
       historique = existing?.historique ? JSON.parse(existing.historique) : []
@@ -84,7 +86,7 @@ export async function POST(req: NextRequest) {
       historique = []
     }
     historique.splice(messageIndex, 1)
-    await sb.from("conduit").update({ historique: JSON.stringify(historique) }).eq("whatsapp", whatsapp)
+    await sb.from("conduit").update({ historique: JSON.stringify(historique) }).eq("whatsapp", whatsapp).eq("tenant_id", tenantId)
     return NextResponse.json({ success: true })
   }
 
@@ -92,7 +94,7 @@ export async function POST(req: NextRequest) {
     if (!whatsapp) {
       return NextResponse.json({ success: false, error: "whatsapp requis" }, { status: 400 })
     }
-    await sb.from("conduit").delete().eq("whatsapp", whatsapp)
+    await sb.from("conduit").delete().eq("whatsapp", whatsapp).eq("tenant_id", tenantId)
     return NextResponse.json({ success: true })
   }
 
