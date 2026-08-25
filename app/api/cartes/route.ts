@@ -27,10 +27,11 @@ export async function GET(req: NextRequest) {
   const carteId = searchParams.get('carte_id');
   const companyId = searchParams.get('company_id');
   function scoped(q) {
-    if (tenantId) q = q.eq('tenant_id', tenantId);
+    q = q.eq('tenant_id', tenantId);
     if (companyId && UUID_RE.test(companyId)) q = q.eq('company_id', companyId);
     return q;
   }
+  if (!tenantId) return NextResponse.json({ cartes: [], transactions: [], budgets: [] });
 
   if (action === 'cartes') {
     const { data } = await scoped(sb.from('cartes_virtuelles').select('*').order('created_at', { ascending: false }));
@@ -38,6 +39,8 @@ export async function GET(req: NextRequest) {
   }
 
   if (action === 'transactions' && carteId) {
+    const { data: carteVerif } = await sb.from('cartes_virtuelles').select('id').eq('id', carteId).eq('tenant_id', tenantId).maybeSingle();
+    if (!carteVerif) return NextResponse.json({ transactions: [] });
     const { data } = await sb.from('cartes_transactions').select('*').eq('carte_id', carteId).order('date_transaction', { ascending: false }).limit(50);
     return NextResponse.json({ transactions: data || [] });
   }
@@ -76,31 +79,35 @@ export async function POST(req: NextRequest) {
       ephemere: ephemere || false,
       statut: ephemere ? 'éphémère' : 'active',
       numero: `${prefix} •••• •••• ${suffix}`,
+      tenant_id: tenantId,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, carte: data });
   }
 
   if (action === 'toggle') {
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { id, statut_actuel } = body;
     const nouveau = statut_actuel === 'active' ? 'bloquée' : 'active';
-    await sb.from('cartes_virtuelles').update({ statut: nouveau, updated_at: new Date().toISOString() }).eq('id', id);
+    await sb.from('cartes_virtuelles').update({ statut: nouveau, updated_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true, nouveau_statut: nouveau });
   }
 
   if (action === 'delete') {
-    await sb.from('cartes_virtuelles').delete().eq('id', body.id);
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    await sb.from('cartes_virtuelles').delete().eq('id', body.id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true });
   }
 
   if (action === 'update_solde') {
     const { id, montant, sens } = body;
-    const { data: carte } = await sb.from('cartes_virtuelles').select('solde,limite,nom,ephemere').eq('id', id).single();
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const { data: carte } = await sb.from('cartes_virtuelles').select('solde,limite,nom,ephemere').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
     if (!carte) return NextResponse.json({ error: 'Carte introuvable' }, { status: 404 });
     const nouveau = sens === 'debit' ? Number(carte.solde) + Number(montant) : Math.max(0, Number(carte.solde) - Number(montant));
     const updates: any = { solde: nouveau, updated_at: new Date().toISOString() };
     if (carte.ephemere && sens === 'debit') updates.statut = 'expirée';
-    await sb.from('cartes_virtuelles').update(updates).eq('id', id);
+    await sb.from('cartes_virtuelles').update(updates).eq('id', id).eq('tenant_id', tenantId);
     // Alerte si > 80%
     const pct = (nouveau / Number(carte.limite)) * 100;
     if (pct >= 80 && process.env.OWNER_WHATSAPP) {
@@ -110,12 +117,15 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'ajouter_transaction') {
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { carte_id, libelle, montant, sens, categorie, approbation_requise } = body;
+    const { data: carteVerif } = await sb.from('cartes_virtuelles').select('id').eq('id', carte_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!carteVerif) return NextResponse.json({ error: 'Carte introuvable' }, { status: 404 });
     const statut = approbation_requise ? 'en_attente' : 'approuvé';
     const { data, error } = await sb.from('cartes_transactions').insert({ carte_id, libelle, montant: Number(montant), sens: sens || 'debit', categorie: categorie || 'Autres', statut }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (statut === 'approuvé') {
-      await sb.from('cartes_virtuelles').update({ solde: Number(montant), updated_at: new Date().toISOString() }).eq('id', carte_id);
+      await sb.from('cartes_virtuelles').update({ solde: Number(montant), updated_at: new Date().toISOString() }).eq('id', carte_id).eq('tenant_id', tenantId);
     }
     if (approbation_requise && process.env.OWNER_WHATSAPP) {
       await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra Approbation requise : ${libelle} - ${montant}EUR sur carte. Repondez OUI pour approuver.`, tenantId);
@@ -124,10 +134,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'approuver_transaction') {
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { id, carte_id, montant } = body;
     await sb.from('cartes_transactions').update({ statut: 'approuvé', approuve_par: 'Owner', updated_at: new Date().toISOString() }).eq('id', id);
-    const { data: carte } = await sb.from('cartes_virtuelles').select('solde').eq('id', carte_id).single();
-    if (carte) await sb.from('cartes_virtuelles').update({ solde: Number(carte.solde) + Number(montant) }).eq('id', carte_id);
+    const { data: carte } = await sb.from('cartes_virtuelles').select('solde').eq('id', carte_id).eq('tenant_id', tenantId).maybeSingle();
+    if (carte) await sb.from('cartes_virtuelles').update({ solde: Number(carte.solde) + Number(montant) }).eq('id', carte_id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true });
   }
 
@@ -143,8 +154,9 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'create_budget') {
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { projet, budget_total } = body;
-    const { error } = await sb.from('cartes_budgets_projet').insert({ projet, budget_total: Number(budget_total) });
+    const { error } = await sb.from('cartes_budgets_projet').insert({ projet, budget_total: Number(budget_total), tenant_id: tenantId });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
