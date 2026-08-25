@@ -36,16 +36,11 @@ export async function GET(req: NextRequest) {
   const companyId = searchParams.get('company_id');
   const action = searchParams.get('action') || 'all';
   const tenantId = await getTenantIdFromRequest(req);
+  if (!tenantId) return NextResponse.json({ avis: [], nps: [], csat: [], npsScore: 0, csatScore: 0, noteGoogle: 0, noteMoyenne: 0, tauxReponse: 0, scoreReputation: 0, promoteurs: 0, detracteurs: 0, passifs: 0, sentiments: { positif: 0, neutre: 0, négatif: 0 }, totalAvis: 0 });
 
-  let avisQuery = sb.from('avis').select('*').order('date_avis', { ascending: false });
-  let npsQuery = sb.from('nps_reponses').select('*').order('created_at', { ascending: false });
-  let csatQuery = sb.from('csat_reponses').select('*').order('created_at', { ascending: false });
-
-  if (tenantId) {
-    avisQuery = avisQuery.eq("tenant_id", tenantId);
-    npsQuery = npsQuery.eq("tenant_id", tenantId);
-    csatQuery = csatQuery.eq("tenant_id", tenantId);
-  }
+  let avisQuery = sb.from('avis').select('*').eq("tenant_id", tenantId).order('date_avis', { ascending: false });
+  let npsQuery = sb.from('nps_reponses').select('*').eq("tenant_id", tenantId).order('created_at', { ascending: false });
+  let csatQuery = sb.from('csat_reponses').select('*').eq("tenant_id", tenantId).order('created_at', { ascending: false });
   if (companyId) {
     avisQuery = avisQuery.eq('company_id', companyId);
     npsQuery = npsQuery.eq('company_id', companyId);
@@ -107,7 +102,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await sb.from('avis').insert({
       client_nom, note: Number(note), commentaire, service,
       source: source || 'direct', google: google || false,
-      sentiment, statut: 'nouveau', company_id,
+      sentiment, statut: 'nouveau', company_id, tenant_id: tenantId,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -129,7 +124,7 @@ ${Number(note) <= 2 ? "C'est un avis négatif : sois empathique, excuse-toi sinc
 Commence par "Bonjour ${client_nom},"`;
 
       const reponse = await askClaude(prompt, 300);
-      await sb.from('avis').update({ reponse_ia: reponse, statut: 'répondu' }).eq('id', avis_id);
+      await sb.from('avis').update({ reponse_ia: reponse, statut: 'répondu' }).eq('id', avis_id).eq('tenant_id', tenantId);
       return NextResponse.json({ success: true, reponse });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -139,7 +134,7 @@ Commence par "Bonjour ${client_nom},"`;
   if (action === 'ajouter_nps') {
     const { client_nom, client_email, score, commentaire, company_id } = body;
     const categorie = getNPSCategorie(Number(score));
-    await sb.from('nps_reponses').insert({ client_nom, client_email, score: Number(score), commentaire, categorie, company_id });
+    await sb.from('nps_reponses').insert({ client_nom, client_email, score: Number(score), commentaire, categorie, company_id, tenant_id: tenantId });
 
     // Routage intelligent
     if (Number(score) >= 9 && process.env.OWNER_WHATSAPP) {
@@ -152,7 +147,7 @@ Commence par "Bonjour ${client_nom},"`;
 
   if (action === 'ajouter_csat') {
     const { client_nom, service, score, commentaire, company_id } = body;
-    await sb.from('csat_reponses').insert({ client_nom, service, score: Number(score), commentaire, company_id });
+    await sb.from('csat_reponses').insert({ client_nom, service, score: Number(score), commentaire, company_id, tenant_id: tenantId });
     return NextResponse.json({ success: true });
   }
 
