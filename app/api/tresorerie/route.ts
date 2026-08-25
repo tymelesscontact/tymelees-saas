@@ -33,10 +33,11 @@ export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   const companyId = searchParams.get('company_id');
   function scoped(q) {
-    if (tenantId) q = q.eq('tenant_id', tenantId);
+    q = q.eq('tenant_id', tenantId);
     if (companyId && UUID_RE.test(companyId)) q = q.eq('company_id', companyId);
     return q;
   }
+  if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
   const [walletRes, facturesRes, chargesRes, paramRes, stockRes, equipeRes, clientsRes, missionsRes] = await Promise.all([
     scoped(sb.from('wallet_transactions').select('*')),
     scoped(sb.from('factures').select('*')),
@@ -307,20 +308,22 @@ Format : [{"client": "nom", "risque": "élevé|moyen|faible", "raison": "courte 
 
   // ── SAUVEGARDER PARAMÈTRES ────────────────────────────────
   if (action === 'set_parametres') {
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { seuil_alerte_bas, seuil_alerte_critique, seuil_sortie_importante, placement_seuil } = body;
-    const { data: existing } = await sb.from('tresorerie_parametres').select('id').limit(1).single();
+    const { data: existing } = await sb.from('tresorerie_parametres').select('id').eq('tenant_id', tenantId).limit(1).maybeSingle();
     if (existing) {
-      await sb.from('tresorerie_parametres').update({ seuil_alerte_bas, seuil_alerte_critique, seuil_sortie_importante, placement_seuil, updated_at: new Date().toISOString() }).eq('id', existing.id);
+      await sb.from('tresorerie_parametres').update({ seuil_alerte_bas, seuil_alerte_critique, seuil_sortie_importante, placement_seuil, updated_at: new Date().toISOString() }).eq('id', existing.id).eq('tenant_id', tenantId);
     } else {
-      await sb.from('tresorerie_parametres').insert({ seuil_alerte_bas, seuil_alerte_critique, seuil_sortie_importante, placement_seuil });
+      await sb.from('tresorerie_parametres').insert({ seuil_alerte_bas, seuil_alerte_critique, seuil_sortie_importante, placement_seuil, tenant_id: tenantId });
     }
     return NextResponse.json({ success: true });
   }
 
   // ── AJOUTER LIGNE MANUELLE ────────────────────────────────
   if (action === 'ajouter_ligne_manuelle') {
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { libelle, montant, semaine, sens } = body;
-    const { error } = await sb.from('tresorerie_lignes_manuelles').insert({ libelle, montant: Number(montant), semaine, sens, created_at: new Date().toISOString() });
+    const { error } = await sb.from('tresorerie_lignes_manuelles').insert({ libelle, montant: Number(montant), semaine, sens, created_at: new Date().toISOString(), tenant_id: tenantId });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
