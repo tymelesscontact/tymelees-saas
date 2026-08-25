@@ -31,8 +31,9 @@ export async function GET(req: NextRequest) {
   if (action === 'all') {
     const tenantId = await getTenantIdFromRequest(req);
     const companyId = searchParams.get('company_id');
+    if (!tenantId) return NextResponse.json({ keys: [], webhooks: [], logs: [], totalAppels: 0, tauxSucces: 100, latenceMoy: 0 });
     function scoped(q: any) {
-      if (tenantId) q = q.eq('tenant_id', tenantId);
+      q = q.eq('tenant_id', tenantId);
       if (companyId && UUID_RE.test(companyId)) q = q.eq('company_id', companyId);
       return q;
     }
@@ -71,7 +72,8 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'revoquer_key') {
-    await sb.from('api_keys').update({ statut: 'révoquée' }).eq('id', body.id);
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    await sb.from('api_keys').update({ statut: 'révoquée' }).eq('id', body.id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true });
   }
 
@@ -88,9 +90,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'toggle_webhook') {
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { id, statut_actuel } = body;
     const nouveau = statut_actuel === 'actif' ? 'inactif' : 'actif';
-    await sb.from('api_webhooks').update({ statut: nouveau }).eq('id', id);
+    await sb.from('api_webhooks').update({ statut: nouveau }).eq('id', id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true });
   }
 
