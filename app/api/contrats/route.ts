@@ -31,10 +31,11 @@ export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   const companyId = searchParams.get('company_id');
   function scoped(q: any) {
-    if (tenantId) q = q.eq('tenant_id', tenantId);
+    q = q.eq('tenant_id', tenantId);
     if (companyId && UUID_RE.test(companyId)) q = q.eq('company_id', companyId);
     return q;
   }
+  if (!tenantId) return NextResponse.json({ modeles: [], contrats: [] });
   if (action === 'modeles') {
     const { data } = await scoped(sb.from('contrats_modeles').select('*').eq('actif', true).order('nom'));
     return NextResponse.json({ modeles: data || [] });
@@ -51,7 +52,8 @@ export async function POST(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   if (action === 'generer') {
     const { modele_id, titre, source_type, source_id, variables, company_id, signataire_nom, signataire_email, signataire_role } = body;
-    const { data: modele } = await sb.from('contrats_modeles').select('*').eq('id', modele_id).single();
+    if (!tenantId) return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 401 });
+    const { data: modele } = await sb.from('contrats_modeles').select('*').eq('id', modele_id).eq('tenant_id', tenantId).maybeSingle();
     if (!modele) return NextResponse.json({ success: false, error: 'Modele introuvable' }, { status: 404 });
     let contenu = modele.contenu;
     for (const [cle, valeur] of Object.entries(variables || {})) {
@@ -68,8 +70,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, contrat: data });
   }
   if (action === 'envoyer') {
+    if (!tenantId) return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 401 });
     const { id, message_perso, email_copie } = body;
-    const { data: contrat } = await sb.from('contrats').select('*').eq('id', id).single();
+    const { data: contrat } = await sb.from('contrats').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
     if (!contrat) return NextResponse.json({ success: false, error: 'Contrat introuvable' }, { status: 404 });
     const lien_token = crypto.randomBytes(24).toString('hex');
     const code_verification = String(Math.floor(100000 + Math.random() * 900000));
@@ -123,10 +126,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
   if (action === 'annuler') {
+    if (!tenantId) return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 401 });
     const { id } = body;
-    const { data: c } = await sb.from('contrats').select('statut').eq('id', id).single();
-    if (c && c.statut === 'signe') return NextResponse.json({ success: false, error: 'Impossible d annuler un contrat deja signe' }, { status: 400 });
-    const { error } = await sb.from('contrats').update({ statut: 'annule' }).eq('id', id);
+    const { data: c } = await sb.from('contrats').select('statut').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!c) return NextResponse.json({ success: false, error: 'Contrat introuvable' }, { status: 404 });
+    if (c.statut === 'signe') return NextResponse.json({ success: false, error: 'Impossible d annuler un contrat deja signe' }, { status: 400 });
+    const { error } = await sb.from('contrats').update({ statut: 'annule' }).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
