@@ -40,33 +40,19 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
-  let membresQuery = sb.from('equipe').select('*').order('created_at', { ascending: false });
-  if (tenantId) membresQuery = membresQuery.eq('tenant_id', tenantId);
+  if (!tenantId) return NextResponse.json({ membres: [], alertes: [] });
+  let membresQuery = sb.from('equipe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (companyId && UUID_RE.test(companyId)) membresQuery = membresQuery.eq('company_id', companyId);
   const { data: membres, error } = await membresQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  let pointagesQuery = sb.from('pointages').select('*').order('date', { ascending: false });
-  if (tenantId) pointagesQuery = pointagesQuery.eq('tenant_id', tenantId);
-  const { data: pointages } = await pointagesQuery;
-  let congesQuery = sb.from('conges').select('*').order('created_at', { ascending: false });
-  if (tenantId) congesQuery = congesQuery.eq('tenant_id', tenantId);
-  const { data: conges } = await congesQuery;
-  let absencesQuery = sb.from('absences').select('*').order('debut', { ascending: false });
-  if (tenantId) absencesQuery = absencesQuery.eq('tenant_id', tenantId);
-  const { data: absences } = await absencesQuery;
-  let acomptesQuery = sb.from('acomptes').select('*').order('created_at', { ascending: false });
-  if (tenantId) acomptesQuery = acomptesQuery.eq('tenant_id', tenantId);
-  const { data: acomptes } = await acomptesQuery;
-  let evaluationsQuery = sb.from('evaluations').select('*').order('created_at', { ascending: false });
-  if (tenantId) evaluationsQuery = evaluationsQuery.eq('tenant_id', tenantId);
-  const { data: evaluations } = await evaluationsQuery;
-  let formationsQuery = sb.from('formations_equipe').select('*').order('created_at', { ascending: false });
-  if (tenantId) formationsQuery = formationsQuery.eq('tenant_id', tenantId);
-  const { data: formations } = await formationsQuery;
-  let missionsQuery = sb.from('missions').select('*').order('date_mission', { ascending: false });
-  if (tenantId) missionsQuery = missionsQuery.eq('tenant_id', tenantId);
-  const { data: missions } = await missionsQuery;
+  const { data: pointages } = await sb.from('pointages').select('*').eq('tenant_id', tenantId).order('date', { ascending: false });
+  const { data: conges } = await sb.from('conges').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
+  const { data: absences } = await sb.from('absences').select('*').eq('tenant_id', tenantId).order('debut', { ascending: false });
+  const { data: acomptes } = await sb.from('acomptes').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
+  const { data: evaluations } = await sb.from('evaluations').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
+  const { data: formations } = await sb.from('formations_equipe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
+  const { data: missions } = await sb.from('missions').select('*').eq('tenant_id', tenantId).order('date_mission', { ascending: false });
 
   const enriched = (membres || []).map((m: any) => {
     const mId = m.user_id || m.id;
@@ -117,14 +103,14 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantId = await getTenantIdFromRequest(req);
+  if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
   const body = await req.json();
   const { action } = body;
   if (action === 'message_groupe') {
     const { message, company_id } = body;
     if (!message) return NextResponse.json({ success: false, error: 'Message requis' }, { status: 400 });
-    const tenantId = await getTenantIdFromRequest(req);
-    let mq = sb.from('equipe').select('*');
-    if (tenantId) mq = mq.eq('tenant_id', tenantId);
+    let mq = sb.from('equipe').select('*').eq('tenant_id', tenantId);
     if (company_id) mq = mq.eq('company_id', company_id);
     const { data: membres } = await mq;
     let envoyes = 0;
@@ -159,7 +145,8 @@ export async function POST(req: NextRequest) {
     const { nom, prenom, role, email, tel, adresse, date_naissance, nss, rib, contrat, salaire_brut, couleur, date_embauche, zones_intervention, competences, company_id } = body;
     if (!nom || !email) return NextResponse.json({ error: 'Nom et email requis' }, { status: 400 });
 
-    const tenantIdCreation = await getTenantIdFromRequest(req);
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const tenantIdCreation = tenantId;
     const { userId, inviteLink, erreurDiagnostic } = await inviterCompte(email);
     const salaireNet = Math.round(Number(salaire_brut || 0) * 0.78);
 
@@ -202,14 +189,15 @@ export async function POST(req: NextRequest) {
 
   if (action === 'inviter_espace') {
     const { id } = body;
-    const { data: m } = await sb.from('equipe').select('*').eq('id', id).single();
-    if (!m?.email) return NextResponse.json({ error: 'Email manquant' }, { status: 400 });
+    const { data: m } = await sb.from('equipe').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!m) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
+    if (!m.email) return NextResponse.json({ error: 'Email manquant' }, { status: 400 });
     if (m.user_id) return NextResponse.json({ error: 'Cet employé a déjà un accès' }, { status: 400 });
 
     const { userId, inviteLink } = await inviterCompte(m.email);
     if (!userId) return NextResponse.json({ error: 'Échec création compte' }, { status: 500 });
 
-    await sb.from('equipe').update({ user_id: userId }).eq('id', id);
+    await sb.from('equipe').update({ user_id: userId }).eq('id', id).eq('tenant_id', tenantId);
     try {
       const lien = inviteLink ? `<p><a href="${inviteLink}">Cliquez ici pour activer votre accès</a></p>` : '';
       await sendEmail(m.email, 'Votre espace équipe Xyra est prêt',
@@ -222,42 +210,42 @@ export async function POST(req: NextRequest) {
 
   if (action === 'modifier') {
     const { id, ...fields } = body;
-    const { error } = await sb.from('equipe').update(fields).eq('id', id);
+    const { error } = await sb.from('equipe').update(fields).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
 
   if (action === 'supprimer') {
     const { id } = body;
-    const { data: m } = await sb.from('equipe').select('user_id').eq('id', id).single();
-    if (m?.user_id) {
+    const { data: m } = await sb.from('equipe').select('user_id').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!m) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
+    if (m.user_id) {
       try { await sbAdmin.auth.admin.deleteUser(m.user_id); } catch { /* non bloquant */ }
     }
-    const { error } = await sb.from('equipe').delete().eq('id', id);
+    const { error } = await sb.from('equipe').delete().eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
 
   if (action === 'valider_conge') {
     const { id, employe_id, jours } = body;
-    await sb.from('conges').update({ statut: 'validé' }).eq('id', id);
+    await sb.from('conges').update({ statut: 'validé' }).eq('id', id).eq('tenant_id', tenantId);
 
     // Décrémenter le solde
-    const { data: emp } = await sb.from('equipe').select('conges_solde').eq('id', employe_id).single();
-    if (emp) await sb.from('equipe').update({ conges_solde: Math.max(0, (emp.conges_solde || 0) - (jours || 1)) }).eq('id', employe_id);
+    const { data: emp } = await sb.from('equipe').select('conges_solde').eq('id', employe_id).eq('tenant_id', tenantId).maybeSingle();
+    if (emp) await sb.from('equipe').update({ conges_solde: Math.max(0, (emp.conges_solde || 0) - (jours || 1)) }).eq('id', employe_id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true });
   }
 
   if (action === 'refuser_conge') {
     const { id } = body;
-    await sb.from('conges').update({ statut: 'refusé' }).eq('id', id);
+    await sb.from('conges').update({ statut: 'refusé' }).eq('id', id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true });
   }
 
   if (action === 'valider_acompte') {
     const { id, employe_id, montant, nom_employe, company_id } = body;
-    const tenantId = await getTenantIdFromRequest(req);
-    await sb.from('acomptes').update({ statut: 'validé' }).eq('id', id);
+    await sb.from('acomptes').update({ statut: 'validé' }).eq('id', id).eq('tenant_id', tenantId);
     // Crée une vraie transaction dans le wallet
     await sb.from('wallet_transactions').insert({
       type: 'acompte',
@@ -268,7 +256,7 @@ export async function POST(req: NextRequest) {
       statut: 'à_virer',
       ref: `ACOMP-${Date.now()}`,
       destinataire_nom: nom_employe,
-      tenant_id: tenantId || null,
+      tenant_id: tenantId,
       company_id: company_id || null,
     });
     return NextResponse.json({ success: true });
@@ -276,21 +264,25 @@ export async function POST(req: NextRequest) {
 
   if (action === 'refuser_acompte') {
     const { id } = body;
-    await sb.from('acomptes').update({ statut: 'refusé' }).eq('id', id);
+    await sb.from('acomptes').update({ statut: 'refusé' }).eq('id', id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true });
   }
 
   if (action === 'ajouter_evaluation') {
     const { employe_id, note, points_forts, axes_amelioration } = body;
-    const { data, error } = await sb.from('evaluations').insert({ employe_id, note, points_forts, axes_amelioration, evaluateur: 'Curtiss' }).select().single();
+    const { data: empVerifEval } = await sb.from('equipe').select('id').eq('id', employe_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!empVerifEval) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
+    const { data, error } = await sb.from('evaluations').insert({ employe_id, note, points_forts, axes_amelioration, evaluateur: 'Curtiss', tenant_id: tenantId }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    await sb.from('equipe').update({ performance: note }).eq('id', employe_id);
+    await sb.from('equipe').update({ performance: note }).eq('id', employe_id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true, evaluation: data });
   }
 
   if (action === 'ajouter_formation') {
     const { employe_id, titre, statut } = body;
-    const { data, error } = await sb.from('formations_equipe').insert({ employe_id, titre, statut: statut || 'a_faire' }).select().single();
+    const { data: empVerifForm } = await sb.from('equipe').select('id').eq('id', employe_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!empVerifForm) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
+    const { data, error } = await sb.from('formations_equipe').insert({ employe_id, titre, statut: statut || 'a_faire', tenant_id: tenantId }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, formation: data });
   }
@@ -327,7 +319,7 @@ Rédige une analyse RH courte (4-5 phrases) avec une recommandation concrète su
 
   if (action === 'generer_fiche_paie') {
     const { id } = body;
-    const { data: m } = await sb.from('equipe').select('*').eq('id', id).single();
+    const { data: m } = await sb.from('equipe').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
     if (!m) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
     const paie = calculerPaie(Number(m.salaire_brut || m.salaire || 0));
     const mois = new Date().toLocaleDateString('fr', { month: 'long', year: 'numeric' });
