@@ -16,9 +16,9 @@ export async function GET(req: NextRequest) {
 
   if (action === 'list') {
     const tenantId = await getTenantIdFromRequest(req);
+    if (!tenantId) return NextResponse.json({ transactions: [], solde: 0 });
     const companyId = searchParams.get('company_id');
-    let query = sb.from('wallet_transactions').select('*').order('created_at', { ascending: false }).limit(100);
-    if (tenantId) query = query.eq('tenant_id', tenantId);
+    let query = sb.from('wallet_transactions').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(100);
     if (companyId && UUID_RE.test(companyId)) query = query.eq('company_id', companyId);
     const { data, error } = await query;
 
@@ -42,6 +42,7 @@ export async function POST(req: NextRequest) {
 
   // ── ENCAISSER : génère un vrai lien de paiement Stripe ─────
   if (action === 'encaisser') {
+    if (!tenantIdPost) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { nom, montant, devise, methode, email, tel, ref } = body;
     if (!nom || !montant) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
 
@@ -61,6 +62,7 @@ export async function POST(req: NextRequest) {
         destinataire_nom: nom,
         destinataire_email: email || null,
         destinataire_tel: tel || null,
+        tenant_id: tenantIdPost,
       })
       .select()
       .single();
@@ -124,8 +126,8 @@ export async function POST(req: NextRequest) {
 
   // ── PAYER : enregistre un virement à exécuter manuellement ──
   if (action === 'payer') {
+    if (!tenantIdPost) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { nom, montant, devise, methode, ref, type, destinataire_iban, destinataire_email, destinataire_tel, company_id } = body;
-    const tenantId = await getTenantIdFromRequest(req);
     if (!nom || !montant) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
 
     const { data: row, error } = await sb
@@ -142,7 +144,7 @@ export async function POST(req: NextRequest) {
         destinataire_iban: destinataire_iban || null,
         destinataire_email: destinataire_email || null,
         destinataire_tel: destinataire_tel || null,
-        tenant_id: tenantId || null,
+        tenant_id: tenantIdPost,
         company_id: company_id || null,
       })
       .select()
@@ -154,8 +156,9 @@ export async function POST(req: NextRequest) {
 
   // ── MARQUER COMME VIRÉ : après exécution manuelle du virement ─
   if (action === 'marquer_vire') {
+    if (!tenantIdPost) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { id } = body;
-    const { error } = await sb.from('wallet_transactions').update({ statut: 'viré' }).eq('id', id);
+    const { error } = await sb.from('wallet_transactions').update({ statut: 'viré' }).eq('id', id).eq('tenant_id', tenantIdPost);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
