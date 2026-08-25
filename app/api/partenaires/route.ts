@@ -81,8 +81,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
-  let partsQuery = sb.from('partenaires').select('*').order('created_at', { ascending: false });
-  if (tenantId) partsQuery = partsQuery.eq('tenant_id', tenantId);
+  if (!tenantId) return NextResponse.json({ partenaires: [] });
+  let partsQuery = sb.from('partenaires').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (companyId && UUID_RE.test(companyId)) partsQuery = partsQuery.eq('company_id', companyId);
   const { data: parts, error } = await partsQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -90,7 +90,7 @@ export async function GET(req: NextRequest) {
   const { data: leads } = await sb.from('leads_partenaires').select('*').order('created_at', { ascending: false });
   const { data: docs } = await sb.from('partner_documents').select('*').order('created_at', { ascending: false });
   const { data: msgs } = await sb.from('partner_messages').select('*').order('created_at', { ascending: true });
-  const { data: commTx } = await sb.from('wallet_transactions').select('*').eq('type', 'commission');
+  const { data: commTx } = await sb.from('wallet_transactions').select('*').eq('type', 'commission').eq('tenant_id', tenantId);
 
   const enriched = (parts || []).map((p: any) => {
     // un lead peut avoir été déposé via le dashboard interne (partenaire_id = p.id)
@@ -127,6 +127,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
   const tenantId = await getTenantIdFromRequest(req);
+  if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
 
   if (action === 'creer') {
     const { nom, role, comm, email, tel, adresse, rib } = body;
@@ -136,7 +137,7 @@ export async function POST(req: NextRequest) {
 
     const insertPayload: any = {
       nom, role: role || "Apporteur d'affaires", commission: Number(comm) || 15, email, tel, adresse, rib,
-      user_id: userId,
+      user_id: userId, tenant_id: tenantId,
     };
     if (userId) insertPayload.id = userId; // aligne l'id du partenaire sur son compte de connexion
 
@@ -159,7 +160,7 @@ export async function POST(req: NextRequest) {
   // Pour les partenaires créés avant cette mise à jour, sans compte de connexion encore lié.
   if (action === 'inviter_portail') {
     const { id } = body;
-    const { data: p, error: errP } = await sb.from('partenaires').select('*').eq('id', id).single();
+    const { data: p, error: errP } = await sb.from('partenaires').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
     if (errP || !p) return NextResponse.json({ error: 'Partenaire introuvable' }, { status: 404 });
     if (p.user_id) return NextResponse.json({ error: 'Ce partenaire a déjà un accès portail' }, { status: 400 });
     if (!p.email) return NextResponse.json({ error: 'Email manquant pour ce partenaire' }, { status: 400 });
@@ -167,7 +168,7 @@ export async function POST(req: NextRequest) {
     const { userId, inviteLink } = await creerAccesPortail(p.email);
     if (!userId) return NextResponse.json({ error: 'Échec de la création du compte (vérifie SUPABASE_SERVICE_ROLE_KEY)' }, { status: 500 });
 
-    await sb.from('partenaires').update({ user_id: userId }).eq('id', id);
+    await sb.from('partenaires').update({ user_id: userId }).eq('id', id).eq('tenant_id', tenantId);
 
     try {
       const accesHtml = inviteLink ? `<p><a href="${inviteLink}">Cliquez ici pour créer votre mot de passe et vous connecter</a>.</p>` : '';
@@ -180,14 +181,14 @@ export async function POST(req: NextRequest) {
 
   if (action === 'modifier') {
     const { id, ...fields } = body;
-    const { error } = await sb.from('partenaires').update(fields).eq('id', id);
+    const { error } = await sb.from('partenaires').update(fields).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
 
   if (action === 'supprimer') {
     const { id } = body;
-    const { error } = await sb.from('partenaires').delete().eq('id', id);
+    const { error } = await sb.from('partenaires').delete().eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
@@ -195,7 +196,8 @@ export async function POST(req: NextRequest) {
   if (action === 'ajouter_lead') {
     const { partenaire_id, nom, statut, ca } = body;
     if (!partenaire_id || !nom) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
-    const { data: p } = await sb.from('partenaires').select('nom,commission').eq('id', partenaire_id).single();
+    const { data: p } = await sb.from('partenaires').select('nom,commission').eq('id', partenaire_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!p) return NextResponse.json({ error: 'Partenaire introuvable' }, { status: 404 });
     const caNum = Number(ca) || 0;
     const commission = Math.round(caNum * (Number(p?.commission) || 0) / 100);
     const { data, error } = await sb.from('leads_partenaires').insert({
@@ -207,6 +209,10 @@ export async function POST(req: NextRequest) {
 
   if (action === 'modifier_lead') {
     const { id, ...fields } = body;
+    const { data: leadActuel } = await sb.from('leads_partenaires').select('partenaire_id').eq('id', id).maybeSingle();
+    if (!leadActuel) return NextResponse.json({ error: 'Lead introuvable' }, { status: 404 });
+    const { data: pVerif } = await sb.from('partenaires').select('id').eq('id', leadActuel.partenaire_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!pVerif) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { error } = await sb.from('leads_partenaires').update(fields).eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
@@ -215,6 +221,8 @@ export async function POST(req: NextRequest) {
   if (action === 'ajouter_document') {
     const { partenaire_id, nom, type, statut } = body;
     if (!partenaire_id || !nom) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
+    const { data: pVerifDoc } = await sb.from('partenaires').select('id').eq('id', partenaire_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!pVerifDoc) return NextResponse.json({ error: 'Partenaire introuvable' }, { status: 404 });
     const { data, error } = await sb.from('partner_documents').insert({ partenaire_id, nom, type, statut: statut || 'valide' }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, document: data });
@@ -222,16 +230,12 @@ export async function POST(req: NextRequest) {
 
   if (action === 'payer_commission') {
     const { id } = body;
-    const { data: p, error: errP } = await sb.from('partenaires').select('*').eq('id', id).single();
+    const { data: p, error: errP } = await sb.from('partenaires').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
     if (errP || !p) return NextResponse.json({ error: 'Partenaire introuvable' }, { status: 404 });
 
-    let lq = sb.from('leads_partenaires').select('*');
-    if (tenantId) lq = lq.eq('tenant_id', tenantId);
-    const { data: leads } = await lq;
+    const { data: leads } = await sb.from('leads_partenaires').select('*');
     const pLeads = (leads || []).filter((l: any) => l.partenaire_id === p.id || (p.user_id && l.partenaire_id === p.user_id));
-    let cq = sb.from('wallet_transactions').select('*').eq('type', 'commission').eq('destinataire_nom', p.nom);
-    if (tenantId) cq = cq.eq('tenant_id', tenantId);
-    const { data: commTx } = await cq;
+    const { data: commTx } = await sb.from('wallet_transactions').select('*').eq('type', 'commission').eq('destinataire_nom', p.nom).eq('tenant_id', tenantId);
 
     const ca = pLeads.filter((l: any) => l.statut === 'gagné').reduce((a: number, l: any) => a + Number(l.ca_estime || 0), 0);
     const commissionTheorique = Math.round(ca * (Number(p.commission) || 0) / 100);
@@ -252,7 +256,7 @@ export async function POST(req: NextRequest) {
       destinataire_iban: p.rib || null,
       destinataire_email: p.email || null,
       destinataire_tel: p.tel || null,
-      tenant_id: tenantId || null,
+      tenant_id: tenantId,
     }).select().single();
 
     if (errTx) return NextResponse.json({ error: errTx.message }, { status: 500 });
@@ -262,6 +266,8 @@ export async function POST(req: NextRequest) {
   if (action === 'envoyer_message') {
     const { partenaire_id, message, tel, moi } = body;
     if (!partenaire_id || !message) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
+    const { data: pVerifMsg } = await sb.from('partenaires').select('id').eq('id', partenaire_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!pVerifMsg) return NextResponse.json({ error: 'Partenaire introuvable' }, { status: 404 });
     const estMoi = moi !== false;
     const { data, error } = await sb.from('partner_messages').insert({ partenaire_id, message, moi: estMoi }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -274,7 +280,7 @@ export async function POST(req: NextRequest) {
 
   if (action === 'generer_contrat_pdf') {
     const { id } = body;
-    const { data: p, error } = await sb.from('partenaires').select('*').eq('id', id).single();
+    const { data: p, error } = await sb.from('partenaires').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
     if (error || !p) return NextResponse.json({ error: 'Partenaire introuvable' }, { status: 404 });
     const pdfBuffer = await genererPdfContrat(p);
     return NextResponse.json({ success: true, pdfBase64: pdfBuffer.toString('base64'), filename: `Contrat_${p.nom.replace(/\s/g, '_')}.pdf` });
