@@ -56,9 +56,9 @@ export async function GET(req: NextRequest) {
 
   if (action === 'list') {
     const tenantId = await getTenantIdFromRequest(req);
+    if (!tenantId) return NextResponse.json({ factures: [] });
     const companyId = searchParams.get('company_id');
-    let query = sb.from('factures').select('*').order('created_at', { ascending: false }).limit(200);
-    if (tenantId) query = query.eq('tenant_id', tenantId);
+    let query = sb.from('factures').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(200);
     if (companyId && UUID_RE.test(companyId)) query = query.eq('company_id', companyId);
     const { data, error } = await query;
 
@@ -79,7 +79,9 @@ export async function POST(req: NextRequest) {
     const { client_nom, client_email, client_tel, siren, type_client, description, montant_ht, taux_tva } = body;
     if (!client_nom || !montant_ht) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
 
-    const { count } = await sb.from('factures').select('*', { count: 'exact', head: true });
+    const tenantIdCreer = await getTenantIdFromRequest(req);
+    if (!tenantIdCreer) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const { count } = await sb.from('factures').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantIdCreer);
     const annee = new Date().getFullYear();
     const numero = `FA-${annee}-${String((count || 0) + 1).padStart(4, '0')}`;
 
@@ -118,8 +120,9 @@ export async function POST(req: NextRequest) {
 
   // ── GÉNÉRER + ENVOYER LE LIEN DE PAIEMENT STRIPE ────────────
   if (action === 'envoyer_paiement') {
+    if (!tenantIdPost) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { id } = body;
-    const { data: facture, error: ferr } = await sb.from('factures').select('*').eq('id', id).single();
+    const { data: facture, error: ferr } = await sb.from('factures').select('*').eq('id', id).eq('tenant_id', tenantIdPost).maybeSingle();
     if (ferr || !facture) return NextResponse.json({ error: 'Facture introuvable' }, { status: 404 });
 
     let paymentUrl: string | null = null;
@@ -176,16 +179,18 @@ export async function POST(req: NextRequest) {
 
   // ── MARQUER PAYÉE MANUELLEMENT (chèque, espèces, virement reçu) ─
   if (action === 'marquer_payee') {
+    if (!tenantIdPost) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { id } = body;
-    const { error } = await sb.from('factures').update({ statut: 'payée' }).eq('id', id);
+    const { error } = await sb.from('factures').update({ statut: 'payée' }).eq('id', id).eq('tenant_id', tenantIdPost);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
 
   // ── RELANCER UNE FACTURE IMPAYÉE ─────────────────────────────
   if (action === 'relancer') {
+    if (!tenantIdPost) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { id } = body;
-    const { data: facture, error: ferr } = await sb.from('factures').select('*').eq('id', id).single();
+    const { data: facture, error: ferr } = await sb.from('factures').select('*').eq('id', id).eq('tenant_id', tenantIdPost).maybeSingle();
     if (ferr || !facture) return NextResponse.json({ error: 'Facture introuvable' }, { status: 404 });
 
     const lien = facture.stripe_payment_url || '';
@@ -212,7 +217,7 @@ export async function POST(req: NextRequest) {
       } catch (e) { console.error('WhatsApp error:', e); }
     }
 
-    await sb.from('factures').update({ statut: 'en_retard' }).eq('id', id);
+    await sb.from('factures').update({ statut: 'en_retard' }).eq('id', id).eq('tenant_id', tenantIdPost);
     return NextResponse.json({ success: true, envoye });
   }
 
