@@ -21,14 +21,14 @@ export async function GET(req: NextRequest) {
   }
 
   const tenantId = await getTenantIdFromRequest(req);
+  if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
   const sb = getAdminClient();
 
-  let q = sb.from('notes_frais')
+  const { data: note, error } = await sb.from('notes_frais')
     .select('id, tenant_id, justificatif_chemin, justificatif_nom, justificatif_type, justificatif_taille, justificatif_empreinte, justificatif_depose_le')
-    .eq('id', noteId);
-  if (tenantId) q = q.eq('tenant_id', tenantId);
-
-  const { data: note, error } = await q.single();
+    .eq('id', noteId)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
   if (error || !note) {
     return NextResponse.json({ error: 'Note introuvable' }, { status: 404 });
   }
