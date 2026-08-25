@@ -20,15 +20,15 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
-  let dealsQuery = sb.from('deals').select('*').order('updated_at', { ascending: false });
-  if (tenantId) dealsQuery = dealsQuery.eq('tenant_id', tenantId);
+  if (!tenantId) return NextResponse.json({ deals: [], partenaires: [], clients: [], etapes: [], caPipeline: 0, caGagne: 0, dealsInactifs: [] });
+  let dealsQuery = sb.from('deals').select('*').eq('tenant_id', tenantId).order('updated_at', { ascending: false });
   if (companyId && UUID_RE.test(companyId)) dealsQuery = dealsQuery.eq('company_id', companyId);
   const { data: deals, error } = await dealsQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const { data: timeline } = await sb.from('deals_timeline').select('*').order('created_at', { ascending: false });
-  const { data: partenaires } = await sb.from('partenaires').select('id,nom,commission,email,tel').order('nom');
-  const { data: clients } = await sb.from('clients').select('nom,email').order('nom');
+  const { data: partenaires } = await sb.from('partenaires').select('id,nom,commission,email,tel').eq('tenant_id', tenantId).order('nom');
+  const { data: clients } = await sb.from('clients').select('nom,email').eq('tenant_id', tenantId).order('nom');
 
   const enriched = (deals || []).map((d: any) => {
     const dealTimeline = (timeline || []).filter((t: any) => t.deal_id === d.id);
@@ -61,6 +61,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
   const tenantId = await getTenantIdFromRequest(req);
+  if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
 
   if (action === 'creer') {
     const { nom, valeur, prob, etape, client, email, tel, dead, source, desc, partenaire_id, commission_pct } = body;
@@ -91,6 +92,7 @@ export async function POST(req: NextRequest) {
       commission_montant: commissionMontant,
       dernierContact: new Date().toISOString().split('T')[0],
       updated_at: new Date().toISOString(),
+      tenant_id: tenantId,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -114,7 +116,7 @@ export async function POST(req: NextRequest) {
       fields.commission_montant = Math.round(Number(valeur) * Number(pct) / 100);
     }
 
-    const { error } = await sb.from('deals').update(fields).eq('id', id);
+    const { error } = await sb.from('deals').update(fields).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     // Si passage en "Gagné" → créer transaction commission dans Wallet
@@ -153,7 +155,7 @@ export async function POST(req: NextRequest) {
 
   if (action === 'supprimer') {
     const { id } = body;
-    const { error } = await sb.from('deals').delete().eq('id', id);
+    const { error } = await sb.from('deals').delete().eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
