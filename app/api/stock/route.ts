@@ -18,21 +18,15 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
-  let articlesQuery = sb.from('stock').select('*').order('art', { ascending: true });
-  if (tenantId) articlesQuery = articlesQuery.eq('tenant_id', tenantId);
+  if (!tenantId) return NextResponse.json({ articles: [], mouvements: [], fournisseurs: [], emplacements: [], valeurTotale: 0, articlesCritiques: [], scoreStock: 100 });
+  let articlesQuery = sb.from('stock').select('*').eq('tenant_id', tenantId).order('art', { ascending: true });
   if (companyId && UUID_RE.test(companyId)) articlesQuery = articlesQuery.eq('company_id', companyId);
   const { data: articles, error } = await articlesQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  let mvtQuery = sb.from('mouvements_stock').select('*').order('date_mouvement', { ascending: false }).limit(100);
-  if (tenantId) mvtQuery = mvtQuery.eq('tenant_id', tenantId);
-  const { data: mouvements } = await mvtQuery;
-  let empQuery = sb.from('emplacements').select('*').eq('actif', true).order('nom');
-  if (tenantId) empQuery = empQuery.eq('tenant_id', tenantId);
-  const { data: emplacements } = await empQuery;
-  let fourQuery = sb.from('fournisseurs').select('*').order('nom');
-  if (tenantId) fourQuery = fourQuery.eq('tenant_id', tenantId);
-  const { data: fournisseurs } = await fourQuery;
+  const { data: mouvements } = await sb.from('mouvements_stock').select('*').eq('tenant_id', tenantId).order('date_mouvement', { ascending: false }).limit(100);
+  const { data: emplacements } = await sb.from('emplacements').select('*').eq('actif', true).eq('tenant_id', tenantId).order('nom');
+  const { data: fournisseurs } = await sb.from('fournisseurs').select('*').eq('tenant_id', tenantId).order('nom');
 
   // Enrichir chaque article
   const enriched = (articles || []).map((a: any) => {
@@ -82,7 +76,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await sb.from('stock').insert({
       art, cat, qte: Number(qte) || 0, min: Number(min) || 5, max: Number(max) || 50,
       prixU: Number(prixU) || 0, four, localisation: localisation || 'Entrepôt A', note,
-      updated_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(), tenant_id: tenantId,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, article: data });
@@ -91,14 +85,14 @@ export async function POST(req: NextRequest) {
   if (action === 'modifier') {
     const { id, ...fields } = body;
     fields.updated_at = new Date().toISOString();
-    const { error } = await sb.from('stock').update(fields).eq('id', id);
+    const { error } = await sb.from('stock').update(fields).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
 
   if (action === 'supprimer') {
     const { id } = body;
-    const { error } = await sb.from('stock').delete().eq('id', id);
+    const { error } = await sb.from('stock').delete().eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
@@ -124,6 +118,8 @@ export async function POST(req: NextRequest) {
     if (isNaN(qte) || qte < 0) {
       return NextResponse.json({ error: 'Quantite invalide' }, { status: 400 });
     }
+    const { data: articleVerif } = await sb.from('stock').select('id').eq('id', article_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!articleVerif) return NextResponse.json({ error: 'Article introuvable' }, { status: 404 });
     let empId = emplacement_id;
     if (!empId) {
       const { data: def } = await sb.from('emplacements')
@@ -203,8 +199,8 @@ export async function POST(req: NextRequest) {
     const total = (niveaux || []).reduce((a: number, n: any) => a + Number(n.quantite || 0), 0);
     await sb.from('stock')
       .update({ qte: total, quantite: total, updated_at: new Date().toISOString() })
-      .eq('id', article_id);
-    const { data: art } = await sb.from('stock').select('min,seuil_min,art').eq('id', article_id).single();
+      .eq('id', article_id).eq('tenant_id', tenantId);
+    const { data: art } = await sb.from('stock').select('min,seuil_min,art').eq('id', article_id).eq('tenant_id', tenantId).maybeSingle();
     const minSeuil = Number(art?.min || art?.seuil_min || 0);
     if (minSeuil > 0 && total <= minSeuil && (type === 'sortie' || type === 'retrait')) {
       await sb.from('notifications').insert({
