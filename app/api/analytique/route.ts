@@ -46,8 +46,9 @@ export async function GET(req: NextRequest) {
   const periode = searchParams.get('periode') || 'mois';
   const tenantId = await getTenantIdFromRequest(req);
   const companyId = searchParams.get('company_id');
+  if (!tenantId) return NextResponse.json({ caTotal: 0, caMoisActuel: 0, caMoisPrecedent: 0, caNMoins1: 0, evolutionMois: 0, evolutionNMoins1: 0, caParMois: {}, caParSource: {}, topClients: [], alerteDependance: [], chargesTotales: 0, coutEquipe: 0, margeNette: 0, tauxMarge: 0, prevision: { realiste: 0, optimiste: 0, pessimiste: 0 }, devise, nbTransactions: 0 });
   function scoped(q) {
-    if (tenantId) q = q.eq('tenant_id', tenantId);
+    q = q.eq('tenant_id', tenantId);
     if (companyId && UUID_RE.test(companyId)) q = q.eq('company_id', companyId);
     return q;
   }
