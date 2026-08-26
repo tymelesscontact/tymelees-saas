@@ -66,7 +66,7 @@ const T = {
     ctaBtn2: "💬 Demander une démo",
     footerDesc: "Le système de gestion tout-en-un pour toute entreprise. Conçu pour la France, l'Afrique et le monde entier.",
     footerCols: [
-      { title: "Produit", links: [["Fonctionnalités", "#features"], ["Secteurs", "#sectors"], ["Tarifs", "#pricing"], ["FAQ", "#faq"]] },
+      { title: "Produit", links: [["Fonctionnalités", "#features"], ["Secteurs", "#sectors"], ["Tarifs", "/pricing"], ["FAQ", "#faq"]] },
       { title: "Support", links: [["Documentation", "#"], ["Tutoriels vidéo", "/demo"], ["WhatsApp Support", WA_BASE], ["Contact", "#"]] },
       { title: "Légal", links: [["CGV", "#"], ["Confidentialité", "#"], ["Mentions légales", "#"], ["RGPD", "#"]] },
     ],
@@ -170,7 +170,7 @@ const T = {
     ctaBtn2: "💬 Request a demo",
     footerDesc: "The all-in-one management system for every business. Designed for the USA, Europe, Africa and the world.",
     footerCols: [
-      { title: "Product", links: [["Features", "#features"], ["Sectors", "#sectors"], ["Pricing", "#pricing"], ["FAQ", "#faq"]] },
+      { title: "Product", links: [["Features", "#features"], ["Sectors", "#sectors"], ["Pricing", "/pricing"], ["FAQ", "#faq"]] },
       { title: "Support", links: [["Documentation", "#"], ["Video tutorials", "/demo"], ["WhatsApp Support", WA_BASE], ["Contact", "#"]] },
       { title: "Legal", links: [["Terms", "#"], ["Privacy", "#"], ["Legal notice", "#"], ["GDPR", "#"]] },
     ],
@@ -274,7 +274,7 @@ const T = {
     ctaBtn2: "💬 طلب عرض توضيحي",
     footerDesc: "نظام الإدارة الشامل لكل شركة. مصمم لأوروبا وأفريقيا والعالم.",
     footerCols: [
-      { title: "المنتج", links: [["المميزات", "#features"], ["القطاعات", "#sectors"], ["الأسعار", "#pricing"], ["الأسئلة", "#faq"]] },
+      { title: "المنتج", links: [["المميزات", "#features"], ["القطاعات", "#sectors"], ["الأسعار", "/pricing"], ["الأسئلة", "#faq"]] },
       { title: "الدعم", links: [["التوثيق", "#"], ["فيديوهات تعليمية", "/demo"], ["دعم واتساب", WA_BASE], ["اتصل بنا", "#"]] },
       { title: "قانوني", links: [["الشروط", "#"], ["الخصوصية", "#"], ["الإشعار القانوني", "#"], ["GDPR", "#"]] },
     ],
@@ -378,7 +378,7 @@ const T = {
     ctaBtn2: "💬 Solicitar demonstração",
     footerDesc: "O sistema de gestão tudo-em-um para toda empresa. Projetado para o Brasil, Europa, África e o mundo.",
     footerCols: [
-      { title: "Produto", links: [["Funcionalidades", "#features"], ["Setores", "#sectors"], ["Preços", "#pricing"], ["FAQ", "#faq"]] },
+      { title: "Produto", links: [["Funcionalidades", "#features"], ["Setores", "#sectors"], ["Preços", "/pricing"], ["FAQ", "#faq"]] },
       { title: "Suporte", links: [["Documentação", "#"], ["Vídeos tutoriais", "/demo"], ["Suporte WhatsApp", WA_BASE], ["Contato", "#"]] },
       { title: "Legal", links: [["Termos", "#"], ["Privacidade", "#"], ["Aviso legal", "#"], ["LGPD", "#"]] },
     ],
@@ -482,7 +482,7 @@ const T = {
     ctaBtn2: "💬 申请演示",
     footerDesc: "适用于任何企业的一体化管理系统。专为法国、非洲和全球设计。",
     footerCols: [
-      { title: "产品", links: [["功能", "#features"], ["行业", "#sectors"], ["价格", "#pricing"], ["常见问题", "#faq"]] },
+      { title: "产品", links: [["功能", "#features"], ["行业", "#sectors"], ["价格", "/pricing"], ["常见问题", "#faq"]] },
       { title: "支持", links: [["文档", "#"], ["视频教程", "/demo"], ["WhatsApp支持", WA_BASE], ["联系我们", "#"]] },
       { title: "法律", links: [["条款", "#"], ["隐私政策", "#"], ["法律声明", "#"], ["数据保护", "#"]] },
     ],
@@ -586,7 +586,7 @@ const T = {
     ctaBtn2: "💬 デモを依頼する",
     footerDesc: "あらゆるビジネスのためのオールインワン管理システム。フランス、アフリカ、そして世界のために設計されています。",
     footerCols: [
-      { title: "製品", links: [["機能", "#features"], ["業界", "#sectors"], ["料金", "#pricing"], ["よくある質問", "#faq"]] },
+      { title: "製品", links: [["機能", "#features"], ["業界", "#sectors"], ["料金", "/pricing"], ["よくある質問", "#faq"]] },
       { title: "サポート", links: [["ドキュメント", "#"], ["動画チュートリアル", "/demo"], ["WhatsAppサポート", WA_BASE], ["お問い合わせ", "#"]] },
       { title: "法的情報", links: [["利用規約", "#"], ["プライバシー", "#"], ["法的表示", "#"], ["個人情報保護", "#"]] },
     ],
@@ -836,7 +836,7 @@ export default function XyraLanding() {
           <span style={{ fontSize: 22, fontWeight: 300, letterSpacing: "0.12em" }}>XYRA</span>
           <div className="desktop-only" style={{ display: "flex", gap: 36 }}>
             {t.nav.map((l, i) => (
-              <a key={i} className="nav-link" href={["#features","#sectors","#pricing","#faq"][i]}>{l}</a>
+              <a key={i} className="nav-link" href={["#features","#sectors","/pricing","#faq"][i]}>{l}</a>
             ))}
           </div>
           <div style={{ display: "flex", gap: 12, alignItems: "center" }}>
