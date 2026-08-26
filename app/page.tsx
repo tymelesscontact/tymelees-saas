@@ -1015,13 +1015,9 @@ export default function XyraLanding() {
             {t.multiNames.map((name, i) => (
               <div key={name} className="plan-card">
                 <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, letterSpacing: "0.15em", textTransform: "uppercase", color: "#c9a96e", marginBottom: 12 }}>{name}</div>
-                <div style={{ fontSize: "clamp(32px, 4vw, 44px)", fontWeight: 300, letterSpacing: "-0.03em", lineHeight: 1 }}>
-                  {fmtPrice([p.duo, p.groupe, p.holding][i], lang)}
-                </div>
-                <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "rgba(240,234,214,0.4)", marginBottom: 16 }}>{p.per}</div>
-                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "rgba(240,234,214,0.55)", lineHeight: 1.6, marginBottom: 20 }}>{t.multiDesc[i]}</p>
-                <a href="/inscription" className="btn-outline" style={{ display: "block", textAlign: "center", padding: "12px" }}>
-                  {t.multiCta}
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "rgba(240,234,214,0.55)", lineHeight: 1.6, marginTop: 16, marginBottom: 20 }}>{t.multiDesc[i]}</p>
+                <a href="/pricing" className="btn-outline" style={{ display: "block", textAlign: "center", padding: "12px" }}>
+                  En savoir plus
                 </a>
               </div>
             ))}
@@ -1037,13 +1033,9 @@ export default function XyraLanding() {
             <span className="gold-gradient" style={{ fontStyle: "italic" }}>{t.clubH2b}</span>
           </h2>
           <div className="plan-card featured" style={{ padding: "48px 40px" }}>
-            <div style={{ fontSize: "clamp(36px, 5vw, 48px)", fontWeight: 300, letterSpacing: "-0.03em", marginBottom: 8 }}>
-              {fmtPrice(p.club, lang)}
-            </div>
-            <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "rgba(240,234,214,0.4)", marginBottom: 24 }}>{p.perAn}</div>
             <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 15, color: "rgba(240,234,214,0.6)", lineHeight: 1.7, marginBottom: 28 }}>{t.clubDesc}</p>
-            <a href="/inscription" className="btn-primary" style={{ display: "inline-block", padding: "14px 40px" }}>
-              {t.clubCta}
+            <a href="/pricing" className="btn-primary" style={{ display: "inline-block", padding: "14px 40px" }}>
+              En savoir plus
             </a>
           </div>
         </div>
