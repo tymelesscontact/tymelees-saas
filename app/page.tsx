@@ -969,41 +969,29 @@ export default function XyraLanding() {
               {t.pricingH2a}<br />
               <span className="gold-gradient" style={{ fontStyle: "italic" }}>{t.pricingH2b}</span>
             </h2>
-            <div className="toggle-pill">
-              <button className={`toggle-option${!billingAnnual ? " active" : ""}`} onClick={() => setBillingAnnual(false)}>{t.monthly}</button>
-              <button className={`toggle-option${billingAnnual ? " active" : ""}`} onClick={() => setBillingAnnual(true)}>{t.annual}</button>
-            </div>
-            {billingAnnual && <span style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "#c9a96e", marginLeft: 12 }}>{t.annualSave}</span>}
           </div>
-          <div className="plans-grid" style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 2, marginBottom: 40 }}>
-            {["Starter","Business Pro","Enterprise"].map((name, i) => (
-              <div key={name} className={`plan-card${i===1 ? " featured" : ""}`}>
-                {i===1 && (
-                  <div style={{ position: "absolute", top: -1, left: "50%", transform: "translateX(-50%)", background: "#c9a96e", color: "#0a0a0a", fontFamily: "'DM Sans', sans-serif", fontSize: 11, letterSpacing: "0.1em", textTransform: "uppercase", padding: "5px 20px" }}>
-                    {t.recommended}
-                  </div>
-                )}
-                <div style={{ paddingTop: i===1 ? 16 : 0 }}>
-                  <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, letterSpacing: "0.15em", textTransform: "uppercase", color: ["#c9a96e","#d4af6a","#e8d5a3"][i], marginBottom: 12 }}>{name}</div>
-                  <div style={{ fontSize: "clamp(40px, 5vw, 56px)", fontWeight: 300, letterSpacing: "-0.03em", lineHeight: 1 }}>
-                    {billingAnnual ? fmtPrice(annualPrice(parseInt(planPrices[i])), lang) : fmtPrice(planPrices[i], lang)}
-                  </div>
-                  <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, color: "rgba(240,234,214,0.4)", marginBottom: 8 }}>{p.per}{billingAnnual ? " "+t.billedAnnual : ""}</div>
-                  <div style={{ background: "rgba(201,169,110,0.1)", border: "1px solid rgba(201,169,110,0.3)", borderRadius: 4, padding: "6px 10px", fontFamily: "'DM Sans', sans-serif", fontSize: 11, color: "#c9a96e", marginBottom: 16 }}>{t.trialBadge}</div>
-                  <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 14, color: "rgba(240,234,214,0.55)", lineHeight: 1.6, marginBottom: 24 }}>{t.planDesc[i]}</p>
-                  <div style={{ width: "100%", height: 1, background: "rgba(201,169,110,0.12)", marginBottom: 24 }} />
-                  {t.planFeatures[i].map(f => (
-                    <div key={f} className="check-item"><span className="check-icon">◆</span><span>{f}</span></div>
-                  ))}
-                  {t.planNo[i].map(f => (
-                    <div key={f} className="cross-item"><span style={{ color: "rgba(240,234,214,0.25)", fontSize: 12 }}>✗</span><span>{f}</span></div>
-                  ))}
-                  <a href="/inscription" className={i===1 ? "btn-primary" : "btn-outline"} style={{ display: "block", textAlign: "center", marginTop: 24, padding: "14px" }}>
-                    {t.planCta[i]}
-                  </a>
-                </div>
+          <div className="plans-grid" style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 2, marginBottom: 40 }}>
+            {[
+              { emoji: "🧑‍💼", profil: "Entrepreneur solo", plan: "Starter → Enterprise", desc: "Vous avez une société et voulez automatiser votre gestion" },
+              { emoji: "🏢", profil: "Multi-sociétés", plan: "Multi-Sociétés", desc: "Vous gérez 2 sociétés ou plus et voulez tout centraliser" },
+              { emoji: "🚀", profil: "Agence / Revendeur", plan: "White-label", desc: "Vous voulez revendre Xyra sous votre marque à vos clients" },
+              { emoji: "🧩", profil: "Modules à la carte", plan: "À partir de 9€/mois", desc: "Ajoutez uniquement les modules dont vous avez besoin" },
+            ].map((c) => (
+              <div key={c.profil} className="plan-card" style={{ padding: "32px 24px" }}>
+                <div style={{ fontSize: 28, marginBottom: 12 }}>{c.emoji}</div>
+                <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 12, letterSpacing: "0.15em", textTransform: "uppercase", color: "#c9a96e", marginBottom: 8 }}>{c.profil}</div>
+                <div style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, fontWeight: 700, marginBottom: 12 }}>{c.plan}</div>
+                <p style={{ fontFamily: "'DM Sans', sans-serif", fontSize: 13, color: "rgba(240,234,214,0.55)", lineHeight: 1.6, marginBottom: 20 }}>{c.desc}</p>
+                <a href="/pricing" className="btn-outline" style={{ display: "block", textAlign: "center", padding: "12px" }}>
+                  En savoir plus
+                </a>
               </div>
             ))}
+          </div>
+          <div style={{ textAlign: "center", marginBottom: 40 }}>
+            <a href="/pricing" className="btn-primary" style={{ display: "inline-block", padding: "16px 48px" }}>
+              Voir tous les tarifs et le white-label
+            </a>
           </div>
           <div style={{ display: "flex", gap: 28, justifyContent: "center", flexWrap: "wrap" }}>
             {t.guarantees.map(g => (
