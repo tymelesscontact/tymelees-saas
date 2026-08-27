@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js'
 // Retirer une ligne = fermer la route. Ajouter une ligne = l'ouvrir.
 const API_OUVERTES = [
   '/api/profil-entreprise',
+  '/api/finaliser-inscription',
   '/api/reservation-publique',
   '/api/boutique',
   '/api/commandes',

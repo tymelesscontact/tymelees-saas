@@ -169,48 +169,24 @@ if (!secteurDetecte) {
 }
 
 
-      const { data: tenantRow } = await supabase.from("tenants").insert([{
-        user_id: userId,
-        societe: form.societe,
-        email: form.email,
-        pays: form.pays,
-        metier: form.metier,
-        categorie: form.categorie,
-        taille: form.taille,
-        plan: normaliserPlan(form.plan),
-        plan_price: form.planPrice,
-        statut: "essai",
-        secteur: secteurDetecte,
-        trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
-        civilite: form.civilite, prenom: form.prenom, nom: form.nom, fonction: form.fonction, telephone_contact: form.telephoneContact,
-        forme_juridique: form.formeJuridique, siren: form.siren, siret: form.siret, tva_intracommunautaire: form.tva,
-        code_ape: form.codeApe, rcs_ville: form.rcsVille, capital_social: form.capitalSocial,
-        date_creation_entreprise: form.dateCreation || null,
-        adresse: form.adresse, ville: form.ville, code_postal: form.cp,
-      }]).select().single();
-
-      if (tenantRow && userId) {
-        await supabase.from("tenant_membres").insert([{
-          user_id: userId,
-          tenant_id: tenantRow.id,
-          role: "owner",
-        }]);
+      const finalisRes = await fetch('/api/finaliser-inscription', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId, email: form.email,
+          societe: form.societe, pays: form.pays, metier: form.metier, categorie: form.categorie, taille: form.taille,
+          plan: normaliserPlan(form.plan), planPrice: form.planPrice, secteur: secteurDetecte,
+          civilite: form.civilite, prenom: form.prenom, nom: form.nom, fonction: form.fonction, telephoneContact: form.telephoneContact,
+          formeJuridique: form.formeJuridique, siren: form.siren, siret: form.siret, tva: form.tva,
+          codeApe: form.codeApe, rcsVille: form.rcsVille, capitalSocial: form.capitalSocial, dateCreation: form.dateCreation,
+          adresse: form.adresse, ville: form.ville, cp: form.cp,
+        }),
+      });
+      const finalisData = await finalisRes.json();
+      if (!finalisData.success) {
+        setError(finalisData.error || "Erreur lors de la creation du compte");
+        return { success: false };
       }
-
-      await supabase.from("inscriptions").insert([{
-        societe: form.societe,
-        email: form.email,
-        pays: form.pays,
-        categorie: form.categorie,
-        metier: form.metier,
-        taille: form.taille,
-        plan: form.plan,
-        plan_price: form.planPrice,
-        flw_tx_ref: txRef,
-        flw_transaction_id: txId,
-        statut: "actif",
-        created_at: new Date().toISOString(),
-      }]);
 
       await fetch('/api/send-email', {
         method: 'POST',
