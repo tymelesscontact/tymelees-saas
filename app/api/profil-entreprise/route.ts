@@ -7,7 +7,7 @@ const sb = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const CHAMPS = 'civilite,prenom,nom,fonction,telephone_contact,email,societe,forme_juridique,siret,siren,tva_intracommunautaire,code_ape,rcs_ville,capital_social,date_creation_entreprise,adresse,ville,code_postal,pays,telephone_entreprise,site_web,photo_url,theme,couleur_primaire';
+const CHAMPS = 'civilite,prenom,nom,fonction,telephone_contact,email,societe,forme_juridique,siret,siren,tva_intracommunautaire,code_ape,rcs_ville,capital_social,date_creation_entreprise,adresse,ville,code_postal,pays,telephone_entreprise,site_web,photo_url,theme,couleur_primaire,deux_fa_actif';
 
 const FORMES_JURIDIQUES: Record<string, string> = {
   '1000': 'Entrepreneur individuel',

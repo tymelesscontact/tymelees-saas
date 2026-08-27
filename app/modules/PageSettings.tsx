@@ -8,6 +8,10 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
   const[onglet,setOnglet]=useState("entreprise");
   const[historiquePaiements,setHistoriquePaiements]=useState([]);
   const[notifPrefs,setNotifPrefs]=useState([]);
+  const[codeEnvoye,setCodeEnvoye]=useState(false);
+  const[codeSaisi,setCodeSaisi]=useState("");
+  const[envoi2faEnCours,setEnvoi2faEnCours]=useState(false);
+  const[codesSecours,setCodesSecours]=useState([]);
   const[loadingPaiements,setLoadingPaiements]=useState(true);
   const[logoUrl,setLogoUrl]=useState("");
   const[couleursMarque,setCouleursMarque]=useState({couleur_primaire:"#C9A84C",couleur_secondaire:"#0A0A16",couleur_accent:"#2EC9B0"});
@@ -67,6 +71,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         setProfUser(f=>({...f,civilite:p.civilite||"",prenom:p.prenom||"",nom:p.nom||"",email:p.email||"",tel:p.telephone_contact||"",titre:p.fonction||"",avatar:(p.prenom?p.prenom[0]:"?").toUpperCase()}));
         if(p.photo_url)setPhotoUrl(p.photo_url);
         if(p.theme)setTheme(p.theme);
+        setDeuxFa(!!p.deux_fa_actif);
       }
     }).catch(()=>{});
   },[]);
@@ -131,6 +136,48 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     const pref=notifPrefs.find(p=>p.type===type)||{push_actif:true,whatsapp_actif:false,email_actif:false};
     try{
       await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update_preference',type,push_actif:pref.push_actif,whatsapp_actif:pref.whatsapp_actif,email_actif:pref.email_actif,[champ]:valeur})});
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const demarrerActivation2FA=async()=>{
+    setEnvoi2faEnCours(true);
+    try{
+      const res=await fetch('/api/2fa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_code'})});
+      const data=await res.json();
+      if(data.success){setCodeEnvoye(true);showToast("📱 Code envoye par SMS");}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setEnvoi2faEnCours(false);
+  };
+  const verifierCode2FA=async()=>{
+    try{
+      const res=await fetch('/api/2fa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verifier_code',code:codeSaisi})});
+      const data=await res.json();
+      if(data.success){setDeuxFa(true);setCodeEnvoye(false);setCodeSaisi("");showToast("✅ 2FA activee !");}
+      else showToast("❌ "+(data.error||"Code incorrect"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const desactiver2FA=async()=>{
+    try{
+      const res=await fetch('/api/2fa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'desactiver'})});
+      const data=await res.json();
+      if(data.success){setDeuxFa(false);showToast("✅ 2FA desactivee");}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const genererCodesSecours=async()=>{
+    try{
+      const res=await fetch('/api/2fa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generer_codes_secours'})});
+      const data=await res.json();
+      if(data.success){
+        setCodesSecours(data.codes);
+        const contenu="Codes de secours Xyra\n\n"+data.codes.join("\n")+"\n\nChaque code ne fonctionne qu'une seule fois.";
+        const blob=new Blob([contenu],{type:"text/plain"});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement("a");
+        a.href=url;a.download="codes-secours-xyra.txt";a.click();
+        URL.revokeObjectURL(url);
+        showToast("🔑 Codes de secours telecharges");
+      }else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
   };
   const verifierSiret=async()=>{
@@ -471,15 +518,19 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         <Card>
           <STitle>🔐 Authentification à 2 facteurs</STitle>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <div><div style={{fontSize:12,fontWeight:700}}>2FA par SMS</div><div style={{fontSize:10,color:C.muted}}>+33 6 00 11 22 33</div></div>
-            <div onClick={()=>setDeuxFa(v=>!v)} style={{width:44,height:24,borderRadius:12,background:deux_fa?C.green:C.border,cursor:"pointer",position:"relative",transition:".2s"}}>
+            <div><div style={{fontSize:12,fontWeight:700}}>2FA par SMS</div><div style={{fontSize:10,color:C.muted}}>{profUser.tel||"Aucun numero enregistre"}</div></div>
+            <div onClick={()=>deux_fa?desactiver2FA():demarrerActivation2FA()} style={{width:44,height:24,borderRadius:12,background:deux_fa?C.green:C.border,cursor:"pointer",position:"relative",transition:".2s"}}>
               <div style={{position:"absolute",top:3,left:deux_fa?21:3,width:18,height:18,borderRadius:"50%",background:"#fff",transition:".2s"}}/>
             </div>
           </div>
+          {codeEnvoye&&<div style={{background:C.card2,borderRadius:8,padding:10,marginBottom:10,display:"flex",gap:8}}>
+            <input value={codeSaisi} onChange={e=>setCodeSaisi(e.target.value)} placeholder="Code recu par SMS" maxLength={6} style={{flex:1,background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:8,color:C.text,fontSize:12}}/>
+            <Btn onClick={verifierCode2FA} style={{fontSize:11,padding:"8px 14px"}}>Verifier</Btn>
+          </div>}
           {deux_fa?<div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:8,padding:10,fontSize:11,color:C.green}}>✅ 2FA activée — Votre compte est sécurisé</div>:<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:10,fontSize:11,color:C.orange}}>⚠️ 2FA désactivée — Recommandé de l'activer</div>}
           <div style={{marginTop:10,display:"flex",gap:8}}>
-            <BtnGhost onClick={()=>showToast("📱 Code de test envoyé par SMS")} style={{flex:1,fontSize:11}}>Tester le 2FA</BtnGhost>
-            <BtnGhost onClick={()=>showToast("🔑 Codes de secours téléchargés")} style={{flex:1,fontSize:11}}>Codes secours</BtnGhost>
+            <BtnGhost onClick={demarrerActivation2FA} disabled={envoi2faEnCours} style={{flex:1,fontSize:11}}>{envoi2faEnCours?"Envoi...":"Tester le 2FA"}</BtnGhost>
+            <BtnGhost onClick={genererCodesSecours} style={{flex:1,fontSize:11}}>Codes secours</BtnGhost>
           </div>
         </Card>
         <Card>
