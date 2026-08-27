@@ -59,6 +59,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         setEntreprise(f=>({...f,nom:p.societe||"",formeJuridique:p.forme_juridique||"",siren:p.siren||"",siret:p.siret||"",tva:p.tva_intracommunautaire||"",codeApe:p.code_ape||"",rcsVille:p.rcs_ville||"",capitalSocial:p.capital_social||"",dateCreation:p.date_creation_entreprise||"",adresse:p.adresse||"",ville:p.ville||"",cp:p.code_postal||"",pays:p.pays||"France",tel:p.telephone_entreprise||"",email:p.email||"",site:p.site_web||""}));
         setProfUser(f=>({...f,civilite:p.civilite||"",prenom:p.prenom||"",nom:p.nom||"",email:p.email||"",tel:p.telephone_contact||"",titre:p.fonction||"",avatar:(p.prenom?p.prenom[0]:"?").toUpperCase()}));
         if(p.photo_url)setPhotoUrl(p.photo_url);
+        if(p.theme)setTheme(p.theme);
       }
     }).catch(()=>{});
   },[]);
@@ -412,10 +413,18 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         <div style={{marginBottom:14}}>
           <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:8}}>Couleur d'accentuation</label>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {[{c:"#C9A84C",n:"Or (défaut)"},{c:"#4B7BFF",n:"Bleu"},{c:"#2EC9B0",n:"Teal"},{c:"#9B5FFF",n:"Violet"},{c:"#FF5F9E",n:"Rose"},{c:"#FF8C3A",n:"Orange"}].map((col,i)=><div key={i} onClick={()=>showToast(`✅ Couleur "${col.n}" appliquée`)} style={{width:32,height:32,borderRadius:"50%",background:col.c,cursor:"pointer",border:`3px solid ${col.c===C.gold?"#fff":"transparent"}`,title:col.n}}/>)}
+            {[{c:"#C9A84C",n:"Or (défaut)"},{c:"#4B7BFF",n:"Bleu"},{c:"#2EC9B0",n:"Teal"},{c:"#9B5FFF",n:"Violet"},{c:"#FF5F9E",n:"Rose"},{c:"#FF8C3A",n:"Orange"}].map((col,i)=><div key={i} onClick={()=>setCouleursMarque(f=>({...f,couleur_primaire:col.c}))} style={{width:32,height:32,borderRadius:"50%",background:col.c,cursor:"pointer",border:`3px solid ${col.c===couleursMarque.couleur_primaire?"#fff":"transparent"}`,title:col.n}}/>)}
           </div>
         </div>
-        <Btn onClick={()=>showToast("✅ Apparence sauvegardée !")}>Sauvegarder l'apparence</Btn>
+        <Btn onClick={async()=>{
+          try{
+            const r1=await fetch('/api/branding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'maj_couleurs',...couleursMarque})});
+            const r2=await fetch('/api/profil-entreprise',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'sauvegarder',theme})});
+            const d1=await r1.json();const d2=await r2.json();
+            if(d1.success&&d2.success)showToast("✅ Apparence sauvegardée !");
+            else showToast("❌ Erreur lors de la sauvegarde");
+          }catch(e){showToast("❌ Erreur de connexion");}
+        }}>Sauvegarder l'apparence</Btn>
       </Card>
       <Card>
         <STitle>🌍 Langue & Région</STitle>

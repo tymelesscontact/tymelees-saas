@@ -7,7 +7,7 @@ const sb = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-const CHAMPS = 'civilite,prenom,nom,fonction,telephone_contact,email,societe,forme_juridique,siret,siren,tva_intracommunautaire,code_ape,rcs_ville,capital_social,date_creation_entreprise,adresse,ville,code_postal,pays,telephone_entreprise,site_web,photo_url';
+const CHAMPS = 'civilite,prenom,nom,fonction,telephone_contact,email,societe,forme_juridique,siret,siren,tva_intracommunautaire,code_ape,rcs_ville,capital_social,date_creation_entreprise,adresse,ville,code_postal,pays,telephone_entreprise,site_web,photo_url,theme';
 
 const FORMES_JURIDIQUES: Record<string, string> = {
   '1000': 'Entrepreneur individuel',
@@ -82,7 +82,7 @@ export async function POST(req: NextRequest) {
   if (!tenantId) return NextResponse.json({ success: false, error: 'Session invalide' }, { status: 401 });
 
   if (action === 'sauvegarder') {
-    const champsAutorises = ['civilite','prenom','nom','fonction','telephone_contact','societe','forme_juridique','siret','siren','tva_intracommunautaire','code_ape','rcs_ville','capital_social','date_creation_entreprise','adresse','ville','code_postal','pays','telephone_entreprise','site_web','photo_url'];
+    const champsAutorises = ['civilite','prenom','nom','fonction','telephone_contact','societe','forme_juridique','siret','siren','tva_intracommunautaire','code_ape','rcs_ville','capital_social','date_creation_entreprise','adresse','ville','code_postal','pays','telephone_entreprise','site_web','photo_url','theme'];
     const maj: Record<string, any> = {};
     for (const c of champsAutorises) if (c in body) maj[c] = body[c];
     if (Object.keys(maj).length === 0) return NextResponse.json({ success: false, error: 'Aucun champ a sauvegarder' }, { status: 400 });
