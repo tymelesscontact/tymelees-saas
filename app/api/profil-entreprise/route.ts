@@ -42,8 +42,6 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
-  const tenantId = await getTenantIdFromRequest(req);
-  if (!tenantId) return NextResponse.json({ success: false, error: 'Session invalide' }, { status: 401 });
 
   if (action === 'verifier_siret') {
     const { siret } = body;
@@ -78,6 +76,11 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: e.message }, { status: 500 });
     }
   }
+
+
+  // Tout le reste (sauvegarde) exige une vraie session
+  const tenantId = await getTenantIdFromRequest(req);
+  if (!tenantId) return NextResponse.json({ success: false, error: 'Session invalide' }, { status: 401 });
 
   if (action === 'sauvegarder') {
     const champsAutorises = ['civilite','prenom','nom','fonction','telephone_contact','societe','forme_juridique','siret','siren','tva_intracommunautaire','code_ape','rcs_ville','capital_social','date_creation_entreprise','adresse','ville','code_postal','pays','telephone_entreprise','site_web'];
