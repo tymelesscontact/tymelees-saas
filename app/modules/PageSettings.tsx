@@ -1,9 +1,12 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import jsPDF from "jspdf";
 import { C, Card, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, DEVISES } from "../lib/ui";
 
 const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLANS,PROFILS_SECTEURS})=>{
   const[onglet,setOnglet]=useState("entreprise");
+  const[historiquePaiements,setHistoriquePaiements]=useState([]);
+  const[loadingPaiements,setLoadingPaiements]=useState(true);
   const[logoUrl,setLogoUrl]=useState("");
   const[couleursMarque,setCouleursMarque]=useState({couleur_primaire:"#C9A84C",couleur_secondaire:"#0A0A16",couleur_accent:"#2EC9B0"});
   const[uploadEnCours,setUploadEnCours]=useState(false);
@@ -42,6 +45,12 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         setCouleursMarque({couleur_primaire:d.branding.couleur_primaire||"#C9A84C",couleur_secondaire:d.branding.couleur_secondaire||"#0A0A16",couleur_accent:d.branding.couleur_accent||"#2EC9B0"});
       }
     }).catch(()=>{});
+  },[]);
+  useEffect(()=>{
+    fetch('/api/paiements-historique').then(r=>r.json()).then(d=>{
+      setHistoriquePaiements(d.paiements||[]);
+      setLoadingPaiements(false);
+    }).catch(()=>setLoadingPaiements(false));
   },[]);
   useEffect(()=>{
     fetch('/api/profil-entreprise').then(r=>r.json()).then(d=>{
@@ -89,6 +98,21 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
     setUploadPhotoEnCours(false);
+  };
+  const genererFacturePDF=(p)=>{
+    const doc=new jsPDF();
+    doc.setFontSize(18);
+    doc.text("Recu de paiement",20,20);
+    doc.setFontSize(11);
+    doc.text("Xyra SaaS",20,32);
+    doc.text("Date : "+new Date(p.date).toLocaleDateString("fr-FR"),20,44);
+    doc.text("Description : "+p.categorie,20,52);
+    doc.text("Societe : "+(p.entite||"-"),20,60);
+    doc.text("Montant : "+p.montant+" "+(p.devise||"EUR"),20,68);
+    doc.text("Methode : "+(p.methode||"-"),20,76);
+    doc.text("Statut : "+(p.statut||"-"),20,84);
+    doc.text("Reference : "+(p.reference||"-"),20,92);
+    doc.save("recu-"+(p.reference||Date.now())+".pdf");
   };
   const verifierSiret=async()=>{
     if(!siretInput)return;
@@ -360,12 +384,12 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         <STitle>📋 Historique de facturation</STitle>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead><tr><TH>Date</TH><TH>Description</TH><TH>Montant</TH><TH>Statut</TH><TH>Action</TH></tr></thead>
-          <tbody>{[{date:"01/05/2026",desc:"Abonnement Owner — Mai 2026",montant:"—",statut:"owner"},{date:"01/04/2026",desc:"Abonnement Owner — Avril 2026",montant:"—",statut:"owner"},{date:"01/03/2026",desc:"Setup initial Xyra",montant:"0 €",statut:"payé"}].map((f,i)=><tr key={i}>
-            <Td style={{color:C.muted,fontSize:10}}>{f.date}</Td>
-            <Td style={{fontWeight:600}}>{f.desc}</Td>
-            <Td style={{color:C.gold,fontWeight:700}}>{f.montant}</Td>
+          <tbody>{loadingPaiements?<tr><Td colSpan={5} style={{textAlign:"center",color:C.muted}}>Chargement...</Td></tr>:historiquePaiements.length===0?<tr><Td colSpan={5} style={{textAlign:"center",color:C.muted}}>Aucun paiement pour le moment</Td></tr>:historiquePaiements.map((f,i)=><tr key={i}>
+            <Td style={{color:C.muted,fontSize:10}}>{new Date(f.date).toLocaleDateString("fr-FR")}</Td>
+            <Td style={{fontWeight:600}}>{f.categorie}</Td>
+            <Td style={{color:C.gold,fontWeight:700}}>{f.montant} {f.devise}</Td>
             <Td><Pill color={C.green}>✓ {f.statut}</Pill></Td>
-            <Td><BtnGhost onClick={()=>showToast("📄 Facture téléchargée")} style={{fontSize:10,padding:"3px 8px"}}>PDF</BtnGhost></Td>
+            <Td><BtnGhost onClick={()=>genererFacturePDF(f)} style={{fontSize:10,padding:"3px 8px"}}>PDF</BtnGhost></Td>
           </tr>)}</tbody>
         </table>
       </Card>
