@@ -73,7 +73,28 @@ export default function Inscription() {
   const [form, setForm] = useState({
     societe: "", gerant: "", email: "", password: "", pays: "",
     categorie: "", metier: "", taille: "", plan: "", planPrice: 0,
+    civilite: "", prenom: "", nom: "", fonction: "", telephoneContact: "",
+    formeJuridique: "", siren: "", siret: "", tva: "", codeApe: "", rcsVille: "", capitalSocial: "", dateCreation: "",
+    adresse: "", ville: "", cp: "",
   });
+  const [siretInput, setSiretInput] = useState("");
+  const [siretVerif, setSiretVerif] = useState({ loading: false, suggestion: null as any, erreur: "" });
+  const verifierSiret = async () => {
+    if (!siretInput) return;
+    setSiretVerif({ loading: true, suggestion: null, erreur: "" });
+    try {
+      const res = await fetch('/api/profil-entreprise', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'verifier_siret', siret: siretInput }) });
+      const data = await res.json();
+      if (data.success) setSiretVerif({ loading: false, suggestion: data.suggestion, erreur: "" });
+      else setSiretVerif({ loading: false, suggestion: null, erreur: data.error || "Erreur" });
+    } catch (e) { setSiretVerif({ loading: false, suggestion: null, erreur: "Erreur de connexion" }); }
+  };
+  const utiliserSuggestionSiret = () => {
+    const s = siretVerif.suggestion;
+    if (!s) return;
+    setForm(f => ({ ...f, societe: s.societe || f.societe, formeJuridique: s.forme_juridique || f.formeJuridique, siren: s.siren || f.siren, siret: s.siret || f.siret, tva: s.tva_intracommunautaire || f.tva, codeApe: s.code_ape || f.codeApe, dateCreation: s.date_creation_entreprise || f.dateCreation, adresse: s.adresse || f.adresse, ville: s.ville || f.ville, cp: s.code_postal || f.cp }));
+    setSiretVerif({ loading: false, suggestion: null, erreur: "" });
+  };
 
   const update = (key: string, val: string | number) => setForm(f => ({ ...f, [key]: val }));
 
@@ -161,6 +182,11 @@ if (!secteurDetecte) {
         statut: "essai",
         secteur: secteurDetecte,
         trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
+        civilite: form.civilite, prenom: form.prenom, nom: form.nom, fonction: form.fonction, telephone_contact: form.telephoneContact,
+        forme_juridique: form.formeJuridique, siren: form.siren, siret: form.siret, tva_intracommunautaire: form.tva,
+        code_ape: form.codeApe, rcs_ville: form.rcsVille, capital_social: form.capitalSocial,
+        date_creation_entreprise: form.dateCreation || null,
+        adresse: form.adresse, ville: form.ville, code_postal: form.cp,
       }]).select().single();
 
       if (tenantRow && userId) {
@@ -254,7 +280,7 @@ if (!secteurDetecte) {
   };
 
   const canNext = () => {
-    if (step === 1) return form.societe && form.email && form.password && form.pays && form.taille;
+    if (step === 1) return form.societe && form.email && form.password && form.pays && form.taille && form.prenom && form.nom;
     if (step === 2) return !!form.metier;
     if (step === 3) return !!form.plan;
     return true;
@@ -380,6 +406,38 @@ if (!secteurDetecte) {
                     </button>
                   ))}
                 </div>
+              <div style={{ borderTop: "1px solid rgba(201,169,110,0.15)", paddingTop: 16, marginTop: 4 }}>
+                <label className="lbl">Verifier mon SIRET (optionnel, pre-remplit les infos ci-dessous)</label>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input className="inp" placeholder="123 456 789 00012" value={siretInput} onChange={e => setSiretInput(e.target.value)} style={{ flex: 1 }} />
+                  <button type="button" className="btn-outline" disabled={siretVerif.loading} onClick={verifierSiret}>{siretVerif.loading ? "Recherche..." : "Verifier"}</button>
+                </div>
+                {siretVerif.erreur && <div style={{ fontSize: 12, color: "#e05252", marginTop: 6 }}>{siretVerif.erreur}</div>}
+                {siretVerif.suggestion && (
+                  <div style={{ background: "rgba(201,169,110,0.06)", border: "1px solid rgba(201,169,110,0.2)", borderRadius: 6, padding: 12, marginTop: 8 }}>
+                    <div style={{ fontSize: 13, marginBottom: 8 }}>Trouve : <b>{siretVerif.suggestion.societe}</b> -- {siretVerif.suggestion.adresse}, {siretVerif.suggestion.code_postal} {siretVerif.suggestion.ville}</div>
+                    <button type="button" className="btn-primary" style={{ fontSize: 12, padding: "8px 16px" }} onClick={utiliserSuggestionSiret}>Utiliser ces infos</button>
+                  </div>
+                )}
+              </div>
+              <div className="step2-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+                <div><label className="lbl">Civilite</label><input className="inp" placeholder="M. / Mme" value={form.civilite} onChange={e => update("civilite", e.target.value)} /></div>
+                <div><label className="lbl">Fonction</label><input className="inp" placeholder="Gerant, President..." value={form.fonction} onChange={e => update("fonction", e.target.value)} /></div>
+                <div><label className="lbl">Prenom *</label><input className="inp" placeholder="Marie" value={form.prenom} onChange={e => update("prenom", e.target.value)} /></div>
+                <div><label className="lbl">Nom *</label><input className="inp" placeholder="Dupont" value={form.nom} onChange={e => update("nom", e.target.value)} /></div>
+                <div><label className="lbl">Telephone professionnel</label><input className="inp" placeholder="+33 6 00 00 00 00" value={form.telephoneContact} onChange={e => update("telephoneContact", e.target.value)} /></div>
+                <div><label className="lbl">Forme juridique</label><input className="inp" placeholder="SASU, SARL..." value={form.formeJuridique} onChange={e => update("formeJuridique", e.target.value)} /></div>
+                <div><label className="lbl">SIREN</label><input className="inp" value={form.siren} onChange={e => update("siren", e.target.value)} /></div>
+                <div><label className="lbl">SIRET</label><input className="inp" value={form.siret} onChange={e => update("siret", e.target.value)} /></div>
+                <div><label className="lbl">Numero TVA</label><input className="inp" value={form.tva} onChange={e => update("tva", e.target.value)} /></div>
+                <div><label className="lbl">Code APE / NAF</label><input className="inp" value={form.codeApe} onChange={e => update("codeApe", e.target.value)} /></div>
+                <div><label className="lbl">RCS + ville</label><input className="inp" value={form.rcsVille} onChange={e => update("rcsVille", e.target.value)} /></div>
+                <div><label className="lbl">Capital social</label><input className="inp" value={form.capitalSocial} onChange={e => update("capitalSocial", e.target.value)} /></div>
+                <div><label className="lbl">Date de creation</label><input className="inp" type="date" value={form.dateCreation} onChange={e => update("dateCreation", e.target.value)} /></div>
+                <div><label className="lbl">Adresse du siege</label><input className="inp" value={form.adresse} onChange={e => update("adresse", e.target.value)} /></div>
+                <div><label className="lbl">Ville</label><input className="inp" value={form.ville} onChange={e => update("ville", e.target.value)} /></div>
+                <div><label className="lbl">Code postal</label><input className="inp" value={form.cp} onChange={e => update("cp", e.target.value)} /></div>
+              </div>
               </div>
             </div>
           </div>
