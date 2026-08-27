@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import jsPDF from "jspdf";
 import { C, Card, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, DEVISES } from "../lib/ui";
+import { appliquerTheme } from "../lib/theme";
 
 const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLANS,PROFILS_SECTEURS})=>{
   const[onglet,setOnglet]=useState("entreprise");
@@ -403,7 +404,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         <div style={{marginBottom:14}}>
           <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:8}}>Thème de l'interface</label>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {[{id:"dark",label:"🌙 Sombre",desc:"Mode nuit — recommandé"},{id:"light",label:"☀️ Clair",desc:"Mode jour"}].map(t=><div key={t.id} onClick={()=>setTheme(t.id)} style={{background:theme===t.id?`${C.gold}15`:C.card2,border:`2px solid ${theme===t.id?C.gold:C.border}`,borderRadius:10,padding:12,cursor:"pointer",textAlign:"center"}}>
+            {[{id:"dark",label:"🌙 Sombre",desc:"Mode nuit — recommandé"},{id:"light",label:"☀️ Clair",desc:"Mode jour"}].map(t=><div key={t.id} onClick={()=>{setTheme(t.id);appliquerTheme(t.id,couleursMarque.couleur_primaire);}} style={{background:theme===t.id?`${C.gold}15`:C.card2,border:`2px solid ${theme===t.id?C.gold:C.border}`,borderRadius:10,padding:12,cursor:"pointer",textAlign:"center"}}>
               <div style={{fontSize:20,marginBottom:4}}>{t.label.split(" ")[0]}</div>
               <div style={{fontSize:11,fontWeight:theme===t.id?700:400,color:theme===t.id?C.gold:C.text}}>{t.label.split(" ").slice(1).join(" ")}</div>
               <div style={{fontSize:9,color:C.muted}}>{t.desc}</div>
@@ -413,7 +414,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         <div style={{marginBottom:14}}>
           <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:8}}>Couleur d'accentuation</label>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {[{c:"#C9A84C",n:"Or (défaut)"},{c:"#4B7BFF",n:"Bleu"},{c:"#2EC9B0",n:"Teal"},{c:"#9B5FFF",n:"Violet"},{c:"#FF5F9E",n:"Rose"},{c:"#FF8C3A",n:"Orange"}].map((col,i)=><div key={i} onClick={()=>setCouleursMarque(f=>({...f,couleur_primaire:col.c}))} style={{width:32,height:32,borderRadius:"50%",background:col.c,cursor:"pointer",border:`3px solid ${col.c===couleursMarque.couleur_primaire?"#fff":"transparent"}`,title:col.n}}/>)}
+            {[{c:"#C9A84C",n:"Or (défaut)"},{c:"#4B7BFF",n:"Bleu"},{c:"#2EC9B0",n:"Teal"},{c:"#9B5FFF",n:"Violet"},{c:"#FF5F9E",n:"Rose"},{c:"#FF8C3A",n:"Orange"}].map((col,i)=><div key={i} onClick={()=>{setCouleursMarque(f=>({...f,couleur_primaire:col.c}));appliquerTheme(theme,col.c);}} style={{width:32,height:32,borderRadius:"50%",background:col.c,cursor:"pointer",border:`3px solid ${col.c===couleursMarque.couleur_primaire?"#fff":"transparent"}`,title:col.n}}/>)}
           </div>
         </div>
         <Btn onClick={async()=>{
