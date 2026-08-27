@@ -49,6 +49,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         const p=d.profil;
         setEntreprise(f=>({...f,nom:p.societe||"",formeJuridique:p.forme_juridique||"",siren:p.siren||"",siret:p.siret||"",tva:p.tva_intracommunautaire||"",codeApe:p.code_ape||"",rcsVille:p.rcs_ville||"",capitalSocial:p.capital_social||"",dateCreation:p.date_creation_entreprise||"",adresse:p.adresse||"",ville:p.ville||"",cp:p.code_postal||"",pays:p.pays||"France",tel:p.telephone_entreprise||"",email:p.email||"",site:p.site_web||""}));
         setProfUser(f=>({...f,civilite:p.civilite||"",prenom:p.prenom||"",nom:p.nom||"",email:p.email||"",tel:p.telephone_contact||"",titre:p.fonction||"",avatar:(p.prenom?p.prenom[0]:"?").toUpperCase()}));
+        if(p.photo_url)setPhotoUrl(p.photo_url);
       }
     }).catch(()=>{});
   },[]);
@@ -71,6 +72,23 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       }else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
     setUploadEnCours(false);
+  };
+  const uploaderPhoto=async(file)=>{
+    if(!file)return;
+    setUploadPhotoEnCours(true);
+    try{
+      const{createClient}=await import('@supabase/supabase-js');
+      const sbc=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+      const path=`photos/${Date.now()}_${file.name}`;
+      const{error:upErr}=await sbc.storage.from('attachments').upload(path,file);
+      if(upErr){showToast("❌ Echec upload — verifie le bucket 'attachments'");setUploadPhotoEnCours(false);return;}
+      const{data:urlData}=sbc.storage.from('attachments').getPublicUrl(path);
+      const res=await fetch('/api/profil-entreprise',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'sauvegarder',photo_url:urlData.publicUrl})});
+      const data=await res.json();
+      if(data.success){setPhotoUrl(urlData.publicUrl);showToast("✅ Photo de profil mise a jour !");}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setUploadPhotoEnCours(false);
   };
   const verifierSiret=async()=>{
     if(!siretInput)return;
@@ -111,6 +129,9 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
   const[profUser,setProfUser]=useState({civilite:"",prenom:"",nom:"",email:"",tel:"",titre:"",avatar:"?"});
   const[siretInput,setSiretInput]=useState("");
   const[siretVerif,setSiretVerif]=useState({loading:false,suggestion:null,erreur:""});
+  const[photoUrl,setPhotoUrl]=useState("");
+  const[uploadPhotoEnCours,setUploadPhotoEnCours]=useState(false);
+  const photoInputRef=useRef(null);
   const[ticketForm,setTicketForm]=useState({sujet:"",message:"",priorite:"normale"});
   const[mesTickets,setMesTickets]=useState([]);
   const[loadingTickets,setLoadingTickets]=useState(true);
@@ -275,10 +296,11 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       <Card>
         <STitle>👤 Mon profil</STitle>
         <div style={{textAlign:"center",marginBottom:16}}>
-          <div style={{width:80,height:80,borderRadius:"50%",background:`${C.gold}22`,border:`3px solid ${C.gold}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,fontWeight:700,color:C.gold,margin:"0 auto 10px"}}>
-            {profUser.avatar}
+          <input ref={photoInputRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>uploaderPhoto(e.target.files?.[0])}/>
+          <div onClick={()=>photoInputRef.current?.click()} style={{width:80,height:80,borderRadius:"50%",background:photoUrl?`center/cover no-repeat url(${photoUrl})`:`${C.gold}22`,border:`3px solid ${C.gold}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,fontWeight:700,color:C.gold,margin:"0 auto 10px",cursor:"pointer",overflow:"hidden"}}>
+            {!photoUrl&&profUser.avatar}
           </div>
-          <BtnGhost onClick={()=>showToast("📸 Photo modifiée !")} style={{fontSize:11}}>📸 Changer la photo</BtnGhost>
+          <BtnGhost onClick={()=>photoInputRef.current?.click()} disabled={uploadPhotoEnCours} style={{fontSize:11}}>📸 {uploadPhotoEnCours?"Envoi...":"Changer la photo"}</BtnGhost>
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           {[["Civilité","civilite"],["Prénom *","prenom"],["Nom *","nom"],["Email *","email"],["Téléphone","tel"],["Titre / Fonction","titre"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={profUser[k]} onChange={e=>setProfUser(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
