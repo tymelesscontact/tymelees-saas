@@ -7,6 +7,7 @@ import { appliquerTheme } from "../lib/theme";
 const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLANS,PROFILS_SECTEURS})=>{
   const[onglet,setOnglet]=useState("entreprise");
   const[historiquePaiements,setHistoriquePaiements]=useState([]);
+  const[notifPrefs,setNotifPrefs]=useState([]);
   const[loadingPaiements,setLoadingPaiements]=useState(true);
   const[logoUrl,setLogoUrl]=useState("");
   const[couleursMarque,setCouleursMarque]=useState({couleur_primaire:"#C9A84C",couleur_secondaire:"#0A0A16",couleur_accent:"#2EC9B0"});
@@ -45,6 +46,11 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         if(d.branding.logo_url)setLogoUrl(d.branding.logo_url);
         setCouleursMarque({couleur_primaire:d.branding.couleur_primaire||"#C9A84C",couleur_secondaire:d.branding.couleur_secondaire||"#0A0A16",couleur_accent:d.branding.couleur_accent||"#2EC9B0"});
       }
+    }).catch(()=>{});
+  },[]);
+  useEffect(()=>{
+    fetch('/api/notifications').then(r=>r.json()).then(d=>{
+      setNotifPrefs(d.preferences||[]);
     }).catch(()=>{});
   },[]);
   useEffect(()=>{
@@ -115,6 +121,17 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     doc.text("Statut : "+(p.statut||"-"),20,84);
     doc.text("Reference : "+(p.reference||"-"),20,92);
     doc.save("recu-"+(p.reference||Date.now())+".pdf");
+  };
+  const toggleNotifPref=async(type,champ,valeur)=>{
+    setNotifPrefs(prefs=>{
+      const existe=prefs.find(p=>p.type===type);
+      if(existe)return prefs.map(p=>p.type===type?{...p,[champ]:valeur}:p);
+      return [...prefs,{type,push_actif:true,whatsapp_actif:false,email_actif:false,[champ]:valeur}];
+    });
+    const pref=notifPrefs.find(p=>p.type===type)||{push_actif:true,whatsapp_actif:false,email_actif:false};
+    try{
+      await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update_preference',type,push_actif:pref.push_actif,whatsapp_actif:pref.whatsapp_actif,email_actif:pref.email_actif,[champ]:valeur})});
+    }catch(e){showToast("❌ Erreur de connexion");}
   };
   const verifierSiret=async()=>{
     if(!siretInput)return;
@@ -599,19 +616,19 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     {/* ── NOTIFICATIONS CONFIG ── */}
     {onglet==="notifications_param"&&<Card>
       <STitle>🔔 Paramètres de notifications</STitle>
+      <div style={{fontSize:11,color:C.muted,marginBottom:10}}>Ces sept categories sont deja connectees a de vraies donnees. D'autres modules seront relies progressivement.</div>
       <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Type</TH><TH style={{textAlign:"center"}}>Push écran</TH><TH style={{textAlign:"center"}}>WhatsApp</TH><TH style={{textAlign:"center"}}>Email</TH><TH style={{textAlign:"center"}}>Activer tout</TH></tr></thead>
-        <tbody>{[["💰 Paiements reçus",true,true,true],["◧ Devis signés",true,true,false],["📦 Stock critique",true,false,false],["👥 Nouveaux leads",true,true,false],["🤖 Alertes IA",true,false,false],["📅 Rappels RDV",true,true,true],["⚙ Système",false,false,true]].map(([t,push,wa,email],i)=><tr key={i}>
-          <Td style={{fontWeight:600}}>{t}</Td>
-          {[push,wa,email].map((v,j)=><td key={j} style={{textAlign:"center",padding:"10px",borderBottom:`1px solid ${C.border}22`}}>
-            <div onClick={()=>showToast("✅ Préférence sauvegardée")} style={{width:32,height:18,borderRadius:9,background:v?C.gold:C.border,cursor:"pointer",margin:"0 auto",position:"relative",transition:".2s"}}>
+        <thead><tr><TH>Type</TH><TH style={{textAlign:"center"}}>Push écran</TH><TH style={{textAlign:"center"}}>WhatsApp</TH><TH style={{textAlign:"center"}}>Email</TH></tr></thead>
+        <tbody>{[["commission","💰 Commissions à virer"],["conge","🏖 Demandes de congé"],["acompte","💸 Acomptes en attente"],["stock","📦 Stock critique"],["deal","💼 Deals inactifs 14j+"],["facture","🧾 Factures en retard"],["crm_lead","🎯 Nouveaux leads CRM"]].map(([type,label])=>{
+          const pref=notifPrefs.find(p=>p.type===type)||{push_actif:true,whatsapp_actif:false,email_actif:false};
+          return <tr key={type}>
+          <Td style={{fontWeight:600}}>{label}</Td>
+          {[["push_actif",pref.push_actif],["whatsapp_actif",pref.whatsapp_actif],["email_actif",pref.email_actif]].map(([champ,v])=><td key={champ} style={{textAlign:"center",padding:"10px",borderBottom:`1px solid ${C.border}22`}}>
+            <div onClick={()=>toggleNotifPref(type,champ,!v)} style={{width:32,height:18,borderRadius:9,background:v?C.gold:C.border,cursor:"pointer",margin:"0 auto",position:"relative",transition:".2s"}}>
               <div style={{position:"absolute",top:2,left:v?14:2,width:14,height:14,borderRadius:"50%",background:"#fff",transition:".2s"}}/>
             </div>
           </td>)}
-          <td style={{textAlign:"center",padding:"10px",borderBottom:`1px solid ${C.border}22`}}>
-            <BtnGhost onClick={()=>showToast("✅ Toutes notifications activées")} style={{fontSize:9,padding:"3px 8px"}}>Tout activer</BtnGhost>
-          </td>
-        </tr>)}
+        </tr>;})}
         </tbody>
       </table>
     </Card>}
