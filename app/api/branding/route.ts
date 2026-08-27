@@ -4,13 +4,12 @@ import { Vibrant } from 'node-vibrant/node';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  let tenantId = searchParams.get('tenant_id');
-  if (!tenantId) tenantId = await getTenantIdFromRequest(req);
-  if (!tenantId) return NextResponse.json({ error: 'tenant_id requis' }, { status: 400 });
+  // Jamais d'identifiant venu de l'exterieur -- uniquement celui de la vraie session connectee
+  const tenantId = await getTenantIdFromRequest(req);
+  if (!tenantId) return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
   const { data } = await sb.from('tenants').select('societe,logo_url,couleur_primaire,couleur_secondaire,couleur_accent').eq('id', tenantId).single();
   if (!data) return NextResponse.json({ error: 'Tenant introuvable' }, { status: 404 });
   return NextResponse.json({ branding: data });
