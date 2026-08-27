@@ -4,7 +4,7 @@ import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
 const CHAMPS = 'civilite,prenom,nom,fonction,telephone_contact,email,societe,forme_juridique,siret,siren,tva_intracommunautaire,code_ape,rcs_ville,capital_social,date_creation_entreprise,adresse,ville,code_postal,pays,telephone_entreprise,site_web';
@@ -29,10 +29,9 @@ function calculerTvaDepuisSiren(siren: string): string | null {
 }
 
 export async function GET(req: NextRequest) {
-  const { searchParams } = new URL(req.url);
-  let tenantId = searchParams.get('tenant_id');
-  if (!tenantId) tenantId = await getTenantIdFromRequest(req);
-  if (!tenantId) return NextResponse.json({ error: 'tenant_id requis' }, { status: 400 });
+  // Jamais d'identifiant venu de l'exterieur -- uniquement celui de la vraie session connectee
+  const tenantId = await getTenantIdFromRequest(req);
+  if (!tenantId) return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
 
   const { data, error } = await sb.from('tenants').select(CHAMPS).eq('id', tenantId).single();
   if (error || !data) return NextResponse.json({ error: 'Tenant introuvable' }, { status: 404 });
