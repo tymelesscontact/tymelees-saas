@@ -43,6 +43,15 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       }
     }).catch(()=>{});
   },[]);
+  useEffect(()=>{
+    fetch('/api/profil-entreprise').then(r=>r.json()).then(d=>{
+      if(d.profil){
+        const p=d.profil;
+        setEntreprise(f=>({...f,nom:p.societe||"",formeJuridique:p.forme_juridique||"",siren:p.siren||"",siret:p.siret||"",tva:p.tva_intracommunautaire||"",codeApe:p.code_ape||"",rcsVille:p.rcs_ville||"",capitalSocial:p.capital_social||"",dateCreation:p.date_creation_entreprise||"",adresse:p.adresse||"",ville:p.ville||"",cp:p.code_postal||"",pays:p.pays||"France",tel:p.telephone_entreprise||"",email:p.email||"",site:p.site_web||""}));
+        setProfUser(f=>({...f,civilite:p.civilite||"",prenom:p.prenom||"",nom:p.nom||"",email:p.email||"",tel:p.telephone_contact||"",titre:p.fonction||"",avatar:(p.prenom?p.prenom[0]:"?").toUpperCase()}));
+      }
+    }).catch(()=>{});
+  },[]);
   const uploaderLogo=async(file)=>{
     if(!file)return;
     setUploadEnCours(true);
@@ -63,10 +72,45 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     }catch(e){showToast("❌ Erreur de connexion");}
     setUploadEnCours(false);
   };
+  const verifierSiret=async()=>{
+    if(!siretInput)return;
+    setSiretVerif({loading:true,suggestion:null,erreur:""});
+    try{
+      const res=await fetch('/api/profil-entreprise',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verifier_siret',siret:siretInput})});
+      const data=await res.json();
+      if(data.success){setSiretVerif({loading:false,suggestion:data.suggestion,erreur:""});}
+      else{setSiretVerif({loading:false,suggestion:null,erreur:data.error||"Erreur"});}
+    }catch(e){setSiretVerif({loading:false,suggestion:null,erreur:"Erreur de connexion"});}
+  };
+  const utiliserSuggestionSiret=()=>{
+    const s=siretVerif.suggestion;
+    if(!s)return;
+    setEntreprise(f=>({...f,nom:s.societe||f.nom,formeJuridique:s.forme_juridique||f.formeJuridique,siren:s.siren||f.siren,siret:s.siret||f.siret,tva:s.tva_intracommunautaire||f.tva,codeApe:s.code_ape||f.codeApe,dateCreation:s.date_creation_entreprise||f.dateCreation,adresse:s.adresse||f.adresse,ville:s.ville||f.ville,cp:s.code_postal||f.cp}));
+    setSiretVerif({loading:false,suggestion:null,erreur:""});
+    showToast("✅ Informations pre-remplies — verifiez et completez avant de sauvegarder");
+  };
+  const sauvegarderEntreprise=async()=>{
+    try{
+      const res=await fetch('/api/profil-entreprise',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'sauvegarder',societe:entreprise.nom,forme_juridique:entreprise.formeJuridique,siren:entreprise.siren,siret:entreprise.siret,tva_intracommunautaire:entreprise.tva,code_ape:entreprise.codeApe,rcs_ville:entreprise.rcsVille,capital_social:entreprise.capitalSocial,date_creation_entreprise:entreprise.dateCreation||null,adresse:entreprise.adresse,ville:entreprise.ville,code_postal:entreprise.cp,pays:entreprise.pays,telephone_entreprise:entreprise.tel,site_web:entreprise.site})});
+      const data=await res.json();
+      if(data.success)showToast("✅ Informations entreprise sauvegardees !");
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const sauvegarderProfil=async()=>{
+    try{
+      const res=await fetch('/api/profil-entreprise',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'sauvegarder',civilite:profUser.civilite,prenom:profUser.prenom,nom:profUser.nom,fonction:profUser.titre,telephone_contact:profUser.tel})});
+      const data=await res.json();
+      if(data.success)showToast("✅ Profil sauvegarde !");
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
 
   // États formulaires
-  const[entreprise,setEntreprise]=useState({nom:"Xyra SaaS SASU",siren:"123 456 789",tva:"FR12 123456789",adresse:"75 rue de Rivoli",ville:"Paris",cp:"75001",pays:"France",tel:"+33 1 23 45 67 89",email:"contact@xyra.io",site:"xyra.io",logo:""});
-  const[profUser,setProfUser]=useState({prenom:"Curtiss",nom:"Fondateur",email:"curtiss@xyra.io",tel:"+33 6 00 11 22 33",titre:"Fondateur & CEO",avatar:"C"});
+  const[entreprise,setEntreprise]=useState({nom:"",formeJuridique:"",siren:"",siret:"",tva:"",codeApe:"",rcsVille:"",capitalSocial:"",dateCreation:"",adresse:"",ville:"",cp:"",pays:"France",tel:"",email:"",site:"",logo:""});
+  const[profUser,setProfUser]=useState({civilite:"",prenom:"",nom:"",email:"",tel:"",titre:"",avatar:"?"});
+  const[siretInput,setSiretInput]=useState("");
+  const[siretVerif,setSiretVerif]=useState({loading:false,suggestion:null,erreur:""});
   const[ticketForm,setTicketForm]=useState({sujet:"",message:"",priorite:"normale"});
   const[mesTickets,setMesTickets]=useState([]);
   const[loadingTickets,setLoadingTickets]=useState(true);
@@ -174,10 +218,28 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
 
     {/* ── ENTREPRISE ── */}
     {onglet==="entreprise"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+      <Card style={{gridColumn:"1 / -1"}}>
+        <STitle>🔎 Vérifier mon SIRET</STitle>
+        <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+          <div style={{flex:1}}>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Numéro SIRET (14 chiffres)</label>
+            <Inp value={siretInput} onChange={e=>setSiretInput(e.target.value)} placeholder="123 456 789 00012"/>
+          </div>
+          <Btn onClick={verifierSiret} disabled={siretVerif.loading}>{siretVerif.loading?"Recherche...":"Vérifier"}</Btn>
+        </div>
+        {siretVerif.erreur&&<div style={{fontSize:11,color:"#e05252",marginTop:8}}>{siretVerif.erreur}</div>}
+        {siretVerif.suggestion&&<div style={{background:C.card2,borderRadius:8,padding:12,marginTop:10}}>
+          <div style={{fontSize:12,marginBottom:8}}>Trouvé : <b>{siretVerif.suggestion.societe}</b> — {siretVerif.suggestion.adresse}, {siretVerif.suggestion.code_postal} {siretVerif.suggestion.ville}</div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={utiliserSuggestionSiret} style={{fontSize:11}}>✅ C'est la bonne société, utiliser ces infos</Btn>
+            <BtnGhost onClick={()=>setSiretVerif({loading:false,suggestion:null,erreur:""})} style={{fontSize:11}}>Annuler</BtnGhost>
+          </div>
+        </div>}
+      </Card>
       <Card>
         <STitle>🏢 Informations légales</STitle>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {[["Raison sociale *","nom"],["SIREN","siren"],["Numéro TVA","tva"],["Email professionnel","email"],["Téléphone","tel"],["Site web","site"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={entreprise[k]} onChange={e=>setEntreprise(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
+          {[["Raison sociale *","nom"],["Forme juridique","formeJuridique"],["SIREN","siren"],["SIRET","siret"],["Numéro TVA","tva"],["Code APE / NAF","codeApe"],["RCS + ville","rcsVille"],["Capital social","capitalSocial"],["Date de création","dateCreation"],["Email professionnel","email"],["Téléphone","tel"],["Site web","site"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={entreprise[k]} onChange={e=>setEntreprise(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
         </div>
       </Card>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -204,7 +266,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
           </div>}
           <Btn onClick={()=>logoInputRef.current?.click()} disabled={uploadEnCours} style={{width:"100%"}}>📁 {logoUrl?"Changer le logo":"Choisir un fichier"}</Btn>
         </Card>
-        <Btn onClick={()=>showToast("✅ Informations entreprise sauvegardées !")}>Sauvegarder les modifications</Btn>
+        <Btn onClick={sauvegarderEntreprise}>Sauvegarder les modifications</Btn>
       </div>
     </div>}
 
@@ -219,9 +281,9 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
           <BtnGhost onClick={()=>showToast("📸 Photo modifiée !")} style={{fontSize:11}}>📸 Changer la photo</BtnGhost>
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {[["Prénom *","prenom"],["Nom *","nom"],["Email *","email"],["Téléphone","tel"],["Titre / Fonction","titre"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={profUser[k]} onChange={e=>setProfUser(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
+          {[["Civilité","civilite"],["Prénom *","prenom"],["Nom *","nom"],["Email *","email"],["Téléphone","tel"],["Titre / Fonction","titre"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={profUser[k]} onChange={e=>setProfUser(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
         </div>
-        <Btn onClick={()=>showToast("✅ Profil sauvegardé !")} style={{marginTop:12,width:"100%"}}>Sauvegarder le profil</Btn>
+        <Btn onClick={sauvegarderProfil} style={{marginTop:12,width:"100%"}}>Sauvegarder le profil</Btn>
       </Card>
       <Card>
         <STitle>📊 Infos du compte</STitle>
