@@ -10,6 +10,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [attente2FA, setAttente2FA] = useState(false);
   const [destination2FA, setDestination2FA] = useState("");
+  const [userId2FA, setUserId2FA] = useState("");
   const [code2FA, setCode2FA] = useState("");
   const [utiliserCodeSecours, setUtiliserCodeSecours] = useState(false);
   const [verif2FAEnCours, setVerif2FAEnCours] = useState(false);
@@ -64,11 +65,14 @@ export default function LoginPage() {
         const res = await fetch("/api/whoami");
         const who = await res.json();
         const cible = who.isOwner ? "/dashboard" : who.isCollaborateur ? "/espace-equipe" : "/mon-espace";
+        const userId = data.user?.id;
         if (who.deuxFaActif) {
           setDestination2FA(cible);
+          setUserId2FA(userId);
           setAttente2FA(true);
           await fetch('/api/2fa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'envoyer_code' }) });
         } else {
+          await fetch('/api/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'creer', userId }) });
           window.location.replace(cible);
         }
       }
@@ -86,6 +90,7 @@ export default function LoginPage() {
       const res = await fetch('/api/2fa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, code: code2FA }) });
       const data = await res.json();
       if (data.success) {
+        await fetch('/api/sessions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'creer', userId: userId2FA }) });
         window.location.replace(destination2FA);
       } else {
         setError(data.error || "Code incorrect");

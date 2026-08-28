@@ -76,6 +76,38 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Verification de la session active -- revocable depuis les Parametres
+  if (path !== '/api/sessions') {
+    const sessionId = req.cookies.get('session_id')?.value
+    if (!sessionId) {
+      return refus(loginUrl)
+    }
+    const sbSessions = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    const { data: sessionActive } = await sbSessions.from('sessions_actives').select('revoquee').eq('session_token', sessionId).maybeSingle()
+    if (!sessionActive || sessionActive.revoquee) {
+      return refus(loginUrl)
+    }
+  }
+
+  // Verification de la session active -- revocable depuis les Parametres
+  if (path !== '/api/sessions') {
+    const sessionId = req.cookies.get('session_id')?.value
+    if (!sessionId) {
+      return refus(loginUrl)
+    }
+    const sbSessions = createClient(
+      process.env.NEXT_PUBLIC_SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    )
+    const { data: sessionActive } = await sbSessions.from('sessions_actives').select('revoquee').eq('session_token', sessionId).maybeSingle()
+    if (!sessionActive || sessionActive.revoquee) {
+      return refus(loginUrl)
+    }
+  }
+
   if (isApi) {
     return NextResponse.next()
   }
