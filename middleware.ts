@@ -59,7 +59,7 @@ export async function middleware(req: NextRequest) {
 
   const ownerEmail = process.env.OWNER_EMAIL
   const estOwnerPlateforme = !!ownerEmail && data.user.email?.toLowerCase() === ownerEmail.toLowerCase()
-  if (!estOwnerPlateforme) {
+  {
     const sbService = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!

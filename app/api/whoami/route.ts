@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   }
 
   let deuxFaActif = false
-  if (!isOwner && !isCollaborateur) {
+  if (!isCollaborateur) {
     const { data: membre } = await sb.from('tenant_membres').select('tenant_id').eq('user_id', userData.user.id).maybeSingle()
     if (membre?.tenant_id) {
       const { data: t } = await sb.from('tenants').select('deux_fa_actif').eq('id', membre.tenant_id).maybeSingle()
