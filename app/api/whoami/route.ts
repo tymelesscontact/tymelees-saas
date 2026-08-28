@@ -38,5 +38,14 @@ export async function GET(req: NextRequest) {
     profilCollaborateur = monProfil
   }
 
-  return NextResponse.json({ isOwner, isCollaborateur, employeId, email: userData.user.email, profil: profilCollaborateur })
+  let deuxFaActif = false
+  if (!isOwner && !isCollaborateur) {
+    const { data: membre } = await sb.from('tenant_membres').select('tenant_id').eq('user_id', userData.user.id).maybeSingle()
+    if (membre?.tenant_id) {
+      const { data: t } = await sb.from('tenants').select('deux_fa_actif').eq('id', membre.tenant_id).maybeSingle()
+      deuxFaActif = !!t?.deux_fa_actif
+    }
+  }
+
+  return NextResponse.json({ isOwner, isCollaborateur, employeId, email: userData.user.email, profil: profilCollaborateur, deuxFaActif })
 }

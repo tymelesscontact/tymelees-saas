@@ -163,8 +163,8 @@ export async function POST(req: NextRequest) {
     const { id, siren } = body;
     if (!siren) return NextResponse.json({ error: 'SIREN requis' }, { status: 400 });
     try {
-      const res = await fetch(`https://api.insee.fr/entreprises/sirene/V3.11/siren/${siren}`, {
-        headers: { 'Authorization': `Bearer ${process.env.INSEE_API_KEY}` }
+      const res = await fetch(`https://api.insee.fr/api-sirene/3.11/siren/${siren}?date=2999-12-31`, {
+        headers: { 'X-INSEE-Api-Key-Integration': process.env.INSEE_API_KEY!, 'Accept': 'application/json' }
       });
       if (!res.ok) return NextResponse.json({ error: 'Entreprise introuvable dans SIRENE' }, { status: 404 });
       const data = await res.json();

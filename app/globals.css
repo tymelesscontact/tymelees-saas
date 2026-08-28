@@ -5,6 +5,11 @@
 :root {
   --background: #ffffff;
   --foreground: #171717;
+  --c-dark: #06060E; --c-card: #0C0C1A; --c-card2: #121222;
+  --c-border: #1E1E36; --c-gold: #C9A84C; --c-text: #EAE6DE;
+  --c-muted: #5A5A7A; --c-green: #2EC9B0; --c-red: #FF5252;
+  --c-blue: #4B7BFF; --c-purple: #9B5FFF; --c-orange: #FF8C3A;
+  --c-teal: #2ECDC4; --c-pink: #FF5F9E;
 }
 
 @theme inline {

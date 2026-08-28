@@ -1,9 +1,9 @@
 export const C = {
-  dark:"#06060E", card:"#0C0C1A", card2:"#121222",
-  border:"#1E1E36", gold:"#C9A84C", text:"#EAE6DE",
-  muted:"#5A5A7A", green:"#2EC9B0", red:"#FF5252",
-  blue:"#4B7BFF", purple:"#9B5FFF", orange:"#FF8C3A",
-  teal:"#2ECDC4", pink:"#FF5F9E",
+  dark:"var(--c-dark)", card:"var(--c-card)", card2:"var(--c-card2)",
+  border:"var(--c-border)", gold:"var(--c-gold)", text:"var(--c-text)",
+  muted:"var(--c-muted)", green:"var(--c-green)", red:"var(--c-red)",
+  blue:"var(--c-blue)", purple:"var(--c-purple)", orange:"var(--c-orange)",
+  teal:"var(--c-teal)", pink:"var(--c-pink)",
 };
 
 export const DEVISES=[

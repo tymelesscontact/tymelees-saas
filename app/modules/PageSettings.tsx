@@ -1,9 +1,18 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
+import jsPDF from "jspdf";
 import { C, Card, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, DEVISES } from "../lib/ui";
+import { appliquerTheme } from "../lib/theme";
 
 const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLANS,PROFILS_SECTEURS})=>{
   const[onglet,setOnglet]=useState("entreprise");
+  const[historiquePaiements,setHistoriquePaiements]=useState([]);
+  const[notifPrefs,setNotifPrefs]=useState([]);
+  const[codeEnvoye,setCodeEnvoye]=useState(false);
+  const[codeSaisi,setCodeSaisi]=useState("");
+  const[envoi2faEnCours,setEnvoi2faEnCours]=useState(false);
+  const[codesSecours,setCodesSecours]=useState([]);
+  const[loadingPaiements,setLoadingPaiements]=useState(true);
   const[logoUrl,setLogoUrl]=useState("");
   const[couleursMarque,setCouleursMarque]=useState({couleur_primaire:"#C9A84C",couleur_secondaire:"#0A0A16",couleur_accent:"#2EC9B0"});
   const[uploadEnCours,setUploadEnCours]=useState(false);
@@ -43,6 +52,29 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       }
     }).catch(()=>{});
   },[]);
+  useEffect(()=>{
+    fetch('/api/notifications').then(r=>r.json()).then(d=>{
+      setNotifPrefs(d.preferences||[]);
+    }).catch(()=>{});
+  },[]);
+  useEffect(()=>{
+    fetch('/api/paiements-historique').then(r=>r.json()).then(d=>{
+      setHistoriquePaiements(d.paiements||[]);
+      setLoadingPaiements(false);
+    }).catch(()=>setLoadingPaiements(false));
+  },[]);
+  useEffect(()=>{
+    fetch('/api/profil-entreprise').then(r=>r.json()).then(d=>{
+      if(d.profil){
+        const p=d.profil;
+        setEntreprise(f=>({...f,nom:p.societe||"",formeJuridique:p.forme_juridique||"",siren:p.siren||"",siret:p.siret||"",tva:p.tva_intracommunautaire||"",codeApe:p.code_ape||"",rcsVille:p.rcs_ville||"",capitalSocial:p.capital_social||"",dateCreation:p.date_creation_entreprise||"",adresse:p.adresse||"",ville:p.ville||"",cp:p.code_postal||"",pays:p.pays||"France",tel:p.telephone_entreprise||"",email:p.email||"",site:p.site_web||""}));
+        setProfUser(f=>({...f,civilite:p.civilite||"",prenom:p.prenom||"",nom:p.nom||"",email:p.email||"",tel:p.telephone_contact||"",titre:p.fonction||"",avatar:(p.prenom?p.prenom[0]:"?").toUpperCase()}));
+        if(p.photo_url)setPhotoUrl(p.photo_url);
+        if(p.theme)setTheme(p.theme);
+        setDeuxFa(!!p.deux_fa_actif);
+      }
+    }).catch(()=>{});
+  },[]);
   const uploaderLogo=async(file)=>{
     if(!file)return;
     setUploadEnCours(true);
@@ -63,10 +95,133 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     }catch(e){showToast("❌ Erreur de connexion");}
     setUploadEnCours(false);
   };
+  const uploaderPhoto=async(file)=>{
+    if(!file)return;
+    setUploadPhotoEnCours(true);
+    try{
+      const{createClient}=await import('@supabase/supabase-js');
+      const sbc=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
+      const path=`photos/${Date.now()}_${file.name}`;
+      const{error:upErr}=await sbc.storage.from('attachments').upload(path,file);
+      if(upErr){showToast("❌ Echec upload — verifie le bucket 'attachments'");setUploadPhotoEnCours(false);return;}
+      const{data:urlData}=sbc.storage.from('attachments').getPublicUrl(path);
+      const res=await fetch('/api/profil-entreprise',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'sauvegarder',photo_url:urlData.publicUrl})});
+      const data=await res.json();
+      if(data.success){setPhotoUrl(urlData.publicUrl);showToast("✅ Photo de profil mise a jour !");}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setUploadPhotoEnCours(false);
+  };
+  const genererFacturePDF=(p)=>{
+    const doc=new jsPDF();
+    doc.setFontSize(18);
+    doc.text("Recu de paiement",20,20);
+    doc.setFontSize(11);
+    doc.text("Xyra SaaS",20,32);
+    doc.text("Date : "+new Date(p.date).toLocaleDateString("fr-FR"),20,44);
+    doc.text("Description : "+p.categorie,20,52);
+    doc.text("Societe : "+(p.entite||"-"),20,60);
+    doc.text("Montant : "+p.montant+" "+(p.devise||"EUR"),20,68);
+    doc.text("Methode : "+(p.methode||"-"),20,76);
+    doc.text("Statut : "+(p.statut||"-"),20,84);
+    doc.text("Reference : "+(p.reference||"-"),20,92);
+    doc.save("recu-"+(p.reference||Date.now())+".pdf");
+  };
+  const toggleNotifPref=async(type,champ,valeur)=>{
+    setNotifPrefs(prefs=>{
+      const existe=prefs.find(p=>p.type===type);
+      if(existe)return prefs.map(p=>p.type===type?{...p,[champ]:valeur}:p);
+      return [...prefs,{type,push_actif:true,whatsapp_actif:false,email_actif:false,[champ]:valeur}];
+    });
+    const pref=notifPrefs.find(p=>p.type===type)||{push_actif:true,whatsapp_actif:false,email_actif:false};
+    try{
+      await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update_preference',type,push_actif:pref.push_actif,whatsapp_actif:pref.whatsapp_actif,email_actif:pref.email_actif,[champ]:valeur})});
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const demarrerActivation2FA=async()=>{
+    setEnvoi2faEnCours(true);
+    try{
+      const res=await fetch('/api/2fa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_code'})});
+      const data=await res.json();
+      if(data.success){setCodeEnvoye(true);showToast("📱 Code envoye par SMS");}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setEnvoi2faEnCours(false);
+  };
+  const verifierCode2FA=async()=>{
+    try{
+      const res=await fetch('/api/2fa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verifier_code',code:codeSaisi})});
+      const data=await res.json();
+      if(data.success){setDeuxFa(true);setCodeEnvoye(false);setCodeSaisi("");showToast("✅ 2FA activee !");}
+      else showToast("❌ "+(data.error||"Code incorrect"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const desactiver2FA=async()=>{
+    try{
+      const res=await fetch('/api/2fa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'desactiver'})});
+      const data=await res.json();
+      if(data.success){setDeuxFa(false);showToast("✅ 2FA desactivee");}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const genererCodesSecours=async()=>{
+    try{
+      const res=await fetch('/api/2fa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generer_codes_secours'})});
+      const data=await res.json();
+      if(data.success){
+        setCodesSecours(data.codes);
+        const contenu="Codes de secours Xyra\n\n"+data.codes.join("\n")+"\n\nChaque code ne fonctionne qu'une seule fois.";
+        const blob=new Blob([contenu],{type:"text/plain"});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement("a");
+        a.href=url;a.download="codes-secours-xyra.txt";a.click();
+        URL.revokeObjectURL(url);
+        showToast("🔑 Codes de secours telecharges");
+      }else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const verifierSiret=async()=>{
+    if(!siretInput)return;
+    setSiretVerif({loading:true,suggestion:null,erreur:""});
+    try{
+      const res=await fetch('/api/profil-entreprise',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verifier_siret',siret:siretInput})});
+      const data=await res.json();
+      if(data.success){setSiretVerif({loading:false,suggestion:data.suggestion,erreur:""});}
+      else{setSiretVerif({loading:false,suggestion:null,erreur:data.error||"Erreur"});}
+    }catch(e){setSiretVerif({loading:false,suggestion:null,erreur:"Erreur de connexion"});}
+  };
+  const utiliserSuggestionSiret=()=>{
+    const s=siretVerif.suggestion;
+    if(!s)return;
+    setEntreprise(f=>({...f,nom:s.societe||f.nom,formeJuridique:s.forme_juridique||f.formeJuridique,siren:s.siren||f.siren,siret:s.siret||f.siret,tva:s.tva_intracommunautaire||f.tva,codeApe:s.code_ape||f.codeApe,dateCreation:s.date_creation_entreprise||f.dateCreation,adresse:s.adresse||f.adresse,ville:s.ville||f.ville,cp:s.code_postal||f.cp}));
+    setSiretVerif({loading:false,suggestion:null,erreur:""});
+    showToast("✅ Informations pre-remplies — verifiez et completez avant de sauvegarder");
+  };
+  const sauvegarderEntreprise=async()=>{
+    try{
+      const res=await fetch('/api/profil-entreprise',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'sauvegarder',societe:entreprise.nom,forme_juridique:entreprise.formeJuridique,siren:entreprise.siren,siret:entreprise.siret,tva_intracommunautaire:entreprise.tva,code_ape:entreprise.codeApe,rcs_ville:entreprise.rcsVille,capital_social:entreprise.capitalSocial,date_creation_entreprise:entreprise.dateCreation||null,adresse:entreprise.adresse,ville:entreprise.ville,code_postal:entreprise.cp,pays:entreprise.pays,telephone_entreprise:entreprise.tel,site_web:entreprise.site})});
+      const data=await res.json();
+      if(data.success)showToast("✅ Informations entreprise sauvegardees !");
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const sauvegarderProfil=async()=>{
+    try{
+      const res=await fetch('/api/profil-entreprise',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'sauvegarder',civilite:profUser.civilite,prenom:profUser.prenom,nom:profUser.nom,fonction:profUser.titre,telephone_contact:profUser.tel})});
+      const data=await res.json();
+      if(data.success)showToast("✅ Profil sauvegarde !");
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
 
   // États formulaires
-  const[entreprise,setEntreprise]=useState({nom:"Xyra SaaS SASU",siren:"123 456 789",tva:"FR12 123456789",adresse:"75 rue de Rivoli",ville:"Paris",cp:"75001",pays:"France",tel:"+33 1 23 45 67 89",email:"contact@xyra.io",site:"xyra.io",logo:""});
-  const[profUser,setProfUser]=useState({prenom:"Curtiss",nom:"Fondateur",email:"curtiss@xyra.io",tel:"+33 6 00 11 22 33",titre:"Fondateur & CEO",avatar:"C"});
+  const[entreprise,setEntreprise]=useState({nom:"",formeJuridique:"",siren:"",siret:"",tva:"",codeApe:"",rcsVille:"",capitalSocial:"",dateCreation:"",adresse:"",ville:"",cp:"",pays:"France",tel:"",email:"",site:"",logo:""});
+  const[profUser,setProfUser]=useState({civilite:"",prenom:"",nom:"",email:"",tel:"",titre:"",avatar:"?"});
+  const[siretInput,setSiretInput]=useState("");
+  const[siretVerif,setSiretVerif]=useState({loading:false,suggestion:null,erreur:""});
+  const[photoUrl,setPhotoUrl]=useState("");
+  const[uploadPhotoEnCours,setUploadPhotoEnCours]=useState(false);
+  const photoInputRef=useRef(null);
   const[ticketForm,setTicketForm]=useState({sujet:"",message:"",priorite:"normale"});
   const[mesTickets,setMesTickets]=useState([]);
   const[loadingTickets,setLoadingTickets]=useState(true);
@@ -174,10 +329,28 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
 
     {/* ── ENTREPRISE ── */}
     {onglet==="entreprise"&&<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
+      <Card style={{gridColumn:"1 / -1"}}>
+        <STitle>🔎 Vérifier mon SIRET</STitle>
+        <div style={{display:"flex",gap:8,alignItems:"flex-end"}}>
+          <div style={{flex:1}}>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Numéro SIRET (14 chiffres)</label>
+            <Inp value={siretInput} onChange={e=>setSiretInput(e.target.value)} placeholder="123 456 789 00012"/>
+          </div>
+          <Btn onClick={verifierSiret} disabled={siretVerif.loading}>{siretVerif.loading?"Recherche...":"Vérifier"}</Btn>
+        </div>
+        {siretVerif.erreur&&<div style={{fontSize:11,color:"#e05252",marginTop:8}}>{siretVerif.erreur}</div>}
+        {siretVerif.suggestion&&<div style={{background:C.card2,borderRadius:8,padding:12,marginTop:10}}>
+          <div style={{fontSize:12,marginBottom:8}}>Trouvé : <b>{siretVerif.suggestion.societe}</b> — {siretVerif.suggestion.adresse}, {siretVerif.suggestion.code_postal} {siretVerif.suggestion.ville}</div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={utiliserSuggestionSiret} style={{fontSize:11}}>✅ C'est la bonne société, utiliser ces infos</Btn>
+            <BtnGhost onClick={()=>setSiretVerif({loading:false,suggestion:null,erreur:""})} style={{fontSize:11}}>Annuler</BtnGhost>
+          </div>
+        </div>}
+      </Card>
       <Card>
         <STitle>🏢 Informations légales</STitle>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {[["Raison sociale *","nom"],["SIREN","siren"],["Numéro TVA","tva"],["Email professionnel","email"],["Téléphone","tel"],["Site web","site"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={entreprise[k]} onChange={e=>setEntreprise(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
+          {[["Raison sociale *","nom"],["Forme juridique","formeJuridique"],["SIREN","siren"],["SIRET","siret"],["Numéro TVA","tva"],["Code APE / NAF","codeApe"],["RCS + ville","rcsVille"],["Capital social","capitalSocial"],["Date de création","dateCreation"],["Email professionnel","email"],["Téléphone","tel"],["Site web","site"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={entreprise[k]} onChange={e=>setEntreprise(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
         </div>
       </Card>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -204,7 +377,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
           </div>}
           <Btn onClick={()=>logoInputRef.current?.click()} disabled={uploadEnCours} style={{width:"100%"}}>📁 {logoUrl?"Changer le logo":"Choisir un fichier"}</Btn>
         </Card>
-        <Btn onClick={()=>showToast("✅ Informations entreprise sauvegardées !")}>Sauvegarder les modifications</Btn>
+        <Btn onClick={sauvegarderEntreprise}>Sauvegarder les modifications</Btn>
       </div>
     </div>}
 
@@ -213,15 +386,16 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       <Card>
         <STitle>👤 Mon profil</STitle>
         <div style={{textAlign:"center",marginBottom:16}}>
-          <div style={{width:80,height:80,borderRadius:"50%",background:`${C.gold}22`,border:`3px solid ${C.gold}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,fontWeight:700,color:C.gold,margin:"0 auto 10px"}}>
-            {profUser.avatar}
+          <input ref={photoInputRef} type="file" accept="image/*" style={{display:"none"}} onChange={e=>uploaderPhoto(e.target.files?.[0])}/>
+          <div onClick={()=>photoInputRef.current?.click()} style={{width:80,height:80,borderRadius:"50%",background:photoUrl?`center/cover no-repeat url(${photoUrl})`:`${C.gold}22`,border:`3px solid ${C.gold}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:28,fontWeight:700,color:C.gold,margin:"0 auto 10px",cursor:"pointer",overflow:"hidden"}}>
+            {!photoUrl&&profUser.avatar}
           </div>
-          <BtnGhost onClick={()=>showToast("📸 Photo modifiée !")} style={{fontSize:11}}>📸 Changer la photo</BtnGhost>
+          <BtnGhost onClick={()=>photoInputRef.current?.click()} disabled={uploadPhotoEnCours} style={{fontSize:11}}>📸 {uploadPhotoEnCours?"Envoi...":"Changer la photo"}</BtnGhost>
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          {[["Prénom *","prenom"],["Nom *","nom"],["Email *","email"],["Téléphone","tel"],["Titre / Fonction","titre"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={profUser[k]} onChange={e=>setProfUser(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
+          {[["Civilité","civilite"],["Prénom *","prenom"],["Nom *","nom"],["Email *","email"],["Téléphone","tel"],["Titre / Fonction","titre"]].map(([l,k])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={profUser[k]} onChange={e=>setProfUser(f=>({...f,[k]:e.target.value}))} placeholder={l}/></div>)}
         </div>
-        <Btn onClick={()=>showToast("✅ Profil sauvegardé !")} style={{marginTop:12,width:"100%"}}>Sauvegarder le profil</Btn>
+        <Btn onClick={sauvegarderProfil} style={{marginTop:12,width:"100%"}}>Sauvegarder le profil</Btn>
       </Card>
       <Card>
         <STitle>📊 Infos du compte</STitle>
@@ -276,12 +450,12 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         <STitle>📋 Historique de facturation</STitle>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead><tr><TH>Date</TH><TH>Description</TH><TH>Montant</TH><TH>Statut</TH><TH>Action</TH></tr></thead>
-          <tbody>{[{date:"01/05/2026",desc:"Abonnement Owner — Mai 2026",montant:"—",statut:"owner"},{date:"01/04/2026",desc:"Abonnement Owner — Avril 2026",montant:"—",statut:"owner"},{date:"01/03/2026",desc:"Setup initial Xyra",montant:"0 €",statut:"payé"}].map((f,i)=><tr key={i}>
-            <Td style={{color:C.muted,fontSize:10}}>{f.date}</Td>
-            <Td style={{fontWeight:600}}>{f.desc}</Td>
-            <Td style={{color:C.gold,fontWeight:700}}>{f.montant}</Td>
+          <tbody>{loadingPaiements?<tr><Td colSpan={5} style={{textAlign:"center",color:C.muted}}>Chargement...</Td></tr>:historiquePaiements.length===0?<tr><Td colSpan={5} style={{textAlign:"center",color:C.muted}}>Aucun paiement pour le moment</Td></tr>:historiquePaiements.map((f,i)=><tr key={i}>
+            <Td style={{color:C.muted,fontSize:10}}>{new Date(f.date).toLocaleDateString("fr-FR")}</Td>
+            <Td style={{fontWeight:600}}>{f.categorie}</Td>
+            <Td style={{color:C.gold,fontWeight:700}}>{f.montant} {f.devise}</Td>
             <Td><Pill color={C.green}>✓ {f.statut}</Pill></Td>
-            <Td><BtnGhost onClick={()=>showToast("📄 Facture téléchargée")} style={{fontSize:10,padding:"3px 8px"}}>PDF</BtnGhost></Td>
+            <Td><BtnGhost onClick={()=>genererFacturePDF(f)} style={{fontSize:10,padding:"3px 8px"}}>PDF</BtnGhost></Td>
           </tr>)}</tbody>
         </table>
       </Card>
@@ -294,7 +468,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         <div style={{marginBottom:14}}>
           <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:8}}>Thème de l'interface</label>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {[{id:"dark",label:"🌙 Sombre",desc:"Mode nuit — recommandé"},{id:"light",label:"☀️ Clair",desc:"Mode jour"}].map(t=><div key={t.id} onClick={()=>setTheme(t.id)} style={{background:theme===t.id?`${C.gold}15`:C.card2,border:`2px solid ${theme===t.id?C.gold:C.border}`,borderRadius:10,padding:12,cursor:"pointer",textAlign:"center"}}>
+            {[{id:"dark",label:"🌙 Sombre",desc:"Mode nuit — recommandé"},{id:"light",label:"☀️ Clair",desc:"Mode jour"}].map(t=><div key={t.id} onClick={()=>{setTheme(t.id);appliquerTheme(t.id,couleursMarque.couleur_primaire);}} style={{background:theme===t.id?`${C.gold}15`:C.card2,border:`2px solid ${theme===t.id?C.gold:C.border}`,borderRadius:10,padding:12,cursor:"pointer",textAlign:"center"}}>
               <div style={{fontSize:20,marginBottom:4}}>{t.label.split(" ")[0]}</div>
               <div style={{fontSize:11,fontWeight:theme===t.id?700:400,color:theme===t.id?C.gold:C.text}}>{t.label.split(" ").slice(1).join(" ")}</div>
               <div style={{fontSize:9,color:C.muted}}>{t.desc}</div>
@@ -304,10 +478,18 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         <div style={{marginBottom:14}}>
           <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:8}}>Couleur d'accentuation</label>
           <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
-            {[{c:"#C9A84C",n:"Or (défaut)"},{c:"#4B7BFF",n:"Bleu"},{c:"#2EC9B0",n:"Teal"},{c:"#9B5FFF",n:"Violet"},{c:"#FF5F9E",n:"Rose"},{c:"#FF8C3A",n:"Orange"}].map((col,i)=><div key={i} onClick={()=>showToast(`✅ Couleur "${col.n}" appliquée`)} style={{width:32,height:32,borderRadius:"50%",background:col.c,cursor:"pointer",border:`3px solid ${col.c===C.gold?"#fff":"transparent"}`,title:col.n}}/>)}
+            {[{c:"#C9A84C",n:"Or (défaut)"},{c:"#4B7BFF",n:"Bleu"},{c:"#2EC9B0",n:"Teal"},{c:"#9B5FFF",n:"Violet"},{c:"#FF5F9E",n:"Rose"},{c:"#FF8C3A",n:"Orange"}].map((col,i)=><div key={i} onClick={()=>{setCouleursMarque(f=>({...f,couleur_primaire:col.c}));appliquerTheme(theme,col.c);}} style={{width:32,height:32,borderRadius:"50%",background:col.c,cursor:"pointer",border:`3px solid ${col.c===couleursMarque.couleur_primaire?"#fff":"transparent"}`,title:col.n}}/>)}
           </div>
         </div>
-        <Btn onClick={()=>showToast("✅ Apparence sauvegardée !")}>Sauvegarder l'apparence</Btn>
+        <Btn onClick={async()=>{
+          try{
+            const r1=await fetch('/api/branding',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'maj_couleurs',...couleursMarque})});
+            const r2=await fetch('/api/profil-entreprise',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'sauvegarder',theme})});
+            const d1=await r1.json();const d2=await r2.json();
+            if(d1.success&&d2.success)showToast("✅ Apparence sauvegardée !");
+            else showToast("❌ Erreur lors de la sauvegarde");
+          }catch(e){showToast("❌ Erreur de connexion");}
+        }}>Sauvegarder l'apparence</Btn>
       </Card>
       <Card>
         <STitle>🌍 Langue & Région</STitle>
@@ -336,15 +518,19 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         <Card>
           <STitle>🔐 Authentification à 2 facteurs</STitle>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <div><div style={{fontSize:12,fontWeight:700}}>2FA par SMS</div><div style={{fontSize:10,color:C.muted}}>+33 6 00 11 22 33</div></div>
-            <div onClick={()=>setDeuxFa(v=>!v)} style={{width:44,height:24,borderRadius:12,background:deux_fa?C.green:C.border,cursor:"pointer",position:"relative",transition:".2s"}}>
+            <div><div style={{fontSize:12,fontWeight:700}}>2FA par SMS</div><div style={{fontSize:10,color:C.muted}}>{profUser.tel||"Aucun numero enregistre"}</div></div>
+            <div onClick={()=>deux_fa?desactiver2FA():demarrerActivation2FA()} style={{width:44,height:24,borderRadius:12,background:deux_fa?C.green:C.border,cursor:"pointer",position:"relative",transition:".2s"}}>
               <div style={{position:"absolute",top:3,left:deux_fa?21:3,width:18,height:18,borderRadius:"50%",background:"#fff",transition:".2s"}}/>
             </div>
           </div>
+          {codeEnvoye&&<div style={{background:C.card2,borderRadius:8,padding:10,marginBottom:10,display:"flex",gap:8}}>
+            <input value={codeSaisi} onChange={e=>setCodeSaisi(e.target.value)} placeholder="Code recu par SMS" maxLength={6} style={{flex:1,background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:8,color:C.text,fontSize:12}}/>
+            <Btn onClick={verifierCode2FA} style={{fontSize:11,padding:"8px 14px"}}>Verifier</Btn>
+          </div>}
           {deux_fa?<div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:8,padding:10,fontSize:11,color:C.green}}>✅ 2FA activée — Votre compte est sécurisé</div>:<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:10,fontSize:11,color:C.orange}}>⚠️ 2FA désactivée — Recommandé de l'activer</div>}
           <div style={{marginTop:10,display:"flex",gap:8}}>
-            <BtnGhost onClick={()=>showToast("📱 Code de test envoyé par SMS")} style={{flex:1,fontSize:11}}>Tester le 2FA</BtnGhost>
-            <BtnGhost onClick={()=>showToast("🔑 Codes de secours téléchargés")} style={{flex:1,fontSize:11}}>Codes secours</BtnGhost>
+            <BtnGhost onClick={demarrerActivation2FA} disabled={envoi2faEnCours} style={{flex:1,fontSize:11}}>{envoi2faEnCours?"Envoi...":"Tester le 2FA"}</BtnGhost>
+            <BtnGhost onClick={genererCodesSecours} style={{flex:1,fontSize:11}}>Codes secours</BtnGhost>
           </div>
         </Card>
         <Card>
@@ -481,19 +667,19 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     {/* ── NOTIFICATIONS CONFIG ── */}
     {onglet==="notifications_param"&&<Card>
       <STitle>🔔 Paramètres de notifications</STitle>
+      <div style={{fontSize:11,color:C.muted,marginBottom:10}}>Ces sept categories sont deja connectees a de vraies donnees. D'autres modules seront relies progressivement.</div>
       <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr><TH>Type</TH><TH style={{textAlign:"center"}}>Push écran</TH><TH style={{textAlign:"center"}}>WhatsApp</TH><TH style={{textAlign:"center"}}>Email</TH><TH style={{textAlign:"center"}}>Activer tout</TH></tr></thead>
-        <tbody>{[["💰 Paiements reçus",true,true,true],["◧ Devis signés",true,true,false],["📦 Stock critique",true,false,false],["👥 Nouveaux leads",true,true,false],["🤖 Alertes IA",true,false,false],["📅 Rappels RDV",true,true,true],["⚙ Système",false,false,true]].map(([t,push,wa,email],i)=><tr key={i}>
-          <Td style={{fontWeight:600}}>{t}</Td>
-          {[push,wa,email].map((v,j)=><td key={j} style={{textAlign:"center",padding:"10px",borderBottom:`1px solid ${C.border}22`}}>
-            <div onClick={()=>showToast("✅ Préférence sauvegardée")} style={{width:32,height:18,borderRadius:9,background:v?C.gold:C.border,cursor:"pointer",margin:"0 auto",position:"relative",transition:".2s"}}>
+        <thead><tr><TH>Type</TH><TH style={{textAlign:"center"}}>Push écran</TH><TH style={{textAlign:"center"}}>WhatsApp</TH><TH style={{textAlign:"center"}}>Email</TH></tr></thead>
+        <tbody>{[["commission","💰 Commissions à virer"],["conge","🏖 Demandes de congé"],["acompte","💸 Acomptes en attente"],["stock","📦 Stock critique"],["deal","💼 Deals inactifs 14j+"],["facture","🧾 Factures en retard"],["crm_lead","🎯 Nouveaux leads CRM"]].map(([type,label])=>{
+          const pref=notifPrefs.find(p=>p.type===type)||{push_actif:true,whatsapp_actif:false,email_actif:false};
+          return <tr key={type}>
+          <Td style={{fontWeight:600}}>{label}</Td>
+          {[["push_actif",pref.push_actif],["whatsapp_actif",pref.whatsapp_actif],["email_actif",pref.email_actif]].map(([champ,v])=><td key={champ} style={{textAlign:"center",padding:"10px",borderBottom:`1px solid ${C.border}22`}}>
+            <div onClick={()=>toggleNotifPref(type,champ,!v)} style={{width:32,height:18,borderRadius:9,background:v?C.gold:C.border,cursor:"pointer",margin:"0 auto",position:"relative",transition:".2s"}}>
               <div style={{position:"absolute",top:2,left:v?14:2,width:14,height:14,borderRadius:"50%",background:"#fff",transition:".2s"}}/>
             </div>
           </td>)}
-          <td style={{textAlign:"center",padding:"10px",borderBottom:`1px solid ${C.border}22`}}>
-            <BtnGhost onClick={()=>showToast("✅ Toutes notifications activées")} style={{fontSize:9,padding:"3px 8px"}}>Tout activer</BtnGhost>
-          </td>
-        </tr>)}
+        </tr>;})}
         </tbody>
       </table>
     </Card>}
