@@ -8,6 +8,11 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
   const[onglet,setOnglet]=useState("entreprise");
   const[historiquePaiements,setHistoriquePaiements]=useState([]);
   const[notifPrefs,setNotifPrefs]=useState([]);
+  useEffect(()=>{
+    fetch('/api/sessions').then(r=>r.json()).then(d=>{
+      setSessions(d.sessions||[]);
+    }).catch(()=>{});
+  },[]);
   const[codeEnvoye,setCodeEnvoye]=useState(false);
   const[codeSaisi,setCodeSaisi]=useState("");
   const[envoi2faEnCours,setEnvoi2faEnCours]=useState(false);
@@ -138,6 +143,22 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'update_preference',type,push_actif:pref.push_actif,whatsapp_actif:pref.whatsapp_actif,email_actif:pref.email_actif,[champ]:valeur})});
     }catch(e){showToast("❌ Erreur de connexion");}
   };
+  const revoquerSession=async(id)=>{
+    try{
+      const res=await fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'revoquer',id})});
+      const data=await res.json();
+      if(data.success){setSessions(s=>s.filter(x=>x.id!==id));showToast("✅ Session revoquee");}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const revoquerToutesLesAutres=async()=>{
+    try{
+      const res=await fetch('/api/sessions',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'revoquer_toutes_sauf_actuelle'})});
+      const data=await res.json();
+      if(data.success){setSessions(s=>s.filter(x=>x.actuelle));showToast("✅ Toutes les autres sessions revoquees");}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const demarrerActivation2FA=async()=>{
     setEnvoi2faEnCours(true);
     try{
@@ -238,7 +259,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     {id:3,nom:"Fatou Sarr",email:"fatou@xyra.io",role:"Commercial",acces:["crm","devis","clients","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 09:30"},
   ]);
   const[inviteForm,setInviteForm]=useState({email:"",role:"Collaborateur"});
-  const[sessions]=useState([{device:"MacBook Pro — Chrome",ip:"92.168.1.1",lieu:"Paris, France",date:"Maintenant",actuelle:true},{device:"iPhone 14 — Safari",ip:"92.168.1.2",lieu:"Paris, France",date:"Il y a 2h",actuelle:false}]);
+  const[sessions,setSessions]=useState([]);
   const[logs]=useState([{date:"Aujourd'hui 09:00",action:"Connexion réussie",ip:"92.168.1.1",statut:"ok"},{date:"Hier 18:30",action:"Modification devis TYM-0044",ip:"92.168.1.1",statut:"ok"},{date:"Hier 14:00",action:"Tentative connexion échouée",ip:"203.45.67.89",statut:"echec"}]);
 
   const[waForm,setWaForm]=useState({whatsapp_numero:"",whatsapp_phone_number_id:"",whatsapp_token:"",whatsapp_actif:false});
@@ -535,16 +556,16 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         </Card>
         <Card>
           <STitle>💻 Sessions actives</STitle>
-          {sessions.map((s,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${s.actuelle?C.green:C.border}33`}}>
+          {sessions.map((s)=><div key={s.id} style={{background:C.card2,borderRadius:8,padding:10,marginBottom:8,border:`1px solid ${s.actuelle?C.green:C.border}33`}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
-              <div style={{fontSize:11,fontWeight:700}}>{s.device}</div>
+              <div style={{fontSize:11,fontWeight:700}}>{s.appareil}</div>
               {s.actuelle&&<Pill color={C.green}>● Session actuelle</Pill>}
             </div>
-            <div style={{fontSize:10,color:C.muted}}>📍 {s.lieu} · 🌐 {s.ip}</div>
-            <div style={{fontSize:10,color:C.muted,marginBottom:6}}>🕐 {s.date}</div>
-            {!s.actuelle&&<BtnGhost onClick={()=>showToast("✅ Session révoquée")} style={{fontSize:10,padding:"3px 8px",color:C.red}}>Révoquer</BtnGhost>}
+            <div style={{fontSize:10,color:C.muted}}>🌐 {s.ip}</div>
+            <div style={{fontSize:10,color:C.muted,marginBottom:6}}>🕐 {new Date(s.date).toLocaleString("fr-FR")}</div>
+            {!s.actuelle&&<BtnGhost onClick={()=>revoquerSession(s.id)} style={{fontSize:10,padding:"3px 8px",color:C.red}}>Révoquer</BtnGhost>}
           </div>)}
-          <BtnGhost onClick={()=>showToast("✅ Toutes les autres sessions révoquées")} style={{width:"100%",fontSize:11,color:C.red}}>Déconnecter toutes les autres sessions</BtnGhost>
+          <BtnGhost onClick={revoquerToutesLesAutres} style={{width:"100%",fontSize:11,color:C.red}}>Déconnecter toutes les autres sessions</BtnGhost>
         </Card>
       </div>
       <Card>
