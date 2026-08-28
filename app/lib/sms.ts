@@ -4,6 +4,13 @@
  * configure — pas d'erreur bloquante, juste un echec signale
  * dans les journaux.
  */
+function auFormatInternational(numero: string): string {
+  const propre = numero.replace(/[\s.-]/g, '');
+  if (propre.startsWith('+')) return propre;
+  if (propre.startsWith('0')) return '+33' + propre.slice(1);
+  return propre;
+}
+
 export async function envoyerSMS(numero: string, message: string) {
   const sid = process.env.TWILIO_ACCOUNT_SID;
   const token = process.env.TWILIO_AUTH_TOKEN;
@@ -24,7 +31,7 @@ export async function envoyerSMS(numero: string, message: string) {
         'Content-Type': 'application/x-www-form-urlencoded',
       },
       body: new URLSearchParams({
-        To: numero.replace(/\s/g, ''),
+        To: auFormatInternational(numero),
         From: de,
         Body: message,
       }),
