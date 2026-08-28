@@ -46,7 +46,21 @@ export async function POST(req: NextRequest) {
     if (new Date(t.deux_fa_code_expire) < new Date()) return NextResponse.json({ success: false, error: 'Code expire, redemandez-en un' }, { status: 400 });
     if (t.deux_fa_code_temp !== code) return NextResponse.json({ success: false, error: 'Code incorrect' }, { status: 400 });
     await sb.from('tenants').update({ deux_fa_actif: true, deux_fa_code_temp: null, deux_fa_code_expire: null }).eq('id', tenantId);
-    return NextResponse.json({ success: true });
+    const reponse1 = NextResponse.json({ success: true });
+    reponse1.cookies.set('deux_fa_verified', '1', { path: '/', maxAge: 60 * 60 * 24, sameSite: 'lax' });
+    return reponse1;
+  }
+
+  if (action === 'verifier_code_secours') {
+    const { code } = body;
+    const { data: t } = await sb.from('tenants').select('codes_secours').eq('id', tenantId).single();
+    const codes: string[] = t?.codes_secours || [];
+    if (!codes.includes(code)) return NextResponse.json({ success: false, error: 'Code de secours invalide' }, { status: 400 });
+    const nouveauxCodes = codes.filter(c => c !== code);
+    await sb.from('tenants').update({ codes_secours: nouveauxCodes }).eq('id', tenantId);
+    const reponse2 = NextResponse.json({ success: true, codesRestants: nouveauxCodes.length });
+    reponse2.cookies.set('deux_fa_verified', '1', { path: '/', maxAge: 60 * 60 * 24, sameSite: 'lax' });
+    return reponse2;
   }
 
   if (action === 'generer_codes_secours') {

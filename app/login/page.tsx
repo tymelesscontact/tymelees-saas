@@ -8,6 +8,11 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [attente2FA, setAttente2FA] = useState(false);
+  const [destination2FA, setDestination2FA] = useState("");
+  const [code2FA, setCode2FA] = useState("");
+  const [utiliserCodeSecours, setUtiliserCodeSecours] = useState(false);
+  const [verif2FAEnCours, setVerif2FAEnCours] = useState(false);
   const [resetLoading, setResetLoading] = useState(false);
   const [resetSent, setResetSent] = useState(false);
   const handleResetPassword = async () => {
@@ -58,18 +63,37 @@ export default function LoginPage() {
 
         const res = await fetch("/api/whoami");
         const who = await res.json();
-        if (who.isOwner) {
-          window.location.replace("/dashboard");
-        } else if (who.isCollaborateur) {
-          window.location.replace("/espace-equipe");
+        const cible = who.isOwner ? "/dashboard" : who.isCollaborateur ? "/espace-equipe" : "/mon-espace";
+        if (who.deuxFaActif) {
+          setDestination2FA(cible);
+          setAttente2FA(true);
+          await fetch('/api/2fa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'envoyer_code' }) });
         } else {
-          window.location.replace("/mon-espace");
+          window.location.replace(cible);
         }
       }
     } catch (e: any) {
       setError("Erreur de connexion");
     }
     setLoading(false);
+  };
+
+  const verifier2FA = async () => {
+    setVerif2FAEnCours(true);
+    setError("");
+    try {
+      const action = utiliserCodeSecours ? 'verifier_code_secours' : 'verifier_code';
+      const res = await fetch('/api/2fa', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action, code: code2FA }) });
+      const data = await res.json();
+      if (data.success) {
+        window.location.replace(destination2FA);
+      } else {
+        setError(data.error || "Code incorrect");
+      }
+    } catch (e: any) {
+      setError("Erreur de connexion");
+    }
+    setVerif2FAEnCours(false);
   };
 
   return (
@@ -91,6 +115,25 @@ export default function LoginPage() {
         </div>
 
         <div style={{ background:"rgba(255,255,255,0.02)", border:"1px solid rgba(201,169,110,0.15)", padding:"40px 36px" }}>
+          {attente2FA ? (<>
+          <h1 style={{ fontSize:28, fontWeight:300, marginBottom:8 }}>Verification <em style={{ color:"#c9a96e" }}>en 2 etapes</em></h1>
+          <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:14, color:"rgba(240,234,214,0.4)", marginBottom:28 }}>Entrez le code recu par SMS, ou utilisez un code de secours</p>
+          <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
+            <div>
+              <label style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:"rgba(240,234,214,0.45)", letterSpacing:"0.08em", textTransform:"uppercase", display:"block", marginBottom:8 }}>{utiliserCodeSecours ? "Code de secours" : "Code recu par SMS"}</label>
+              <input className="inp" placeholder={utiliserCodeSecours ? "XXXX-XXXX" : "123456"} value={code2FA} onChange={e => setCode2FA(e.target.value)} onKeyDown={e => e.key==="Enter"&&verifier2FA()} />
+            </div>
+            {error && <div style={{ background:"rgba(255,82,82,0.1)", border:"1px solid rgba(255,82,82,0.3)", padding:"10px 14px", fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#FF5252" }}>⚠️ {error}</div>}
+            <button className="btn" onClick={verifier2FA} disabled={verif2FAEnCours} style={{ marginTop:6 }}>
+              {verif2FAEnCours ? "Verification..." : "Verifier →"}
+            </button>
+            <div style={{ textAlign:"center", marginTop:4 }}>
+              <button onClick={() => { setUtiliserCodeSecours(v => !v); setCode2FA(""); setError(""); }} style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"rgba(240,234,214,0.4)", textDecoration:"underline" }}>
+                {utiliserCodeSecours ? "Utiliser le code SMS" : "Utiliser un code de secours a la place"}
+              </button>
+            </div>
+          </div>
+          </>) : (<>
           <h1 style={{ fontSize:28, fontWeight:300, marginBottom:8 }}>Bon retour <em style={{ color:"#c9a96e" }}>!</em></h1>
           <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:14, color:"rgba(240,234,214,0.4)", marginBottom:28 }}>Connectez-vous à votre dashboard Xyra</p>
 
@@ -125,8 +168,8 @@ export default function LoginPage() {
               )}
             </div>
           </div>
+          </>)}
         </div>
-
         <div style={{ textAlign:"center", marginTop:24, fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"rgba(240,234,214,0.4)" }}>
           Pas encore de compte ? <a href="/inscription" style={{ color:"#c9a96e", textDecoration:"none" }}>Essai gratuit 14 jours →</a>
         </div>
