@@ -14,6 +14,11 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       setLogs(d.logs||[]);
     }).catch(()=>{});
   },[]);
+  useEffect(()=>{
+    fetch('/api/equipe').then(r=>r.json()).then(d=>{
+      setUtilisateurs(d.membres||[]);
+    }).catch(()=>{});
+  },[]);
   const[codeEnvoye,setCodeEnvoye]=useState(false);
   const[codeSaisi,setCodeSaisi]=useState("");
   const[envoi2faEnCours,setEnvoi2faEnCours]=useState(false);
@@ -160,6 +165,37 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
   };
+  const inviterMembre=async()=>{
+    if(!inviteForm.nom||!inviteForm.email)return showToast("⚠️ Nom et email requis");
+    setInvitationEnCours(true);
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer',nom:inviteForm.nom,prenom:inviteForm.prenom,email:inviteForm.email,role:inviteForm.role})});
+      const data=await res.json();
+      if(data.success){
+        setUtilisateurs(us=>[...us,data.membre]);
+        setInviteForm({nom:"",prenom:"",email:"",role:"Collaborateur"});
+        showToast(data.accesCree?"✅ Invitation envoyee — acces cree":"✅ Membre ajoute (email non envoye)");
+      }else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setInvitationEnCours(false);
+  };
+  const modifierRoleMembre=async(id,role)=>{
+    setUtilisateurs(us=>us.map(u=>u.id===id?{...u,role}:u));
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'modifier',id,role})});
+      const data=await res.json();
+      if(data.success)showToast("✅ Role mis a jour");
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const retirerMembre=async(id,nom)=>{
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer',id})});
+      const data=await res.json();
+      if(data.success){setUtilisateurs(us=>us.filter(u=>u.id!==id));showToast("✅ "+nom+" retire de l'equipe");}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const demarrerActivation2FA=async()=>{
     setEnvoi2faEnCours(true);
     try{
@@ -254,12 +290,9 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
   const[langue,setLangue]=useState("fr");
   const[deux_fa,setDeuxFa]=useState(true);
   const[domaine,setDomaine]=useState({sous_domaine:"curtiss",domaine_custom:"",ssl:true,actif:false});
-  const[utilisateurs,setUtilisateurs]=useState([
-    {id:1,nom:"Thomas Beaumont",email:"thomas@xyra.io",role:"Collaborateur",acces:["planning","stock","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 09:02"},
-    {id:2,nom:"Abou Diallo",email:"abou@xyra.io",role:"Collaborateur",acces:["planning","stock","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 08:45"},
-    {id:3,nom:"Fatou Sarr",email:"fatou@xyra.io",role:"Commercial",acces:["crm","devis","clients","chat"],statut:"actif",dernierConnexion:"Aujourd'hui 09:30"},
-  ]);
-  const[inviteForm,setInviteForm]=useState({email:"",role:"Collaborateur"});
+  const[utilisateurs,setUtilisateurs]=useState([]);
+  const[inviteForm,setInviteForm]=useState({nom:"",prenom:"",email:"",role:"Collaborateur"});
+  const[invitationEnCours,setInvitationEnCours]=useState(false);
   const[sessions,setSessions]=useState([]);
   const[logs,setLogs]=useState([]);
 
@@ -724,35 +757,34 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     {onglet==="utilisateurs"&&<div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <STitle>👥 Membres & Accès</STitle>
-        <Btn onClick={()=>showToast("📧 Invitation envoyée !")}>+ Inviter un membre</Btn>
       </div>
       <Card style={{marginBottom:12}}>
-        <div style={{display:"flex",gap:8,marginBottom:14}}>
-          <Inp value={inviteForm.email} onChange={e=>setInviteForm(f=>({...f,email:e.target.value}))} placeholder="Email à inviter..." style={{flex:1}}/>
-          <Sel value={inviteForm.role} onChange={e=>setInviteForm(f=>({...f,role:e.target.value}))} style={{width:160}}>{ROLES.map(r=><option key={r}>{r}</option>)}</Sel>
-          <Btn onClick={()=>{if(!inviteForm.email)return;showToast(`📧 Invitation envoyée à ${inviteForm.email} — rôle ${inviteForm.role}`);setInviteForm({email:"",role:"Collaborateur"});}}>Inviter</Btn>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1.5fr 1fr auto",gap:8,marginBottom:14}}>
+          <Inp value={inviteForm.prenom} onChange={e=>setInviteForm(f=>({...f,prenom:e.target.value}))} placeholder="Prenom"/>
+          <Inp value={inviteForm.nom} onChange={e=>setInviteForm(f=>({...f,nom:e.target.value}))} placeholder="Nom *"/>
+          <Inp value={inviteForm.email} onChange={e=>setInviteForm(f=>({...f,email:e.target.value}))} placeholder="Email a inviter... *"/>
+          <Sel value={inviteForm.role} onChange={e=>setInviteForm(f=>({...f,role:e.target.value}))}>{ROLES.map(r=><option key={r}>{r}</option>)}</Sel>
+          <Btn onClick={inviterMembre} disabled={invitationEnCours}>{invitationEnCours?"...":"Inviter"}</Btn>
         </div>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr><TH>Membre</TH><TH>Email</TH><TH>Rôle</TH><TH>Dernière connexion</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+          <thead><tr><TH>Membre</TH><TH>Email</TH><TH>Rôle</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
           <tbody>
             {/* Owner (non modifiable) */}
             <tr style={{background:`${C.gold}08`}}>
-              <Td><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:28,height:28,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:C.gold}}>C</div><span style={{fontWeight:700}}>Curtiss (Vous)</span></div></Td>
-              <Td style={{color:C.muted}}>curtiss@xyra.io</Td>
+              <Td><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:28,height:28,borderRadius:"50%",background:`${C.gold}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:C.gold}}>{(profUser.prenom||"?")[0]}</div><span style={{fontWeight:700}}>{profUser.prenom} {profUser.nom} (Vous)</span></div></Td>
+              <Td style={{color:C.muted}}>{profUser.email}</Td>
               <Td><Pill color={C.gold}>★ Owner</Pill></Td>
-              <Td style={{color:C.muted,fontSize:10}}>Maintenant</Td>
               <Td><Pill color={C.green}>Actif</Pill></Td>
               <Td><span style={{fontSize:10,color:C.muted}}>Non modifiable</span></Td>
             </tr>
-            {utilisateurs.map((u,i)=><tr key={i}>
-              <Td><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:28,height:28,borderRadius:"50%",background:`${C.blue}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:C.blue}}>{u.nom[0]}</div><span style={{fontWeight:600}}>{u.nom}</span></div></Td>
+            {utilisateurs.map((u,i)=><tr key={u.id}>
+              <Td><div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:28,height:28,borderRadius:"50%",background:`${C.blue}22`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:C.blue}}>{(u.nom||"?")[0]}</div><span style={{fontWeight:600}}>{u.prenom} {u.nom}</span></div></Td>
               <Td style={{color:C.muted,fontSize:11}}>{u.email}</Td>
               <Td><Sel value={u.role} onChange={e=>setUtilisateurs(us=>us.map((x,j)=>j===i?{...x,role:e.target.value}:x))} style={{fontSize:10,padding:"3px 6px"}}>{ROLES.map(r=><option key={r}>{r}</option>)}</Sel></Td>
-              <Td style={{color:C.muted,fontSize:10}}>{u.dernierConnexion}</Td>
-              <Td><Pill color={C.green}>Actif</Pill></Td>
+              <Td><Pill color={u.user_id?C.green:C.orange}>{u.user_id?"Actif":"Invitation en attente"}</Pill></Td>
               <Td><div style={{display:"flex",gap:4}}>
-                <BtnGhost onClick={()=>showToast(`✅ Modifications ${u.nom} sauvegardées`)} style={{fontSize:9,padding:"3px 7px"}}>Sauver</BtnGhost>
-                <BtnGhost onClick={()=>{setUtilisateurs(us=>us.filter((_,j)=>j!==i));showToast(`✅ ${u.nom} retiré de l'équipe`);}} style={{fontSize:9,padding:"3px 7px",color:C.red}}>Retirer</BtnGhost>
+                <BtnGhost onClick={()=>modifierRoleMembre(u.id,u.role)} style={{fontSize:9,padding:"3px 7px"}}>Sauver</BtnGhost>
+                <BtnGhost onClick={()=>retirerMembre(u.id,u.nom)} style={{fontSize:9,padding:"3px 7px",color:C.red}}>Retirer</BtnGhost>
               </div></Td>
             </tr>)}
           </tbody>
