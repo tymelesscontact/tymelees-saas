@@ -71,7 +71,7 @@ export async function POST(req: NextRequest) {
     const { userId } = body;
     const userAgent = req.headers.get('user-agent') || '';
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'inconnue';
-  return NextResponse.json({ sessions, logs });
+    const sessionToken = randomUUID();
 
     await sb.from('sessions_actives').insert({
       tenant_id: tenantId,
