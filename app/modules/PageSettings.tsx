@@ -19,6 +19,15 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       setUtilisateurs(d.membres||[]);
     }).catch(()=>{});
   },[]);
+  useEffect(()=>{
+    fetch('/api/domaine').then(r=>r.json()).then(d=>{
+      if(d.domaine){
+        setDomaine(f=>({...f,domaine_custom:d.domaine.domaine_custom||f.domaine_custom}));
+        setDomaineStatut(d.domaine.domaine_statut||"aucun");
+        setDomaineVerification(d.domaine.domaine_verification||null);
+      }
+    }).catch(()=>{});
+  },[]);
   const[codeEnvoye,setCodeEnvoye]=useState(false);
   const[codeSaisi,setCodeSaisi]=useState("");
   const[envoi2faEnCours,setEnvoi2faEnCours]=useState(false);
@@ -196,6 +205,20 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
   };
+  const activerDomaine=async()=>{
+    if(!domaine.domaine_custom)return showToast("⚠️ Entrez un domaine");
+    setActivationDomaineEnCours(true);
+    try{
+      const res=await fetch('/api/domaine',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'demander',domaine:domaine.domaine_custom})});
+      const data=await res.json();
+      if(data.success){
+        setDomaineStatut(data.statut);
+        setDomaineVerification(data.verification);
+        showToast(data.automatise?"✅ Domaine ajoute, verification en cours":"✅ Demande enregistree, activation manuelle a venir");
+      }else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setActivationDomaineEnCours(false);
+  };
   const demarrerActivation2FA=async()=>{
     setEnvoi2faEnCours(true);
     try{
@@ -293,6 +316,9 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
   const[utilisateurs,setUtilisateurs]=useState([]);
   const[inviteForm,setInviteForm]=useState({nom:"",prenom:"",email:"",role:"Collaborateur"});
   const[invitationEnCours,setInvitationEnCours]=useState(false);
+  const[domaineStatut,setDomaineStatut]=useState("aucun");
+  const[domaineVerification,setDomaineVerification]=useState(null);
+  const[activationDomaineEnCours,setActivationDomaineEnCours]=useState(false);
   const[sessions,setSessions]=useState([]);
   const[logs,setLogs]=useState([]);
 
@@ -818,10 +844,18 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
           <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Votre domaine</label>
           <Inp value={domaine.domaine_custom} onChange={e=>setDomaine(d=>({...d,domaine_custom:e.target.value}))} placeholder="app.votreentreprise.com"/>
         </div>
+        {domaineStatut!=="aucun"&&<div style={{marginBottom:12,fontSize:11}}>
+          <div style={{marginBottom:6}}>Statut : <Pill color={domaineStatut==="actif"?C.green:domaineStatut==="en_verification"?C.teal:C.orange}>
+            {domaineStatut==="actif"?"✅ Actif":domaineStatut==="en_verification"?"⏳ Verification DNS en cours":"📩 Demande enregistree — activation manuelle a venir"}
+          </Pill></div>
+          {domaineVerification&&Array.isArray(domaineVerification)&&domaineVerification.length>0&&<div style={{background:C.card2,borderRadius:8,padding:10,fontFamily:"monospace",fontSize:10,color:C.muted}}>
+            {domaineVerification.map((v,i)=><div key={i}>Ajoutez un enregistrement {v.type} : {v.domain} → {v.value}</div>)}
+          </div>}
+        </div>}
         <div style={{marginBottom:12,display:"flex",justifyContent:"space-between",fontSize:11}}>
           <span>SSL / HTTPS</span><Pill color={C.green}>✅ Auto-généré</Pill>
         </div>
-        {plan==="enterprise"||plan==="owner"?<Btn onClick={()=>showToast(`✅ Domaine "${domaine.domaine_custom}" configuré ! DNS en cours...`)}>🌍 Activer le domaine</Btn>:<Btn onClick={()=>showToast("💳 Passage Enterprise nécessaire")} style={{background:C.purple}}>Passer à Enterprise</Btn>}
+        {plan==="enterprise"||plan==="owner"?<Btn onClick={activerDomaine} disabled={activationDomaineEnCours}>{activationDomaineEnCours?"...":"🌍 Activer le domaine"}</Btn>:<Btn onClick={()=>showToast("💳 Passage Enterprise nécessaire")} style={{background:C.purple}}>Passer à Enterprise</Btn>}
       </Card>
     </div>}
 
