@@ -45,7 +45,20 @@ export async function GET(req: NextRequest) {
     actuelle: s.session_token === tokenActuel,
   }));
 
-  return NextResponse.json({ sessions });
+  const { data: historique } = await sb.from('sessions_actives')
+    .select('id, appareil, ip, created_at')
+    .eq('tenant_id', tenantId)
+    .order('created_at', { ascending: false })
+    .limit(50);
+
+  const logs = (historique || []).map(h => ({
+    date: h.created_at,
+    action: 'Connexion reussie',
+    ip: h.ip,
+    statut: 'ok',
+  }));
+
+  return NextResponse.json({ sessions, logs });
 }
 
 export async function POST(req: NextRequest) {
@@ -58,7 +71,7 @@ export async function POST(req: NextRequest) {
     const { userId } = body;
     const userAgent = req.headers.get('user-agent') || '';
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'inconnue';
-    const sessionToken = randomUUID();
+  return NextResponse.json({ sessions, logs });
 
     await sb.from('sessions_actives').insert({
       tenant_id: tenantId,
