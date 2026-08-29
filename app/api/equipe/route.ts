@@ -36,6 +36,17 @@ function calculerPaie(salaireBrut: number) {
   return { salaireBrut, chargesSalariales, chargesPatronales, salaireNet, coutTotal };
 }
 
+async function estAutoriseGererEquipe(req: NextRequest, tenantId: string): Promise<boolean> {
+  const tokenVerif = req.cookies.get('sb-access-token')?.value;
+  if (!tokenVerif) return false;
+  const { data: authVerif } = await sbAdmin.auth.getUser(tokenVerif);
+  if (!authVerif?.user) return false;
+  const { data: membreVerif } = await sbAdmin.from('tenant_membres').select('role').eq('user_id', authVerif.user.id).eq('tenant_id', tenantId).maybeSingle();
+  if (membreVerif?.role === 'owner') return true;
+  const { data: monEquipe } = await sbAdmin.from('equipe').select('role').eq('user_id', authVerif.user.id).eq('tenant_id', tenantId).maybeSingle();
+  return monEquipe?.role === 'Admin';
+}
+
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get('company_id');
@@ -135,12 +146,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, envoyes });
   }
   if (action === 'creer') {
-    const tokenVerif = req.cookies.get('sb-access-token')?.value;
-    if (!tokenVerif) return NextResponse.json({ error: 'non_connecte' }, { status: 401 });
-    const { data: authVerif } = await sb.auth.getUser(tokenVerif);
-    const ownerEmailVerif = process.env.OWNER_EMAIL;
-    const estProprietaireVerif = !!ownerEmailVerif && authVerif?.user?.email?.toLowerCase() === ownerEmailVerif.toLowerCase();
-    if (!estProprietaireVerif) return NextResponse.json({ error: 'reserve_au_proprietaire' }, { status: 403 });
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
 
     const { nom, prenom, role, email, tel, adresse, date_naissance, nss, rib, contrat, salaire_brut, couleur, date_embauche, zones_intervention, competences, company_id } = body;
     if (!nom || !email) return NextResponse.json({ error: 'Nom et email requis' }, { status: 400 });
@@ -209,6 +216,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'modifier') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { id, ...fields } = body;
     const { error } = await sb.from('equipe').update(fields).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -216,6 +224,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'supprimer') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { id } = body;
     const { data: m } = await sb.from('equipe').select('user_id').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
     if (!m) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
