@@ -855,7 +855,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         <div style={{marginBottom:12,display:"flex",justifyContent:"space-between",fontSize:11}}>
           <span>SSL / HTTPS</span><Pill color={C.green}>✅ Auto-généré</Pill>
         </div>
-        {plan==="enterprise"||plan==="owner"?<Btn onClick={activerDomaine} disabled={activationDomaineEnCours}>{activationDomaineEnCours?"...":"🌍 Activer le domaine"}</Btn>:<Btn onClick={()=>showToast("💳 Passage Enterprise nécessaire")} style={{background:C.purple}}>Passer à Enterprise</Btn>}
+        {domaineStatut==="actif"?<div style={{fontSize:12,color:C.green,fontWeight:600}}>✅ Domaine actif et verifie</div>:(plan==="enterprise"||plan==="owner"?<Btn onClick={activerDomaine} disabled={activationDomaineEnCours}>{activationDomaineEnCours?"Activation en cours...":"🌍 Activer le domaine"}</Btn>:<Btn onClick={()=>showToast("💳 Passage Enterprise nécessaire")} style={{background:C.purple}}>Passer à Enterprise</Btn>)}
       </Card>
     </div>}
 

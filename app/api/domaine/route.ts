@@ -23,7 +23,10 @@ async function ajouterDomaineVercel(domaine: string) {
     });
     const data = await res.json();
     if (!res.ok) {
-      return { ok: false, raison: data?.error?.code === 'domain_already_in_use' ? 'domaine_deja_utilise' : 'erreur_vercel' };
+      if (data?.error?.code === 'domain_already_in_use' && data?.error?.domain?.projectId === projectId) {
+        return { ok: true, verifie: !!data.error.domain.verified, verification: null };
+      }
+      return { ok: false, raison: data?.error?.code === 'domain_already_in_use' ? 'domaine_deja_utilise_ailleurs' : 'erreur_vercel' };
     }
     return { ok: true, verifie: !!data.verified, verification: data.verification || null };
   } catch (e: any) {
