@@ -1,7 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
-import { envoyerSMS } from '../../lib/sms';
+
+async function envoyerCodeParEmail(to: string, code: string) {
+  const { Resend } = await import('resend');
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  return resend.emails.send({
+    from: 'Xyra <notifications@xyraio.fr>',
+    to,
+    subject: 'Votre code de verification Xyra',
+    html: `<div style="font-family:sans-serif;padding:24px;background:#06060E;color:#EAE6DE;"><h2 style="color:#C9A84C">Code de verification</h2><p style="font-size:28px;letter-spacing:4px;font-weight:700;">${code}</p><p>Valable 5 minutes.</p></div>`,
+  });
+}
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -26,16 +36,19 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
 
-  const { data: tenant } = await sb.from('tenants').select('telephone_contact,telephone_entreprise').eq('id', tenantId).single();
+  const { data: tenant } = await sb.from('tenants').select('telephone_contact,telephone_entreprise,email').eq('id', tenantId).single();
   const tel = tenant?.telephone_contact || tenant?.telephone_entreprise;
 
   if (action === 'envoyer_code') {
-    if (!tel) return NextResponse.json({ success: false, error: 'Aucun numero de telephone enregistre — remplissez d\'abord votre profil' }, { status: 400 });
+    if (!tenant?.email) return NextResponse.json({ success: false, error: 'Aucun email enregistre' }, { status: 400 });
     const code = genererCode();
     const expire = new Date(Date.now() + 5 * 60 * 1000).toISOString();
     await sb.from('tenants').update({ deux_fa_code_temp: code, deux_fa_code_expire: expire }).eq('id', tenantId);
-    const resultat = await envoyerSMS(tel, `Xyra - Votre code de verification : ${code} (valable 5 minutes)`);
-    if (!resultat.ok) return NextResponse.json({ success: false, error: 'Echec envoi SMS — verifiez que Twilio est bien configure' }, { status: 500 });
+    try {
+      await envoyerCodeParEmail(tenant.email, code);
+    } catch (e: any) {
+      return NextResponse.json({ success: false, error: 'Echec envoi email : ' + e.message }, { status: 500 });
+    }
     return NextResponse.json({ success: true });
   }
 
