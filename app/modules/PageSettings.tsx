@@ -11,6 +11,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
   useEffect(()=>{
     fetch('/api/sessions').then(r=>r.json()).then(d=>{
       setSessions(d.sessions||[]);
+      setLogs(d.logs||[]);
     }).catch(()=>{});
   },[]);
   const[codeEnvoye,setCodeEnvoye]=useState(false);
@@ -260,7 +261,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
   ]);
   const[inviteForm,setInviteForm]=useState({email:"",role:"Collaborateur"});
   const[sessions,setSessions]=useState([]);
-  const[logs]=useState([{date:"Aujourd'hui 09:00",action:"Connexion réussie",ip:"92.168.1.1",statut:"ok"},{date:"Hier 18:30",action:"Modification devis TYM-0044",ip:"92.168.1.1",statut:"ok"},{date:"Hier 14:00",action:"Tentative connexion échouée",ip:"203.45.67.89",statut:"echec"}]);
+  const[logs,setLogs]=useState([]);
 
   const[waForm,setWaForm]=useState({whatsapp_numero:"",whatsapp_phone_number_id:"",whatsapp_token:"",whatsapp_actif:false});
   const[waCharge,setWaCharge]=useState(false);
@@ -573,7 +574,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         <table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead><tr><TH>Date & Heure</TH><TH>Action</TH><TH>Adresse IP</TH><TH>Statut</TH></tr></thead>
           <tbody>{logs.map((l,i)=><tr key={i}>
-            <Td style={{color:C.muted,fontSize:10}}>{l.date}</Td>
+            <Td style={{color:C.muted,fontSize:10}}>{new Date(l.date).toLocaleString("fr-FR")}</Td>
             <Td style={{fontWeight:600}}>{l.action}</Td>
             <Td style={{fontFamily:"monospace",fontSize:10,color:C.muted}}>{l.ip}</Td>
             <Td><Pill color={l.statut==="ok"?C.green:C.red}>{l.statut==="ok"?"✓ Succès":"✗ Échec"}</Pill></Td>
