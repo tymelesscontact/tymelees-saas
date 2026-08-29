@@ -219,6 +219,34 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     }catch(e){showToast("❌ Erreur de connexion");}
     setActivationDomaineEnCours(false);
   };
+  const[exportEnCours,setExportEnCours]=useState(false);
+  const[rgpdHistorique,setRgpdHistorique]=useState([]);
+  useEffect(()=>{
+    fetch('/api/rgpd?action=historique').then(r=>r.json()).then(d=>{
+      setRgpdHistorique(d.historique||[]);
+    }).catch(()=>{});
+  },[]);
+  const exporterDonnees=async()=>{
+    setExportEnCours(true);
+    try{
+      const res=await fetch('/api/rgpd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'exporter'})});
+      const data=await res.json();
+      if(data.success){
+        const blob=new Blob([JSON.stringify(data.export,null,2)],{type:'application/json'});
+        const url=URL.createObjectURL(blob);
+        const a=document.createElement('a');
+        a.href=url;
+        a.download=`xyra-export-donnees-${new Date().toISOString().slice(0,10)}.json`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+        showToast("✅ Export telecharge");
+        setRgpdHistorique(h=>[{type:'export',statut:'traitee',created_at:new Date().toISOString()},...h]);
+      }else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setExportEnCours(false);
+  };
   const demarrerActivation2FA=async()=>{
     setEnvoi2faEnCours(true);
     try{
@@ -892,20 +920,20 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     </div>}
     {onglet==="rgpd"&&<div>
       <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:12,padding:16,marginBottom:14}}>
-        <div style={{fontSize:10,color:C.blue,fontWeight:600,marginBottom:6}}>🔒 CONFORMITÉ RGPD — RÈGLEMENT GÉNÉRAL SUR LA PROTECTION DES DONNÉES</div>
-        <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Xyra est conforme au RGPD. Vos données sont chiffrées (AES-256), hébergées en Europe (Supabase EU) et ne sont jamais revendues.</div>
+        <div style={{fontSize:10,color:C.blue,fontWeight:600,marginBottom:6}}>🔒 PROTECTION DES DONNÉES</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.7}}>Xyra respecte les principes du RGPD (Europe) et des lois nationales de protection des donnees la ou elles s'appliquent (ex. NDPA au Nigeria, POPIA en Afrique du Sud). Votre base de donnees est hebergee en Irlande (Union Europeenne). Certains prestataires techniques (SMS, email, IA) sont bases aux Etats-Unis.</div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:12,marginBottom:12}}>
         <Card>
           <STitle>📊 Vos données</STitle>
-          {[["Données personnelles","Prénom, nom, email, téléphone"],["Données entreprise","SIREN, TVA, adresse"],["Données financières","Chiffrées AES-256"],["Hébergement","Supabase — Europe (Frankfurt)"],["Durée conservation","5 ans légal / Compte actif"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600,color:C.text,fontSize:10}}>{v}</span></div>)}
+          {[["Données personnelles","Prénom, nom, email, téléphone"],["Données entreprise","SIREN, TVA, adresse"],["Base de données","Supabase — Irlande (UE)"],["Prestataires tiers","Twilio, Resend, Anthropic — Etats-Unis"],["Factures / comptabilité","10 ans (obligation légale)"],["Autres données","Durée de vie du compte"]].map(([k,v],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}><span style={{color:C.muted}}>{k}</span><span style={{fontWeight:600,color:C.text,fontSize:10}}>{v}</span></div>)}
         </Card>
         <Card>
           <STitle>✅ Droits RGPD</STitle>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            <Btn onClick={()=>showToast("📦 Export de vos données en cours — email dans 24h")} style={{background:C.blue}}>📦 Exporter toutes mes données</Btn>
-            <BtnGhost onClick={()=>showToast("📧 Demande envoyée à DPO@xyra.io")}>✏️ Demander rectification</BtnGhost>
-            <BtnGhost onClick={()=>showToast("⏳ Demande de suppression envoyée — traitement 30j")} style={{color:C.orange,borderColor:`${C.orange}44`}}>🗑 Demander suppression données</BtnGhost>
+            <Btn onClick={exporterDonnees} disabled={exportEnCours} style={{background:C.blue}}>{exportEnCours?"⏳ Export en cours...":"📦 Exporter toutes mes données"}</Btn>
+            <BtnGhost onClick={()=>{setOnglet("profil");showToast("✏️ Corrigez vos informations directement ici");}}>✏️ Corriger mes informations</BtnGhost>
+            <BtnGhost onClick={()=>window.location.href="mailto:xyra.solution@gmail.com?subject=Demande RGPD"} style={{color:C.orange,borderColor:`${C.orange}44`}}>📧 Autre demande (réponse sous 1 mois)</BtnGhost>
             <div style={{background:`${C.red}11`,border:`1px solid ${C.red}33`,borderRadius:8,padding:10}}>
               <div style={{fontSize:10,color:C.red,fontWeight:600,marginBottom:4}}>⚠️ Zone dangereuse</div>
               <BtnGhost onClick={()=>showToast("⚠️ Confirmez la suppression dans l'email envoyé")} style={{width:"100%",color:C.red,borderColor:`${C.red}44`,fontSize:11}}>🗑 Supprimer mon compte</BtnGhost>
@@ -913,10 +941,17 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
           </div>
         </Card>
       </div>
+      {rgpdHistorique.length>0&&<Card style={{marginBottom:12}}>
+        <STitle>📋 Historique de vos demandes</STitle>
+        {rgpdHistorique.map((h,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}>
+          <span>{h.type==="export"?"📦 Export des données":h.type}</span>
+          <span style={{color:C.muted,fontSize:10}}>{new Date(h.created_at).toLocaleString("fr-FR")}</span>
+        </div>)}
+      </Card>}
       <Card>
         <STitle>🍪 Politique de confidentialité</STitle>
-        <div style={{fontSize:11,color:C.muted,lineHeight:1.7,marginBottom:10}}>Xyra collecte uniquement les données nécessaires au fonctionnement du service. Aucune donnée n'est partagée avec des tiers sans consentement explicite. Vous pouvez exercer vos droits à tout moment en contactant dpo@xyra.io</div>
-        <div style={{display:"flex",gap:8}}><BtnGhost onClick={()=>showToast("📄 Politique confidentialité téléchargée")}>📄 Télécharger PDF</BtnGhost><BtnGhost onClick={()=>showToast("📧 Email DPO ouvert")}>📧 Contacter le DPO</BtnGhost></div>
+        <div style={{fontSize:11,color:C.muted,lineHeight:1.7,marginBottom:10}}>Xyra collecte uniquement les données nécessaires au fonctionnement du service. Aucune donnée n'est partagée avec des tiers sans consentement explicite. Vous pouvez exercer vos droits à tout moment en contactant xyra.solution@gmail.com</div>
+        <div style={{display:"flex",gap:8}}><BtnGhost onClick={()=>window.location.href="mailto:xyra.solution@gmail.com"}>📧 Contacter pour toute question RGPD</BtnGhost></div>
       </Card>
     </div>}
 
