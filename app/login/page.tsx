@@ -122,10 +122,10 @@ export default function LoginPage() {
         <div style={{ background:"rgba(255,255,255,0.02)", border:"1px solid rgba(201,169,110,0.15)", padding:"40px 36px" }}>
           {attente2FA ? (<>
           <h1 style={{ fontSize:28, fontWeight:300, marginBottom:8 }}>Verification <em style={{ color:"#c9a96e" }}>en 2 etapes</em></h1>
-          <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:14, color:"rgba(240,234,214,0.4)", marginBottom:28 }}>Entrez le code recu par SMS, ou utilisez un code de secours</p>
+          <p style={{ fontFamily:"'DM Sans',sans-serif", fontSize:14, color:"rgba(240,234,214,0.4)", marginBottom:28 }}>Entrez le code recu par email, ou utilisez un code de secours</p>
           <div style={{ display:"flex", flexDirection:"column", gap:14 }}>
             <div>
-              <label style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:"rgba(240,234,214,0.45)", letterSpacing:"0.08em", textTransform:"uppercase", display:"block", marginBottom:8 }}>{utiliserCodeSecours ? "Code de secours" : "Code recu par SMS"}</label>
+              <label style={{ fontFamily:"'DM Sans',sans-serif", fontSize:11, color:"rgba(240,234,214,0.45)", letterSpacing:"0.08em", textTransform:"uppercase", display:"block", marginBottom:8 }}>{utiliserCodeSecours ? "Code de secours" : "Code recu par email"}</label>
               <input className="inp" placeholder={utiliserCodeSecours ? "XXXX-XXXX" : "123456"} value={code2FA} onChange={e => setCode2FA(e.target.value)} onKeyDown={e => e.key==="Enter"&&verifier2FA()} />
             </div>
             {error && <div style={{ background:"rgba(255,82,82,0.1)", border:"1px solid rgba(255,82,82,0.3)", padding:"10px 14px", fontFamily:"'DM Sans',sans-serif", fontSize:13, color:"#FF5252" }}>⚠️ {error}</div>}
@@ -134,7 +134,7 @@ export default function LoginPage() {
             </button>
             <div style={{ textAlign:"center", marginTop:4 }}>
               <button onClick={() => { setUtiliserCodeSecours(v => !v); setCode2FA(""); setError(""); }} style={{ background:"none", border:"none", cursor:"pointer", fontFamily:"'DM Sans',sans-serif", fontSize:12, color:"rgba(240,234,214,0.4)", textDecoration:"underline" }}>
-                {utiliserCodeSecours ? "Utiliser le code SMS" : "Utiliser un code de secours a la place"}
+                {utiliserCodeSecours ? "Utiliser le code email" : "Utiliser un code de secours a la place"}
               </button>
             </div>
           </div>

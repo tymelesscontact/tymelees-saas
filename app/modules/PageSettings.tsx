@@ -252,7 +252,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     try{
       const res=await fetch('/api/2fa',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_code'})});
       const data=await res.json();
-      if(data.success){setCodeEnvoye(true);showToast("📱 Code envoye par SMS");}
+      if(data.success){setCodeEnvoye(true);showToast("📧 Code envoye par email");}
       else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
     setEnvoi2faEnCours(false);
@@ -627,13 +627,13 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         <Card>
           <STitle>🔐 Authentification à 2 facteurs</STitle>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
-            <div><div style={{fontSize:12,fontWeight:700}}>2FA par SMS</div><div style={{fontSize:10,color:C.muted}}>{profUser.tel||"Aucun numero enregistre"}</div></div>
+            <div><div style={{fontSize:12,fontWeight:700}}>2FA par email</div><div style={{fontSize:10,color:C.muted}}>{profUser.email||"Aucun email enregistre"}</div></div>
             <div onClick={()=>deux_fa?desactiver2FA():demarrerActivation2FA()} style={{width:44,height:24,borderRadius:12,background:deux_fa?C.green:C.border,cursor:"pointer",position:"relative",transition:".2s"}}>
               <div style={{position:"absolute",top:3,left:deux_fa?21:3,width:18,height:18,borderRadius:"50%",background:"#fff",transition:".2s"}}/>
             </div>
           </div>
           {codeEnvoye&&<div style={{background:C.card2,borderRadius:8,padding:10,marginBottom:10,display:"flex",gap:8}}>
-            <input value={codeSaisi} onChange={e=>setCodeSaisi(e.target.value)} placeholder="Code recu par SMS" maxLength={6} style={{flex:1,background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:8,color:C.text,fontSize:12}}/>
+            <input value={codeSaisi} onChange={e=>setCodeSaisi(e.target.value)} placeholder="Code recu par email" maxLength={6} style={{flex:1,background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:8,color:C.text,fontSize:12}}/>
             <Btn onClick={verifierCode2FA} style={{fontSize:11,padding:"8px 14px"}}>Verifier</Btn>
           </div>}
           {deux_fa?<div style={{background:`${C.green}11`,border:`1px solid ${C.green}33`,borderRadius:8,padding:10,fontSize:11,color:C.green}}>✅ 2FA activée — Votre compte est sécurisé</div>:<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:10,fontSize:11,color:C.orange}}>⚠️ 2FA désactivée — Recommandé de l'activer</div>}
