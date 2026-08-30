@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -30,6 +31,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
+  const cleAnthropic = await getAnthropicKey(tenantId);
   if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
   const body = await req.json();
   const { action } = body;
@@ -101,7 +103,7 @@ Rédige un message de relance personnalisé et concret basé sur ces information
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': process.env.ANTHROPIC_API_KEY!,
+          'x-api-key': cleAnthropic,
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({

@@ -4,6 +4,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
     const { prompt, max_tokens } = body;
+    const tenantId = await getTenantIdFromRequest(req);
+    const cleAnthropic = await getAnthropicKey(tenantId);
 
     if (!prompt) {
       return NextResponse.json({ error: 'prompt manquant' }, { status: 400 });
@@ -13,7 +15,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY!,
+        'x-api-key': cleAnthropic,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({

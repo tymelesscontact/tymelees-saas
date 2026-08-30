@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { getTenantIdFromRequest } from "../../lib/supabaseServer"
+import { getAnthropicKey } from "../../lib/anthropicKey"
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -20,6 +22,8 @@ export async function POST(req: NextRequest) {
   try {
     const body = await req.json()
     const { metier } = body
+    const tenantId = await getTenantIdFromRequest(req)
+    const cleAnthropic = await getAnthropicKey(tenantId)
 
     if (!metier || !metier.trim()) {
       return NextResponse.json({ error: "metier manquant" }, { status: 400 })
@@ -74,7 +78,7 @@ Le JSON doit avoir EXACTEMENT cette structure (reponds UNIQUEMENT le JSON, sans 
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": process.env.ANTHROPIC_API_KEY!,
+        "x-api-key": cleAnthropic,
         "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({

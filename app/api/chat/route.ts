@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { envoyerPartout } from '../../lib/rappels';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -11,10 +12,11 @@ const sb = createClient(
 );
 
 
-async function askClaude(prompt: string, maxTokens = 300) {
+async function askClaude(prompt: string, maxTokens = 300, tenantId: string | null = null) {
+  const cleAnthropic = await getAnthropicKey(tenantId);
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': cleAnthropic, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
@@ -203,7 +205,7 @@ export async function POST(req: NextRequest) {
     try {
       const historique = derniers_messages.map((m: any) => `${m.moi ? 'Moi' : m.auteur}: ${m.contenu}`).join('\n');
       const prompt = `Voici les derniers messages d'une conversation professionnelle Xyra :\n${historique}\n\nPropose UNE suggestion de réponse courte et naturelle (2-3 phrases max) que je pourrais envoyer. Réponds uniquement avec le texte de la suggestion, rien d'autre.`;
-      const suggestion = await askClaude(prompt, 200);
+      const suggestion = await askClaude(prompt, 200, tenantId);
       return NextResponse.json({ success: true, suggestion });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -216,7 +218,7 @@ export async function POST(req: NextRequest) {
     try {
       const historique = messages.map((m: any) => `${m.moi ? 'Moi' : m.auteur}: ${m.contenu}`).join('\n');
       const prompt = `Résume cette conversation professionnelle en 3-4 phrases, en français, en mettant en avant les points importants et les actions à prendre éventuelles :\n${historique}`;
-      const resume = await askClaude(prompt, 300);
+      const resume = await askClaude(prompt, 300, tenantId);
       return NextResponse.json({ success: true, resume });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -229,7 +231,7 @@ export async function POST(req: NextRequest) {
     try {
       const historique = messages.slice(-10).map((m: any) => `${m.moi ? 'Moi' : m.auteur}: ${m.contenu}`).join('\n');
       const prompt = `Voici une conversation. Classe-la dans UNE seule catégorie parmi : nouveau_lead, suivi, vip, cloture. Réponds uniquement avec le mot de la catégorie, rien d'autre.\n\n${historique}`;
-      const cat = (await askClaude(prompt, 20)).trim().toLowerCase();
+      const cat = (await askClaude(prompt, 20, tenantId)).trim().toLowerCase();
       const validCats = ['nouveau_lead', 'suivi', 'vip', 'cloture'];
       const finalCat = validCats.includes(cat) ? cat : 'suivi';
       await sb.from('conversations').update({ categorie: finalCat }).eq('id', conversation_id);
@@ -259,7 +261,7 @@ export async function POST(req: NextRequest) {
 
       const historique = msgs.slice(-10).map((m: any) => `${m.moi ? 'Moi' : m.auteur}: ${m.contenu}`).join('\n');
       const prompt = `Tu réponds au nom de l'entreprise, car personne n'a pu répondre depuis plus d'une heure. Voici la conversation :\n${historique}\n\nRédige une réponse courte, professionnelle et chaleureuse en français pour faire patienter et montrer que la demande est prise en compte, sans t'engager sur des détails que tu ne connais pas.`;
-      const reponse = await askClaude(prompt, 250);
+      const reponse = await askClaude(prompt, 250, tenantId);
 
       await sb.from('chat_messages').insert({ conversation_id: conv.id, auteur: 'Xyra (IA)', contenu: reponse, moi: true, type: 'auto_ia', lu: true });
       await sb.from('conversations').update({ derniere_activite: new Date().toISOString() }).eq('id', conv.id);

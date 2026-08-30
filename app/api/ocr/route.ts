@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'crypto';
 import sharp from 'sharp';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 
 export const dynamic = 'force-dynamic';
 
@@ -51,6 +52,7 @@ export async function POST(req: NextRequest) {
     const empreinte = createHash('sha256').update(buffer).digest('hex');
 
     const tenantId = await getTenantIdFromRequest(req);
+    const cleAnthropic = await getAnthropicKey(tenantId);
     const sb = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -90,7 +92,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': process.env.ANTHROPIC_API_KEY!,
+        'x-api-key': cleAnthropic,
         'anthropic-version': '2023-06-01',
       },
       body: JSON.stringify({

@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 import { createClient } from '@supabase/supabase-js';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 
@@ -7,10 +9,11 @@ const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-async function askClaude(prompt: string) {
+async function askClaude(prompt: string, tenantId: string | null = null) {
+  const cleAnthropic = await getAnthropicKey(tenantId);
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': cleAnthropic, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 400, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
@@ -54,6 +57,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantIdClaude = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;
 
@@ -88,7 +92,7 @@ export async function POST(req: NextRequest) {
       const prompt = `Tu es expert en rétention SaaS. Analyse ces membres en essai gratuit et prédit leur risque de churn (3-4 phrases, français, conseils concrets) :
 Membres en essai expirant bientôt : ${enEssai || "Aucun"}
 Donne 2 actions concrètes pour améliorer la conversion essai → payant.`;
-      const analyse = await askClaude(prompt);
+      const analyse = await askClaude(prompt, tenantIdClaude);
       return NextResponse.json({ success: true, analyse });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -103,7 +107,7 @@ Donne 2 actions concrètes pour améliorer la conversion essai → payant.`;
       const prompt = `Génère un rapport MRR mensuel WhatsApp (5 lignes max, français, emojis) :
 MRR : ${mrr}€ | Membres actifs : ${membres_actifs} | En essai : ${essais} | Expirant bientôt : ${expirant} | Taux churn : ${taux_churn}%
 Commence par "Rapport Wallets Xyra —" et donne 1 insight et 1 priorité.`;
-      const message = await askClaude(prompt);
+      const message = await askClaude(prompt, tenantIdClaude);
       await envoyerWhatsApp(ownerTel, message);
       return NextResponse.json({ success: true });
     } catch (e: any) {

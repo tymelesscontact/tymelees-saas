@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generatePDFFromHTML } from '../../lib/generatePDF'
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 
 const VERIFY_TOKEN = process.env.VERIFY_TOKEN
 const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
@@ -236,7 +237,7 @@ export async function POST(req: NextRequest) {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
-            'x-api-key': ANTHROPIC_API_KEY!,
+            'x-api-key': await getAnthropicKey(tenantRecepteur),
             'anthropic-version': '2023-06-01'
           },
           body: JSON.stringify({
@@ -377,7 +378,7 @@ export async function POST(req: NextRequest) {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY!,
+        'x-api-key': await getAnthropicKey(tenantRecepteur),
         'anthropic-version': '2023-06-01'
       },
       body: JSON.stringify({

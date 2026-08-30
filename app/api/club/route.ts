@@ -1,4 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 import { createClient } from '@supabase/supabase-js';
 
 const sb = createClient(
@@ -6,10 +8,11 @@ const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-async function askClaude(prompt: string) {
+async function askClaude(prompt: string, tenantId: string | null = null) {
+  const cleAnthropic = await getAnthropicKey(tenantId);
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': cleAnthropic, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 400, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
@@ -170,7 +173,8 @@ ${listeMembres}
 Pour chaque match, donne : membre, raison (1 phrase), CA potentiel estimé, score (sur 100).
 Réponds en JSON : [{"membre":"nom","raison":"...","ca_estime":5000,"score":87}]`;
 
-      const res = await askClaude(prompt);
+      const tenantIdClaude = await getTenantIdFromRequest(req);
+      const res = await askClaude(prompt, tenantIdClaude);
       const clean = res.replace(/```json|```/g, '').trim();
       const matches = JSON.parse(clean);
       return NextResponse.json({ success: true, matches });

@@ -264,6 +264,32 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       }
     }catch(e){showToast("❌ Erreur de connexion");setSuppressionEnCours(false);}
   };
+  const[cleAnthropicActive,setCleAnthropicActive]=useState(false);
+  const[sauvegardeCleEnCours,setSauvegardeCleEnCours]=useState(false);
+  useEffect(()=>{
+    fetch('/api/ia-config').then(r=>r.json()).then(d=>{
+      setCleAnthropicActive(!!d.active);
+    }).catch(()=>{});
+  },[]);
+  const sauvegarderCleAnthropic=async()=>{
+    if(!sirApiKey||!sirApiKey.startsWith('sk-ant-'))return showToast("⚠️ La cle doit commencer par sk-ant-");
+    setSauvegardeCleEnCours(true);
+    try{
+      const res=await fetch('/api/ia-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'sauvegarder',cle:sirApiKey})});
+      const data=await res.json();
+      if(data.success){setCleAnthropicActive(true);setSirApiKey("");showToast("✅ Votre cle est maintenant utilisee pour votre IA");}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setSauvegardeCleEnCours(false);
+  };
+  const retirerCleAnthropic=async()=>{
+    try{
+      const res=await fetch('/api/ia-config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'retirer'})});
+      const data=await res.json();
+      if(data.success){setCleAnthropicActive(false);showToast("✅ Cle retiree, retour a la cle Xyra");}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const demarrerActivation2FA=async()=>{
     setEnvoi2faEnCours(true);
     try{
@@ -750,12 +776,15 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         <STitle>🤖 Configuration Claude (Anthropic)</STitle>
         <div style={{display:"flex",flexDirection:"column",gap:12}}>
           <div>
-            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Clé API Anthropic *</label>
-            <div style={{display:"flex",gap:8}}>
+            <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Clé API Anthropic</label>
+            {cleAnthropicActive?<div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <div style={{flex:1,background:C.card2,border:`1px solid ${C.green}44`,borderRadius:8,padding:"10px 12px",fontSize:11,color:C.green}}>✅ Votre propre cle est active</div>
+              <BtnGhost onClick={retirerCleAnthropic} style={{fontSize:11,color:C.red,borderColor:`${C.red}44`}}>Retirer</BtnGhost>
+            </div>:<div style={{display:"flex",gap:8}}>
               <Inp value={sirApiKey} onChange={e=>setSirApiKey(e.target.value)} placeholder="sk-ant-api03-..." style={{flex:1,fontFamily:"monospace",fontSize:11}}/>
-              <Btn onClick={()=>showToast("✅ Clé API sauvegardée et testée !")}>Sauver</Btn>
-            </div>
-            <div style={{fontSize:9,color:C.muted,marginTop:3}}>Disponible sur console.anthropic.com</div>
+              <Btn onClick={sauvegarderCleAnthropic} disabled={sauvegardeCleEnCours}>{sauvegardeCleEnCours?"...":"Sauver"}</Btn>
+            </div>}
+            <div style={{fontSize:9,color:C.muted,marginTop:3}}>{cleAnthropicActive?"Toute votre IA utilise desormais votre propre cle, facturee directement par Anthropic sur votre compte.":"Sans cle personnelle, votre IA utilise la cle Xyra. Cle disponible sur console.anthropic.com"}</div>
           </div>
           <div>
             <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Modèle IA</label>

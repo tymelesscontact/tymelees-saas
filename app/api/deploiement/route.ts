@@ -1,6 +1,8 @@
 const PLAN_PRIX_LOCAL: Record<string, number> = { white_label_starter: 500, white_label_business: 1000, white_label_enterprise: 2000 };
 
 import { NextRequest, NextResponse } from 'next/server';
+import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 import { createClient } from '@supabase/supabase-js';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 
@@ -9,10 +11,11 @@ const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-async function askClaude(prompt: string) {
+async function askClaude(prompt: string, tenantId: string | null = null) {
+  const cleAnthropic = await getAnthropicKey(tenantId);
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': cleAnthropic, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 400, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
@@ -86,6 +89,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const tenantIdClaude = await getTenantIdFromRequest(req);
   const corps = await req.clone().json().catch(() => ({}));
   if (corps.action !== 'demande_revendeur' && !(await estOwner(req))) {
     return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
@@ -99,7 +103,7 @@ export async function POST(req: NextRequest) {
       const aRisque = (tenants || []).filter((t: any) => t.statut === 'essai' || t.health_score < 40)
         .map((t: any) => `${t.societe} (${t.plan}, score:${t.health_score || '?'})`).join(', ');
       const prompt = `Tu es expert en rétention SaaS. Analyse ces clients à risque de churn et donne 3 actions prioritaires (3 phrases max, français) : ${aRisque || 'Aucun client à risque identifié'}. Sois précis et actionnable.`;
-      const analyse = await askClaude(prompt);
+      const analyse = await askClaude(prompt, tenantIdClaude);
       return NextResponse.json({ success: true, analyse });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -111,7 +115,7 @@ export async function POST(req: NextRequest) {
     try {
       const planSuperieur = plan === 'starter' ? 'Business Pro (129€)' : plan === 'business' || plan === 'business_pro' ? 'Enterprise (249€)' : 'Multi-Sociétés (499€)';
       const prompt = `Rédige un email d'upsell court et percutant (5-6 lignes, français, professionnel) pour ${societe} (${metier}, ${taille} employés) actuellement sur le plan ${plan}. Propose-leur le ${planSuperieur} en mettant en avant 2 bénéfices concrets pour leur secteur. Commence par "Bonjour,"`;
-      const email = await askClaude(prompt);
+      const email = await askClaude(prompt, tenantIdClaude);
       return NextResponse.json({ success: true, email });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -136,7 +140,7 @@ export async function POST(req: NextRequest) {
       const prompt = `Génère un rapport mensuel SaaS WhatsApp (5 lignes max, français, emojis) :
 MRR : ${mrr}€ | Clients actifs : ${actifs} | En essai : ${essais} | Churns : ${churnes} | Commissions Xyra : ${commissions}€
 Commence par "Rapport SaaS Xyra —" et donne 1 insight et 1 priorité.`;
-      const message = await askClaude(prompt);
+      const message = await askClaude(prompt, tenantIdClaude);
       await envoyerWhatsApp(ownerTel, message);
       return NextResponse.json({ success: true });
     } catch (e: any) {
