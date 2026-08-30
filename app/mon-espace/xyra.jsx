@@ -559,17 +559,16 @@ export default function Xyra() {
         setPlan(normaliserPlan(d.plan));
       }
       if(d.secteur){
-        console.log("DEBUG secteur recu:", d.secteur, "trouve dans fixes:", !!PROFILS_SECTEURS[d.secteur]);
+        const overrides=d.secteur_overrides||{};
         const p=PROFILS_SECTEURS[d.secteur];
         if(p){
-          setProfil(p);
+          setProfil({...p,termes:{...p.termes,...overrides}});
         }else{
           fetch("/api/get-secteur?cle="+d.secteur).then(r=>r.json()).then(gd=>{
-            console.log("DEBUG reponse get-secteur:", gd);
             if(gd.profil){
               setProfil({
                 label:gd.profil.label,
-                termes:gd.profil.termes,
+                termes:{...gd.profil.termes,...overrides},
                 services:gd.profil.services,
                 stockCategories:gd.profil.stock_categories,
                 kpiMission:gd.profil.kpi_mission,

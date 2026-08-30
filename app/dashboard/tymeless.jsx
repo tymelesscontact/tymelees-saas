@@ -645,6 +645,17 @@ export default function Xyra() {
 
   const showToast=(msg)=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
   useEffect(()=>{if(sirApiKey&&typeof window!=="undefined")localStorage.setItem("ty_anthropic",sirApiKey);},[sirApiKey]);
+  useEffect(()=>{
+    fetch("/api/tenant-info").then(r=>r.json()).then(d=>{
+      if(d.secteur){
+        const p=PROFILS_SECTEURS[d.secteur];
+        if(p){
+          const overrides=d.secteur_overrides||{};
+          setProfil({...p,termes:{...p.termes,...overrides}});
+        }
+      }
+    }).catch(()=>{});
+  },[]);
 
   const badges={notifs:notifs.filter(n=>!n.lu).length,devis:INIT_DEVIS.filter(d=>d.statut==="en_attente").length,crm:CRM_LEADS.filter(l=>l.etape==="Nouveau").length,comm:2,chat_eq:MSGS_EQUIPE.filter(m=>!m.lu).length,stock:STOCK.filter(s=>s.qte<s.min).length};
 
