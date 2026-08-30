@@ -120,7 +120,7 @@ export async function POST(req: NextRequest) {
 
     await sb.from('tenants').update({
       compte_supprime_le: new Date().toISOString(),
-      civilite: null, prenom: null, nom: null, email: null,
+      civilite: null, prenom: null, nom: null, email: `compte-supprime-${tenantId}@xyra.invalid`,
       telephone_contact: null, telephone_entreprise: null,
       adresse: null, photo_url: null,
     }).eq('id', tenantId);
