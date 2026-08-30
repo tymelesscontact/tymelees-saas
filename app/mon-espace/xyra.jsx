@@ -779,11 +779,11 @@ export default function Xyra() {
           <div style={{fontSize:17,fontWeight:700,color:C.gold,letterSpacing:"0.1em",fontFamily:"Georgia,serif"}}>XYRA</div>
           <div style={{fontSize:9,color:"#9090B8",letterSpacing:"0.15em",marginTop:2}}>{(tenantInfo&&tenantInfo.societe?tenantInfo.societe.toUpperCase():"...")}</div>
           <div style={{marginTop:8,background:C.card2,border:`1px solid ${C.gold}44`,borderRadius:5,padding:"5px 6px",color:C.gold,fontSize:10,fontWeight:600}}>{profil?.label||PROFIL_DEFAUT.label}</div>
-          {plan==="owner"&&<select value="" onChange={e=>{const entry=Object.entries(PROFILS_SECTEURS).find(([k,s])=>s.label===e.target.value);if(entry){setProfil(entry[1]);fetch("/api/save-secteur",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({secteur:entry[0]})}).catch(()=>{});}}} style={{marginTop:4,background:C.card2,border:`1px solid ${C.border}`,borderRadius:5,padding:"3px 6px",color:C.muted,fontSize:9,width:"100%",fontFamily:"inherit"}}>
+          <select value="" onChange={e=>{const entry=Object.entries(PROFILS_SECTEURS).find(([k,s])=>s.label===e.target.value);if(entry){setProfil(entry[1]);fetch("/api/save-secteur",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({secteur:entry[0]})}).then(r=>r.json()).then(rd=>{if(!rd.success)showToast&&showToast("❌ "+(rd.error==="reserve_au_proprietaire_ou_admin"?"Reserve au proprietaire":rd.error||"Erreur"));}).catch(()=>{});}}} style={{marginTop:4,background:C.card2,border:`1px solid ${C.border}`,borderRadius:5,padding:"3px 6px",color:C.muted,fontSize:9,width:"100%",fontFamily:"inherit"}}>
             <option value="">Changer pour un secteur standard...</option>
             {Object.values(PROFILS_SECTEURS).map(p=><option key={p.label} value={p.label}>{p.label}</option>)}
-          </select>}
-          {plan==="owner"&&<button onClick={()=>setShowAutreMetier(true)} style={{marginTop:4,width:"100%",background:"transparent",border:`1px dashed ${C.gold}44`,borderRadius:5,padding:"3px 6px",color:C.gold,fontSize:9,cursor:"pointer",fontFamily:"inherit"}}>Mon metier n'est pas liste</button>}
+          </select>
+          <button onClick={()=>setShowAutreMetier(true)} style={{marginTop:4,width:"100%",background:"transparent",border:`1px dashed ${C.gold}44`,borderRadius:5,padding:"3px 6px",color:C.gold,fontSize:9,cursor:"pointer",fontFamily:"inherit"}}>Mon metier n'est pas liste</button>
           {mesSocietes.length>0&&<div style={{marginTop:8}}>
             <select value={societeActiveId||""} onChange={e=>changerSociete(e.target.value)} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:5,padding:"4px 6px",color:C.text,fontSize:10,width:"100%",fontFamily:"inherit"}}>
               {mesSocietes.map(s=><option key={s.id} value={s.id}>🏢 {s.societe}</option>)}
