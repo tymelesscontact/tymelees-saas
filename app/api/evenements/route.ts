@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -10,10 +11,11 @@ const sb = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function askClaude(prompt: string) {
+async function askClaude(prompt: string, tenantId: string | null = null) {
+  const cleAnthropic = await getAnthropicKey(tenantId);
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': cleAnthropic, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 350, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
@@ -169,7 +171,7 @@ export async function POST(req: NextRequest) {
       const resume = (evenements || []).map((e: any) =>
         `${e.titre}: ${e.inscrits ?? 0}/${e.max_inscrits || 0} inscrits, ${e.prix || 0}€`
       ).join(' | ');
-      const analyse = await askClaude(`Tu es expert en événementiel B2B. Analyse le ROI de ces événements et donne 3 recommandations concrètes (4 phrases max, français) : ${resume}`);
+      const analyse = await askClaude(`Tu es expert en événementiel B2B. Analyse le ROI de ces événements et donne 3 recommandations concrètes (4 phrases max, français) : ${resume}`, tenantId);
       return NextResponse.json({ success: true, analyse });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
