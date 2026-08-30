@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getTenantFromRequest } from "../../lib/supabaseServer"
+import { estAutoriseGererEquipe } from "../../lib/permissions"
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -12,6 +13,10 @@ export async function POST(req: NextRequest) {
   const tenant = await getTenantFromRequest(req)
   if (!tenant) {
     return NextResponse.json({ success: false, error: "Non connecte" }, { status: 401 })
+  }
+
+  if (!(await estAutoriseGererEquipe(req, tenant.id))) {
+    return NextResponse.json({ success: false, error: "reserve_au_proprietaire_ou_admin" }, { status: 403 })
   }
 
   const body = await req.json()
