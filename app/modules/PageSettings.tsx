@@ -247,6 +247,23 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     }catch(e){showToast("❌ Erreur de connexion");}
     setExportEnCours(false);
   };
+  const[modaleSuppressionOuverte,setModaleSuppressionOuverte]=useState(false);
+  const[confirmationSuppression,setConfirmationSuppression]=useState("");
+  const[suppressionEnCours,setSuppressionEnCours]=useState(false);
+  const supprimerCompte=async()=>{
+    setSuppressionEnCours(true);
+    try{
+      const res=await fetch('/api/rgpd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer_compte',confirmation:confirmationSuppression})});
+      const data=await res.json();
+      if(data.success){
+        showToast("✅ Compte supprime. Deconnexion...");
+        setTimeout(()=>{window.location.href="/login";},2000);
+      }else{
+        showToast("❌ "+(data.error||"Erreur"));
+        setSuppressionEnCours(false);
+      }
+    }catch(e){showToast("❌ Erreur de connexion");setSuppressionEnCours(false);}
+  };
   const demarrerActivation2FA=async()=>{
     setEnvoi2faEnCours(true);
     try{
@@ -936,7 +953,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
             <BtnGhost onClick={()=>window.location.href="mailto:xyra.solution@gmail.com?subject=Demande RGPD"} style={{color:C.orange,borderColor:`${C.orange}44`}}>📧 Autre demande (réponse sous 1 mois)</BtnGhost>
             <div style={{background:`${C.red}11`,border:`1px solid ${C.red}33`,borderRadius:8,padding:10}}>
               <div style={{fontSize:10,color:C.red,fontWeight:600,marginBottom:4}}>⚠️ Zone dangereuse</div>
-              <BtnGhost onClick={()=>showToast("⚠️ Confirmez la suppression dans l'email envoyé")} style={{width:"100%",color:C.red,borderColor:`${C.red}44`,fontSize:11}}>🗑 Supprimer mon compte</BtnGhost>
+              <BtnGhost onClick={()=>setModaleSuppressionOuverte(true)} style={{width:"100%",color:C.red,borderColor:`${C.red}44`,fontSize:11}}>🗑 Supprimer mon compte</BtnGhost>
             </div>
           </div>
         </Card>
@@ -955,6 +972,20 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       </Card>
     </div>}
 
+    {modaleSuppressionOuverte&&<div onClick={()=>!suppressionEnCours&&(setModaleSuppressionOuverte(false),setConfirmationSuppression(""))} style={{position:"fixed",inset:0,background:"rgba(6,4,12,.78)",backdropFilter:"blur(4px)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+      <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:440,background:C.card||"#15131E",border:`1px solid ${C.red}44`,borderRadius:16,padding:24}}>
+        <div style={{fontSize:16,fontWeight:700,color:C.red,marginBottom:12}}>⚠️ Supprimer definitivement votre compte</div>
+        <div style={{fontSize:12,color:C.muted,lineHeight:1.7,marginBottom:16}}>
+          Cette action est irreversible. Toutes vos donnees seront supprimees immediatement (clients, equipe, planning, messages...), sauf vos factures/devis/paiements, conserves pour la duree legale obligatoire de 10 ans, sans vos informations personnelles associees.
+        </div>
+        <div style={{fontSize:11,color:C.muted,marginBottom:6}}>Pour confirmer, tapez le nom exact de votre societe : <b style={{color:C.text}}>{tenantInfo.societe}</b></div>
+        <Inp value={confirmationSuppression} onChange={e=>setConfirmationSuppression(e.target.value)} placeholder="Nom de la societe" style={{marginBottom:16}}/>
+        <div style={{display:"flex",gap:8}}>
+          <BtnGhost onClick={()=>{setModaleSuppressionOuverte(false);setConfirmationSuppression("");}} disabled={suppressionEnCours} style={{flex:1}}>Annuler</BtnGhost>
+          <Btn onClick={supprimerCompte} disabled={suppressionEnCours||confirmationSuppression.trim()!==tenantInfo.societe} style={{flex:1,background:C.red}}>{suppressionEnCours?"Suppression...":"Supprimer definitivement"}</Btn>
+        </div>
+      </div>
+    </div>}
     {showPayModal&&planChoisi&&<div onClick={()=>!payEnCours&&setShowPayModal(false)} style={{position:"fixed",inset:0,background:"rgba(6,4,12,.78)",backdropFilter:"blur(4px)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
       <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:440,background:C.card||"#15131E",border:`1px solid ${C.border}`,borderRadius:16,padding:24}}>
         <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:4}}>Passer au forfait {planChoisi.nom}</div>

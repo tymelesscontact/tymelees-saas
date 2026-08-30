@@ -76,5 +76,64 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, export: resultat });
   }
 
+  if (action === 'supprimer_compte') {
+    const { confirmation } = body;
+    const { data: tenantInfo } = await sb.from('tenants').select('societe, email').eq('id', tenantId).single();
+    if (!tenantInfo) return NextResponse.json({ success: false, error: 'Societe introuvable' }, { status: 404 });
+    if (!confirmation || confirmation.trim() !== tenantInfo.societe) {
+      return NextResponse.json({ success: false, error: 'Confirmation incorrecte -- tapez exactement le nom de votre societe' }, { status: 400 });
+    }
+
+    const emailConfirmation = tenantInfo.email;
+
+    const { data: membres } = await sb.from('tenant_membres').select('user_id').eq('tenant_id', tenantId);
+    const userIds = (membres || []).map((m: any) => m.user_id).filter(Boolean);
+
+    if (emailConfirmation) {
+      try {
+        const { Resend } = await import('resend');
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: 'Xyra <notifications@xyraio.fr>',
+          to: emailConfirmation,
+          subject: 'Confirmation de suppression de votre compte Xyra',
+          html: `<div style="font-family:sans-serif;padding:24px;background:#06060E;color:#EAE6DE;"><h2 style="color:#C9A84C">Compte supprime</h2><p>Votre compte Xyra et toutes les donnees associees ont ete supprimes definitivement, a l'exception des documents comptables (factures, devis, paiements) conserves pour la duree legale obligatoire.</p></div>`,
+        });
+      } catch (e) { /* non bloquant */ }
+    }
+
+    const TABLES_A_CONSERVER = ['factures', 'devis', 'paiements'];
+    const resultatSuppression: Record<string, string> = {};
+    for (const table of TABLES_TENANT) {
+      if (TABLES_A_CONSERVER.includes(table)) continue;
+      try {
+        const { error } = await sb.from(table).delete().eq('tenant_id', tenantId);
+        resultatSuppression[table] = error ? 'erreur' : 'supprime';
+      } catch (e) {
+        resultatSuppression[table] = 'erreur';
+      }
+    }
+
+    for (const uid of userIds) {
+      try { await sb.auth.admin.deleteUser(uid); } catch (e) { /* non bloquant */ }
+    }
+
+    await sb.from('tenants').update({
+      compte_supprime_le: new Date().toISOString(),
+      civilite: null, prenom: null, nom: null, email: null,
+      telephone_contact: null, telephone_entreprise: null,
+      adresse: null, photo_url: null,
+    }).eq('id', tenantId);
+
+    await sb.from('rgpd_demandes').insert({
+      tenant_id: tenantId,
+      type: 'suppression_compte',
+      statut: 'traitee',
+      details: { tables_supprimees: Object.keys(resultatSuppression).length, tables_conservees: TABLES_A_CONSERVER },
+    });
+
+    return NextResponse.json({ success: true });
+  }
+
   return NextResponse.json({ success: false, error: 'Action inconnue' }, { status: 400 });
 }
