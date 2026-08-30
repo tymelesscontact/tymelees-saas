@@ -290,6 +290,57 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
   };
+  const[secteurActuel,setSecteurActuel]=useState(null);
+  const[secteurOverrides,setSecteurOverrides]=useState({});
+  const[secteurHistorique,setSecteurHistorique]=useState([]);
+  const[modaleSecteurOuverte,setModaleSecteurOuverte]=useState(false);
+  const[secteurChoisi,setSecteurChoisi]=useState(null);
+  const[secteurDonnees,setSecteurDonnees]=useState(null);
+  const[secteurChangeEnCours,setSecteurChangeEnCours]=useState(false);
+  const[editionTermeOuverte,setEditionTermeOuverte]=useState(null);
+  const[valeurTermeEdite,setValeurTermeEdite]=useState("");
+  useEffect(()=>{
+    fetch('/api/secteur').then(r=>r.json()).then(d=>{
+      setSecteurActuel(d.secteur);
+      setSecteurOverrides(d.overrides||{});
+      setSecteurHistorique(d.historique||[]);
+    }).catch(()=>{});
+  },[]);
+  const demanderChangementSecteur=async(cleSecteur,p)=>{
+    setSecteurChoisi({cle:cleSecteur,profil:p});
+    try{
+      const res=await fetch('/api/secteur',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'verifier_donnees'})});
+      const data=await res.json();
+      setSecteurDonnees(data.aDesDonnees?data.detail:null);
+    }catch(e){setSecteurDonnees(null);}
+    setModaleSecteurOuverte(true);
+  };
+  const confirmerChangementSecteur=async()=>{
+    if(!secteurChoisi)return;
+    setSecteurChangeEnCours(true);
+    try{
+      const res=await fetch('/api/secteur',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'changer',nouveauSecteur:secteurChoisi.cle,confirme:true})});
+      const data=await res.json();
+      if(data.success){
+        setProfil(secteurChoisi.profil);
+        setSecteurActuel(secteurChoisi.cle);
+        setSecteurOverrides({});
+        showToast(`✅ Secteur "${secteurChoisi.profil.label}" enregistre pour toute la societe`);
+        setModaleSecteurOuverte(false);
+        setSecteurChoisi(null);
+      }else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setSecteurChangeEnCours(false);
+  };
+  const sauvegarderTermePersonnalise=async()=>{
+    if(!editionTermeOuverte||!valeurTermeEdite.trim())return;
+    try{
+      const res=await fetch('/api/secteur',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'modifier_terme',cle:editionTermeOuverte,valeur:valeurTermeEdite.trim()})});
+      const data=await res.json();
+      if(data.success){setSecteurOverrides(data.overrides);showToast("✅ Terme personnalise");setEditionTermeOuverte(null);setValeurTermeEdite("");}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const demarrerActivation2FA=async()=>{
     setEnvoi2faEnCours(true);
     try{
@@ -842,15 +893,54 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     {/* ── SECTEUR ── */}
     {onglet==="secteur"&&<div>
       <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:10,padding:12,marginBottom:14,fontSize:11,color:C.text}}>
-        💡 Le profil sectoriel adapte la terminologie de l'outil à votre activité (missions, clients, stock, services).
+        💡 Le profil sectoriel adapte la terminologie de toute la societe (missions, clients, stock, services) pour vous et toute votre equipe.
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10}}>
-        {Object.entries(PROFILS_SECTEURS).map(([key,p])=><div key={key} onClick={()=>{setProfil(p);showToast(`✅ Profil "${p.label}" activé !`);}} style={{background:profil?.label===p.label?`${p.couleur}22`:"transparent",border:`2px solid ${profil?.label===p.label?p.couleur:C.border}`,borderRadius:10,padding:14,cursor:"pointer",transition:"all .2s"}}>
-          <div style={{fontSize:13,fontWeight:700,color:profil?.label===p.label?p.couleur:C.text,marginBottom:4}}>{p.label}</div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(220px,1fr))",gap:10,marginBottom:16}}>
+        {Object.entries(PROFILS_SECTEURS).map(([key,p])=><div key={key} onClick={()=>key!==secteurActuel&&demanderChangementSecteur(key,p)} style={{background:secteurActuel===key?`${p.couleur}22`:"transparent",border:`2px solid ${secteurActuel===key?p.couleur:C.border}`,borderRadius:10,padding:14,cursor:secteurActuel===key?"default":"pointer",transition:"all .2s"}}>
+          <div style={{fontSize:13,fontWeight:700,color:secteurActuel===key?p.couleur:C.text,marginBottom:4}}>{p.label}</div>
           <div style={{fontSize:10,color:C.muted}}>Services : {p.services.slice(0,3).join(", ")}...</div>
-          {profil?.label===p.label&&<div style={{marginTop:8,fontSize:10,color:p.couleur,fontWeight:600}}>✅ Profil actuel</div>}
+          {secteurActuel===key&&<div style={{marginTop:8,fontSize:10,color:p.couleur,fontWeight:600}}>✅ Secteur actuel de la societe</div>}
         </div>)}
       </div>
+      {profil&&<Card style={{marginBottom:12}}>
+        <STitle>✏️ Personnaliser un terme</STitle>
+        <div style={{fontSize:11,color:C.muted,marginBottom:10}}>Vous pouvez ajuster un mot precis sans changer tout le secteur.</div>
+        <div style={{display:"flex",flexDirection:"column",gap:6}}>
+          {Object.entries(profil.termes||{}).map(([cle,valeurDefaut])=><div key={cle} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}>
+            <span style={{color:C.muted}}>{cle}</span>
+            {editionTermeOuverte===cle?<div style={{display:"flex",gap:6}}>
+              <Inp value={valeurTermeEdite} onChange={e=>setValeurTermeEdite(e.target.value)} style={{fontSize:11,padding:"4px 8px",width:140}}/>
+              <BtnGhost onClick={sauvegarderTermePersonnalise} style={{fontSize:10,padding:"3px 8px"}}>OK</BtnGhost>
+              <BtnGhost onClick={()=>setEditionTermeOuverte(null)} style={{fontSize:10,padding:"3px 8px"}}>✕</BtnGhost>
+            </div>:<div style={{display:"flex",gap:8,alignItems:"center"}}>
+              <span style={{fontWeight:600,color:secteurOverrides[cle]?C.gold:C.text}}>{secteurOverrides[cle]||String(valeurDefaut)}</span>
+              <BtnGhost onClick={()=>{setEditionTermeOuverte(cle);setValeurTermeEdite(secteurOverrides[cle]||String(valeurDefaut));}} style={{fontSize:9,padding:"2px 6px"}}>✏️</BtnGhost>
+            </div>}
+          </div>)}
+        </div>
+      </Card>}
+      {secteurHistorique.length>0&&<Card>
+        <STitle>📋 Historique des changements de secteur</STitle>
+        {secteurHistorique.map((h,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}>
+          <span>{h.ancien_secteur||"—"} → {h.nouveau_secteur}</span>
+          <span style={{color:C.muted,fontSize:10}}>{new Date(h.created_at).toLocaleString("fr-FR")}</span>
+        </div>)}
+      </Card>}
+      {modaleSecteurOuverte&&secteurChoisi&&<div onClick={()=>!secteurChangeEnCours&&setModaleSecteurOuverte(false)} style={{position:"fixed",inset:0,background:"rgba(6,4,12,.78)",backdropFilter:"blur(4px)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:440,background:C.card||"#15131E",border:`1px solid ${C.border}`,borderRadius:16,padding:24}}>
+          <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:12}}>Passer au secteur "{secteurChoisi.profil.label}" ?</div>
+          <div style={{fontSize:12,color:C.muted,lineHeight:1.7,marginBottom:12}}>
+            Toute la terminologie et les modules disponibles vont changer pour vous et toute votre equipe, immediatement.
+          </div>
+          {secteurDonnees&&<div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:8,padding:10,marginBottom:12,fontSize:11,color:C.text}}>
+            ⚠️ Votre societe a deja des donnees en cours : {secteurDonnees.clients} client(s), {secteurDonnees.missions} mission(s), {secteurDonnees.devis} devis, {secteurDonnees.factures} facture(s). Le vocabulaire va changer, mais aucune donnee ne sera supprimee.
+          </div>}
+          <div style={{display:"flex",gap:8}}>
+            <BtnGhost onClick={()=>{setModaleSecteurOuverte(false);setSecteurChoisi(null);}} disabled={secteurChangeEnCours} style={{flex:1}}>Annuler</BtnGhost>
+            <Btn onClick={confirmerChangementSecteur} disabled={secteurChangeEnCours} style={{flex:1}}>{secteurChangeEnCours?"...":"Confirmer le changement"}</Btn>
+          </div>
+        </div>
+      </div>}
     </div>}
 
     {/* ── UTILISATEURS ── */}
