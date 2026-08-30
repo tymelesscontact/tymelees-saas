@@ -9978,6 +9978,7 @@ const PageDeploiement=({plan,showToast})=>{
   const tabs=[
     {id:"tenants",label:"👥 Clients"},
     {id:"metrics",label:"📊 Métriques"},
+    {id:"secteurs",label:"⊛ Secteurs"},
     {id:"churn",label:"🤖 Analyse Churn IA"},
     {id:"revendeurs",label:"🚀 Revendeurs"},
     {id:"certification",label:"🏆 Certification"},
@@ -10130,6 +10131,29 @@ const PageDeploiement=({plan,showToast})=>{
     </div>}
 
     {/* ── ANALYSE CHURN IA ── */}
+    {onglet==="secteurs"&&<div>
+      <Card style={{marginBottom:12}}>
+        <STitle>⊛ Répartition des secteurs</STitle>
+        <div style={{fontSize:11,color:C.muted,marginBottom:12}}>Vue d'ensemble de tous vos clients Xyra par metier declare.</div>
+        {(()=>{
+          const compte={};
+          tenants.forEach(t=>{const s=t.secteur||"non_defini";compte[s]=(compte[s]||0)+1;});
+          const entries=Object.entries(compte).sort((a,b)=>b[1]-a[1]);
+          return entries.map(([sect,nb])=><div key={sect} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`}}>
+            <span style={{fontSize:12,color:sect==="non_defini"?C.orange:C.text,fontWeight:sect==="non_defini"?600:400}}>{sect==="non_defini"?"⚠️ Secteur non defini":sect}</span>
+            <span style={{fontSize:12,fontWeight:700,color:C.gold}}>{nb} client{nb>1?"s":""}</span>
+          </div>);
+        })()}
+      </Card>
+      <Card>
+        <STitle>⚠️ Clients sans secteur defini</STitle>
+        <div style={{fontSize:11,color:C.muted,marginBottom:12}}>Ces clients utilisent le vocabulaire par defaut, peut-etre pas adapte a leur vrai metier.</div>
+        {tenants.filter(t=>!t.secteur).length===0?<div style={{fontSize:12,color:C.green}}>✅ Tous les clients ont un secteur defini</div>:tenants.filter(t=>!t.secteur).map(t=><div key={t.id} style={{display:"flex",justifyContent:"space-between",padding:"6px 0",borderBottom:`1px solid ${C.border}22`,fontSize:11}}>
+          <span>{t.societe||t.email}</span>
+          <span style={{color:C.muted}}>{t.email}</span>
+        </div>)}
+      </Card>
+    </div>}
     {onglet==="churn"&&<div>
       <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:16,marginBottom:14}}>
         <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Scoring prédictif Churn — Claude Sonnet</div>

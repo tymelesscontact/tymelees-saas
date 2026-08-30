@@ -13,5 +13,6 @@ export async function GET(req: NextRequest) {
     trial_ends_at: tenant.trial_ends_at,
     email: tenant.email,
     secteur: tenant.secteur,
+    secteur_overrides: tenant.secteur_overrides,
   })
 }
