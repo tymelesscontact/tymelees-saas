@@ -58,6 +58,22 @@ async function genererNotificationsAuto(tenantId: string) {
   return notifs;
 }
 
+// Prend les situations detectees et les enregistre pour de vrai, sans jamais dupliquer
+// une notification active (non traitee) du meme type -- c'est ce qui evite qu'une notification
+// deja traitee revienne toute seule tant que la situation exacte n'a pas change.
+async function synchroniserNotificationsAuto(tenantId: string) {
+  const detectees = await genererNotificationsAuto(tenantId);
+  if (!detectees.length) return;
+
+  const { data: actives } = await sb.from('notifications').select('action_type,titre').eq('tenant_id', tenantId).eq('traite', false);
+  const actifsParType = new Set((actives || []).map((n: any) => n.action_type));
+
+  for (const n of detectees) {
+    if (actifsParType.has(n.action_type)) continue;
+    await sb.from('notifications').insert({ ...n, tenant_id: tenantId });
+  }
+}
+
 // Porte d'entree generique -- n'importe quel module, actuel ou futur, appelle cette fonction
 // pour creer une notification ET la dispatcher sur les bons canaux selon les preferences reelles du tenant
 async function envoyerNotification(tenantId: string, params: {
@@ -104,14 +120,15 @@ export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
 
-  const { data: notifs, error } = await sb.from('notifications').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(100);
+  await synchroniserNotificationsAuto(tenantId);
+
+  const { data: notifs, error } = await sb.from('notifications').select('*').eq('tenant_id', tenantId).eq('traite', false).order('created_at', { ascending: false }).limit(100);
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
   const { data: prefs } = await sb.from('notif_preferences').select('*').eq('tenant_id', tenantId);
-  const autoNotifs = await genererNotificationsAuto(tenantId);
   const nonLus = (notifs || []).filter((n: any) => !n.lu).length;
 
-  return NextResponse.json({ notifications: notifs || [], autoNotifs, preferences: prefs || [], nonLus });
+  return NextResponse.json({ notifications: notifs || [], preferences: prefs || [], nonLus });
 }
 
 export async function POST(req: NextRequest) {
@@ -127,6 +144,13 @@ export async function POST(req: NextRequest) {
     } else {
       await sb.from('notifications').update({ lu: true }).eq('id', id).eq('tenant_id', tenantId);
     }
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'traiter') {
+    const { id } = body;
+    if (!id) return NextResponse.json({ success: false, error: 'id requis' }, { status: 400 });
+    await sb.from('notifications').update({ traite: true, traite_at: new Date().toISOString(), lu: true }).eq('id', id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true });
   }
 
