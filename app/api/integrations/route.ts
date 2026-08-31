@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   if (!tenantId) return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
 
   const { data } = await sb.from('integrations_personnalisees')
-    .select('id, nom, notes, cle_api, created_at')
+    .select('id, nom, notes, cle_api, email, created_at')
     .eq('tenant_id', tenantId)
     .order('created_at', { ascending: false });
 
@@ -28,7 +28,7 @@ export async function GET(req: NextRequest) {
         cleMasquee = '••••';
       }
     }
-    return { id: i.id, nom: i.nom, notes: i.notes, cleMasquee, created_at: i.created_at };
+    return { id: i.id, nom: i.nom, notes: i.notes, email: i.email, cleMasquee, created_at: i.created_at };
   });
 
   return NextResponse.json({ integrations });
@@ -43,19 +43,21 @@ export async function POST(req: NextRequest) {
   const { action } = body;
 
   if (action === 'ajouter') {
-    const { nom, cle_api, notes } = body;
+    const { nom, cle_api, email, notes } = body;
     if (!nom || !nom.trim()) return NextResponse.json({ success: false, error: 'Nom requis' }, { status: 400 });
+    if (!cle_api?.trim() && !email?.trim()) return NextResponse.json({ success: false, error: 'Cle API ou email requis' }, { status: 400 });
 
     const cleChiffree = cle_api && cle_api.trim() ? chiffrer(cle_api.trim()) : null;
     const { data, error } = await sb.from('integrations_personnalisees').insert({
       tenant_id: tenantId,
       nom: nom.trim(),
       cle_api: cleChiffree,
+      email: email?.trim() || null,
       notes: notes?.trim() || null,
     }).select().single();
 
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-    return NextResponse.json({ success: true, integration: { id: data.id, nom: data.nom, notes: data.notes } });
+    return NextResponse.json({ success: true, integration: { id: data.id, nom: data.nom, notes: data.notes, email: data.email } });
   }
 
   if (action === 'retirer') {

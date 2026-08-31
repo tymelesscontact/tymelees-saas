@@ -343,7 +343,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
   };
   const[integrationsPerso,setIntegrationsPerso]=useState([]);
   const[modaleIntegrationOuverte,setModaleIntegrationOuverte]=useState(false);
-  const[integrationForm,setIntegrationForm]=useState({nom:"",cle_api:"",notes:""});
+  const[integrationForm,setIntegrationForm]=useState({nom:"",cle_api:"",email:"",notes:""});
   const[integrationEnCours,setIntegrationEnCours]=useState(false);
   useEffect(()=>{
     fetch('/api/integrations').then(r=>r.json()).then(d=>{
@@ -356,9 +356,10 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
   };
   const ajouterIntegration=async()=>{
     if(!integrationForm.nom.trim())return showToast("⚠️ Nom requis");
+    if(!integrationForm.cle_api.trim()&&!integrationForm.email.trim())return showToast("⚠️ Cle API ou email requis");
     setIntegrationEnCours(true);
     try{
-      const res=await fetch('/api/integrations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter',nom:integrationForm.nom,cle_api:integrationForm.cle_api,notes:integrationForm.notes})});
+      const res=await fetch('/api/integrations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter',nom:integrationForm.nom,cle_api:integrationForm.cle_api,email:integrationForm.email,notes:integrationForm.notes})});
       const data=await res.json();
       if(data.success){
         setIntegrationsPerso(list=>[{...data.integration,cleMasquee:integrationForm.cle_api?"••••"+integrationForm.cle_api.slice(-4):null,created_at:new Date().toISOString()},...list]);
@@ -874,6 +875,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
           <div>
             <div style={{fontSize:12,fontWeight:600}}>{it.nom}</div>
             {it.cleMasquee&&<div style={{fontSize:10,color:C.muted,fontFamily:"monospace"}}>{it.cleMasquee}</div>}
+            {it.email&&<div style={{fontSize:10,color:C.muted}}>{it.email}</div>}
             {it.notes&&<div style={{fontSize:10,color:C.muted}}>{it.notes}</div>}
           </div>
           <BtnGhost onClick={()=>retirerIntegration(it.id,it.nom)} style={{fontSize:10,padding:"3px 8px",color:C.red}}>Retirer</BtnGhost>
@@ -891,6 +893,10 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
             <div>
               <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Cle API (optionnel)</label>
               <Inp value={integrationForm.cle_api} onChange={e=>setIntegrationForm(f=>({...f,cle_api:e.target.value}))} placeholder="sk_live_..." style={{fontFamily:"monospace"}}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Ou email de connexion (optionnel)</label>
+              <Inp value={integrationForm.email} onChange={e=>setIntegrationForm(f=>({...f,email:e.target.value}))} placeholder="contact@exemple.com"/>
             </div>
             <div>
               <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Notes (optionnel)</label>
