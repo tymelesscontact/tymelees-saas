@@ -23,6 +23,10 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
   const[tendance,setTendance]=useState("stable");
   const[totalCharges,setTotalCharges]=useState(0);
   const[signalementsOuverts,setSignalementsOuverts]=useState([]);
+  const[infoTenant,setInfoTenant]=useState(null);
+  useEffect(()=>{
+    fetch('/api/tenant-info').then(r=>r.json()).then(d=>{setInfoTenant(d);}).catch(()=>{});
+  },[]);
 
   useEffect(()=>{
     const load=async()=>{
@@ -117,7 +121,8 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
     </div>}
     <div style={{background:`linear-gradient(135deg,${C.card},#0A1A14)`,border:`1px solid ${C.gold}33`,borderRadius:16,padding:24,marginBottom:16}}>
       <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:6}}>XYRA · OWNER DASHBOARD</div>
-      {!vueGlobale&&activeCompany&&<div style={{fontSize:11,color:C.muted,marginBottom:4}}>{activeCompany.nom}{activeCompany.siret&&<span> · SIRET {activeCompany.siret}</span>}</div>}
+      {!vueGlobale&&activeCompany?<div style={{fontSize:11,color:C.muted,marginBottom:4}}>{activeCompany.nom}{activeCompany.siret&&<span> · SIRET {activeCompany.siret}</span>}</div>
+      :infoTenant?.societe&&<div style={{fontSize:11,color:C.muted,marginBottom:4}}>{infoTenant.societe}{infoTenant.siret&&<span> · SIRET {infoTenant.siret}</span>}</div>}
       <div style={{fontSize:26,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>Bonjour ✦</div>
       <div style={{fontSize:11,color:C.muted,marginBottom:16,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
         {new Date().toLocaleDateString("fr-FR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})} · Paris

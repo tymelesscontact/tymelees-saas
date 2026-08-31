@@ -14,5 +14,6 @@ export async function GET(req: NextRequest) {
     email: tenant.email,
     secteur: tenant.secteur,
     secteur_overrides: tenant.secteur_overrides,
+    siret: tenant.siret,
   })
 }
