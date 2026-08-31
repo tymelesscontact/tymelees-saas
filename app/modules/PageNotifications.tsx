@@ -21,7 +21,7 @@ const PageNotifications=({notifs,setNotifs,showToast,activeCompany})=>{
         setPrefs(data.preferences||[]);
         setNonLus(data.nonLus||0);
         // Mettre à jour les notifs du composant parent aussi
-        if(data.notifications.length>0){
+        {
           setNotifs(data.notifications.map(n=>({...n,heure:n.created_at?new Date(n.created_at).toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}):""})));
         }
       }
