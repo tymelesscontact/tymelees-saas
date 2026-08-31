@@ -637,6 +637,13 @@ export default function Xyra() {
   },[]);
 
   const[notifs,setNotifs]=useState(INIT_NOTIFS);
+  useEffect(()=>{
+    fetch('/api/notifications').then(r=>r.json()).then(d=>{
+      if(d.notifications&&d.notifications.length>0){
+        setNotifs(d.notifications.map(n=>({...n,heure:n.created_at?new Date(n.created_at).toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}):""})));
+      }
+    }).catch(()=>{});
+  },[]);
   const[toast,setToast]=useState(null);
   const[profil,setProfil]=useState(PROFIL_DEFAUT);
   const{companies,setCompanies,activeCompany,setActiveCompany,vueGlobale,setVueGlobale}=useMultiSocietes();
