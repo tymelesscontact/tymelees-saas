@@ -341,6 +341,42 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
   };
+  const[integrationsPerso,setIntegrationsPerso]=useState([]);
+  const[modaleIntegrationOuverte,setModaleIntegrationOuverte]=useState(false);
+  const[integrationForm,setIntegrationForm]=useState({nom:"",cle_api:"",email:"",notes:""});
+  const[integrationEnCours,setIntegrationEnCours]=useState(false);
+  useEffect(()=>{
+    fetch('/api/integrations').then(r=>r.json()).then(d=>{
+      setIntegrationsPerso(d.integrations||[]);
+    }).catch(()=>{});
+  },[]);
+  const ouvrirModaleIntegration=(nomSuggere="")=>{
+    setIntegrationForm({nom:nomSuggere,cle_api:"",notes:""});
+    setModaleIntegrationOuverte(true);
+  };
+  const ajouterIntegration=async()=>{
+    if(!integrationForm.nom.trim())return showToast("⚠️ Nom requis");
+    if(!integrationForm.cle_api.trim()&&!integrationForm.email.trim())return showToast("⚠️ Cle API ou email requis");
+    setIntegrationEnCours(true);
+    try{
+      const res=await fetch('/api/integrations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter',nom:integrationForm.nom,cle_api:integrationForm.cle_api,email:integrationForm.email,notes:integrationForm.notes})});
+      const data=await res.json();
+      if(data.success){
+        setIntegrationsPerso(list=>[{...data.integration,cleMasquee:integrationForm.cle_api?"••••"+integrationForm.cle_api.slice(-4):null,created_at:new Date().toISOString()},...list]);
+        setModaleIntegrationOuverte(false);
+        showToast(`✅ ${integrationForm.nom} ajoute`);
+      }else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setIntegrationEnCours(false);
+  };
+  const retirerIntegration=async(id,nom)=>{
+    try{
+      const res=await fetch('/api/integrations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'retirer',id})});
+      const data=await res.json();
+      if(data.success){setIntegrationsPerso(list=>list.filter(x=>x.id!==id));showToast(`✅ ${nom} retire`);}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const demarrerActivation2FA=async()=>{
     setEnvoi2faEnCours(true);
     try{
@@ -805,20 +841,74 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       </Card>
     </div>}
 
-    {onglet==="integrations"&&<div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
-      {INTEGRATIONS.map((it,i)=><Card key={i} style={{borderColor:`${it.color}22`}}>
-        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
-          <div style={{display:"flex",alignItems:"center",gap:10}}>
-            <div style={{fontSize:24}}>{it.icon}</div>
-            <div><div style={{fontSize:13,fontWeight:700}}>{it.nom}</div><div style={{fontSize:10,color:C.muted}}>{it.desc}</div></div>
+    {onglet==="integrations"&&<div>
+      <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:10,padding:12,marginBottom:14,fontSize:11,color:C.text}}>
+        💡 Les outils ci-dessous sont deja configures pour toute la plateforme Xyra. Pour connecter vos propres outils (Stripe, votre agenda, ou n'importe quel autre service), utilisez la section en dessous.
+      </div>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16}}>
+        {INTEGRATIONS.filter(it=>["Meta WhatsApp API","Flutterwave","CinetPay","Supabase","Vercel","Chorus Pro"].includes(it.nom)).map((it,i)=><Card key={i} style={{borderColor:`${it.color}22`}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+            <div style={{display:"flex",alignItems:"center",gap:10}}>
+              <div style={{fontSize:24}}>{it.icon}</div>
+              <div><div style={{fontSize:13,fontWeight:700}}>{it.nom}</div><div style={{fontSize:10,color:C.muted}}>{it.desc}</div></div>
+            </div>
+            <Pill color={C.green}>● Actif pour tous</Pill>
           </div>
-          <Pill color={it.statut?C.green:C.muted}>{it.statut?"● Connecté":"○ Non connecté"}</Pill>
+        </Card>)}
+      </div>
+      <STitle style={{marginBottom:10}}>🔌 Vos outils personnels</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16}}>
+        {["Stripe","Google Calendar","Zapier"].map(nomSuggere=>{
+          const dejaAjoute=integrationsPerso.find(x=>x.nom===nomSuggere);
+          return <Card key={nomSuggere}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+              <div style={{fontSize:13,fontWeight:700}}>{nomSuggere}</div>
+              <Pill color={dejaAjoute?C.green:C.muted}>{dejaAjoute?"● Connecte":"○ Non connecte"}</Pill>
+            </div>
+            {!dejaAjoute&&<Btn onClick={()=>ouvrirModaleIntegration(nomSuggere)} style={{width:"100%",fontSize:11}}>Connecter</Btn>}
+          </Card>;
+        })}
+      </div>
+      {integrationsPerso.length>0&&<Card style={{marginBottom:12}}>
+        <STitle>Vos outils connectes</STitle>
+        {integrationsPerso.map(it=><div key={it.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:`1px solid ${C.border}22`}}>
+          <div>
+            <div style={{fontSize:12,fontWeight:600}}>{it.nom}</div>
+            {it.cleMasquee&&<div style={{fontSize:10,color:C.muted,fontFamily:"monospace"}}>{it.cleMasquee}</div>}
+            {it.email&&<div style={{fontSize:10,color:C.muted}}>{it.email}</div>}
+            {it.notes&&<div style={{fontSize:10,color:C.muted}}>{it.notes}</div>}
+          </div>
+          <BtnGhost onClick={()=>retirerIntegration(it.id,it.nom)} style={{fontSize:10,padding:"3px 8px",color:C.red}}>Retirer</BtnGhost>
+        </div>)}
+      </Card>}
+      <BtnGhost onClick={()=>ouvrirModaleIntegration()} style={{width:"100%"}}>+ Ajouter un autre outil</BtnGhost>
+      {modaleIntegrationOuverte&&<div onClick={()=>!integrationEnCours&&setModaleIntegrationOuverte(false)} style={{position:"fixed",inset:0,background:"rgba(6,4,12,.78)",backdropFilter:"blur(4px)",zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",padding:20}}>
+        <div onClick={e=>e.stopPropagation()} style={{width:"100%",maxWidth:440,background:C.card||"#15131E",border:`1px solid ${C.border}`,borderRadius:16,padding:24}}>
+          <div style={{fontSize:16,fontWeight:700,color:C.text,marginBottom:16}}>Connecter un outil</div>
+          <div style={{display:"flex",flexDirection:"column",gap:12}}>
+            <div>
+              <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Nom de l'outil *</label>
+              <Inp value={integrationForm.nom} onChange={e=>setIntegrationForm(f=>({...f,nom:e.target.value}))} placeholder="Ex: Stripe, Mon logiciel de facturation..."/>
+            </div>
+            <div>
+              <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Cle API (optionnel)</label>
+              <Inp value={integrationForm.cle_api} onChange={e=>setIntegrationForm(f=>({...f,cle_api:e.target.value}))} placeholder="sk_live_..." style={{fontFamily:"monospace"}}/>
+            </div>
+            <div>
+              <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Ou email de connexion (optionnel)</label>
+              <Inp value={integrationForm.email} onChange={e=>setIntegrationForm(f=>({...f,email:e.target.value}))} placeholder="contact@exemple.com"/>
+            </div>
+            <div>
+              <label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Notes (optionnel)</label>
+              <Inp value={integrationForm.notes} onChange={e=>setIntegrationForm(f=>({...f,notes:e.target.value}))} placeholder="Ex: Compte principal"/>
+            </div>
+          </div>
+          <div style={{display:"flex",gap:8,marginTop:16}}>
+            <BtnGhost onClick={()=>setModaleIntegrationOuverte(false)} disabled={integrationEnCours} style={{flex:1}}>Annuler</BtnGhost>
+            <Btn onClick={ajouterIntegration} disabled={integrationEnCours} style={{flex:1}}>{integrationEnCours?"...":"Ajouter"}</Btn>
+          </div>
         </div>
-        <div style={{display:"flex",gap:6}}>
-          <BtnGhost onClick={()=>showToast(`✅ ${it.nom} ${it.statut?"déconnecté":"connecté"}`)} style={{flex:1,fontSize:11,color:it.statut?C.red:C.green,borderColor:`${it.statut?C.red:C.green}33`}}>{it.statut?"Déconnecter":"Connecter"}</BtnGhost>
-          {it.statut&&<BtnGhost onClick={()=>showToast(`⚙ Paramètres ${it.nom}`)} style={{fontSize:11}}>⚙</BtnGhost>}
-        </div>
-      </Card>)}
+      </div>}
     </div>}
 
     {/* ── IA & CLAUDE ── */}
