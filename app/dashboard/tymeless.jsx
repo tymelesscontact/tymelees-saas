@@ -660,7 +660,7 @@ export default function Xyra() {
   const badges={notifs:notifs.filter(n=>!n.lu).length,devis:INIT_DEVIS.filter(d=>d.statut==="en_attente").length,crm:CRM_LEADS.filter(l=>l.etape==="Nouveau").length,comm:2,chat_eq:MSGS_EQUIPE.filter(m=>!m.lu).length,stock:STOCK.filter(s=>s.qte<s.min).length};
 
   const pageMap={
-    accueil:<PageAccueilModule notifs={notifs} setNotifs={setNotifs} profil={profil} setPage={setPage}/>,
+    accueil:<PageAccueilModule notifs={notifs} setNotifs={setNotifs} profil={profil} setPage={setPage} activeCompany={activeCompany} vueGlobale={vueGlobale}/>,
     // Pages bientôt disponibles
     ...Object.fromEntries(Object.entries(SOON_MODULES).map(([k,v])=>[k,<PageBientot key={k} {...v}/>])),
     wallet:<PageWalletModule plan={plan} showToast={showToast} profil={profil} activeCompany={activeCompany} METHODES_PAY={METHODES_PAY} Convertisseur={Convertisseur} IbanMondial={IbanMondial}/>,
