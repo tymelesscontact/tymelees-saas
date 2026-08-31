@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, STitle } from "../lib/ui";
 
-const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
+const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>{
   const nonLus=notifs.filter(n=>!n.lu).length;
   useEffect(()=>{
     fetch("/api/signalements").then(r=>r.json()).then(d=>{
@@ -27,10 +27,11 @@ const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
   useEffect(()=>{
     const load=async()=>{
       try{
+        const cid=(!vueGlobale&&activeCompany?.id)?`&company_id=${activeCompany.id}`:"";
         const[wRes,fRes,chRes]=await Promise.all([
-          fetch('/api/wallet?action=list').then(r=>r.json()).catch(()=>({})),
-          fetch('/api/factures?action=list').then(r=>r.json()).catch(()=>({})),
-          fetch('/api/charges').then(r=>r.json()).catch(()=>({})),
+          fetch(`/api/wallet?action=list${cid}`).then(r=>r.json()).catch(()=>({})),
+          fetch(`/api/factures?action=list${cid}`).then(r=>r.json()).catch(()=>({})),
+          fetch(`/api/charges${cid?"?"+cid.slice(1):""}`).then(r=>r.json()).catch(()=>({})),
         ]);
         const now=new Date();
         const moisActuel=now.getMonth(),anneeActuelle=now.getFullYear();
@@ -60,7 +61,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
         const comm=txs.filter(t=>t.type==="commission"&&t.statut==="à_virer").reduce((a,t)=>a+Number(t.montant||0),0);
         setCommissionsAVirer(comm);
         try{
-          const crmRes=await fetch('/api/crm').then(r=>r.json()).catch(()=>({}));
+          const crmRes=await fetch(`/api/crm${cid?"?"+cid.slice(1):""}`).then(r=>r.json()).catch(()=>({}));
           setLeadsEnAttente((crmRes.leads||[]).filter(l=>l.etape==="Nouveau").length);
         }catch(e){}
         try{
@@ -116,6 +117,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage})=>{
     </div>}
     <div style={{background:`linear-gradient(135deg,${C.card},#0A1A14)`,border:`1px solid ${C.gold}33`,borderRadius:16,padding:24,marginBottom:16}}>
       <div style={{fontSize:9,color:C.gold,letterSpacing:"0.2em",marginBottom:6}}>XYRA · OWNER DASHBOARD</div>
+      {!vueGlobale&&activeCompany&&<div style={{fontSize:11,color:C.muted,marginBottom:4}}>{activeCompany.nom}{activeCompany.siret&&<span> · SIRET {activeCompany.siret}</span>}</div>}
       <div style={{fontSize:26,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>Bonjour ✦</div>
       <div style={{fontSize:11,color:C.muted,marginBottom:16,display:"flex",alignItems:"center",gap:10,flexWrap:"wrap"}}>
         {new Date().toLocaleDateString("fr-FR",{weekday:"long",year:"numeric",month:"long",day:"numeric"})} · Paris

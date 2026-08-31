@@ -13,7 +13,7 @@ const PageMultiSocietes=({plan,showToast,UpgradeWall})=>{
   const[devise,setDevise]=useState("EUR");
   const[showAddForm,setShowAddForm]=useState(false);
   const[showTransferForm,setShowTransferForm]=useState(false);
-  const[newCompany,setNewCompany]=useState({nom:"",pays:"France",metier:"",devise:"EUR",couleur:"#C9A84C"});
+  const[newCompany,setNewCompany]=useState({nom:"",pays:"France",metier:"",devise:"EUR",couleur:"#C9A84C",siret:""});
   const[newTransfer,setNewTransfer]=useState({from_company_id:"",to_company_id:"",montant:"",devise:"EUR",libelle:""});
   const[selectedCompany,setSelectedCompany]=useState(null);
 
@@ -47,7 +47,7 @@ const PageMultiSocietes=({plan,showToast,UpgradeWall})=>{
       const{data:{session}}=await sb.auth.getSession();
       const res=await fetch('/api/multi-societes',{method:'POST',headers:{'Content-Type':'application/json','Authorization':`Bearer ${session?.access_token}`},body:JSON.stringify({action:'create_company',...newCompany})});
       const d=await res.json();
-      if(d.success){showToast("✅ Société ajoutée");setShowAddForm(false);setNewCompany({nom:"",pays:"France",metier:"",devise:"EUR",couleur:"#C9A84C"});load();}
+      if(d.success){showToast("✅ Société ajoutée");setShowAddForm(false);setNewCompany({nom:"",pays:"France",metier:"",devise:"EUR",couleur:"#C9A84C",siret:""});load();}
       else showToast("❌ "+d.error);
     }catch(e){showToast("❌ Erreur");}
   };
@@ -100,6 +100,7 @@ const PageMultiSocietes=({plan,showToast,UpgradeWall})=>{
         <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Nom *</label><Inp value={newCompany.nom} onChange={e=>setNewCompany(c=>({...c,nom:e.target.value}))} placeholder="Ex: Tymeless CI"/></div>
         <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Pays</label><Inp value={newCompany.pays} onChange={e=>setNewCompany(c=>({...c,pays:e.target.value}))} placeholder="France"/></div>
         <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Métier</label><Inp value={newCompany.metier} onChange={e=>setNewCompany(c=>({...c,metier:e.target.value}))} placeholder="Nettoyage"/></div>
+        <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>SIRET</label><Inp value={newCompany.siret} onChange={e=>setNewCompany(c=>({...c,siret:e.target.value}))} placeholder="123 456 789 00012"/></div>
         <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Devise</label>
           <Sel value={newCompany.devise} onChange={e=>setNewCompany(c=>({...c,devise:e.target.value}))}>
             {DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}

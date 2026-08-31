@@ -82,18 +82,18 @@ export async function POST(req: NextRequest) {
   const { action } = body;
 
   if (action === 'create_company') {
-    const { nom, pays, metier, devise, couleur } = body;
+    const { nom, pays, metier, devise, couleur, siret } = body;
     const authHeader = req.headers.get('authorization') || '';
     const token = authHeader.replace('Bearer ', '');
     const { data: { user: authUser } } = await sb.auth.getUser(token);
-    const { data, error } = await sb.from('companies').insert({ nom, pays, metier, devise: devise || 'EUR', couleur: couleur || '#C9A84C', owner_id: authUser?.id }).select().single();
+    const { data, error } = await sb.from('companies').insert({ nom, pays, metier, devise: devise || 'EUR', couleur: couleur || '#C9A84C', siret: siret || null, owner_id: authUser?.id }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, company: data });
   }
 
   if (action === 'update_company') {
-    const { id, nom, pays, metier, devise, couleur } = body;
-    const { error } = await sb.from('companies').update({ nom, pays, metier, devise, couleur }).eq('id', id);
+    const { id, nom, pays, metier, devise, couleur, siret } = body;
+    const { error } = await sb.from('companies').update({ nom, pays, metier, devise, couleur, siret: siret || null }).eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
