@@ -44,32 +44,43 @@ export async function POST(req: NextRequest) {
   const { action } = body;
 
   if (action === 'creer') {
+    if (!tenantId) return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
     const { nom, email, tel, ville, metier, pays } = body;
     if (!nom) return NextResponse.json({ error: 'Nom requis' }, { status: 400 });
     const { data, error } = await sb.from('clients').insert({
-      nom, email, tel, ville, metier, pays: pays || '🇫🇷', statut: 'actif', vip: false,
+      nom, email, tel, ville, metier, pays: pays || '🇫🇷', statut: 'actif', vip: false, tenant_id: tenantId,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    try {
+      await sb.from('notifications').insert({
+        tenant_id: tenantId, type: 'client', icon: '👤', urgence: 'normale',
+        titre: `Nouveau client : ${nom}`, message: ville ? `${ville}` : '',
+        action_type: 'client', action_id: data.id, lu: false, traite: false,
+      });
+    } catch (e) { /* non bloquant */ }
     return NextResponse.json({ success: true, client: data });
   }
 
   if (action === 'toggle_vip') {
+    if (!tenantId) return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
     const { id, vip } = body;
-    const { error } = await sb.from('clients').update({ vip, statut: vip ? 'VIP' : 'actif' }).eq('id', id);
+    const { error } = await sb.from('clients').update({ vip, statut: vip ? 'VIP' : 'actif' }).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
 
   if (action === 'modifier') {
+    if (!tenantId) return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
     const { id, ...fields } = body;
-    const { error } = await sb.from('clients').update(fields).eq('id', id);
+    const { error } = await sb.from('clients').update(fields).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
 
   if (action === 'supprimer') {
+    if (!tenantId) return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
     const { id } = body;
-    const { error } = await sb.from('clients').delete().eq('id', id);
+    const { error } = await sb.from('clients').delete().eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
