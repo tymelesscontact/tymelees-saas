@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
 
     const { data: devisRow, error: findErr } = await supabase
       .from("devis")
-      .select("id,statut,client_email")
+      .select("id,statut,client_email,tenant_id,client_nom,montant")
       .eq("reference", reference)
       .single()
 
@@ -40,6 +40,23 @@ export async function POST(req: NextRequest) {
 
     if (updateErr) {
       return NextResponse.json({ success: false, error: updateErr.message }, { status: 500 })
+    }
+
+    if (devisRow.tenant_id) {
+      try {
+        await supabase.from("notifications").insert({
+          tenant_id: devisRow.tenant_id,
+          type: "devis",
+          icon: "✅",
+          urgence: "normale",
+          titre: `Devis signé par ${devisRow.client_nom || "un client"}`,
+          message: `${devisRow.montant || 0}€ — Reference ${reference}`,
+          action_type: "devis",
+          action_id: devisRow.id,
+          lu: false,
+          traite: false,
+        })
+      } catch (e) { /* non bloquant */ }
     }
 
     try {
