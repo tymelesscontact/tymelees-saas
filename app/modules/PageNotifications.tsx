@@ -21,7 +21,7 @@ const PageNotifications=({notifs,setNotifs,showToast,activeCompany})=>{
         setPrefs(data.preferences||[]);
         setNonLus(data.nonLus||0);
         // Mettre à jour les notifs du composant parent aussi
-        if(data.notifications.length>0){
+        {
           setNotifs(data.notifications.map(n=>({...n,heure:n.created_at?new Date(n.created_at).toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"}):""})));
         }
       }
@@ -40,6 +40,13 @@ const PageNotifications=({notifs,setNotifs,showToast,activeCompany})=>{
       await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer',id})});
       _loadNotifs();
     }catch(e){}
+  };
+  const _marquerTraite=async(id)=>{
+    try{
+      await fetch('/api/notifications',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'traiter',id})});
+      setNotifs(ns=>ns.filter(x=>x.id!==id));
+      showToast("✅ Notification traitee");
+    }catch(e){showToast("❌ Erreur de connexion");}
   };
   const _digestQuotidien=async()=>{
     showToast("⏳ Envoi du digest WhatsApp...");
@@ -109,10 +116,13 @@ const PageNotifications=({notifs,setNotifs,showToast,activeCompany})=>{
         </div>
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:8}}>
-        {filtered.map((n,i)=><SwipeableNotif key={n.id||i} n={n} i={i} typeColor={typeColor}
-          onOpen={()=>{setNotifs(ns=>ns.map(x=>x===n?{...x,lu:true}:x));if(n.id)_marquerLu(n.id);}}
-          onDelete={()=>{setNotifs(ns=>ns.filter(x=>x!==n));if(n.id)_supprimerNotif(n.id);else showToast("🗑 Notification supprimée");}}
-        />)}
+        {filtered.map((n,i)=><div key={n.id||i} style={{display:"flex",gap:6,alignItems:"stretch"}}>
+          <div style={{flex:1}}><SwipeableNotif n={n} i={i} typeColor={typeColor}
+            onOpen={()=>{setNotifs(ns=>ns.map(x=>x===n?{...x,lu:true}:x));if(n.id)_marquerLu(n.id);}}
+            onDelete={()=>{setNotifs(ns=>ns.filter(x=>x!==n));if(n.id)_supprimerNotif(n.id);else showToast("🗑 Notification supprimée");}}
+          /></div>
+          {n.id&&<button onClick={()=>_marquerTraite(n.id)} style={{background:"transparent",border:`1px solid ${C.green}44`,color:C.green,borderRadius:8,padding:"0 12px",cursor:"pointer",fontSize:10,fontFamily:"inherit",whiteSpace:"nowrap"}}>✓ Traiter</button>}
+        </div>)}
         {filtered.length===0&&<div style={{textAlign:"center",padding:40,color:C.muted}}>✅ Aucune notification pour ce filtre</div>}
       </div>
     </div>}

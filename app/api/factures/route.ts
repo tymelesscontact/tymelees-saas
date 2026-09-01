@@ -181,8 +181,17 @@ export async function POST(req: NextRequest) {
   if (action === 'marquer_payee') {
     if (!tenantIdPost) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { id } = body;
-    const { error } = await sb.from('factures').update({ statut: 'payée' }).eq('id', id).eq('tenant_id', tenantIdPost);
+    const { data: factureMaj, error } = await sb.from('factures').update({ statut: 'payée' }).eq('id', id).eq('tenant_id', tenantIdPost).select().maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (factureMaj) {
+      try {
+        await sb.from('notifications').insert({
+          tenant_id: tenantIdPost, type: 'facture', icon: '💰', urgence: 'normale',
+          titre: `Facture payee : ${factureMaj.client_nom || 'client'}`, message: `${factureMaj.montant_ttc || 0}€ — ${factureMaj.numero || ''}`,
+          action_type: 'facture', action_id: factureMaj.id, lu: false, traite: false,
+        });
+      } catch (e) { /* non bloquant */ }
+    }
     return NextResponse.json({ success: true });
   }
 

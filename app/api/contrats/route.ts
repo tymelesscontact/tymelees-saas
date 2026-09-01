@@ -122,6 +122,13 @@ export async function POST(req: NextRequest) {
       if (tenantOwner?.email) {
         await sendEmail(tenantOwner.email, `Document signe - ${contrat.titre}`, `<p>Le document a ete signe electroniquement.</p>${preuve}`);
       }
+      try {
+        await sb.from('notifications').insert({
+          tenant_id: contrat.tenant_id, type: 'contrat', icon: '📝', urgence: 'normale',
+          titre: `Contrat signe : ${contrat.titre}`, message: `Signe par ${nom_tape}`,
+          action_type: 'contrat', action_id: contrat.id, lu: false, traite: false,
+        });
+      } catch (e) { /* non bloquant */ }
     }
     return NextResponse.json({ success: true });
   }
