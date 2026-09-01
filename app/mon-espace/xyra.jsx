@@ -709,7 +709,7 @@ export default function Xyra() {
     loadData();
   },[]);
 
-  const[notifs,setNotifs]=useState(INIT_NOTIFS);
+  const[notifs,setNotifs]=useState([]);
   useEffect(()=>{
     fetch('/api/notifications').then(r=>r.json()).then(d=>{
       if(d.notifications){
