@@ -76,7 +76,7 @@ export async function POST(req: NextRequest) {
     if (!contrat) return NextResponse.json({ success: false, error: 'Contrat introuvable' }, { status: 404 });
     const lien_token = crypto.randomBytes(24).toString('hex');
     const code_verification = String(Math.floor(100000 + Math.random() * 900000));
-    await sb.from('contrats').update({ lien_token, code_verification, statut: 'envoye' }).eq('id', id);
+    await sb.from('contrats').update({ lien_token, code_verification, statut: 'envoye', tentatives_code: 0 }).eq('id', id);
     const lien = `https://xyraio.fr/signature/${lien_token}`;
     const messageBloc = message_perso ? `<p>${message_perso}</p>` : '';
     const r1 = await sendEmail(contrat.signataire_email, `Document a signer - ${contrat.titre}`,
@@ -93,7 +93,13 @@ export async function POST(req: NextRequest) {
     const { lien_token, code } = body;
     const { data: contrat } = await sb.from('contrats').select('*').eq('lien_token', lien_token).single();
     if (!contrat) return NextResponse.json({ success: false, error: 'Document introuvable' }, { status: 404 });
-    if (contrat.code_verification !== code) return NextResponse.json({ success: false, error: 'Code incorrect' }, { status: 400 });
+    if ((contrat.tentatives_code || 0) >= 5) {
+      return NextResponse.json({ success: false, error: 'Trop de tentatives — demandez un nouvel envoi du document' }, { status: 429 });
+    }
+    if (contrat.code_verification !== code) {
+      await sb.from('contrats').update({ tentatives_code: (contrat.tentatives_code || 0) + 1 }).eq('id', contrat.id);
+      return NextResponse.json({ success: false, error: 'Code incorrect' }, { status: 400 });
+    }
     await sb.from('contrats').update({ code_verifie_a: new Date().toISOString() }).eq('id', contrat.id);
     let branding = { logo_url: null, couleur_primaire: '#C9A84C', couleur_secondaire: '#0A0A16', couleur_accent: '#2EC9B0', societe: 'Xyra' };
     if (contrat.tenant_id) {

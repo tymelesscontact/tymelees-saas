@@ -9,7 +9,6 @@ const API_OUVERTES = [
   '/api/reservation-publique',
   '/api/boutique',
   '/api/commandes',
-  '/api/contrats',
   '/api/create-checkout',
   '/api/create-checkout-flutterwave',
   '/api/generer-secteur',
@@ -46,6 +45,23 @@ export async function middleware(req: NextRequest) {
   }
   if (path === '/api/devis/refuser' && req.method === 'POST') {
     return NextResponse.next()
+  }
+
+  // Contrats : /api/contrats n'est plus public dans son ensemble. Seules les
+  // 2 actions destinees au signataire (qui n'a pas de session) restent
+  // ouvertes -- verifier_code et signer, toutes deux protegees par un
+  // lien_token aleatoire + un code de verification a usage separe.
+  // Toutes les autres actions (generer, envoyer, annuler, listes) exigent
+  // desormais la session complete (auth + 2FA + session non revoquee).
+  if (path === '/api/contrats' && req.method === 'POST') {
+    try {
+      const bodyClone = await req.clone().json()
+      if (bodyClone?.action === 'verifier_code' || bodyClone?.action === 'signer') {
+        return NextResponse.next()
+      }
+    } catch (e) {
+      // Corps illisible -> laisse retomber dans le flux d'authentification normal.
+    }
   }
 
   if (isApi && API_OUVERTES.some(p => path === p || path.startsWith(p + '/'))) {
