@@ -119,6 +119,46 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
     win.document.close();
   };
 
+  const apercuPDFExistant=(d)=>{
+    const win=window.open("","_blank");
+    if(!win)return showToast("⚠️ Autorisez les pop-ups pour voir l'aperçu");
+    const nomEntreprise=branding?.societe||"Xyra";
+    const logoHtml=branding?.logo_url?`<img src="${branding.logo_url}" alt="${nomEntreprise}" style="max-height:36px;" />`:`<h1>${nomEntreprise}</h1>`;
+    const lignesHtml=(d.lignes||[]).map(l=>`<tr><td style="padding:8px 0;border-bottom:1px solid #1E1E3633;">${l.desc}</td><td style="padding:8px 0;text-align:center;border-bottom:1px solid #1E1E3633;">${l.qte}</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #1E1E3633;">${l.pu}€</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #1E1E3633;">${(l.qte*l.pu).toFixed(2)}€</td></tr>`).join("");
+    win.document.write(`<!DOCTYPE html><html><head><title>Devis — ${d.client}</title><style>
+      body{font-family:'Segoe UI',sans-serif;background:#fff;color:#111;padding:40px;max-width:700px;margin:0 auto;}
+      h1{font-size:22px;color:#C9A84C;font-family:Georgia,serif;letter-spacing:.1em;}
+      table{width:100%;border-collapse:collapse;font-size:13px;margin-top:20px;}
+      th{text-align:left;padding-bottom:8px;color:#888;border-bottom:2px solid #ddd;}
+      .total{text-align:right;margin-top:20px;font-size:20px;font-weight:700;color:#C9A84C;}
+      .btn{background:#C9A84C;color:#000;border:none;padding:10px 24px;border-radius:6px;font-weight:700;cursor:pointer;margin-top:30px;}
+      @media print{.btn{display:none;}}
+    </style></head><body>
+      ${logoHtml}
+      <p style="color:#888;font-size:11px;">Devis pour ${d.client}${d.email?" · "+d.email:""}${d.tel?" · "+d.tel:""}</p>
+      <h2 style="margin-top:20px;">${d.service||"Devis"}</h2>
+      <table><tr><th>Description</th><th>Qté</th><th style="text-align:right;">PU</th><th style="text-align:right;">Total</th></tr>${lignesHtml}</table>
+      <div class="total">Total TTC : ${Number(d.montant).toFixed(2)}€</div>
+      ${d.note?`<p style="margin-top:16px;color:#666;font-size:12px;">${d.note}</p>`:""}
+      <button class="btn" onclick="window.print()">🖨 Imprimer / Enregistrer en PDF</button>
+    </body></html>`);
+    win.document.close();
+  };
+
+  const relancerDevis=async(d)=>{
+    showToast("📤 Envoi en cours...");
+    try{
+      const res=await fetch('/api/devis/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:d.id})});
+      const data=await res.json();
+      if(data.success){
+        const sent=[];
+        if(data.results?.email)sent.push("email");
+        if(data.results?.whatsapp)sent.push("WhatsApp");
+        showToast(sent.length?`✅ Relance envoyée à ${d.client} par ${sent.join(" et ")}`:"⚠️ Échec de l'envoi — vérifiez la config");
+      }else showToast("❌ "+(data.error||"Erreur d'envoi"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
   const creerEtEnvoyer=async()=>{
     if(!form.client)return showToast("⚠️ Remplissez le nom du client");
     if(!form.email&&!form.tel)return showToast("⚠️ Ajoutez un email ou un téléphone pour envoyer le devis");
@@ -197,9 +237,8 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
   return <div style={{padding:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
       <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◧ {profil?.termes?.devis||"Devis"}</div>
-        <div style={{fontSize:11,color:C.muted}}>Créateur complet · PDF · WhatsApp · E-signature · Bot WhatsApp · {devis.length} {(profil?.termes?.devis||"devis").toLowerCase()}</div></div>
+        <div style={{fontSize:11,color:C.muted}}>Créateur complet · PDF · WhatsApp · Signature électronique · {devis.length} {(profil?.termes?.devis||"devis").toLowerCase()}</div></div>
       <div style={{display:"flex",gap:8}}>
-        <BtnGhost onClick={()=>showToast("🤖 Bot WhatsApp connecté — réponse auto activée")}>🤖 Bot WA</BtnGhost>
         <Btn onClick={()=>setOnglet("creer")}>+ Nouveau devis</Btn>
       </div>
     </div>
@@ -229,36 +268,23 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
             <Td><Pill color={statutColor[d.statut]||C.muted}>{d.statut}</Pill></Td>
             <Td onClick={e=>e.stopPropagation()}><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
               {d.statut==="brouillon"&&<Btn onClick={()=>majStatutDevis(d.dbId,{statut:"envoyé"},`📤 Devis ${d.id} marqué envoyé`)} style={{fontSize:9,padding:"3px 7px"}}>📤 Envoyer</Btn>}
-              {(d.statut==="envoyé"||d.statut==="vu")&&<Btn onClick={()=>setSignEtape({id:d.id,dbId:d.dbId,client:d.client,etape:1})} style={{fontSize:9,padding:"3px 7px",background:C.green}}>✒ Signer</Btn>}
+              {(d.statut==="envoyé"||d.statut==="vu")&&<Btn onClick={()=>setSignEtape({id:d.id,dbId:d.dbId,client:d.client})} style={{fontSize:9,padding:"3px 7px",background:C.green}}>🔗 Lien signature</Btn>}
               {d.statut==="signé"&&<Btn onClick={()=>convertirEnFacture(d)} style={{fontSize:9,padding:"3px 7px",background:C.teal}}>💳 Payé</Btn>}
-              <BtnGhost onClick={()=>showToast(`📄 PDF ${d.id} généré`)} style={{fontSize:9,padding:"3px 7px"}}>PDF</BtnGhost>
-              <BtnGhost onClick={()=>showToast(`📱 Relance envoyée à ${d.client}`)} style={{fontSize:9,padding:"3px 7px"}}>WA</BtnGhost>
+              <BtnGhost onClick={()=>apercuPDFExistant(d)} style={{fontSize:9,padding:"3px 7px"}}>PDF</BtnGhost>
+              <BtnGhost onClick={()=>relancerDevis(d)} style={{fontSize:9,padding:"3px 7px"}}>WA</BtnGhost>
             </div></Td>
           </tr>)}</tbody>
         </table>
       </Card>
       {signEtape&&<div style={{position:"fixed",inset:0,background:"#000000AA",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}}>
         <Card style={{width:440,maxWidth:"90vw"}}>
-          <div style={{fontSize:14,fontWeight:700,marginBottom:4}}>✒ Signature électronique</div>
+          <div style={{fontSize:14,fontWeight:700,marginBottom:4}}>🔗 Lien de signature</div>
           <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Devis {signEtape.id} · {signEtape.client}</div>
-          {signEtape.etape===1&&<div>
-            <div style={{fontSize:11,color:C.text,lineHeight:1.7,marginBottom:12}}>Vous allez signer électroniquement ce devis. La signature a valeur légale (règlement eIDAS).</div>
-            <div style={{display:"flex",gap:8}}><Btn onClick={()=>setSignEtape(s=>({...s,etape:2}))}>Continuer →</Btn><BtnGhost onClick={()=>setSignEtape(null)}>Annuler</BtnGhost></div>
-          </div>}
-          {signEtape.etape===2&&<div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:8}}>Tapez votre nom pour valider :</div>
-            <Inp placeholder={signEtape.client} style={{marginBottom:10}}/>
-            <div style={{fontSize:10,color:C.muted,marginBottom:10}}>📍 IP + horodatage enregistrés · Conforme eIDAS</div>
-            <div style={{display:"flex",gap:8}}><Btn onClick={()=>setSignEtape(s=>({...s,etape:3}))} style={{background:C.green}}>✒ Signer</Btn><BtnGhost onClick={()=>setSignEtape(s=>({...s,etape:1}))}>← Retour</BtnGhost></div>
-          </div>}
-          {signEtape.etape===3&&<div style={{textAlign:"center",padding:"10px 0"}}>
-            <div style={{fontSize:32,marginBottom:8}}>✅</div>
-            <div style={{fontSize:14,fontWeight:700,color:C.green,marginBottom:4}}>Devis signé !</div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>Signé le {new Date().toLocaleDateString("fr")} — eIDAS conforme</div>
-            <div style={{display:"flex",gap:8,justifyContent:"center"}}>
-              <Btn onClick={async()=>{await majStatutDevis(signEtape.dbId,{statut:"signé"},"✅ Signe ! PDF envoye par email et WhatsApp");setSignEtape(null);}}>📄 Télécharger PDF signé</Btn>
-            </div>
-          </div>}
+          <div style={{fontSize:11,color:C.text,lineHeight:1.7,marginBottom:14}}>Le client signe lui-même en ligne, via le lien qui lui a été envoyé. Ce bouton renvoie ce lien par email et/ou WhatsApp — rien n'est signé ici.</div>
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={async()=>{await relancerDevis({id:signEtape.id,dbId:signEtape.dbId,client:signEtape.client});setSignEtape(null);}}>📤 Renvoyer le lien</Btn>
+            <BtnGhost onClick={()=>setSignEtape(null)}>Fermer</BtnGhost>
+          </div>
         </Card>
       </div>}
       {editDevis&&<div style={{position:"fixed",inset:0,background:"#000000AA",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}}>
@@ -367,9 +393,7 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
           "Bonjour {d.client}, je me permets de vous relancer concernant notre devis {d.id} de {fmt(d.montant)} pour {d.service}. Avez-vous eu l'occasion de le consulter ? Je reste disponible pour tout ajustement."
         </div>
         <div style={{display:"flex",gap:8}}>
-          <Btn onClick={()=>showToast(`📱 Relance envoyée à ${d.client} via WhatsApp`)} style={{fontSize:11}}>📱 Envoyer relance WA</Btn>
-          <BtnGhost onClick={()=>showToast(`📧 Relance email envoyée à ${d.client}`)} style={{fontSize:11}}>📧 Email</BtnGhost>
-          <BtnGhost onClick={()=>showToast("🤖 Relance IA personnalisée générée")} style={{fontSize:11}}>🤖 Personnaliser</BtnGhost>
+          <Btn onClick={()=>relancerDevis(d)} style={{fontSize:11}}>🔁 Relancer (email + WhatsApp)</Btn>
         </div>
       </Card>)}
       <Card>

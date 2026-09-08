@@ -186,7 +186,7 @@ const PageFacturation=({plan,showToast,UpgradeWall,activeCompany})=>{
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         <Card style={{background:`${C.blue}08`,borderColor:`${C.blue}33`}}>
           <STitle>📋 Mentions obligatoires</STitle>
-          {[["Numéro de facture séquentiel","✅ Auto-généré"],["Date d'émission","✅ Auto"],["Montant HT/TVA/TTC","✅ Calculé auto"],["Format structuré Factur-X","✅ Sélectionné par défaut"]].map(([m,s],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}><span>{m}</span><span style={{color:C.green,fontWeight:600}}>{s}</span></div>)}
+          {[["Numéro de facture séquentiel","✅ Auto-généré",C.green],["Date d'émission","✅ Auto",C.green],["Montant HT/TVA/TTC","✅ Calculé auto",C.green],["Format du document","PDF simple — Factur-X prévu Phase 6",C.orange]].map(([m,s,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}><span>{m}</span><span style={{color:c,fontWeight:600}}>{s}</span></div>)}
         </Card>
         <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
           <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>💳 Encaissement</div>

@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
     const supabase = getSupabase();
     const { data: devisRow, error: findErr } = await supabase
       .from('devis')
-      .select('reference,client_nom,client_email,client_tel,service,montant,lignes,notes')
+      .select('reference,client_nom,client_email,client_tel,service,montant,lignes,notes,token_public')
       .eq('reference', id)
       .eq('tenant_id', tenantId)
       .maybeSingle();
@@ -55,7 +55,10 @@ export async function POST(req: NextRequest) {
     }
 
     // Toutes les infos envoyees viennent du devis en base, jamais du corps de la requete.
-    const { reference, client_nom: client, client_email: email, client_tel: tel, service, montant, lignes, notes: note } = devisRow;
+    const { reference, client_nom: client, client_email: email, client_tel: tel, service, montant, lignes, notes: note, token_public: tokenPublic } = devisRow;
+    const lienSignature = tokenPublic
+      ? `${process.env.NEXT_PUBLIC_SITE_URL || 'https://xyraio.fr'}/devis/${reference}?t=${tokenPublic}`
+      : null;
 
     const results: { email: boolean; whatsapp: boolean } = { email: false, whatsapp: false };
 
@@ -85,7 +88,7 @@ export async function POST(req: NextRequest) {
                 <div style="text-align:right;margin-top:16px;font-size:18px;font-weight:700;color:#C9A84C;">Total : ${montant}€</div>
                 ${note ? `<p style="margin-top:16px;font-size:12px;color:#5A5A7A;">${note}</p>` : ''}
               </div>
-              <p style="text-align:center;font-size:11px;color:#5A5A7A;">Pour valider ce devis, répondez simplement à cet email.</p>
+              ${lienSignature ? `<p style="text-align:center;margin-top:20px;"><a href="${lienSignature}" style="background:#C9A84C;color:#000;padding:12px 28px;text-decoration:none;font-weight:700;border-radius:6px;display:inline-block;">Consulter et signer le devis</a></p>` : ''}
             </div>
           `,
         });
@@ -104,7 +107,7 @@ export async function POST(req: NextRequest) {
           `Voici votre devis pour : ${service}\n` +
           `💰 Montant total : ${montant}€\n\n` +
           (note ? `${note}\n\n` : '') +
-          `Pour valider ce devis, répondez simplement *OUI* à ce message. 🙏`;
+          (lienSignature ? `👉 Consultez et signez votre devis ici :\n${lienSignature}` : `Nous revenons vers vous rapidement pour la suite.`);
         const res = await sendWhatsApp(tel, msg);
         results.whatsapp = res.ok;
       } catch (e) {
