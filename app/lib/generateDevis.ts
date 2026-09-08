@@ -11,6 +11,7 @@ export interface DevisData {
   numeroDevis: string
   lignes?: { desc?: string; qte?: number; pu?: number; tva?: number }[]
   tauxTva?: number
+  remise?: number
   tenant?: {
     societe?: string | null
     logoUrl?: string | null
@@ -83,7 +84,12 @@ export function generateDevisHTML(data: DevisData): string {
         <td style="text-align:right;">${totalLigneHT.toFixed(2)} €</td>
       </tr>`
   }).join('')
-  const totalTTC = totalHT + totalTVA
+  // Meme formule que le recapitulatif du formulaire de creation : la remise
+  // s'applique sur le total HT et se retranche du TTC (elle ne modifie pas
+  // l'assiette de TVA, qui reste calculee sur le HT plein des lignes).
+  const remise = data.remise || 0
+  const montantRemise = totalHT * (remise / 100)
+  const totalTTC = totalHT + totalTVA - montantRemise
 
   return `
 <!DOCTYPE html>
@@ -152,6 +158,7 @@ export function generateDevisHTML(data: DevisData): string {
   <div class="totaux">
     <div><span>Total HT</span><span>${totalHT.toFixed(2)} €</span></div>
     <div><span>TVA</span><span>${totalTVA.toFixed(2)} €</span></div>
+    ${remise > 0 ? `<div><span>Remise (${remise}%)</span><span>-${montantRemise.toFixed(2)} €</span></div>` : ''}
     <div class="ttc"><span>Total TTC</span><span>${totalTTC.toFixed(2)} €</span></div>
   </div>
 

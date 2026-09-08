@@ -18,6 +18,7 @@ type DevisData = {
   numeroDevis: string
   lignes?: { desc?: string; qte?: number; pu?: number; tva?: number }[]
   tauxTva?: number
+  remise?: number
   tenant?: {
     societe?: string | null
     logoUrl?: string | null
@@ -70,8 +71,16 @@ export async function POST(req: NextRequest) {
       taux_tva,
       statut,
       validite,
+      remise,
     } = body
-    const numeroDevis = `TYM-${Date.now().toString().slice(-6)}`
+    // Numerotation sequentielle par tenant (TYM-2026-0001...) plutot qu'un
+    // suffixe de timestamp, previsible et non traçable dans le temps.
+    const { count: nbDevisExistants } = await supabase
+      .from("devis")
+      .select("*", { count: "exact", head: true })
+      .eq("tenant_id", tenantId)
+    const anneeDevis = new Date().getFullYear()
+    const numeroDevis = `TYM-${anneeDevis}-${String((nbDevisExistants || 0) + 1).padStart(4, "0")}`
     const tokenPublic = crypto.randomBytes(24).toString("hex")
     const validiteJours = Math.min(365, Math.max(1, Number(validite) || 30))
     const expireLe = new Date(Date.now() + validiteJours * 24 * 60 * 60 * 1000).toISOString()
@@ -115,6 +124,7 @@ export async function POST(req: NextRequest) {
       numeroDevis,
       lignes,
       tauxTva: taux_tva ?? 20,
+      remise: Number(remise) || 0,
       tenant: tenantSnapshot ? {
         societe: tenantSnapshot.societe,
         logoUrl: tenantSnapshot.logo_url,
@@ -153,6 +163,7 @@ export async function POST(req: NextRequest) {
       lignes: lignes || null,
       notes: notes || null,
       taux_tva: taux_tva ?? 20,
+      remise: Number(remise) || 0,
       statut: statut || "brouillon",
       html: htmlContent,
     })
@@ -247,6 +258,46 @@ export async function PATCH(req: NextRequest) {
     if (!data || data.length === 0) {
       return NextResponse.json({ success: false, error: "Devis introuvable" }, { status: 404 })
     }
+
+    // Le document envoye/signe doit refleter la derniere version du devis :
+    // on le regenere des qu'un champ de contenu (pas juste le statut) change,
+    // pour eviter qu'un client garde un lien vers une version perimee.
+    const CHAMPS_CONTENU = ["client_nom", "client_email", "client_tel", "service", "montant", "notes"]
+    const contenuModifie = Object.keys(champs).some((c) => CHAMPS_CONTENU.includes(c))
+    if (contenuModifie) {
+      const { data: devisComplet } = await supabase
+        .from("devis")
+        .select("reference,client_nom,client_email,client_tel,client_adresse,service,description,montant,taux_tva,remise,lignes,created_at,expire_le,tenant_snapshot")
+        .eq("id", id)
+        .maybeSingle()
+      if (devisComplet) {
+        const ts: any = devisComplet.tenant_snapshot || {}
+        const htmlRegenere = generateDevisHTML({
+          clientName: devisComplet.client_nom || "Client",
+          clientPhone: devisComplet.client_tel,
+          clientEmail: devisComplet.client_email,
+          clientAdresse: devisComplet.client_adresse,
+          service: devisComplet.service,
+          description: devisComplet.description,
+          montant: devisComplet.montant,
+          dateDevis: new Date(devisComplet.created_at).toLocaleDateString("fr-FR"),
+          dateExpiration: devisComplet.expire_le ? new Date(devisComplet.expire_le).toLocaleDateString("fr-FR") : undefined,
+          numeroDevis: devisComplet.reference,
+          lignes: devisComplet.lignes || undefined,
+          tauxTva: devisComplet.taux_tva ?? 20,
+          remise: devisComplet.remise ?? 0,
+          tenant: {
+            societe: ts.societe, logoUrl: ts.logo_url, email: ts.email, siteWeb: ts.site_web,
+            adresse: ts.adresse, ville: ts.ville, codePostal: ts.code_postal, pays: ts.pays,
+            telephone: ts.telephone_entreprise, siret: ts.siret, siren: ts.siren,
+            formeJuridique: ts.forme_juridique, capitalSocial: ts.capital_social, rcsVille: ts.rcs_ville,
+            tvaIntracommunautaire: ts.tva_intracommunautaire,
+          },
+        })
+        await supabase.from("devis").update({ html: htmlRegenere }).eq("id", id).eq("tenant_id", tenantId)
+      }
+    }
+
     return NextResponse.json({ success: true })
   } catch (e: any) {
     console.error("PATCH /api/devis error:", e)

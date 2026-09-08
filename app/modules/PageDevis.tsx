@@ -82,7 +82,7 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
           clientName:form.client,clientPhone:form.tel,clientEmail:form.email,clientAdresse:form.adresse,
           service:serviceLabel,description:descriptionResume,
           montant:Math.round(totalTTC),lignes,notes:form.note,taux_tva:tauxTvaMoyen,statut,
-          validite:Number(form.validite)||30,
+          validite:Number(form.validite)||30,remise:Number(form.remise)||0,
         }),
       });
       const data=await res.json();
@@ -122,7 +122,7 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
       dateDevis:new Date().toLocaleDateString("fr-FR"),
       dateExpiration:new Date(Date.now()+(Number(form.validite)||30)*86400000).toLocaleDateString("fr-FR"),
       numeroDevis:"APERÇU (brouillon)",
-      lignes,tauxTva:tauxTvaMoyen,
+      lignes,tauxTva:tauxTvaMoyen,remise:Number(form.remise)||0,
       tenant:branding?{
         societe:branding.societe,logoUrl:branding.logo_url,email:branding.email,siteWeb:branding.site_web,
         adresse:branding.adresse,ville:branding.ville,codePostal:branding.code_postal,pays:branding.pays,
