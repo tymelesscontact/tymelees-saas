@@ -362,14 +362,30 @@ export async function GET(req: NextRequest) {
       }
       const { data, error } = await supabase
         .from('devis')
-        .select('reference,client_nom,client_email,service,description,montant,taux_tva,devise,statut,lignes,notes,created_at,expire_le,tenant_snapshot,html')
+        .select('id,tenant_id,reference,client_nom,client_email,service,description,montant,taux_tva,devise,statut,lignes,notes,created_at,expire_le,tenant_snapshot,html')
         .eq('reference', reference)
         .eq('token_public', token)
         .single()
       if (error || !data || (data.expire_le && new Date(data.expire_le) < new Date())) {
         return NextResponse.json({ error: 'Devis introuvable' }, { status: 404 })
       }
-      const { expire_le, ...devisPublic } = data
+      // Premiere consultation reelle par le client : on passe le statut de
+      // "envoyé" a "vu" (jamais l'inverse, jamais si deja signe/refuse/paye).
+      if (data.statut === 'envoyé') {
+        try {
+          await supabase.from('devis').update({ statut: 'vu' }).eq('id', data.id)
+          if (data.tenant_id) {
+            await supabase.from('notifications').insert({
+              tenant_id: data.tenant_id, type: 'devis', icon: '👀', urgence: 'normale',
+              titre: `Devis consulte par ${data.client_nom || 'un client'}`,
+              message: `Reference ${reference}`,
+              action_type: 'devis', action_id: data.id, lu: false, traite: false,
+            })
+          }
+        } catch (e) { /* non bloquant pour l'affichage du devis */ }
+        data.statut = 'vu'
+      }
+      const { expire_le, id, tenant_id, ...devisPublic } = data
       return NextResponse.json({ devis: devisPublic })
     }
     return NextResponse.json({ error: 'action invalide' }, { status: 400 })

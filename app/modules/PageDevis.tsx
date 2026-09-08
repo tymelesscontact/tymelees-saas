@@ -119,6 +119,17 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
     setOnglet("liste");
   };
 
+  // Repart des lignes/objet d'un devis existant pour en creer un nouveau --
+  // le client est laisse vide volontairement (on duplique la prestation,
+  // pas forcement pour le meme client).
+  const dupliquerDevis=(d)=>{
+    setModeleId("custom");
+    setLignes((d.lignes&&d.lignes.length>0?d.lignes:[{desc:d.service||"",qte:1,pu:d.montant||0,tva:d.tauxTva||20}]).map(l=>({...l})));
+    setForm(f=>({...f,client:"",email:"",tel:"",adresse:"",objet:d.service||"",validite:"30",remise:0,note:d.note||""}));
+    setOnglet("creer");
+    showToast("📋 Devis duplique — renseignez le client et verifiez les lignes");
+  };
+
   const boutonImprimerApercu=`<button onclick="window.print()" style="position:fixed;bottom:24px;right:24px;background:#C9A84C;color:#000;border:none;padding:10px 24px;border-radius:6px;font-weight:700;cursor:pointer;font-family:sans-serif;" class="btn-imprimer-apercu">🖨 Imprimer / Enregistrer en PDF</button><style>@media print{.btn-imprimer-apercu{display:none;}}</style>`;
   const ouvrirApercu=(html)=>{
     const win=window.open("","_blank");
@@ -294,6 +305,7 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
               {d.statut==="signé"&&<Btn onClick={()=>convertirEnFacture(d)} style={{fontSize:9,padding:"3px 7px",background:C.teal}}>🧾 Facturer</Btn>}
               <BtnGhost onClick={()=>apercuPDFExistant(d)} style={{fontSize:9,padding:"3px 7px"}}>PDF</BtnGhost>
               <BtnGhost onClick={()=>relancerDevis(d)} style={{fontSize:9,padding:"3px 7px"}}>WA</BtnGhost>
+              <BtnGhost onClick={()=>dupliquerDevis(d)} style={{fontSize:9,padding:"3px 7px"}} title="Dupliquer">📋</BtnGhost>
             </div></Td>
           </tr>)}</tbody>
         </table>

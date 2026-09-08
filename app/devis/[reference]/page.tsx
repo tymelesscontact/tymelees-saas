@@ -21,6 +21,7 @@ function DevisPublicPageInner() {
   const [signing, setSigning] = useState(false);
   const [confirmRefus, setConfirmRefus] = useState(false);
   const [refusing, setRefusing] = useState(false);
+  const [raisonRefus, setRaisonRefus] = useState("");
 
   useEffect(() => {
     if (!token) {
@@ -66,7 +67,7 @@ function DevisPublicPageInner() {
       const res = await fetch("/api/devis/refuser", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reference, token }),
+        body: JSON.stringify({ reference, token, raison: raisonRefus }),
       });
       const data = await res.json();
       if (data.success) {
@@ -163,7 +164,8 @@ function DevisPublicPageInner() {
           ) : etape === 1 ? (
             confirmRefus ? (
               <div>
-                <div style={{ fontSize: 13, color: C.text, marginBottom: 14, textAlign: "center" }}>Confirmer le refus de ce devis ?</div>
+                <div style={{ fontSize: 13, color: C.text, marginBottom: 10, textAlign: "center" }}>Confirmer le refus de ce devis ?</div>
+                <textarea value={raisonRefus} onChange={e => setRaisonRefus(e.target.value)} placeholder="Pourquoi ? (facultatif, ça nous aide à nous améliorer)" rows={3} maxLength={500} style={{ width: "100%", background: C.card2, border: "1px solid " + C.border, borderRadius: 6, padding: "10px", color: C.text, fontSize: 13, marginBottom: 12, boxSizing: "border-box", fontFamily: "inherit", resize: "vertical" }} />
                 <div style={{ display: "flex", gap: 8 }}>
                   <button onClick={refuser} disabled={refusing} style={{ flex: 1, background: C.red, color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: refusing ? 0.6 : 1 }}>
                     {refusing ? "..." : "Confirmer le refus"}

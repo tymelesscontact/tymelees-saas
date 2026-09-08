@@ -13,7 +13,8 @@ function getSupabase() {
 export async function POST(req: NextRequest) {
   try {
     const supabase = getSupabase()
-    const { reference, token } = await req.json()
+    const { reference, token, raison } = await req.json()
+    const raisonNettoyee = typeof raison === "string" ? raison.trim().slice(0, 500) : null
 
     if (!reference || !token) {
       return NextResponse.json({ success: false, error: "parametres manquants" }, { status: 400 })
@@ -39,7 +40,7 @@ export async function POST(req: NextRequest) {
 
     const { error: updateErr } = await supabase
       .from("devis")
-      .update({ statut: "refusé" })
+      .update({ statut: "refusé", raison_refus: raisonNettoyee || null })
       .eq("id", devisRow.id)
 
     if (updateErr) {
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
           icon: "❌",
           urgence: "normale",
           titre: `Devis refuse par ${devisRow.client_nom || "un client"}`,
-          message: `${devisRow.montant || 0}€ — Reference ${reference}`,
+          message: `${devisRow.montant || 0}€ — Reference ${reference}` + (raisonNettoyee ? ` — Motif : ${raisonNettoyee}` : ""),
           action_type: "devis",
           action_id: devisRow.id,
           lu: false,
