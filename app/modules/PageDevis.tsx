@@ -366,8 +366,8 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
           </div>
         </Card>
         <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
-          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Bot WhatsApp connecté</div>
-          <div style={{fontSize:11,color:C.text,lineHeight:1.6}}>Le devis sera automatiquement envoyé via le bot WhatsApp Xyra. Le client peut signer directement depuis WhatsApp.</div>
+          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>📱 Envoi par email / WhatsApp</div>
+          <div style={{fontSize:11,color:C.text,lineHeight:1.6}}>Avec "Créer & Envoyer" (ou "Renvoyer le lien" plus tard), le client reçoit un lien vers ce devis par email et/ou WhatsApp selon les coordonnées renseignées. Il consulte et signe depuis cette page — la signature ne se fait pas dans WhatsApp lui-même.</div>
         </Card>
       </div>
     </div>}
