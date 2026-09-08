@@ -4,6 +4,7 @@ import { createClient } from "@supabase/supabase-js"
 import crypto from "crypto"
 import { generateDevisHTML } from "../../lib/generateDevis"
 import { getTenantIdFromRequest } from "../../lib/supabaseServer"
+import { estAutoriseSignerDevisManuel } from "../../lib/permissions"
 type DevisData = {
   clientName: string
   clientPhone: string
@@ -179,6 +180,23 @@ export async function PATCH(req: NextRequest) {
     const { id, ...champs } = body
     if (!id) {
       return NextResponse.json({ success: false, error: "id manquant" }, { status: 400 })
+    }
+
+    const CHAMPS_AUTORISES = ["statut", "client_nom", "client_email", "client_tel", "service", "montant", "notes"]
+    const STATUTS_AUTORISES = ["brouillon", "envoyé", "signé", "payé"]
+    const champsInterdits = Object.keys(champs).filter((c) => !CHAMPS_AUTORISES.includes(c))
+    if (champsInterdits.length > 0) {
+      return NextResponse.json({ success: false, error: "champs_non_autorises", champs: champsInterdits }, { status: 400 })
+    }
+    if (champs.statut !== undefined && !STATUTS_AUTORISES.includes(champs.statut)) {
+      return NextResponse.json({ success: false, error: "statut_invalide" }, { status: 400 })
+    }
+    if (champs.montant !== undefined && (typeof champs.montant !== "number" || champs.montant <= 0)) {
+      return NextResponse.json({ success: false, error: "montant_invalide" }, { status: 400 })
+    }
+
+    if (champs.statut === "signé" && !(await estAutoriseSignerDevisManuel(req, tenantId))) {
+      return NextResponse.json({ success: false, error: "reserve_au_proprietaire_ou_autorise" }, { status: 403 })
     }
     const { data, error } = await supabase
       .from("devis")
