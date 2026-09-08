@@ -311,7 +311,7 @@ export async function GET(req: NextRequest) {
       }
       const { data, error } = await supabase
         .from('devis')
-        .select('reference,client_nom,client_email,service,description,montant,taux_tva,devise,statut,lignes,notes,created_at,expire_le,tenant_snapshot')
+        .select('reference,client_nom,client_email,service,description,montant,taux_tva,devise,statut,lignes,notes,created_at,expire_le,tenant_snapshot,html')
         .eq('reference', reference)
         .eq('token_public', token)
         .single()

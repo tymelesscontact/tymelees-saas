@@ -106,31 +106,48 @@ function DevisPublicPageInner() {
 
   return (
     <div style={{ minHeight: "100vh", background: C.dark, color: C.text, fontFamily: "'Segoe UI',sans-serif", padding: "40px 20px" }}>
-      <div style={{ maxWidth: 640, margin: "0 auto" }}>
-        <div style={{ textAlign: "center", marginBottom: 24 }}>
-          {devis?.tenant_snapshot?.logo_url ? (
-            <img src={devis.tenant_snapshot.logo_url} alt={devis.tenant_snapshot.societe || "Logo"} style={{ height: 40, marginBottom: 4 }} />
-          ) : (
-            <div style={{ fontSize: 22, fontWeight: 300, letterSpacing: "0.15em", color: C.gold, fontFamily: "Georgia,serif" }}>{devis?.tenant_snapshot?.societe || "XYRA"}</div>
-          )}
-        </div>
-        <div style={{ background: C.card, border: "1px solid " + C.border, borderRadius: 14, padding: 28 }}>
-          <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Devis {devis.reference}</div>
-          <div style={{ fontSize: 12, color: C.muted, marginBottom: 20 }}>Pour {devis.client_nom} - {devis.service}</div>
-          <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 16 }}>
-            <thead>
-              <tr>
-                <th style={{ textAlign: "left", paddingBottom: 8, color: C.muted }}>Description</th>
-                <th style={{ paddingBottom: 8, color: C.muted }}>Qte</th>
-                <th style={{ textAlign: "right", paddingBottom: 8, color: C.muted }}>PU</th>
-                <th style={{ textAlign: "right", paddingBottom: 8, color: C.muted }}>Total</th>
-              </tr>
-            </thead>
-            <tbody>{lignesHtml}</tbody>
-          </table>
-          <div style={{ textAlign: "right", fontSize: 20, fontWeight: 700, color: C.gold, marginBottom: 20 }}>
-            Total TTC : {devis.montant} EUR
+      <div style={{ maxWidth: 700, margin: "0 auto" }}>
+        {!devis.html && (
+          <div style={{ textAlign: "center", marginBottom: 24 }}>
+            {devis?.tenant_snapshot?.logo_url ? (
+              <img src={devis.tenant_snapshot.logo_url} alt={devis.tenant_snapshot.societe || "Logo"} style={{ height: 40, marginBottom: 4 }} />
+            ) : (
+              <div style={{ fontSize: 22, fontWeight: 300, letterSpacing: "0.15em", color: C.gold, fontFamily: "Georgia,serif" }}>{devis?.tenant_snapshot?.societe || "XYRA"}</div>
+            )}
           </div>
+        )}
+
+        {/* Le devis reel, tel qu'envoye et signe -- le meme document que celui
+            stocke en base, plutot qu'un resume reconstruit qui pourrait diverger. */}
+        {devis.html ? (
+          <iframe
+            srcDoc={devis.html}
+            title={"Devis " + devis.reference}
+            style={{ width: "100%", minHeight: 640, border: "1px solid " + C.border, borderRadius: 14, background: "#fff", marginBottom: 20 }}
+          />
+        ) : null}
+
+        <div style={{ background: C.card, border: "1px solid " + C.border, borderRadius: 14, padding: 28 }}>
+          {!devis.html && (
+            <>
+              <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Devis {devis.reference}</div>
+              <div style={{ fontSize: 12, color: C.muted, marginBottom: 20 }}>Pour {devis.client_nom} - {devis.service}</div>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13, marginBottom: 16 }}>
+                <thead>
+                  <tr>
+                    <th style={{ textAlign: "left", paddingBottom: 8, color: C.muted }}>Description</th>
+                    <th style={{ paddingBottom: 8, color: C.muted }}>Qte</th>
+                    <th style={{ textAlign: "right", paddingBottom: 8, color: C.muted }}>PU</th>
+                    <th style={{ textAlign: "right", paddingBottom: 8, color: C.muted }}>Total</th>
+                  </tr>
+                </thead>
+                <tbody>{lignesHtml}</tbody>
+              </table>
+              <div style={{ textAlign: "right", fontSize: 20, fontWeight: 700, color: C.gold, marginBottom: 20 }}>
+                Total TTC : {devis.montant} EUR
+              </div>
+            </>
+          )}
 
           {dejaSigne ? (
             <div style={{ textAlign: "center", padding: "20px 0" }}>
