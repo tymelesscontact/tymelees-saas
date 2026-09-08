@@ -76,8 +76,9 @@ export async function POST(req: NextRequest) {
     if (!contrat) return NextResponse.json({ success: false, error: 'Contrat introuvable' }, { status: 404 });
     const lien_token = crypto.randomBytes(24).toString('hex');
     const code_verification = String(Math.floor(100000 + Math.random() * 900000));
-    await sb.from('contrats').update({ lien_token, code_verification, statut: 'envoye', tentatives_code: 0 }).eq('id', id);
-    const lien = `https://xyraio.fr/signature/${lien_token}`;
+    const lien_expire_le = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString();
+    await sb.from('contrats').update({ lien_token, code_verification, statut: 'envoye', tentatives_code: 0, lien_expire_le }).eq('id', id);
+    const lien = `${process.env.NEXT_PUBLIC_SITE_URL || 'https://xyraio.fr'}/signature/${lien_token}`;
     const messageBloc = message_perso ? `<p>${message_perso}</p>` : '';
     const r1 = await sendEmail(contrat.signataire_email, `Document a signer - ${contrat.titre}`,
       `<p>Bonjour ${contrat.signataire_nom},</p>${messageBloc}<p>Un document est pret pour votre signature electronique.</p><p><a href="${lien}">Consulter et signer le document</a></p><p>Votre code de verification vous sera demande sur la page de signature.</p>`);
@@ -93,6 +94,9 @@ export async function POST(req: NextRequest) {
     const { lien_token, code } = body;
     const { data: contrat } = await sb.from('contrats').select('*').eq('lien_token', lien_token).single();
     if (!contrat) return NextResponse.json({ success: false, error: 'Document introuvable' }, { status: 404 });
+    if (contrat.lien_expire_le && new Date(contrat.lien_expire_le) < new Date()) {
+      return NextResponse.json({ success: false, error: 'Ce lien a expire — demandez un nouvel envoi du document' }, { status: 410 });
+    }
     if ((contrat.tentatives_code || 0) >= 5) {
       return NextResponse.json({ success: false, error: 'Trop de tentatives — demandez un nouvel envoi du document' }, { status: 429 });
     }
@@ -112,6 +116,9 @@ export async function POST(req: NextRequest) {
     const { lien_token, nom_tape } = body;
     const { data: contrat } = await sb.from('contrats').select('*').eq('lien_token', lien_token).single();
     if (!contrat) return NextResponse.json({ success: false, error: 'Document introuvable' }, { status: 404 });
+    if (contrat.lien_expire_le && new Date(contrat.lien_expire_le) < new Date()) {
+      return NextResponse.json({ success: false, error: 'Ce lien a expire — demandez un nouvel envoi du document' }, { status: 410 });
+    }
     if (!contrat.code_verifie_a) return NextResponse.json({ success: false, error: 'Verification requise avant signature' }, { status: 403 });
     if (contrat.statut === 'signe') return NextResponse.json({ success: false, error: 'Document deja signe' }, { status: 400 });
     const ip = req.headers.get('x-forwarded-for') || 'inconnue';
