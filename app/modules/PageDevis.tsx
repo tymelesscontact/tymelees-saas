@@ -45,6 +45,10 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
   useEffect(()=>{
     fetch('/api/services-catalogue?action=catalogue').then(r=>r.json()).then(d=>{if(d.services)setCatalogue(d.services);}).catch(()=>{});
   },[]);
+  const[produits,setProduits]=useState([]);
+  useEffect(()=>{
+    fetch('/api/produits-catalogue?action=liste').then(r=>r.json()).then(d=>{if(d.produits)setProduits(d.produits.filter(p=>p.vente_active!==false));}).catch(()=>{});
+  },[]);
   const[onglet,setOnglet]=useState("liste");
   const[showCreate,setShowCreate]=useState(false);
   const[modeleId,setModeleId]=useState("airbnb");
@@ -70,10 +74,17 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
   };
 
   const ajouterLigne=()=>setLignes(ls=>[...ls,{desc:"",qte:1,pu:0,tva:20}]);
-  const ajouterLigneDepuisCatalogue=(serviceId)=>{
-    const service=catalogue.find(s=>s.id===serviceId);
-    if(!service)return;
-    setLignes(ls=>[...ls,{desc:service.nom,qte:1,pu:Number(service.prix_standard)||0,tva:20}]);
+  const ajouterLigneDepuisCatalogue=(cle)=>{
+    const[type,id]=cle.split(":");
+    if(type==="svc"){
+      const service=catalogue.find(s=>s.id===id);
+      if(!service)return;
+      setLignes(ls=>[...ls,{desc:service.nom,qte:1,pu:Number(service.prix_standard)||0,tva:20}]);
+    }else if(type==="prod"){
+      const produit=produits.find(p=>p.id===id);
+      if(!produit)return;
+      setLignes(ls=>[...ls,{desc:produit.nom,qte:1,pu:Number(produit.prix_vente)||0,tva:20}]);
+    }
   };
   const supprimerLigne=(i)=>setLignes(ls=>ls.filter((_,j)=>j!==i));
   const updateLigne=(i,k,v)=>setLignes(ls=>ls.map((l,j)=>j===i?{...l,[k]:v}:l));
@@ -338,16 +349,21 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,gap:8,flexWrap:"wrap"}}>
             <STitle>📦 Lignes de prestation</STitle>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
-              {catalogue.length>0 && (
+              {(catalogue.length>0||produits.length>0) && (
                 <Sel value="" onChange={e=>{if(e.target.value)ajouterLigneDepuisCatalogue(e.target.value);}} style={{fontSize:11}}>
                   <option value="">+ Depuis mon catalogue...</option>
-                  {catalogue.map(s=><option key={s.id} value={s.id}>{s.nom} — {fmt(Number(s.prix_standard)||0)}</option>)}
+                  {catalogue.length>0 && <optgroup label="Prestations">
+                    {catalogue.map(s=><option key={"svc:"+s.id} value={"svc:"+s.id}>{s.nom} — {fmt(Number(s.prix_standard)||0)}</option>)}
+                  </optgroup>}
+                  {produits.length>0 && <optgroup label="Produits">
+                    {produits.map(p=><option key={"prod:"+p.id} value={"prod:"+p.id}>{p.nom} — {fmt(Number(p.prix_vente)||0)}</option>)}
+                  </optgroup>}
                 </Sel>
               )}
               <Btn onClick={ajouterLigne} style={{fontSize:11,padding:"5px 12px"}}>+ Ligne vide</Btn>
             </div>
           </div>
-          {catalogue.length===0 && <div style={{fontSize:10,color:C.muted,marginBottom:10}}>Aucun service dans votre catalogue pour l'instant — ajoutez-en dans "Services" pour les retrouver ici a chaque devis, ou continuez avec des lignes libres.</div>}
+          {catalogue.length===0 && produits.length===0 && <div style={{fontSize:10,color:C.muted,marginBottom:10}}>Aucune prestation ni produit dans votre catalogue pour l'instant — ajoutez-en dans "Services" ou "Produits" pour les retrouver ici a chaque devis, ou continuez avec des lignes libres.</div>}
           <table style={{width:"100%",borderCollapse:"collapse"}}>
             <thead><tr><TH>Description</TH><TH>Qté</TH><TH>PU HT (€)</TH><TH>TVA %</TH><TH>Total HT</TH><TH></TH></tr></thead>
             <tbody>{lignes.map((l,i)=><tr key={i}>
