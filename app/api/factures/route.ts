@@ -97,7 +97,7 @@ export async function POST(req: NextRequest) {
 
   // ── CRÉER UNE FACTURE ───────────────────────────────────────
   if (action === 'creer') {
-    const { client_nom, client_email, client_tel, siren, type_client, description, montant_ht, taux_tva } = body;
+    const { client_nom, client_email, client_tel, siren, type_client, description, montant_ht, taux_tva, devis_id } = body;
     if (!client_nom || !montant_ht) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
 
     const tenantIdCreer = await getTenantIdFromRequest(req);
@@ -136,10 +136,20 @@ export async function POST(req: NextRequest) {
       tva_intracommunautaire: tenantRow.tva_intracommunautaire,
     } : null;
 
+    // Si un devis d'origine est fourni, on ne le relie que s'il appartient bien
+    // au meme tenant (sinon, quelqu'un pourrait rattacher une facture a un
+    // devis d'un autre tenant en forgeant l'id).
+    let devisIdValide: string | null = null;
+    if (devis_id) {
+      const { data: devisCheck } = await sb.from('devis').select('id').eq('id', devis_id).eq('tenant_id', tenantId).maybeSingle();
+      devisIdValide = devisCheck?.id || null;
+    }
+
     const { data: row, error } = await sb.from('factures').insert({
       numero,
       tenant_id: tenantId,
       tenant_snapshot: tenantSnapshot,
+      devis_id: devisIdValide,
       client_nom,
       client_email: client_email || null,
       client_tel: client_tel || null,

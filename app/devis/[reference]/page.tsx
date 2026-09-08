@@ -19,6 +19,8 @@ function DevisPublicPageInner() {
   const [etape, setEtape] = useState(1);
   const [nomSignature, setNomSignature] = useState("");
   const [signing, setSigning] = useState(false);
+  const [confirmRefus, setConfirmRefus] = useState(false);
+  const [refusing, setRefusing] = useState(false);
 
   useEffect(() => {
     if (!token) {
@@ -58,6 +60,26 @@ function DevisPublicPageInner() {
     setSigning(false);
   };
 
+  const refuser = async () => {
+    setRefusing(true);
+    try {
+      const res = await fetch("/api/devis/refuser", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ reference, token }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setDevis((d: any) => ({ ...d, statut: "refusé" }));
+      } else {
+        setErreur(data.error || "Erreur lors du refus");
+      }
+    } catch (e) {
+      setErreur("Erreur de connexion");
+    }
+    setRefusing(false);
+  };
+
   if (loading) return (
     <div style={{ minHeight: "100vh", background: C.dark, display: "flex", alignItems: "center", justifyContent: "center", color: C.text, fontFamily: "'Segoe UI',sans-serif" }}>
       <div style={{ fontSize: 24, fontWeight: 700, color: C.gold, fontFamily: "Georgia,serif" }}>XYRA</div>
@@ -80,6 +102,7 @@ function DevisPublicPageInner() {
   ));
 
   const dejaSigne = devis.statut === "signé" || devis.statut === "payé";
+  const dejaRefuse = devis.statut === "refusé";
 
   return (
     <div style={{ minHeight: "100vh", background: C.dark, color: C.text, fontFamily: "'Segoe UI',sans-serif", padding: "40px 20px" }}>
@@ -114,10 +137,35 @@ function DevisPublicPageInner() {
               <div style={{ fontSize: 32, marginBottom: 8 }}>OK</div>
               <div style={{ fontSize: 16, fontWeight: 700, color: C.green }}>Ce devis a deja ete signe</div>
             </div>
+          ) : dejaRefuse ? (
+            <div style={{ textAlign: "center", padding: "20px 0" }}>
+              <div style={{ fontSize: 32, marginBottom: 8 }}>✕</div>
+              <div style={{ fontSize: 16, fontWeight: 700, color: C.red }}>Ce devis a ete refuse</div>
+              <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>L'entreprise a ete informee de votre reponse.</div>
+            </div>
           ) : etape === 1 ? (
-            <button onClick={() => setEtape(2)} style={{ width: "100%", background: C.green, color: "#000", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
-              Accepter et signer ce devis
-            </button>
+            confirmRefus ? (
+              <div>
+                <div style={{ fontSize: 13, color: C.text, marginBottom: 14, textAlign: "center" }}>Confirmer le refus de ce devis ?</div>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <button onClick={refuser} disabled={refusing} style={{ flex: 1, background: C.red, color: "#fff", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 14, cursor: "pointer", opacity: refusing ? 0.6 : 1 }}>
+                    {refusing ? "..." : "Confirmer le refus"}
+                  </button>
+                  <button onClick={() => setConfirmRefus(false)} disabled={refusing} style={{ flex: 1, background: "transparent", color: C.muted, border: "1px solid " + C.border, borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                    Annuler
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div style={{ display: "flex", gap: 8 }}>
+                <button onClick={() => setEtape(2)} style={{ flex: 1, background: C.green, color: "#000", border: "none", borderRadius: 8, padding: "12px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                  Accepter et signer ce devis
+                </button>
+                <button onClick={() => setConfirmRefus(true)} style={{ background: "transparent", color: C.red, border: "1px solid " + C.red, borderRadius: 8, padding: "12px 16px", fontWeight: 700, fontSize: 14, cursor: "pointer" }}>
+                  Refuser
+                </button>
+              </div>
+            )
           ) : etape === 2 ? (
             <div>
               <div style={{ fontSize: 12, color: C.muted, marginBottom: 8 }}>Tapez votre nom pour valider votre signature :</div>

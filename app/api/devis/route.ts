@@ -183,7 +183,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const CHAMPS_AUTORISES = ["statut", "client_nom", "client_email", "client_tel", "service", "montant", "notes"]
-    const STATUTS_AUTORISES = ["brouillon", "envoyé", "signé", "payé"]
+    const STATUTS_AUTORISES = ["brouillon", "envoyé", "signé", "payé", "refusé"]
     const champsInterdits = Object.keys(champs).filter((c) => !CHAMPS_AUTORISES.includes(c))
     if (champsInterdits.length > 0) {
       return NextResponse.json({ success: false, error: "champs_non_autorises", champs: champsInterdits }, { status: 400 })

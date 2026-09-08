@@ -44,6 +44,9 @@ export async function middleware(req: NextRequest) {
   if (path === '/api/devis/signer' && req.method === 'POST') {
     return NextResponse.next()
   }
+  if (path === '/api/devis/refuser' && req.method === 'POST') {
+    return NextResponse.next()
+  }
 
   if (isApi && API_OUVERTES.some(p => path === p || path.startsWith(p + '/'))) {
     return NextResponse.next()

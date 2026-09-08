@@ -209,12 +209,13 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
           action:'creer',client_nom:d.client,client_email:d.email,client_tel:d.tel,
-          description:d.description||d.service,montant_ht:montantHT,taux_tva:taux,
+          description:d.description||d.service,montant_ht:montantHT,taux_tva:taux,devis_id:d.dbId,
         }),
       });
       const data=await res.json();
       if(data.success&&data.facture){
-        await majStatutDevis(d.dbId,{statut:"payé"},"✅ Facture "+data.facture.numero+" creee, devis marque paye");
+        showToast("✅ Facture "+data.facture.numero+" creee — en attente de paiement");
+        loadDevis();
       }else{
         showToast("❌ Erreur creation facture: "+(data.error||"inconnue"));
       }
@@ -273,7 +274,7 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
             <Td onClick={e=>e.stopPropagation()}><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
               {d.statut==="brouillon"&&<Btn onClick={()=>majStatutDevis(d.dbId,{statut:"envoyé"},`📤 Devis ${d.id} marqué envoyé`)} style={{fontSize:9,padding:"3px 7px"}}>📤 Envoyer</Btn>}
               {(d.statut==="envoyé"||d.statut==="vu")&&<Btn onClick={()=>setSignEtape({id:d.id,dbId:d.dbId,client:d.client})} style={{fontSize:9,padding:"3px 7px",background:C.green}}>🔗 Lien signature</Btn>}
-              {d.statut==="signé"&&<Btn onClick={()=>convertirEnFacture(d)} style={{fontSize:9,padding:"3px 7px",background:C.teal}}>💳 Payé</Btn>}
+              {d.statut==="signé"&&<Btn onClick={()=>convertirEnFacture(d)} style={{fontSize:9,padding:"3px 7px",background:C.teal}}>🧾 Facturer</Btn>}
               <BtnGhost onClick={()=>apercuPDFExistant(d)} style={{fontSize:9,padding:"3px 7px"}}>PDF</BtnGhost>
               <BtnGhost onClick={()=>relancerDevis(d)} style={{fontSize:9,padding:"3px 7px"}}>WA</BtnGhost>
             </div></Td>
