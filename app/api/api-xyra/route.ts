@@ -59,6 +59,7 @@ export async function POST(req: NextRequest) {
   const { action } = body;
 
   if (action === 'create_key') {
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { nom, type, permissions } = body;
     const key_value = genKey(type || 'live');
     const { data, error } = await sb.from('api_keys').insert({

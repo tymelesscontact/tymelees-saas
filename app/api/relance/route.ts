@@ -38,11 +38,18 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const tenantId = await getTenantIdFromRequest(req);
-  if (!tenantId) return NextResponse.json({ error: 'non_connecte' }, { status: 401 });
-
   const body = await req.json();
   const { action } = body;
+  const cronOk = !!process.env.CRON_SECRET && req.headers.get('authorization') === `Bearer ${process.env.CRON_SECRET}`;
+
+  if (action === 'traiter_envois_dus') {
+    const tenantIdCron = cronOk ? null : await getTenantIdFromRequest(req);
+    if (!cronOk && !tenantIdCron) return NextResponse.json({ error: 'non_connecte' }, { status: 401 });
+    return traiterEnvoisDus(tenantIdCron);
+  }
+
+  const tenantId = await getTenantIdFromRequest(req);
+  if (!tenantId) return NextResponse.json({ error: 'non_connecte' }, { status: 401 });
 
   // Lea genere une nouvelle sequence adaptee au secteur
   if (action === 'generer_sequence') {
@@ -99,53 +106,54 @@ Le contenu_html doit etre un email court, professionnel, en francais, avec des b
     return NextResponse.json({ success: true, contact: data });
   }
 
-  // Declencheur : envoie les emails dus aujourd'hui (a appeler par une tache planifiee)
-  if (action === 'traiter_envois_dus') {
-    const aujourdhui = new Date().toISOString().slice(0, 10);
-    const { data: dus } = await sb.from('relance_contacts')
-      .select('*, relance_sequences(nom)').eq('statut', 'active').lte('prochain_envoi', aujourdhui);
+  return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });
+}
 
-    let envoyes = 0;
-    for (const contact of (dus || [])) {
-      try {
-        const { data: etapes } = await sb.from('relance_etapes')
-          .select('*').eq('sequence_id', contact.sequence_id).order('ordre');
-        const etape = (etapes || [])[contact.etape_actuelle];
-        if (!etape) {
-          await sb.from('relance_contacts').update({ statut: 'terminee' }).eq('id', contact.id);
-          continue;
-        }
+async function traiterEnvoisDus(tenantId: string | null) {
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  let q = sb.from('relance_contacts')
+    .select('*, relance_sequences(nom)').eq('statut', 'active').lte('prochain_envoi', aujourdhui);
+  if (tenantId) q = q.eq('tenant_id', tenantId);
+  const { data: dus } = await q;
 
-        const html = (etape.contenu_html || '')
-          .replace(/{prenom}/g, contact.prenom || '')
-          .replace(/{societe}/g, contact.societe || '');
-
-        const { Resend } = await import('resend');
-        const resend = new Resend(process.env.RESEND_API_KEY);
-        await resend.emails.send({
-          from: 'Xyra <notifications@xyraio.fr>', to: contact.email, subject: etape.objet, html,
-        });
-
-        const prochaine = (etapes || [])[contact.etape_actuelle + 1];
-        const prochainEnvoi = prochaine
-          ? new Date(Date.now() + (prochaine.jour_envoi - etape.jour_envoi) * 86400000).toISOString().slice(0, 10)
-          : null;
-
-        await sb.from('relance_contacts').update({
-          etape_actuelle: contact.etape_actuelle + 1,
-          emails_envoyes: (contact.emails_envoyes || 0) + 1,
-          prochain_envoi: prochainEnvoi,
-          statut: prochaine ? 'active' : 'terminee',
-        }).eq('id', contact.id);
-
-        envoyes++;
-      } catch (e: any) {
-        console.error('Relance envoi:', e.message);
+  let envoyes = 0;
+  for (const contact of (dus || [])) {
+    try {
+      const { data: etapes } = await sb.from('relance_etapes')
+        .select('*').eq('sequence_id', contact.sequence_id).order('ordre');
+      const etape = (etapes || [])[contact.etape_actuelle];
+      if (!etape) {
+        await sb.from('relance_contacts').update({ statut: 'terminee' }).eq('id', contact.id);
+        continue;
       }
-    }
 
-    return NextResponse.json({ success: true, envoyes });
+      const html = (etape.contenu_html || '')
+        .replace(/{prenom}/g, contact.prenom || '')
+        .replace(/{societe}/g, contact.societe || '');
+
+      const { Resend } = await import('resend');
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      await resend.emails.send({
+        from: 'Xyra <notifications@xyraio.fr>', to: contact.email, subject: etape.objet, html,
+      });
+
+      const prochaine = (etapes || [])[contact.etape_actuelle + 1];
+      const prochainEnvoi = prochaine
+        ? new Date(Date.now() + (prochaine.jour_envoi - etape.jour_envoi) * 86400000).toISOString().slice(0, 10)
+        : null;
+
+      await sb.from('relance_contacts').update({
+        etape_actuelle: contact.etape_actuelle + 1,
+        emails_envoyes: (contact.emails_envoyes || 0) + 1,
+        prochain_envoi: prochainEnvoi,
+        statut: prochaine ? 'active' : 'terminee',
+      }).eq('id', contact.id);
+
+      envoyes++;
+    } catch (e: any) {
+      console.error('Relance envoi:', e.message);
+    }
   }
 
-  return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });
+  return NextResponse.json({ success: true, envoyes });
 }

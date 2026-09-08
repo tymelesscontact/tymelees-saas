@@ -1,25 +1,47 @@
 import { NextRequest, NextResponse } from 'next/server';
 
+function echapHtml(valeur: unknown) {
+  return String(valeur ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
 export async function POST(req: NextRequest) {
   try {
     const { Resend } = await import('resend');
     const resend = new Resend(process.env.RESEND_API_KEY);
 
     const { type, email, societe, prenom, plan, planPrice, metier, pays } = await req.json();
+    if (type !== 'welcome') {
+      return NextResponse.json({ error: 'Type invalide' }, { status: 400 });
+    }
+    if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      return NextResponse.json({ error: 'Email invalide' }, { status: 400 });
+    }
+
+    const societeSafe = echapHtml(societe);
+    const prenomSafe = echapHtml(prenom);
+    const planSafe = echapHtml(plan);
+    const planPriceSafe = echapHtml(planPrice);
+    const metierSafe = echapHtml(metier);
+    const paysSafe = echapHtml(pays);
+    const emailSafe = echapHtml(email);
 
     if (type === 'welcome') {
       // Email bienvenue au client
       await resend.emails.send({
         from: 'Xyra <notifications@xyraio.fr>',
         to: email,
-        subject: `🎉 Bienvenue sur Xyra, ${societe} !`,
+        subject: `Bienvenue sur Xyra, ${String(societe ?? '')} !`,
         html: `
           <div style="font-family:'Segoe UI',sans-serif;background:#06060E;color:#EAE6DE;padding:40px;max-width:600px;margin:0 auto;">
             <h1 style="font-size:28px;font-weight:300;letter-spacing:0.15em;color:#C9A84C;font-family:Georgia,serif;text-align:center;">XYRA</h1>
             <p style="text-align:center;font-size:12px;color:#5A5A7A;letter-spacing:0.1em;margin-bottom:32px;">LE SYSTÈME DE GESTION POUR TOUTE ENTREPRISE</p>
             
             <div style="background:#0C0C1A;border:1px solid #1E1E36;padding:32px;margin:24px 0;">
-              <h2 style="font-size:22px;font-weight:300;margin-bottom:16px;">Bienvenue ${prenom || societe} ! 🎉</h2>
+              <h2 style="font-size:22px;font-weight:300;margin-bottom:16px;">Bienvenue ${prenomSafe || societeSafe} !</h2>
               <p style="color:#A0A0C0;font-size:14px;line-height:1.7;margin-bottom:24px;">
                 Votre compte Xyra est actif. Vous bénéficiez de <strong style="color:#C9A84C;">14 jours gratuits</strong> avec un accès complet à toutes les fonctionnalités.
               </p>
@@ -27,11 +49,11 @@ export async function POST(req: NextRequest) {
               <div style="background:#121222;border:1px solid #C9A84C33;padding:20px;border-radius:6px;margin-bottom:24px;">
                 <div style="font-size:12px;color:#5A5A7A;margin-bottom:12px;text-transform:uppercase;letter-spacing:0.1em;">Récapitulatif de votre compte</div>
                 <table style="width:100%;border-collapse:collapse;">
-                  <tr><td style="padding:6px 0;font-size:13px;color:#5A5A7A;border-bottom:1px solid #1E1E3633;">Société</td><td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;border-bottom:1px solid #1E1E3633;">${societe}</td></tr>
-                  <tr><td style="padding:6px 0;font-size:13px;color:#5A5A7A;border-bottom:1px solid #1E1E3633;">Email de connexion</td><td style="padding:6px 0;font-size:13px;text-align:right;border-bottom:1px solid #1E1E3633;">${email}</td></tr>
-                  <tr><td style="padding:6px 0;font-size:13px;color:#5A5A7A;border-bottom:1px solid #1E1E3633;">Secteur</td><td style="padding:6px 0;font-size:13px;text-align:right;border-bottom:1px solid #1E1E3633;">${metier}</td></tr>
-                  <tr><td style="padding:6px 0;font-size:13px;color:#5A5A7A;border-bottom:1px solid #1E1E3633;">Pays</td><td style="padding:6px 0;font-size:13px;text-align:right;border-bottom:1px solid #1E1E3633;">${pays}</td></tr>
-                  <tr><td style="padding:6px 0;font-size:13px;color:#5A5A7A;">Plan</td><td style="padding:6px 0;font-size:13px;font-weight:700;color:#C9A84C;text-align:right;">${plan} · ${planPrice}€/mois</td></tr>
+                  <tr><td style="padding:6px 0;font-size:13px;color:#5A5A7A;border-bottom:1px solid #1E1E3633;">Société</td><td style="padding:6px 0;font-size:13px;font-weight:600;text-align:right;border-bottom:1px solid #1E1E3633;">${societeSafe}</td></tr>
+                  <tr><td style="padding:6px 0;font-size:13px;color:#5A5A7A;border-bottom:1px solid #1E1E3633;">Email de connexion</td><td style="padding:6px 0;font-size:13px;text-align:right;border-bottom:1px solid #1E1E3633;">${emailSafe}</td></tr>
+                  <tr><td style="padding:6px 0;font-size:13px;color:#5A5A7A;border-bottom:1px solid #1E1E3633;">Secteur</td><td style="padding:6px 0;font-size:13px;text-align:right;border-bottom:1px solid #1E1E3633;">${metierSafe}</td></tr>
+                  <tr><td style="padding:6px 0;font-size:13px;color:#5A5A7A;border-bottom:1px solid #1E1E3633;">Pays</td><td style="padding:6px 0;font-size:13px;text-align:right;border-bottom:1px solid #1E1E3633;">${paysSafe}</td></tr>
+                  <tr><td style="padding:6px 0;font-size:13px;color:#5A5A7A;">Plan</td><td style="padding:6px 0;font-size:13px;font-weight:700;color:#C9A84C;text-align:right;">${planSafe} · ${planPriceSafe}€/mois</td></tr>
                 </table>
               </div>
 
@@ -70,19 +92,19 @@ export async function POST(req: NextRequest) {
       await resend.emails.send({
         from: 'Xyra Alerts <notifications@xyraio.fr>',
         to: 'xyra.solution@gmail.com',
-        subject: `🎉 Nouveau client — ${societe} — ${planPrice}€/mois`,
+        subject: `Nouveau client — ${String(societe ?? '')} — ${String(planPrice ?? '')}€/mois`,
         html: `
           <div style="font-family:'Segoe UI',sans-serif;background:#06060E;color:#EAE6DE;padding:32px;max-width:500px;margin:0 auto;">
-            <h1 style="color:#C9A84C;font-family:Georgia,serif;">XYRA · NOUVEAU CLIENT 🎉</h1>
+            <h1 style="color:#C9A84C;font-family:Georgia,serif;">XYRA · NOUVEAU CLIENT</h1>
             <div style="background:#0C0C1A;border:1px solid #2EC9B033;padding:20px;border-radius:8px;margin:16px 0;text-align:center;">
-              <div style="font-size:32px;font-weight:700;color:#2EC9B0;">+${planPrice}€/mois</div>
+              <div style="font-size:32px;font-weight:700;color:#2EC9B0;">+${planPriceSafe}€/mois</div>
             </div>
             <div style="font-size:14px;line-height:2;">
-              <div><span style="color:#5A5A7A;">Société :</span> <strong>${societe}</strong></div>
-              <div><span style="color:#5A5A7A;">Email :</span> ${email}</div>
-              <div><span style="color:#5A5A7A;">Plan :</span> <strong style="color:#C9A84C;">${plan}</strong></div>
-              <div><span style="color:#5A5A7A;">Secteur :</span> ${metier}</div>
-              <div><span style="color:#5A5A7A;">Pays :</span> ${pays}</div>
+              <div><span style="color:#5A5A7A;">Société :</span> <strong>${societeSafe}</strong></div>
+              <div><span style="color:#5A5A7A;">Email :</span> ${emailSafe}</div>
+              <div><span style="color:#5A5A7A;">Plan :</span> <strong style="color:#C9A84C;">${planSafe}</strong></div>
+              <div><span style="color:#5A5A7A;">Secteur :</span> ${metierSafe}</div>
+              <div><span style="color:#5A5A7A;">Pays :</span> ${paysSafe}</div>
             </div>
             <div style="text-align:center;margin-top:20px;">
               <a href="https://tymelees-saas-yzel.vercel.app/dashboard" style="background:#C9A84C;color:#000;padding:12px 24px;text-decoration:none;font-weight:600;border-radius:4px;display:inline-block;">

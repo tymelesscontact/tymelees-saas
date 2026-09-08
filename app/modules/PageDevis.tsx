@@ -35,6 +35,10 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
   useEffect(()=>{
     fetch('/api/branding').then(r=>r.json()).then(d=>{if(d.branding)setBranding(d.branding);}).catch(()=>{});
   },[]);
+  const[peutSignerDevisManuel,setPeutSignerDevisManuel]=useState(false);
+  useEffect(()=>{
+    fetch('/api/whoami').then(r=>r.json()).then(d=>setPeutSignerDevisManuel(!!d.peutSignerDevisManuel)).catch(()=>{});
+  },[]);
   const[onglet,setOnglet]=useState("liste");
   const[showCreate,setShowCreate]=useState(false);
   const[modeleId,setModeleId]=useState("airbnb");
@@ -281,10 +285,14 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
           <div style={{fontSize:14,fontWeight:700,marginBottom:4}}>🔗 Lien de signature</div>
           <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Devis {signEtape.id} · {signEtape.client}</div>
           <div style={{fontSize:11,color:C.text,lineHeight:1.7,marginBottom:14}}>Le client signe lui-même en ligne, via le lien qui lui a été envoyé. Ce bouton renvoie ce lien par email et/ou WhatsApp — rien n'est signé ici.</div>
-          <div style={{display:"flex",gap:8}}>
+          <div style={{display:"flex",gap:8,marginBottom:peutSignerDevisManuel?14:0}}>
             <Btn onClick={async()=>{await relancerDevis({id:signEtape.id,dbId:signEtape.dbId,client:signEtape.client});setSignEtape(null);}}>📤 Renvoyer le lien</Btn>
             <BtnGhost onClick={()=>setSignEtape(null)}>Fermer</BtnGhost>
           </div>
+          {peutSignerDevisManuel&&<div style={{borderTop:`1px solid ${C.border}`,paddingTop:12}}>
+            <div style={{fontSize:10,color:C.muted,marginBottom:8}}>Le client a signé autrement (papier, accord téléphonique) ? Aucun email ni WhatsApp ne sera envoyé.</div>
+            <Btn onClick={async()=>{await majStatutDevis(signEtape.dbId,{statut:"signé"},"✅ Devis marqué signé manuellement (aucun email/WhatsApp envoyé)");setSignEtape(null);}} style={{background:C.orange,width:"100%"}}>✍ Marquer signé manuellement</Btn>
+          </div>}
         </Card>
       </div>}
       {editDevis&&<div style={{position:"fixed",inset:0,background:"#000000AA",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}}>

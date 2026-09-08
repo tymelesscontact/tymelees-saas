@@ -22,6 +22,10 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
   const[showMsgGroupe,setShowMsgGroupe]=useState(false);
   const[msgGroupeTexte,setMsgGroupeTexte]=useState("");
   const[envoiMsgGroupe,setEnvoiMsgGroupe]=useState(false);
+  const[estProprietaire,setEstProprietaire]=useState(false);
+  useEffect(()=>{
+    fetch('/api/whoami').then(r=>r.json()).then(d=>setEstProprietaire(!!d.isProprietaireTenant)).catch(()=>{});
+  },[]);
   const envoyerMessageGroupe=async()=>{
     if(!msgGroupeTexte)return showToast("⚠️ Ecrivez un message");
     setEnvoiMsgGroupe(true);
@@ -266,6 +270,18 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
           </div>
           <div style={{fontSize:9,color:"#5A5A7A",marginBottom:4}}>Documents personnels</div>
           {e.documents.map((d,j)=><div key={j} style={{display:"flex",justifyContent:"space-between",fontSize:10,padding:"3px 0",borderBottom:"1px solid #1E1E3622"}}><span>{d.nom}</span><span style={{color:d.statut==="valide"?"#2EC9B0":d.statut==="signé"?"#4B7BFF":"#5A5A7A"}}>{d.statut}{d.expire?" · expire "+d.expire:""}</span></div>)}
+          {estProprietaire&&<div style={{marginTop:10,paddingTop:10,borderTop:"1px solid #1E1E3644",display:"flex",justifyContent:"space-between",alignItems:"center"}} onClick={ev=>ev.stopPropagation()}>
+            <div style={{fontSize:10,color:"#5A5A7A"}}>Autorisé à marquer un devis signé manuellement</div>
+            <button onClick={async()=>{
+              const nv=!e.peut_signer_devis;
+              try{
+                const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'modifier',id:e.id,peut_signer_devis:nv})});
+                const data=await res.json();
+                if(data.success){setEquipe(eq=>eq.map(m=>m.id===e.id?{...m,peut_signer_devis:nv}:m));showToast(nv?`✅ ${e.nom} autorisé`:`✅ Autorisation retirée à ${e.nom}`);}
+                else showToast("❌ "+(data.error||"Erreur"));
+              }catch(err){showToast("❌ Erreur de connexion");}
+            }} style={{background:e.peut_signer_devis?"#2EC9B022":"transparent",color:e.peut_signer_devis?"#2EC9B0":"#5A5A7A",border:`1px solid ${e.peut_signer_devis?"#2EC9B0":"#1E1E36"}`,borderRadius:20,padding:"4px 12px",cursor:"pointer",fontSize:10,fontFamily:"inherit",fontWeight:600}}>{e.peut_signer_devis?"✅ Activé":"Désactivé"}</button>
+          </div>}
         </div>}
       </div>;})}
     </div>}

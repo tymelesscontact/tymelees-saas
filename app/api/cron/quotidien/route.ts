@@ -28,7 +28,11 @@ export async function GET(req: NextRequest) {
   try {
     const site = process.env.NEXT_PUBLIC_SITE_URL || 'https://xyraio.fr';
     const r = await fetch(`${site}/api/relance`, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.CRON_SECRET}`,
+      },
       body: JSON.stringify({ action: 'traiter_envois_dus' }),
     });
     resultats.relances = await r.json();

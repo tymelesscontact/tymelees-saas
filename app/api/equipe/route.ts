@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { estProprietaireDuTenant } from '../../lib/permissions';
 import { createClient } from '@supabase/supabase-js';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -218,6 +219,9 @@ export async function POST(req: NextRequest) {
   if (action === 'modifier') {
     if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { id, ...fields } = body;
+    if ('peut_signer_devis' in fields && !(await estProprietaireDuTenant(req, tenantId))) {
+      return NextResponse.json({ error: 'reserve_au_proprietaire' }, { status: 403 });
+    }
     const { error } = await sb.from('equipe').update(fields).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });

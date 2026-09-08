@@ -60,7 +60,7 @@ export async function POST(req: NextRequest) {
     if (t.deux_fa_code_temp !== code) return NextResponse.json({ success: false, error: 'Code incorrect' }, { status: 400 });
     await sb.from('tenants').update({ deux_fa_actif: true, deux_fa_code_temp: null, deux_fa_code_expire: null }).eq('id', tenantId);
     const reponse1 = NextResponse.json({ success: true });
-    reponse1.cookies.set('deux_fa_verified', '1', { path: '/', maxAge: 60 * 60 * 24, sameSite: 'lax' });
+    reponse1.cookies.set('deux_fa_verified', '1', { path: '/', maxAge: 60 * 60 * 24, sameSite: 'lax', httpOnly: true, secure: true });
     return reponse1;
   }
 
@@ -72,7 +72,7 @@ export async function POST(req: NextRequest) {
     const nouveauxCodes = codes.filter(c => c !== code);
     await sb.from('tenants').update({ codes_secours: nouveauxCodes }).eq('id', tenantId);
     const reponse2 = NextResponse.json({ success: true, codesRestants: nouveauxCodes.length });
-    reponse2.cookies.set('deux_fa_verified', '1', { path: '/', maxAge: 60 * 60 * 24, sameSite: 'lax' });
+    reponse2.cookies.set('deux_fa_verified', '1', { path: '/', maxAge: 60 * 60 * 24, sameSite: 'lax', httpOnly: true, secure: true });
     return reponse2;
   }
 
