@@ -118,6 +118,9 @@ const PageTresorerie=({plan,showToast,UpgradeWall,activeCompany})=>{
   const clientsEnRetard=data?.clientsEnRetard||[];
   const suggestionsPlacement=data?.suggestionsPlacement||[];
   const excedent=data?.excedent||0;
+  const facturesEnAttente=data?.facturesEnAttente||0;
+  const devisSignesNonFactures=data?.devisSignesNonFactures||0;
+  const nbDevisSignesNonFactures=data?.nbDevisSignesNonFactures||0;
   const soldeSim=soldeActuel-simDepense;
   const scoreColor=scoreFinancier>=70?C.green:scoreFinancier>=40?C.gold:C.red;
   const scoreLabel=scoreFinancier>=70?"🟢 Excellente":scoreFinancier>=40?"🟡 Correcte":"🔴 Risquée";
@@ -195,6 +198,21 @@ const PageTresorerie=({plan,showToast,UpgradeWall,activeCompany})=>{
           </table>
         </div>
       </Card>
+      {(facturesEnAttente>0||devisSignesNonFactures>0)&&<Card style={{marginBottom:12}}>
+        <STitle>🔮 Ce qui va arriver — pipeline connu (pas une estimation)</STitle>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+          <CT>
+            <div style={{fontSize:9,color:C.muted,marginBottom:4}}>FACTURES ÉMISES EN ATTENTE DE PAIEMENT</div>
+            <div style={{fontSize:18,fontWeight:700,color:C.blue}}>{fmt(conv(facturesEnAttente,"EUR",devise),devise)}</div>
+            <div style={{fontSize:10,color:C.muted,marginTop:4}}>Déjà intégrées semaine par semaine ci-dessus, à leur date d'échéance réelle.</div>
+          </CT>
+          <CT>
+            <div style={{fontSize:9,color:C.muted,marginBottom:4}}>DEVIS SIGNÉS PAS ENCORE FACTURÉS ({nbDevisSignesNonFactures})</div>
+            <div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(conv(devisSignesNonFactures,"EUR",devise),devise)}</div>
+            <div style={{fontSize:10,color:C.muted,marginTop:4}}>Pas de date connue tant qu'ils ne sont pas facturés — pense à les facturer depuis le module Devis.</div>
+          </CT>
+        </div>
+      </Card>}
       {/* Analyse IA */}
       <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:14}}>
         <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Analyse IA — Claude · données réelles</div>
@@ -384,7 +402,7 @@ const PageTresorerie=({plan,showToast,UpgradeWall,activeCompany})=>{
                 <div style={{display:"flex",justifyContent:"space-between",fontSize:11}}><span style={{color:C.muted}}>Risque</span><span style={{fontWeight:600}}>{p.risque}</span></div>
                 <div style={{display:"flex",justifyContent:"space-between",fontSize:11}}><span style={{color:C.muted}}>Liquidité</span><span style={{fontWeight:600}}>{p.liquidite}</span></div>
               </div>
-              <BtnGhost onClick={()=>showToast(`✅ Demande de placement ${p.nom} enregistrée — ton conseiller te contactera`)} style={{width:"100%",fontSize:11,color:colors[i],borderColor:`${colors[i]}44`}}>Souscrire</BtnGhost>
+              <BtnGhost onClick={()=>showToast(`💡 Suggestion informative — Xyra ne gère pas les souscriptions. Contacte ta banque pour ${p.nom}.`)} style={{width:"100%",fontSize:11,color:colors[i],borderColor:`${colors[i]}44`}}>Comment souscrire ?</BtnGhost>
             </Card>;
           })}
         </div>
@@ -485,8 +503,8 @@ const PageTresorerie=({plan,showToast,UpgradeWall,activeCompany})=>{
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
         {[
           {icon:"📋",label:"CSV complet",desc:"Toutes les semaines réelles + prévisions"},
-          {icon:"📱",label:"Rapport WhatsApp",desc:"Résumé hebdo sur ton téléphone"},
-          {icon:"📧",label:"Email mensuel",desc:"Rapport PDF automatique"},
+          {icon:"📱",label:"Rapport WhatsApp",desc:"Résumé envoyé maintenant sur ton téléphone"},
+          {icon:"📧",label:"Rapport Email",desc:"Résumé envoyé maintenant par email"},
         ].map((item,i)=><CT key={i} style={{cursor:"pointer"}} onClick={()=>{
           if(i===0){
             const lignes=["Semaine,Entrées,Sorties,Net,Solde,Type"];
@@ -495,7 +513,12 @@ const PageTresorerie=({plan,showToast,UpgradeWall,activeCompany})=>{
             const a=document.createElement("a");a.href=URL.createObjectURL(blob);a.download="tresorerie_xyra.csv";a.click();
             showToast("✅ CSV téléchargé");
           }else if(i===1){envoyerRapportHebdo();}
-          else showToast("✅ Rapport email programmé");
+          else{
+            showToast("⏳ Envoi du rapport par email...");
+            fetch('/api/tresorerie',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'rapport_email',...data})})
+              .then(r=>r.json()).then(d=>{if(d.success)showToast("✅ Rapport envoyé par email");else showToast("❌ "+(d.error||"Erreur"));})
+              .catch(()=>showToast("❌ Erreur de connexion"));
+          }
         }}>
           <div style={{fontSize:20,marginBottom:6}}>{item.icon}</div>
           <div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:2}}>{item.label}</div>
