@@ -9,11 +9,15 @@ type DevisData = {
   clientName: string
   clientPhone: string
   clientEmail?: string
+  clientAdresse?: string
   service: string
   description: string
   montant: number | string
   dateDevis: string
+  dateExpiration?: string
   numeroDevis: string
+  lignes?: { desc?: string; qte?: number; pu?: number; tva?: number }[]
+  tauxTva?: number
   tenant?: {
     societe?: string | null
     logoUrl?: string | null
@@ -21,6 +25,15 @@ type DevisData = {
     siteWeb?: string | null
     adresse?: string | null
     ville?: string | null
+    codePostal?: string | null
+    pays?: string | null
+    telephone?: string | null
+    siret?: string | null
+    siren?: string | null
+    formeJuridique?: string | null
+    capitalSocial?: string | null
+    rcsVille?: string | null
+    tvaIntracommunautaire?: string | null
   }
 }
 function getSupabase() {
@@ -51,19 +64,23 @@ export async function POST(req: NextRequest) {
       montant,
       clientName,
       clientEmail,
+      clientAdresse,
       lignes,
       notes,
       taux_tva,
       statut,
+      validite,
     } = body
     const numeroDevis = `TYM-${Date.now().toString().slice(-6)}`
     const tokenPublic = crypto.randomBytes(24).toString("hex")
-    const expireLe = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+    const validiteJours = Math.min(365, Math.max(1, Number(validite) || 30))
+    const expireLe = new Date(Date.now() + validiteJours * 24 * 60 * 60 * 1000).toISOString()
     const dateDevis = new Date().toLocaleDateString("fr-FR")
+    const dateExpiration = new Date(expireLe).toLocaleDateString("fr-FR")
 
     const { data: tenantRow } = await supabase
       .from("tenants")
-      .select("societe,logo_url,adresse,ville,code_postal,pays,telephone_entreprise,email,site_web,couleur_primaire,tva_intracommunautaire")
+      .select("societe,logo_url,adresse,ville,code_postal,pays,telephone_entreprise,email,site_web,couleur_primaire,tva_intracommunautaire,siret,siren,forme_juridique,capital_social,rcs_ville")
       .eq("id", tenantId)
       .maybeSingle()
     const tenantSnapshot = tenantRow ? {
@@ -78,17 +95,26 @@ export async function POST(req: NextRequest) {
       site_web: tenantRow.site_web,
       couleur_primaire: tenantRow.couleur_primaire,
       tva_intracommunautaire: tenantRow.tva_intracommunautaire,
+      siret: tenantRow.siret,
+      siren: tenantRow.siren,
+      forme_juridique: tenantRow.forme_juridique,
+      capital_social: tenantRow.capital_social,
+      rcs_ville: tenantRow.rcs_ville,
     } : null
 
     const devisData: DevisData = {
       clientName: clientName || "Client",
       clientPhone,
       clientEmail,
+      clientAdresse,
       service,
       description,
       montant,
       dateDevis,
+      dateExpiration,
       numeroDevis,
+      lignes,
+      tauxTva: taux_tva ?? 20,
       tenant: tenantSnapshot ? {
         societe: tenantSnapshot.societe,
         logoUrl: tenantSnapshot.logo_url,
@@ -96,6 +122,15 @@ export async function POST(req: NextRequest) {
         siteWeb: tenantSnapshot.site_web,
         adresse: tenantSnapshot.adresse,
         ville: tenantSnapshot.ville,
+        codePostal: tenantSnapshot.code_postal,
+        pays: tenantSnapshot.pays,
+        telephone: tenantSnapshot.telephone_entreprise,
+        siret: tenantSnapshot.siret,
+        siren: tenantSnapshot.siren,
+        formeJuridique: tenantSnapshot.forme_juridique,
+        capitalSocial: tenantSnapshot.capital_social,
+        rcsVille: tenantSnapshot.rcs_ville,
+        tvaIntracommunautaire: tenantSnapshot.tva_intracommunautaire,
       } : undefined,
     }
     const htmlContent = generateDevisHTML({
@@ -111,6 +146,7 @@ export async function POST(req: NextRequest) {
       client_tel: clientPhone,
       client_nom: clientName || "Client",
       client_email: clientEmail || null,
+      client_adresse: clientAdresse || null,
       service,
       description,
       montant,

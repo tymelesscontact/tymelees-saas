@@ -77,13 +77,14 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
-          clientName:form.client,clientPhone:form.tel,clientEmail:form.email,
+          clientName:form.client,clientPhone:form.tel,clientEmail:form.email,clientAdresse:form.adresse,
           service:serviceLabel,description:descriptionResume,
           montant:Math.round(totalTTC),lignes,notes:form.note,taux_tva:tauxTvaMoyen,statut,
+          validite:Number(form.validite)||30,
         }),
       });
       const data=await res.json();
-      if(!data.success)return null;
+      if(!data.success){showToast("❌ "+(data.error||"Erreur lors de la creation du devis"));return null;}
       const nd={id:data.numeroDevis,client:form.client,email:form.email,tel:form.tel,service:serviceLabel,montant:Math.round(totalTTC),statut,date:new Date().toLocaleDateString("fr"),lignes:[...lignes],remise:form.remise,note:form.note,vu:false};
       loadDevis();
       return nd;
@@ -325,7 +326,7 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
         <Card style={{marginBottom:12}}>
           <STitle>👤 Informations client</STitle>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {[["Client *","client","Nom ou raison sociale"],["Email","email","email@client.com"],["Téléphone WhatsApp","tel","+33 6..."],["Objet du devis","objet","Ex: Nettoyage Airbnb Montmartre"]].map(([l,k,ph])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={ph}/></div>)}
+            {[["Client *","client","Nom ou raison sociale"],["Email","email","email@client.com"],["Téléphone WhatsApp","tel","+33 6..."],["Objet du devis","objet","Ex: Nettoyage Airbnb Montmartre"],["Adresse du client","adresse","12 rue de la Paix, 75002 Paris"]].map(([l,k,ph])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={ph}/></div>)}
           </div>
         </Card>
         <Card style={{marginBottom:12}}>

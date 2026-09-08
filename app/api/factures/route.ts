@@ -119,7 +119,7 @@ export async function POST(req: NextRequest) {
     const tenantId = await getTenantIdFromRequest(req);
     const { data: tenantRow } = await sb
       .from('tenants')
-      .select('societe,logo_url,adresse,ville,code_postal,pays,telephone_entreprise,email,site_web,couleur_primaire,tva_intracommunautaire')
+      .select('societe,logo_url,adresse,ville,code_postal,pays,telephone_entreprise,email,site_web,couleur_primaire,tva_intracommunautaire,siret,siren,forme_juridique,capital_social,rcs_ville')
       .eq('id', tenantId)
       .maybeSingle();
     const tenantSnapshot = tenantRow ? {
@@ -134,6 +134,11 @@ export async function POST(req: NextRequest) {
       site_web: tenantRow.site_web,
       couleur_primaire: tenantRow.couleur_primaire,
       tva_intracommunautaire: tenantRow.tva_intracommunautaire,
+      siret: tenantRow.siret,
+      siren: tenantRow.siren,
+      forme_juridique: tenantRow.forme_juridique,
+      capital_social: tenantRow.capital_social,
+      rcs_ville: tenantRow.rcs_ville,
     } : null;
 
     // Si un devis d'origine est fourni, on ne le relie que s'il appartient bien
