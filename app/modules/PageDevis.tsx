@@ -41,6 +41,10 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
   useEffect(()=>{
     fetch('/api/whoami').then(r=>r.json()).then(d=>setPeutSignerDevisManuel(!!d.peutSignerDevisManuel)).catch(()=>{});
   },[]);
+  const[catalogue,setCatalogue]=useState([]);
+  useEffect(()=>{
+    fetch('/api/services-catalogue?action=catalogue').then(r=>r.json()).then(d=>{if(d.services)setCatalogue(d.services);}).catch(()=>{});
+  },[]);
   const[onglet,setOnglet]=useState("liste");
   const[showCreate,setShowCreate]=useState(false);
   const[modeleId,setModeleId]=useState("airbnb");
@@ -66,6 +70,11 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
   };
 
   const ajouterLigne=()=>setLignes(ls=>[...ls,{desc:"",qte:1,pu:0,tva:20}]);
+  const ajouterLigneDepuisCatalogue=(serviceId)=>{
+    const service=catalogue.find(s=>s.id===serviceId);
+    if(!service)return;
+    setLignes(ls=>[...ls,{desc:service.nom,qte:1,pu:Number(service.prix_standard)||0,tva:20}]);
+  };
   const supprimerLigne=(i)=>setLignes(ls=>ls.filter((_,j)=>j!==i));
   const updateLigne=(i,k,v)=>setLignes(ls=>ls.map((l,j)=>j===i?{...l,[k]:v}:l));
 
@@ -326,10 +335,19 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
           </div>
         </Card>
         <Card style={{marginBottom:12}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,gap:8,flexWrap:"wrap"}}>
             <STitle>📦 Lignes de prestation</STitle>
-            <Btn onClick={ajouterLigne} style={{fontSize:11,padding:"5px 12px"}}>+ Ligne</Btn>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              {catalogue.length>0 && (
+                <Sel value="" onChange={e=>{if(e.target.value)ajouterLigneDepuisCatalogue(e.target.value);}} style={{fontSize:11}}>
+                  <option value="">+ Depuis mon catalogue...</option>
+                  {catalogue.map(s=><option key={s.id} value={s.id}>{s.nom} — {fmt(Number(s.prix_standard)||0)}</option>)}
+                </Sel>
+              )}
+              <Btn onClick={ajouterLigne} style={{fontSize:11,padding:"5px 12px"}}>+ Ligne vide</Btn>
+            </div>
           </div>
+          {catalogue.length===0 && <div style={{fontSize:10,color:C.muted,marginBottom:10}}>Aucun service dans votre catalogue pour l'instant — ajoutez-en dans "Services" pour les retrouver ici a chaque devis, ou continuez avec des lignes libres.</div>}
           <table style={{width:"100%",borderCollapse:"collapse"}}>
             <thead><tr><TH>Description</TH><TH>Qté</TH><TH>PU HT (€)</TH><TH>TVA %</TH><TH>Total HT</TH><TH></TH></tr></thead>
             <tbody>{lignes.map((l,i)=><tr key={i}>
