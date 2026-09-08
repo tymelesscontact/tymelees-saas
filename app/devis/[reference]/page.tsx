@@ -1,6 +1,6 @@
 "use client";
-import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useState, useEffect, Suspense } from "react";
+import { useParams, useSearchParams } from "next/navigation";
 
 const C = {
   dark: "#06060E", card: "#0C0C1A", card2: "#121222",
@@ -8,9 +8,11 @@ const C = {
   muted: "#5A5A7A", green: "#2EC9B0", red: "#FF5252",
 };
 
-export default function DevisPublicPage() {
+function DevisPublicPageInner() {
   const params = useParams();
   const reference = params.reference as string;
+  const searchParams = useSearchParams();
+  const token = searchParams.get("t") || "";
   const [devis, setDevis] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [erreur, setErreur] = useState("");
@@ -19,7 +21,12 @@ export default function DevisPublicPage() {
   const [signing, setSigning] = useState(false);
 
   useEffect(() => {
-    fetch("/api/devis?action=public&reference=" + reference)
+    if (!token) {
+      setErreur("Lien invalide");
+      setLoading(false);
+      return;
+    }
+    fetch("/api/devis?action=public&reference=" + reference + "&token=" + encodeURIComponent(token))
       .then(r => r.json())
       .then(d => {
         if (d.devis) setDevis(d.devis);
@@ -27,7 +34,7 @@ export default function DevisPublicPage() {
         setLoading(false);
       })
       .catch(() => { setErreur("Erreur de connexion"); setLoading(false); });
-  }, [reference]);
+  }, [reference, token]);
 
   const signer = async () => {
     if (!nomSignature.trim()) return;
@@ -36,7 +43,7 @@ export default function DevisPublicPage() {
       const res = await fetch("/api/devis/signer", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ reference, email: devis.client_email, nom: nomSignature }),
+        body: JSON.stringify({ reference, token, email: devis.client_email, nom: nomSignature }),
       });
       const data = await res.json();
       if (data.success) {
@@ -78,7 +85,11 @@ export default function DevisPublicPage() {
     <div style={{ minHeight: "100vh", background: C.dark, color: C.text, fontFamily: "'Segoe UI',sans-serif", padding: "40px 20px" }}>
       <div style={{ maxWidth: 640, margin: "0 auto" }}>
         <div style={{ textAlign: "center", marginBottom: 24 }}>
-          <div style={{ fontSize: 22, fontWeight: 300, letterSpacing: "0.15em", color: C.gold, fontFamily: "Georgia,serif" }}>XYRA</div>
+          {devis?.tenant_snapshot?.logo_url ? (
+            <img src={devis.tenant_snapshot.logo_url} alt={devis.tenant_snapshot.societe || "Logo"} style={{ height: 40, marginBottom: 4 }} />
+          ) : (
+            <div style={{ fontSize: 22, fontWeight: 300, letterSpacing: "0.15em", color: C.gold, fontFamily: "Georgia,serif" }}>{devis?.tenant_snapshot?.societe || "XYRA"}</div>
+          )}
         </div>
         <div style={{ background: C.card, border: "1px solid " + C.border, borderRadius: 14, padding: 28 }}>
           <div style={{ fontSize: 18, fontWeight: 700, marginBottom: 4 }}>Devis {devis.reference}</div>
@@ -126,5 +137,17 @@ export default function DevisPublicPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function DevisPublicPage() {
+  return (
+    <Suspense fallback={
+      <div style={{ minHeight: "100vh", background: C.dark, display: "flex", alignItems: "center", justifyContent: "center", color: C.text, fontFamily: "'Segoe UI',sans-serif" }}>
+        <div style={{ fontSize: 24, fontWeight: 700, color: C.gold, fontFamily: "Georgia,serif" }}>XYRA</div>
+      </div>
+    }>
+      <DevisPublicPageInner />
+    </Suspense>
   );
 }

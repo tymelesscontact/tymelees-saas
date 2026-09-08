@@ -16,10 +16,31 @@ async function genererPdfFacture(facture: any): Promise<Buffer> {
   const chunks: Buffer[] = [];
   doc.on('data', (chunk: Buffer) => chunks.push(chunk));
 
+  const nomEntreprise = facture.tenant_snapshot?.societe || 'Xyra';
+  const logoUrl = facture.tenant_snapshot?.logo_url;
+  let logoBuffer: Buffer | null = null;
+  if (logoUrl) {
+    try {
+      const res = await fetch(logoUrl);
+      if (res.ok) logoBuffer = Buffer.from(await res.arrayBuffer());
+    } catch (e) {
+      console.error('Logo facture, telechargement echoue:', e);
+    }
+  }
+
   return new Promise((resolve) => {
     doc.on('end', () => resolve(Buffer.concat(chunks)));
 
-    doc.fontSize(24).fillColor('#C9A84C').text('XYRA', 50, 50);
+    if (logoBuffer) {
+      try {
+        doc.image(logoBuffer, 50, 45, { height: 30 });
+      } catch (e) {
+        console.error('Logo facture, rendu echoue:', e);
+        doc.fontSize(24).fillColor('#C9A84C').text(nomEntreprise, 50, 50);
+      }
+    } else {
+      doc.fontSize(24).fillColor('#C9A84C').text(nomEntreprise, 50, 50);
+    }
     doc.fontSize(10).fillColor('#888888')
       .text(`Facture ${facture.numero}`, 50, 85)
       .text(`Date : ${facture.date_emission || new Date().toLocaleDateString('fr-FR')}`, 50, 100)
@@ -44,7 +65,7 @@ async function genererPdfFacture(facture: any): Promise<Buffer> {
       .text(`Total TTC : ${Number(facture.montant_ttc).toFixed(2)} €`, 50, 260, { width: 495, align: 'right' });
 
     doc.fontSize(9).fillColor('#999999')
-      .text('Xyra — Document généré automatiquement', 50, 750, { width: 495, align: 'center' });
+      .text(`${nomEntreprise} — Document généré automatiquement`, 50, 750, { width: 495, align: 'center' });
 
     doc.end();
   });
@@ -96,9 +117,29 @@ export async function POST(req: NextRequest) {
     const statutDgfip = type_client === 'administration' ? 'a_transmettre' : 'non_applicable';
 
     const tenantId = await getTenantIdFromRequest(req);
+    const { data: tenantRow } = await sb
+      .from('tenants')
+      .select('societe,logo_url,adresse,ville,code_postal,pays,telephone_entreprise,email,site_web,couleur_primaire,tva_intracommunautaire')
+      .eq('id', tenantId)
+      .maybeSingle();
+    const tenantSnapshot = tenantRow ? {
+      societe: tenantRow.societe,
+      logo_url: tenantRow.logo_url,
+      adresse: tenantRow.adresse,
+      ville: tenantRow.ville,
+      code_postal: tenantRow.code_postal,
+      pays: tenantRow.pays,
+      telephone_entreprise: tenantRow.telephone_entreprise,
+      email: tenantRow.email,
+      site_web: tenantRow.site_web,
+      couleur_primaire: tenantRow.couleur_primaire,
+      tva_intracommunautaire: tenantRow.tva_intracommunautaire,
+    } : null;
+
     const { data: row, error } = await sb.from('factures').insert({
       numero,
       tenant_id: tenantId,
+      tenant_snapshot: tenantSnapshot,
       client_nom,
       client_email: client_email || null,
       client_tel: client_tel || null,

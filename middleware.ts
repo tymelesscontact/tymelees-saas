@@ -12,7 +12,6 @@ const API_OUVERTES = [
   '/api/contrats',
   '/api/create-checkout',
   '/api/create-checkout-flutterwave',
-  '/api/devis',
   '/api/generer-secteur',
   '/api/send-email',
   '/api/whoami',
@@ -32,7 +31,31 @@ export async function middleware(req: NextRequest) {
   const path = req.nextUrl.pathname
   const isApi = path.startsWith('/api')
 
+  // Devis : /api/devis n'est plus public dans son ensemble (Lot 1 securite).
+  // Seuls restent ouverts sans session : la consultation publique d'un devis par reference,
+  // et la signature electronique client (qui n'a justement pas encore de compte/session).
+  if (
+    path === '/api/devis' &&
+    req.method === 'GET' &&
+    req.nextUrl.searchParams.get('action') === 'public'
+  ) {
+    return NextResponse.next()
+  }
+  if (path === '/api/devis/signer' && req.method === 'POST') {
+    return NextResponse.next()
+  }
+
   if (isApi && API_OUVERTES.some(p => path === p || path.startsWith(p + '/'))) {
+    return NextResponse.next()
+  }
+
+  const cronSecret = process.env.CRON_SECRET
+  const cronAuth = req.headers.get('authorization')
+  if (
+    cronSecret &&
+    cronAuth === `Bearer ${cronSecret}` &&
+    (path === '/api/cron/quotidien' || path === '/api/relance' || path === '/api/trial-ending')
+  ) {
     return NextResponse.next()
   }
 
@@ -73,22 +96,6 @@ export async function middleware(req: NextRequest) {
           return refus(loginUrl)
         }
       }
-    }
-  }
-
-  // Verification de la session active -- revocable depuis les Parametres
-  if (path !== '/api/sessions') {
-    const sessionId = req.cookies.get('session_id')?.value
-    if (!sessionId) {
-      return refus(loginUrl)
-    }
-    const sbSessions = createClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.SUPABASE_SERVICE_ROLE_KEY!
-    )
-    const { data: sessionActive } = await sbSessions.from('sessions_actives').select('revoquee').eq('session_token', sessionId).maybeSingle()
-    if (!sessionActive || sessionActive.revoquee) {
-      return refus(loginUrl)
     }
   }
 

@@ -7,9 +7,25 @@ export interface DevisData {
   montant: string | number
   dateDevis: string
   numeroDevis: string
+  tenant?: {
+    societe?: string | null
+    logoUrl?: string | null
+    email?: string | null
+    siteWeb?: string | null
+    adresse?: string | null
+    ville?: string | null
+  }
 }
 
 export function generateDevisHTML(data: DevisData): string {
+  const nomEntreprise = data.tenant?.societe || 'Xyra'
+  const emailContact = data.tenant?.email || 'contact@xyraio.fr'
+  const siteWeb = data.tenant?.siteWeb || 'xyraio.fr'
+  const adresseLigne = [data.tenant?.adresse, data.tenant?.ville].filter(Boolean).join(', ') || 'France'
+  const logoHtml = data.tenant?.logoUrl
+    ? `<img src="${data.tenant.logoUrl}" alt="${nomEntreprise}" style="max-height:48px;margin-bottom:4px;" />`
+    : `<div class="logo">${nomEntreprise}</div>`
+
   return `
 <!DOCTYPE html>
 <html>
@@ -41,7 +57,7 @@ export function generateDevisHTML(data: DevisData): string {
 <body>
   <div class="header">
     <div>
-      <div class="logo">TYMELESS</div>
+      ${logoHtml}
       <div class="tagline">L'excellence du service sur mesure</div>
     </div>
     <div class="devis-info">
@@ -87,8 +103,8 @@ export function generateDevisHTML(data: DevisData): string {
   </div>
 
   <div class="footer">
-    <p>Tymeless — conciergerie@tymeless.fr — tymeless.fr</p>
-    <p>Paris, France | Disponible 24h/24, 7j/7</p>
+    <p>${nomEntreprise} — ${emailContact} — ${siteWeb}</p>
+    <p>${adresseLigne} | Disponible 24h/24, 7j/7</p>
   </div>
 </body>
 </html>

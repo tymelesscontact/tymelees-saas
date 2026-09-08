@@ -31,6 +31,10 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
     setLoadingDevis(false);
   };
   useEffect(()=>{loadDevis();},[activeCompany?.id]);
+  const[branding,setBranding]=useState(null);
+  useEffect(()=>{
+    fetch('/api/branding').then(r=>r.json()).then(d=>{if(d.branding)setBranding(d.branding);}).catch(()=>{});
+  },[]);
   const[onglet,setOnglet]=useState("liste");
   const[showCreate,setShowCreate]=useState(false);
   const[modeleId,setModeleId]=useState("airbnb");
@@ -92,6 +96,8 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
     if(!form.client)return showToast("⚠️ Remplissez le nom du client");
     const win=window.open("","_blank");
     if(!win)return showToast("⚠️ Autorisez les pop-ups pour voir l'aperçu");
+    const nomEntreprise=branding?.societe||"Xyra";
+    const logoHtml=branding?.logo_url?`<img src="${branding.logo_url}" alt="${nomEntreprise}" style="max-height:36px;" />`:`<h1>${nomEntreprise}</h1>`;
     const lignesHtml=lignes.map(l=>`<tr><td style="padding:8px 0;border-bottom:1px solid #1E1E3633;">${l.desc}</td><td style="padding:8px 0;text-align:center;border-bottom:1px solid #1E1E3633;">${l.qte}</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #1E1E3633;">${l.pu}€</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #1E1E3633;">${(l.qte*l.pu).toFixed(2)}€</td></tr>`).join("");
     win.document.write(`<!DOCTYPE html><html><head><title>Devis — ${form.client}</title><style>
       body{font-family:'Segoe UI',sans-serif;background:#fff;color:#111;padding:40px;max-width:700px;margin:0 auto;}
@@ -102,7 +108,7 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
       .btn{background:#C9A84C;color:#000;border:none;padding:10px 24px;border-radius:6px;font-weight:700;cursor:pointer;margin-top:30px;}
       @media print{.btn{display:none;}}
     </style></head><body>
-      <h1>XYRA</h1>
+      ${logoHtml}
       <p style="color:#888;font-size:11px;">Devis pour ${form.client}${form.email?" · "+form.email:""}${form.tel?" · "+form.tel:""}</p>
       <h2 style="margin-top:20px;">${form.objet||MODELES.find(m=>m.id===modeleId)?.label||"Devis"}</h2>
       <table><tr><th>Description</th><th>Qté</th><th style="text-align:right;">PU</th><th style="text-align:right;">Total</th></tr>${lignesHtml}</table>

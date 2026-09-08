@@ -1,6 +1,7 @@
 export const dynamic = "force-dynamic"
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import crypto from "crypto"
 import { generateDevisHTML } from "../../lib/generateDevis"
 import { getTenantIdFromRequest } from "../../lib/supabaseServer"
 type DevisData = {
@@ -12,6 +13,14 @@ type DevisData = {
   montant: number | string
   dateDevis: string
   numeroDevis: string
+  tenant?: {
+    societe?: string | null
+    logoUrl?: string | null
+    email?: string | null
+    siteWeb?: string | null
+    adresse?: string | null
+    ville?: string | null
+  }
 }
 function getSupabase() {
   const supabaseUrl =
@@ -25,6 +34,10 @@ function getSupabase() {
 }
 export async function POST(req: NextRequest) {
   try {
+    const tenantId = await getTenantIdFromRequest(req)
+    if (!tenantId) {
+      return NextResponse.json({ success: false, error: "Non autorise" }, { status: 401 })
+    }
     const supabase = getSupabase()
     const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
     const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
@@ -43,7 +56,29 @@ export async function POST(req: NextRequest) {
       statut,
     } = body
     const numeroDevis = `TYM-${Date.now().toString().slice(-6)}`
+    const tokenPublic = crypto.randomBytes(24).toString("hex")
+    const expireLe = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
     const dateDevis = new Date().toLocaleDateString("fr-FR")
+
+    const { data: tenantRow } = await supabase
+      .from("tenants")
+      .select("societe,logo_url,adresse,ville,code_postal,pays,telephone_entreprise,email,site_web,couleur_primaire,tva_intracommunautaire")
+      .eq("id", tenantId)
+      .maybeSingle()
+    const tenantSnapshot = tenantRow ? {
+      societe: tenantRow.societe,
+      logo_url: tenantRow.logo_url,
+      adresse: tenantRow.adresse,
+      ville: tenantRow.ville,
+      code_postal: tenantRow.code_postal,
+      pays: tenantRow.pays,
+      telephone_entreprise: tenantRow.telephone_entreprise,
+      email: tenantRow.email,
+      site_web: tenantRow.site_web,
+      couleur_primaire: tenantRow.couleur_primaire,
+      tva_intracommunautaire: tenantRow.tva_intracommunautaire,
+    } : null
+
     const devisData: DevisData = {
       clientName: clientName || "Client",
       clientPhone,
@@ -53,13 +88,25 @@ export async function POST(req: NextRequest) {
       montant,
       dateDevis,
       numeroDevis,
+      tenant: tenantSnapshot ? {
+        societe: tenantSnapshot.societe,
+        logoUrl: tenantSnapshot.logo_url,
+        email: tenantSnapshot.email,
+        siteWeb: tenantSnapshot.site_web,
+        adresse: tenantSnapshot.adresse,
+        ville: tenantSnapshot.ville,
+      } : undefined,
     }
     const htmlContent = generateDevisHTML({
       ...devisData,
       montant: String(devisData.montant)
     })
     const { error: insertError } = await supabase.from("devis").insert({
+      tenant_id: tenantId,
       reference: numeroDevis,
+      token_public: tokenPublic,
+      expire_le: expireLe,
+      tenant_snapshot: tenantSnapshot,
       client_tel: clientPhone,
       client_nom: clientName || "Client",
       client_email: clientEmail || null,
@@ -108,6 +155,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({
       success: true,
       numeroDevis,
+      tokenPublic,
     })
   } catch (error) {
     console.error("Erreur API /api/devis:", error)
@@ -122,16 +170,28 @@ export async function POST(req: NextRequest) {
 }
 export async function PATCH(req: NextRequest) {
   try {
+    const tenantId = await getTenantIdFromRequest(req)
+    if (!tenantId) {
+      return NextResponse.json({ success: false, error: "Non autorise" }, { status: 401 })
+    }
     const supabase = getSupabase()
     const body = await req.json()
     const { id, ...champs } = body
     if (!id) {
       return NextResponse.json({ success: false, error: "id manquant" }, { status: 400 })
     }
-    const { error } = await supabase.from("devis").update(champs).eq("id", id)
+    const { data, error } = await supabase
+      .from("devis")
+      .update(champs)
+      .eq("id", id)
+      .eq("tenant_id", tenantId)
+      .select("id")
     if (error) {
       console.error("Erreur modification devis:", error)
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    }
+    if (!data || data.length === 0) {
+      return NextResponse.json({ success: false, error: "Devis introuvable" }, { status: 404 })
     }
     return NextResponse.json({ success: true })
   } catch (e: any) {
@@ -141,16 +201,28 @@ export async function PATCH(req: NextRequest) {
 }
 export async function DELETE(req: NextRequest) {
   try {
+    const tenantId = await getTenantIdFromRequest(req)
+    if (!tenantId) {
+      return NextResponse.json({ success: false, error: "Non autorise" }, { status: 401 })
+    }
     const supabase = getSupabase()
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')
     if (!id) {
       return NextResponse.json({ success: false, error: "id manquant" }, { status: 400 })
     }
-    const { error } = await supabase.from("devis").delete().eq("id", id)
+    const { data, error } = await supabase
+      .from("devis")
+      .delete()
+      .eq("id", id)
+      .eq("tenant_id", tenantId)
+      .select("id")
     if (error) {
       console.error("Erreur suppression devis:", error)
       return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+    }
+    if (!data || data.length === 0) {
+      return NextResponse.json({ success: false, error: "Devis introuvable" }, { status: 404 })
     }
     return NextResponse.json({ success: true })
   } catch (e: any) {
@@ -179,18 +251,21 @@ export async function GET(req: NextRequest) {
     }
     if (action === 'public') {
       const reference = searchParams.get('reference')
-      if (!reference) {
-        return NextResponse.json({ error: 'reference manquante' }, { status: 400 })
+      const token = searchParams.get('token')
+      if (!reference || !token) {
+        return NextResponse.json({ error: 'parametres manquants' }, { status: 400 })
       }
       const { data, error } = await supabase
         .from('devis')
-        .select('reference,client_nom,client_email,service,description,montant,taux_tva,devise,statut,lignes,notes,created_at')
+        .select('reference,client_nom,client_email,service,description,montant,taux_tva,devise,statut,lignes,notes,created_at,expire_le,tenant_snapshot')
         .eq('reference', reference)
+        .eq('token_public', token)
         .single()
-      if (error || !data) {
+      if (error || !data || (data.expire_le && new Date(data.expire_le) < new Date())) {
         return NextResponse.json({ error: 'Devis introuvable' }, { status: 404 })
       }
-      return NextResponse.json({ devis: data })
+      const { expire_le, ...devisPublic } = data
+      return NextResponse.json({ devis: devisPublic })
     }
     return NextResponse.json({ error: 'action invalide' }, { status: 400 })
   } catch (e: any) {

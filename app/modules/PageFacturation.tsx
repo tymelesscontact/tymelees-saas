@@ -41,6 +41,8 @@ const PageFacturation=({plan,showToast,UpgradeWall,activeCompany})=>{
   const apercuPDF=(f)=>{
     const win=window.open("","_blank");
     if(!win)return showToast("⚠️ Autorisez les pop-ups pour voir l'aperçu");
+    const nomEntreprise=f.tenant_snapshot?.societe||"Xyra";
+    const logoHtml=f.tenant_snapshot?.logo_url?`<img src="${f.tenant_snapshot.logo_url}" alt="${nomEntreprise}" style="max-height:36px;" />`:`<h1>${nomEntreprise}</h1>`;
     win.document.write(`<!DOCTYPE html><html><head><title>Facture ${f.numero}</title><style>
       body{font-family:'Segoe UI',sans-serif;background:#fff;color:#111;padding:40px;max-width:700px;margin:0 auto;}
       h1{font-size:22px;color:#C9A84C;font-family:Georgia,serif;letter-spacing:.1em;}
@@ -52,7 +54,7 @@ const PageFacturation=({plan,showToast,UpgradeWall,activeCompany})=>{
       .btn{background:#C9A84C;color:#000;border:none;padding:10px 24px;border-radius:6px;font-weight:700;cursor:pointer;margin-top:30px;}
       @media print{.btn{display:none;}}
     </style></head><body>
-      <h1>XYRA</h1>
+      ${logoHtml}
       <div class="meta">Facture ${f.numero} · ${f.date_emission||""}</div>
       <div class="meta">Facturé à : ${f.client_nom}${f.siren?" · SIREN "+f.siren:""}</div>
       <table>
