@@ -83,12 +83,10 @@ const PageSignatures=({plan,showToast,UpgradeWall,activeCompany}) => {
       else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
   };
+  // Ouvre le vrai PDF genere et stocke a la signature (contenu + certificat
+  // de signature electronique), plutot que de reconstruire un apercu a part.
   const exporterImprimer=(c)=>{
-    const w=window.open('','_blank');
-    if(!w)return;
-    w.document.write(`<html><head><title>${c.titre}</title><style>body{font-family:Georgia,serif;padding:40px;line-height:1.7;white-space:pre-wrap}h1{font-size:18px}</style></head><body><h1>${c.titre}</h1><p>${c.contenu_final}</p><hr/><p style="font-size:11px;color:#666">Signe electroniquement par ${c.signature_nom_tape||c.signataire_nom} le ${c.signe_a?new Date(c.signe_a).toLocaleString('fr'):''} — IP: ${c.signature_ip||'—'} — Empreinte: ${c.document_hash||'—'}</p></body></html>`);
-    w.document.close();
-    w.print();
+    window.open('/api/contrats?action=pdf&id='+c.id, '_blank');
   };
   const contratsFiltres=contrats.filter(c=>{
     const matchStatut=filtreStatut==="Tous"||c.statut===filtreStatut;

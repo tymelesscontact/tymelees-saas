@@ -7,12 +7,12 @@ const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
-async function sendEmail(to: string, subject: string, html: string) {
+async function sendEmail(to: string, subject: string, html: string, attachments?: { filename: string; content: string }[]) {
   try {
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: { 'Authorization': `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ from: 'Xyra <contrats@xyraio.fr>', to, subject, html }),
+      body: JSON.stringify({ from: 'Xyra <contrats@xyraio.fr>', to, subject, html, attachments }),
     });
     const responseBody = await res.text();
     if (!res.ok) {
@@ -24,6 +24,73 @@ async function sendEmail(to: string, subject: string, html: string) {
     console.error('Email exception:', e);
     return { ok: false, error: e.message };
   }
+}
+
+// PDF du document signe + certificat de signature electronique (qui a signe,
+// quand, avec quelle IP, empreinte du document) -- PDFKit, deja utilise pour
+// devis/factures, aucune nouvelle dependance.
+async function genererPdfContrat(contrat: any, tenantInfo: { societe?: string | null; logo_url?: string | null } | null): Promise<Buffer> {
+  const PDFDocument = (await import('pdfkit')).default;
+  const doc = new PDFDocument({ size: 'A4', margin: 50 });
+  const chunks: Buffer[] = [];
+  doc.on('data', (chunk: Buffer) => chunks.push(chunk));
+
+  const nomEntreprise = tenantInfo?.societe || 'Xyra';
+  let logoBuffer: Buffer | null = null;
+  if (tenantInfo?.logo_url) {
+    try {
+      const res = await fetch(tenantInfo.logo_url);
+      if (res.ok) logoBuffer = Buffer.from(await res.arrayBuffer());
+    } catch (e) {
+      console.error('Logo contrat, telechargement echoue:', e);
+    }
+  }
+
+  return new Promise((resolve) => {
+    doc.on('end', () => resolve(Buffer.concat(chunks)));
+
+    if (logoBuffer) {
+      try { doc.image(logoBuffer, 50, 45, { height: 30 }); }
+      catch (e) { doc.fontSize(18).fillColor('#C9A84C').text(nomEntreprise, 50, 50); }
+    } else {
+      doc.fontSize(18).fillColor('#C9A84C').text(nomEntreprise, 50, 50);
+    }
+    doc.fontSize(9).fillColor('#888888')
+      .text(`Reference ${contrat.reference}`, 50, 85)
+      .text(`Document : ${contrat.titre}`, 50, 98);
+    doc.moveTo(50, 120).lineTo(545, 120).strokeColor('#dddddd').stroke();
+
+    doc.fontSize(11).fillColor('#111111').text(contrat.contenu_final || '', 50, 140, { width: 495, align: 'left' });
+
+    // Certificat de signature electronique -- sur une nouvelle page pour
+    // rester clairement separe du contenu contractuel lui-meme.
+    doc.addPage();
+    doc.fontSize(16).fillColor('#C9A84C').text('CERTIFICAT DE SIGNATURE ELECTRONIQUE', 50, 50, { width: 495 });
+    doc.moveTo(50, 80).lineTo(545, 80).strokeColor('#dddddd').stroke();
+
+    const ligne = (label: string, valeur: string, y: number) => {
+      doc.fontSize(9).fillColor('#888888').text(label, 50, y);
+      doc.fontSize(11).fillColor('#111111').text(valeur || '—', 200, y, { width: 345 });
+    };
+    let y = 100;
+    ligne('Document', contrat.titre || '', y); y += 24;
+    ligne('Reference', contrat.reference || '', y); y += 24;
+    ligne('Signe par', `${contrat.signature_nom_tape || contrat.signataire_nom || ''} (${contrat.signataire_email || ''})`, y); y += 24;
+    ligne('Role', contrat.signataire_role || '', y); y += 24;
+    ligne('Verification du code effectuee le', contrat.code_verifie_a ? new Date(contrat.code_verifie_a).toLocaleString('fr-FR') : '', y); y += 24;
+    ligne('Signature electronique le', contrat.signe_a ? new Date(contrat.signe_a).toLocaleString('fr-FR') : '', y); y += 24;
+    ligne('Adresse IP du signataire', contrat.signature_ip || '', y); y += 24;
+    doc.fontSize(9).fillColor('#888888').text('Empreinte du document (SHA-256)', 50, y); y += 14;
+    doc.fontSize(8).fillColor('#333333').font('Courier').text(contrat.document_hash || '', 50, y, { width: 495 }); doc.font('Helvetica');
+    y += 40;
+
+    doc.fontSize(8).fillColor('#999999').text(
+      "Cette empreinte est calculee a partir du contenu exact du document, du nom tape par le signataire et de l'horodatage de signature. Toute modification ulterieure du contenu produirait une empreinte differente, ce qui permet de detecter une alteration.",
+      50, y, { width: 495 }
+    );
+
+    doc.end();
+  });
 }
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
@@ -43,6 +110,19 @@ export async function GET(req: NextRequest) {
   if (action === 'contrats') {
     const { data } = await scoped(sb.from('contrats').select('*').order('created_at', { ascending: false }));
     return NextResponse.json({ contrats: data || [] });
+  }
+  if (action === 'pdf') {
+    const id = searchParams.get('id');
+    if (!id) return NextResponse.json({ error: 'id manquant' }, { status: 400 });
+    const { data } = await sb.from('contrats').select('reference,document_pdf_base64').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!data?.document_pdf_base64) return NextResponse.json({ error: 'Document non disponible' }, { status: 404 });
+    const pdfBytes = Buffer.from(data.document_pdf_base64, 'base64');
+    return new NextResponse(pdfBytes, {
+      headers: {
+        'Content-Type': 'application/pdf',
+        'Content-Disposition': `inline; filename="Document-signe-${data.reference}.pdf"`,
+      },
+    });
   }
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });
 }
@@ -122,18 +202,37 @@ export async function POST(req: NextRequest) {
     if (!contrat.code_verifie_a) return NextResponse.json({ success: false, error: 'Verification requise avant signature' }, { status: 403 });
     if (contrat.statut === 'signe') return NextResponse.json({ success: false, error: 'Document deja signe' }, { status: 400 });
     const ip = req.headers.get('x-forwarded-for') || 'inconnue';
-    const hash = crypto.createHash('sha256').update(contrat.contenu_final + nom_tape + new Date().toISOString()).digest('hex');
+    const signeA = new Date().toISOString();
+    const hash = crypto.createHash('sha256').update(contrat.contenu_final + nom_tape + signeA).digest('hex');
     await sb.from('contrats').update({
-      statut: 'signe', signe_a: new Date().toISOString(), signature_ip: ip,
+      statut: 'signe', signe_a: signeA, signature_ip: ip,
       signature_nom_tape: nom_tape, document_hash: hash,
     }).eq('id', contrat.id);
-    const dateSignature = new Date().toLocaleString('fr-FR');
+    const dateSignature = new Date(signeA).toLocaleString('fr-FR');
     const preuve = `<p>Document : <strong>${contrat.titre}</strong></p><p>Signe par : ${nom_tape} (${contrat.signataire_email})</p><p>Date : ${dateSignature}</p><p>Adresse IP : ${ip}</p><p>Empreinte du document : ${hash}</p>`;
-    await sendEmail(contrat.signataire_email, `Confirmation de signature - ${contrat.titre}`, `<p>Bonjour ${contrat.signataire_nom},</p><p>Votre signature electronique a bien ete enregistree.</p>${preuve}`);
+
+    let tenantInfo: { societe?: string | null; logo_url?: string | null; email?: string | null } | null = null;
     if (contrat.tenant_id) {
-      const { data: tenantOwner } = await sb.from('tenants').select('email').eq('id', contrat.tenant_id).single();
-      if (tenantOwner?.email) {
-        await sendEmail(tenantOwner.email, `Document signe - ${contrat.titre}`, `<p>Le document a ete signe electroniquement.</p>${preuve}`);
+      const { data: t } = await sb.from('tenants').select('societe,logo_url,email').eq('id', contrat.tenant_id).single();
+      tenantInfo = t || null;
+    }
+    let pdfAttachments: { filename: string; content: string }[] | undefined;
+    try {
+      const pdfBuffer = await genererPdfContrat(
+        { ...contrat, signe_a: signeA, signature_ip: ip, signature_nom_tape: nom_tape, document_hash: hash },
+        tenantInfo
+      );
+      const pdfBase64 = pdfBuffer.toString('base64');
+      await sb.from('contrats').update({ document_pdf_base64: pdfBase64 }).eq('id', contrat.id);
+      pdfAttachments = [{ filename: `Document-signe-${contrat.reference}.pdf`, content: pdfBase64 }];
+    } catch (e) {
+      console.error('Generation PDF contrat echouee:', e);
+    }
+
+    await sendEmail(contrat.signataire_email, `Confirmation de signature - ${contrat.titre}`, `<p>Bonjour ${contrat.signataire_nom},</p><p>Votre signature electronique a bien ete enregistree.</p>${preuve}`, pdfAttachments);
+    if (contrat.tenant_id) {
+      if (tenantInfo?.email) {
+        await sendEmail(tenantInfo.email, `Document signe - ${contrat.titre}`, `<p>Le document a ete signe electroniquement.</p>${preuve}`, pdfAttachments);
       }
       try {
         await sb.from('notifications').insert({
