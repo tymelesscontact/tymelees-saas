@@ -27,7 +27,7 @@ function verifierSignatureSvix(id: string, timestamp: string, corps: string, ent
   const cleSecrete = Buffer.from(secret.slice('whsec_'.length), 'base64');
   const contenuSigne = `${id}.${timestamp}.${corps}`;
   const attendu = crypto.createHmac('sha256', cleSecrete).update(contenuSigne).digest('base64');
-  const attenduBuf = Buffer.from(attendu);
+  const attenduBuf = Buffer.from(attendu, 'base64');
   // svix-signature peut contenir plusieurs signatures espacees (rotation de cle) : "v1,xxx v1,yyy"
   const signatures = entete.split(' ').map(s => s.split(',')[1]).filter(Boolean);
   return signatures.some(sig => {
