@@ -142,11 +142,16 @@ export async function POST(req: NextRequest) {
 
     await sb.from('conversations').update({ derniere_activite: new Date().toISOString() }).eq('id', conversation_id);
 
-    // Envoi reel : WhatsApp d'abord, email si echec, SMS en dernier recours
+    // Envoi reel : WhatsApp d'abord, email si echec, SMS en dernier recours.
+    // Le Reply-To conv-<id>@reply.xyraio.fr permet a la reponse du client de
+    // revenir automatiquement dans cette conversation (voir api/email-entrant).
     let canalUtilise = null;
     if ((contact_tel || contact_email) && type !== 'auto_ia') {
       try {
-        canalUtilise = await envoyerPartout(contact_tel || null, contact_email || null, contenu || '[Fichier joint]', tenantId || '');
+        canalUtilise = await envoyerPartout(contact_tel || null, contact_email || null, contenu || '[Fichier joint]', tenantId || '', {
+          replyTo: `conv-${conversation_id}@reply.xyraio.fr`,
+          sujet: `Message de ${expediteur}`,
+        });
       } catch (e: any) { canalUtilise = null; }
     }
 

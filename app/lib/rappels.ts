@@ -12,7 +12,7 @@ const sb = createClient(
  * Utilisee par la route normale ET par la tache quotidienne (cron),
  * qui n'a pas de session utilisateur.
  */
-export async function envoyerPartout(tel: string | null, email: string | null, texte: string, tenantId: string) {
+export async function envoyerPartout(tel: string | null, email: string | null, texte: string, tenantId: string, options?: { replyTo?: string; sujet?: string }) {
   if (tel) {
     try {
       const wa = await envoyerWhatsApp(tel, texte, tenantId);
@@ -24,8 +24,9 @@ export async function envoyerPartout(tel: string | null, email: string | null, t
       const { Resend } = await import('resend');
       const resend = new Resend(process.env.RESEND_API_KEY);
       await resend.emails.send({
-        from: 'Xyra <notifications@xyraio.fr>', to: email, subject: 'Rappel de rendez-vous',
+        from: 'Xyra <notifications@xyraio.fr>', to: email, subject: options?.sujet || 'Rappel de rendez-vous',
         html: `<p>${texte}</p>`,
+        ...(options?.replyTo ? { replyTo: options.replyTo } : {}),
       });
       return 'email';
     } catch (e: any) { console.error('Rappel email:', e.message); }

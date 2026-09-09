@@ -24,6 +24,7 @@ const API_OUVERTES = [
   '/api/stripe-webhook',
   '/api/flutterwave-webhook',
   '/api/webhook',
+  '/api/email-entrant',
 ]
 
 export async function middleware(req: NextRequest) {
