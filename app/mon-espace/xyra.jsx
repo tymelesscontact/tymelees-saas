@@ -452,40 +452,31 @@ const IbanMondial=({showToast})=>{
   const[cid,setCid]=useState(null);
   const[showForm,setShowForm]=useState(false);
   const[form,setForm]=useState({pays:"",iban:"",banque:"",bic:"",pour:""});
-  const[sb,setSb]=useState(null);
 
   useEffect(()=>{
-    const init=async()=>{
-      try{
-        const{createClient}=await import('@supabase/supabase-js');
-        const client=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-        setSb(client);
-        const{data,error}=await client.from('wallet_ibans').select('*').order('created_at',{ascending:true});
-        if(!error&&data)setIbans(data);
-      }catch(e){console.error('IBAN load:',e);}
-      setLoadingIbans(false);
-    };
-    init();
+    fetch("/api/wallet-ibans").then(r=>r.json()).then(d=>{
+      if(d.ibans)setIbans(d.ibans);
+    }).catch(e=>console.error('IBAN load:',e)).finally(()=>setLoadingIbans(false));
   },[]);
 
   const handleAdd=async()=>{
     if(!form.pays||!form.iban)return;
-    if(!sb)return showToast&&showToast("❌ Connexion Supabase indisponible");
     try{
-      const{data,error}=await sb.from('wallet_ibans').insert([{pays:form.pays,iban:form.iban,banque:form.banque,bic:form.bic,pour:form.pour}]).select();
-      if(error)throw error;
-      if(data&&data[0])setIbans(ib=>[...ib,data[0]]);
+      const res=await fetch("/api/wallet-ibans",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"ajouter",...form})});
+      const data=await res.json();
+      if(!data.success)throw new Error(data.error||"Erreur");
+      setIbans(ib=>[...ib,data.iban]);
       setForm({pays:"",iban:"",banque:"",bic:"",pour:""});
       setShowForm(false);
       showToast&&showToast("✅ IBAN ajouté et sauvegardé !");
-    }catch(e){showToast&&showToast("❌ Erreur lors de l'ajout — vérifie que la table wallet_ibans existe");}
+    }catch(e){showToast&&showToast("❌ Erreur lors de l'ajout de l'IBAN");}
   };
 
   const handleDelete=async(id)=>{
-    if(!sb)return;
     try{
-      const{error}=await sb.from('wallet_ibans').delete().eq('id',id);
-      if(error)throw error;
+      const res=await fetch("/api/wallet-ibans",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"supprimer",id})});
+      const data=await res.json();
+      if(!data.success)throw new Error(data.error||"Erreur");
       setIbans(ib=>ib.filter(x=>x.id!==id));
       showToast&&showToast("✅ IBAN supprimé");
     }catch(e){showToast&&showToast("❌ Erreur lors de la suppression");}

@@ -185,7 +185,8 @@ export async function POST(req: NextRequest) {
   if (action === 'marquer_lu') {
     const { conversation_id } = body;
     const { data: c } = await sb.from('conversations').select('tenant_id').eq('id', conversation_id).maybeSingle();
-    if (!c || (tenantId && c.tenant_id !== tenantId)) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    // !tenantId (et pas seulement tenantId && ...) : un appelant non identifie doit toujours etre refuse.
+    if (!c || !tenantId || c.tenant_id !== tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
     await sb.from('chat_messages').update({ lu: true }).eq('conversation_id', conversation_id).eq('moi', false);
     return NextResponse.json({ success: true });
   }
@@ -193,7 +194,7 @@ export async function POST(req: NextRequest) {
   if (action === 'supprimer_conversation') {
     const { id } = body;
     const { data: c } = await sb.from('conversations').select('tenant_id').eq('id', id).maybeSingle();
-    if (!c || (tenantId && c.tenant_id !== tenantId)) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    if (!c || !tenantId || c.tenant_id !== tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
     const { error } = await sb.from('conversations').delete().eq('id', id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
@@ -329,7 +330,7 @@ export async function POST(req: NextRequest) {
     const { data: conv } = await sb.from('conversations')
       .select('*').eq('id', conversation_id).maybeSingle();
     if (!conv) return NextResponse.json({ error: 'Conversation introuvable' }, { status: 404 });
-    if (tenantId && conv.tenant_id !== tenantId) {
+    if (!tenantId || conv.tenant_id !== tenantId) {
       return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
     }
 
@@ -376,7 +377,7 @@ export async function POST(req: NextRequest) {
     if (conversation_id) {
       const { data: c } = await sb.from('conversations')
         .select('tenant_id').eq('id', conversation_id).maybeSingle();
-      if (!c || (tenantId && c.tenant_id !== tenantId)) {
+      if (!c || !tenantId || c.tenant_id !== tenantId) {
         return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
       }
     }
@@ -463,7 +464,7 @@ export async function POST(req: NextRequest) {
     const { conversation_id } = body;
     const { data: c } = await sb.from('conversations')
       .select('tenant_id').eq('id', conversation_id).maybeSingle();
-    if (!c || (tenantId && c.tenant_id !== tenantId)) {
+    if (!c || !tenantId || c.tenant_id !== tenantId) {
       return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
     }
     const { data } = await sb.from('conversation_participants')
@@ -476,7 +477,7 @@ export async function POST(req: NextRequest) {
     const { conversation_id } = body;
     const { data: c } = await sb.from('conversations')
       .select('tenant_id').eq('id', conversation_id).maybeSingle();
-    if (!c || (tenantId && c.tenant_id !== tenantId)) {
+    if (!c || !tenantId || c.tenant_id !== tenantId) {
       return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
     }
 
