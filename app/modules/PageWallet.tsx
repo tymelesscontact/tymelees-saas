@@ -1,12 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM, Tabs, St, conv, DEVISES } from "../lib/ui";
-import { INIT_HISTO } from "../lib/seedData";
 
 const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseur,IbanMondial})=>{
   const[onglet,setOnglet]=useState("solde");
   const[devise,setDevise]=useState("EUR");
-  const[histo,setHisto]=useState(INIT_HISTO);
+  const[histo,setHisto]=useState([]);
   const[showPay,setShowPay]=useState(false);
   const[showEnc,setShowEnc]=useState(false);
   const[payForm,setPayForm]=useState({nom:"",montant:"",devise:"EUR",methode:"carte",ref:""});
@@ -20,11 +19,16 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
     {id:"fournisseur",label:"🏭 Facture fournisseur",color:C.purple,desc:"Payer un fournisseur"},
     {id:"sortie",label:"🏦 Virement libre",color:C.blue,desc:"Virement à un membre de l'équipe"},
   ];
-  const EQUIPE_CONTACTS=[
-    {nom:"Thomas Beaumont",email:"thomas@xyra.io",tel:"+33 6 12 34 56 78"},
-    {nom:"Abou Diallo",email:"abou@xyra.io",tel:"+33 6 98 76 54 32"},
-    {nom:"Fatou Sarr",email:"fatou@xyra.io",tel:"+33 6 55 44 33 22"},
-  ];
+  const[equipeContacts,setEquipeContacts]=useState([]);
+  const EQUIPE_CONTACTS=equipeContacts;
+
+  const loadEquipe=async()=>{
+    try{
+      const res=await fetch('/api/equipe');
+      const d=await res.json();
+      if(d.membres)setEquipeContacts(d.membres.map(m=>({nom:[m.prenom,m.nom].filter(Boolean).join(" ")||m.nom,email:m.email,tel:m.tel})));
+    }catch(e){console.error("Equipe:",e);}
+  };
 
   const loadWallet=async()=>{
     try{
@@ -39,7 +43,7 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
     setLoadingWallet(false);
   };
 
-  useEffect(()=>{loadWallet();},[activeCompany?.id]);
+  useEffect(()=>{loadWallet();loadEquipe();},[activeCompany?.id]);
   const[virementForm,setVirementForm]=useState({iban:"",bic:"",nom:"",montant:"",devise:"EUR",motif:""});
 
   const handleVirementSepa=async()=>{

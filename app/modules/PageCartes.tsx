@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM, DEVISES } from "../lib/ui";
-import { INIT_CARTES } from "../lib/seedData";
 
 const PageCartes=({plan,showToast,activeCompany})=>{
   const[cartes,setCartes]=useState([]);
@@ -30,12 +29,12 @@ const PageCartes=({plan,showToast,activeCompany})=>{
         fetch('/api/cartes?action=en_attente'+companyParam).then(r=>r.json()).catch(()=>({})),
       ]);
       const cartesData=cartesRes.cartes||[];
-      setCartes(cartesData.length>0?cartesData:INIT_CARTES);
+      setCartes(cartesData);
       setTransactions(txRes.transactions||[]);
       setBudgets(budgetsRes.budgets||[]);
       setEnAttente(enAttenteRes.transactions||[]);
       setAlertes(cartesData.filter(c=>c.statut==="active"&&(c.solde/c.limite)*100>=80));
-    }catch(e){setCartes(INIT_CARTES);}
+    }catch(e){console.error("Cartes:",e);}
     setLoading(false);
   };
 
@@ -176,6 +175,9 @@ const PageCartes=({plan,showToast,activeCompany})=>{
 
     {/* ── MES CARTES ── */}
     {onglet==="cartes"&&<div style={{display:"grid",gridTemplateColumns:view==="grille"?"repeat(auto-fill,minmax(280px,1fr))":"1fr",gap:12}}>
+      {!loading&&cartes.length===0&&<Card style={{textAlign:"center",padding:30,gridColumn:"1/-1"}}>
+        <div style={{fontSize:12,color:C.muted}}>Aucune carte pour le moment — créez-en une avec "+ Nouvelle carte".</div>
+      </Card>}
       {cartes.map((c,i)=>{
         const pct=c.limite>0?Math.round((Number(c.solde||0)/Number(c.limite||1))*100):0;
         const barColor=pct>=80?C.red:pct>=60?C.orange:C.green;

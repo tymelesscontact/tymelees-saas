@@ -1,11 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Sel, SM, St, conv, DEVISES, inits } from "../lib/ui";
-import { EVENEMENTS, MEMBRES_WALLET } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
 const PageWalletMembres=({plan,showToast,UpgradeWall})=>{
-  const[membres,setMembres]=useState(MEMBRES_WALLET);
+  const[membres,setMembres]=useState([]);
   const[data,setData]=useState(null);
   const[loading,setLoading]=useState(true);
   const[onglet,setOnglet]=useState("membres");
@@ -20,7 +19,7 @@ const PageWalletMembres=({plan,showToast,UpgradeWall})=>{
     try{
       const res=await fetch('/api/wallet-membres?action=membres');
       const d=await res.json();
-      if(d.membres&&d.membres.length>0){
+      if(d.membres){
         setMembres(d.membres);
         setData(d);
       }
@@ -143,28 +142,9 @@ const PageWalletMembres=({plan,showToast,UpgradeWall})=>{
         {[["tous","Tous",""],["actifs","Actifs",C.green],["essais","En essai",C.gold],["expirants","Expirent bientôt",C.orange],["suspendus","Suspendus",C.red]].map(([f,l,c])=><button key={f} onClick={()=>setFiltre(f)} style={{background:filtre===f?`${c||C.blue}22`:"transparent",border:`1px solid ${filtre===f?c||C.blue:C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit",color:filtre===f?c||C.blue:C.muted}}>{l}</button>)}
       </div>
 
-      {/* Membres existants (MEMBRES_WALLET) en grille */}
-      {membres.length===0||!data?<div>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(280px,1fr))",gap:12,marginBottom:14}}>
-          {MEMBRES_WALLET.map((m,i)=><Card key={i} style={{borderColor:`${C.gold}22`}}>
-            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
-              <div style={{width:36,height:36,borderRadius:"50%",background:`${C.gold}22`,border:`1px solid ${C.gold}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:C.gold}}>{inits(m.nom)}</div>
-              <div style={{flex:1}}><div style={{fontSize:12,fontWeight:700,color:C.text}}>{m.nom}</div><div style={{fontSize:10,color:C.muted}}>{m.banque} · {m.pays}</div></div>
-              <St s={m.statut}/>
-            </div>
-            <div style={{background:C.card2,borderRadius:8,padding:10,marginBottom:10}}>
-              <div style={{fontSize:9,color:C.muted,marginBottom:3}}>SOLDE WALLET</div>
-              <div style={{fontSize:20,fontWeight:700,color:C.gold}}>{fmt(conv(m.solde,"EUR",devise),devise)}</div>
-              <div style={{fontSize:9,color:C.muted,fontFamily:"'Courier New',monospace",marginTop:4}}>{m.iban}</div>
-            </div>
-            <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:8}}>
-              <span style={{color:C.muted}}>Plan : <b style={{color:m.type==="Enterprise"?C.purple:m.type==="Business Pro"?C.gold:C.blue}}>{m.type}</b></span>
-              <span style={{color:C.muted}}>Tx : <b style={{color:C.text}}>{m.transactions}</b></span>
-            </div>
-            <Btn onClick={()=>showToast(`💳 Carte virtuelle ${m.nom} créée !`)} style={{width:"100%",fontSize:11,background:m.carte?C.green+"22":"transparent",color:m.carte?C.green:C.muted,border:`1px solid ${m.carte?C.green:C.border}44`}}>{m.carte?"💳 Carte active":"+ Créer carte"}</Btn>
-          </Card>)}
-        </div>
-      </div>:null}
+      {(membres.length===0||!data)&&!loading&&<Card style={{textAlign:"center",padding:30}}>
+        <div style={{fontSize:12,color:C.muted}}>Aucun membre pour le moment.</div>
+      </Card>}
 
       {/* Membres Supabase réels */}
       {data&&membresFiltres.length>0&&<div style={{overflowX:"auto"}}>

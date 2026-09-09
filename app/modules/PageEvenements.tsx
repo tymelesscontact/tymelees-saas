@@ -1,11 +1,10 @@
 "use client";
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM } from "../lib/ui";
-import { EVENEMENTS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
 const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
-  const[evts,setEvts]=useState(EVENEMENTS);
+  const[evts,setEvts]=useState([]);
   const[loading,setLoading]=useState(true);
   const[onglet,setOnglet]=useState("liste");
   const[showForm,setShowForm]=useState(false);
@@ -23,7 +22,7 @@ const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
       const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
       const res=await fetch('/api/evenements?action=list'+companyParam);
       const d=await res.json();
-      if(d.evenements&&d.evenements.length>0)setEvts(d.evenements);
+      if(d.evenements)setEvts(d.evenements);
     }catch(e){console.error(e);}
     setLoading(false);
   };

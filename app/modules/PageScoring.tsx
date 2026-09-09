@@ -1,7 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
 import { C, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM, St, inits } from "../lib/ui";
-import { AVIS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
 const PageScoring=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
@@ -18,12 +17,6 @@ const PageScoring=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
   const[npsForm,setNpsForm]=useState({client_nom:"",client_email:"",score:8,commentaire:""});
   const[csatForm,setCsatForm]=useState({client_nom:"",service:"",score:4,commentaire:""});
   const[demandeForm,setDemandeForm]=useState({client_tel:"",client_nom:"",service:""});
-
-  const AVIS_DEFAUT=[
-    {id:"a1",client_nom:"Sophie M.",note:5,commentaire:"Service impeccable, réactivité exceptionnelle. Je recommande vivement !",service:"Airbnb Paris",source:"google",google:true,sentiment:"positif",statut:"répondu",date_avis:new Date().toISOString()},
-    {id:"a2",client_nom:"Jean-Pierre L.",note:4,commentaire:"Très bon service globalement, quelques petits détails à améliorer.",service:"Nettoyage Bureau",source:"direct",google:false,sentiment:"positif",statut:"nouveau",date_avis:new Date().toISOString()},
-    {id:"a3",client_nom:"Amina D.",note:2,commentaire:"Déçue par le manque de communication lors de la prestation.",service:"Conciergerie",source:"google",google:true,sentiment:"négatif",statut:"nouveau",date_avis:new Date().toISOString()},
-  ];
 
   const load=async()=>{
     setLoading(true);
@@ -101,7 +94,7 @@ const PageScoring=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
   if(!hasAccess(plan,"scoring"))return <div style={{padding:20}}><UpgradeWall page="Réputation & NPS" plan={plan}/></div>;
   if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement de la réputation...</div></div>;
 
-  const avisAffichés=data?.avis?.length>0?data.avis:AVIS_DEFAUT;
+  const avisAffichés=data?.avis||[];
   const scoreReputation=data?.scoreReputation||72;
   const scoreColor=scoreReputation>=70?C.green:scoreReputation>=40?C.gold:C.red;
 
@@ -255,6 +248,7 @@ const PageScoring=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
         {["tous","positif","neutre","négatif"].map(f=><button key={f} onClick={()=>{}} style={{background:"transparent",border:`1px solid ${C.border}`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit",color:C.muted,textTransform:"capitalize"}}>{f}</button>)}
       </div>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        {avisAffichés.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:20}}>Aucun avis pour le moment.</div>}
         {avisAffichés.map((a,i)=><Card key={i} style={{borderColor:a.note<=2?`${C.red}44`:a.note>=4?`${C.green}22`:`${C.border}`}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:8,alignItems:"center"}}>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
