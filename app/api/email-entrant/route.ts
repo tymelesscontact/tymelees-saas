@@ -87,12 +87,17 @@ export async function POST(req: NextRequest) {
   }
 
   // Le webhook ne contient que les metadonnees -- le corps du mail se recupere via l'API.
+  // Cle dediee (RESEND_API_KEY_RECEPTION, acces complet) : RESEND_API_KEY
+  // (utilisee partout ailleurs pour l'envoi) n'a que les droits d'envoi et
+  // ne peut pas lire les emails recus -- confirme par Resend (404
+  // "Inbound email not found" avec une cle sending-only).
   let contenu = '';
   const emailId = event?.data?.email_id;
-  if (emailId && process.env.RESEND_API_KEY) {
+  const cleReception = process.env.RESEND_API_KEY_RECEPTION;
+  if (emailId && cleReception) {
     try {
       const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
-        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}` },
+        headers: { Authorization: `Bearer ${cleReception}` },
       });
       if (res.ok) {
         const detail = await res.json();
