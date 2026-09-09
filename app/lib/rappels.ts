@@ -12,7 +12,7 @@ const sb = createClient(
  * Utilisee par la route normale ET par la tache quotidienne (cron),
  * qui n'a pas de session utilisateur.
  */
-export async function envoyerPartout(tel: string | null, email: string | null, texte: string, tenantId: string, options?: { replyTo?: string; sujet?: string }) {
+export async function envoyerPartout(tel: string | null, email: string | null, texte: string, tenantId: string, options?: { replyTo?: string; sujet?: string; enReponseA?: string }) {
   if (tel) {
     try {
       const wa = await envoyerWhatsApp(tel, texte, tenantId);
@@ -27,6 +27,10 @@ export async function envoyerPartout(tel: string | null, email: string | null, t
         from: 'Xyra <notifications@xyraio.fr>', to: email, subject: options?.sujet || 'Rappel de rendez-vous',
         html: `<p>${texte}</p>`,
         ...(options?.replyTo ? { replyTo: options.replyTo } : {}),
+        // In-Reply-To/References : dit a Gmail/Outlook que cet email fait
+        // suite au precedent, pour que tout reste groupe dans un seul fil
+        // de discussion au lieu d'emails separes.
+        ...(options?.enReponseA ? { headers: { 'In-Reply-To': options.enReponseA, 'References': options.enReponseA } } : {}),
       });
       return 'email';
     } catch (e: any) { console.error('Rappel email:', e.message); }

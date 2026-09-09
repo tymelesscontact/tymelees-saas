@@ -147,10 +147,22 @@ export async function POST(req: NextRequest) {
     // revenir automatiquement dans cette conversation (voir api/email-entrant).
     let canalUtilise = null;
     if ((contact_tel || contact_email) && type !== 'auto_ia') {
+      // Pour que Gmail/Outlook regroupent tout dans un seul fil de
+      // discussion, on reference le dernier email recu de cette
+      // conversation (In-Reply-To) s'il y en a un.
+      let dernierEmailRecu: string | null = null;
+      if (contact_email) {
+        const { data: dernier } = await sb.from('chat_messages')
+          .select('email_message_id').eq('conversation_id', conversation_id)
+          .not('email_message_id', 'is', null)
+          .order('created_at', { ascending: false }).limit(1).maybeSingle();
+        dernierEmailRecu = dernier?.email_message_id || null;
+      }
       try {
         canalUtilise = await envoyerPartout(contact_tel || null, contact_email || null, contenu || '[Fichier joint]', tenantId || '', {
           replyTo: `conv-${conversation_id}@reply.xyraio.fr`,
           sujet: `Message de ${expediteur}`,
+          enReponseA: dernierEmailRecu || undefined,
         });
       } catch (e: any) { canalUtilise = null; }
     }

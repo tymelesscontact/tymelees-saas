@@ -145,6 +145,7 @@ export async function POST(req: NextRequest) {
     moi: false,
     type: 'texte',
     lu: false,
+    email_message_id: event?.data?.message_id || null,
   }).select().single();
   if (error) {
     console.error('email-entrant: insertion message', error.message);
