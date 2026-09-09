@@ -4,9 +4,14 @@ import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+// Service role : le tenant_id est deja verifie et impose dans chaque requete
+// (scoped()/.eq('tenant_id', tenantId)) -- la clé anonyme ne marchait pas ici
+// car ce client n'attache jamais le JWT de l'utilisateur, donc RLS le voit
+// comme anon (auth.uid() toujours nul), ce qui bloquait silencieusement
+// l'acces meme aux donnees du bon tenant.
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 function startOfWeek(d: Date) {
