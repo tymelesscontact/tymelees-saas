@@ -254,5 +254,61 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
+  // ── CRÉER UN MODÈLE DE CONTRAT ────────────────────────────
+  if (action === 'creer_modele') {
+    if (!tenantId) return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 401 });
+    const { nom, type, pays, contenu, champs_requis } = body;
+    if (!nom || !String(nom).trim()) return NextResponse.json({ success: false, error: 'Nom requis' }, { status: 400 });
+    if (!contenu || !String(contenu).trim()) return NextResponse.json({ success: false, error: 'Contenu requis' }, { status: 400 });
+    const { data, error } = await sb.from('contrats_modeles').insert({
+      tenant_id: tenantId,
+      nom: String(nom).trim(),
+      type: type ? String(type).trim() : 'generique',
+      pays: pays || 'FR',
+      contenu: String(contenu),
+      champs_requis: Array.isArray(champs_requis) ? champs_requis : [],
+      actif: true,
+    }).select().single();
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, modele: data });
+  }
+
+  // ── MODIFIER UN MODÈLE DE CONTRAT ─────────────────────────
+  if (action === 'modifier_modele') {
+    if (!tenantId) return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 401 });
+    const { id, nom, type, pays, contenu, champs_requis, actif } = body;
+    if (!id) return NextResponse.json({ success: false, error: 'id manquant' }, { status: 400 });
+    const champsMaj: any = {};
+    if (nom !== undefined) champsMaj.nom = String(nom).trim();
+    if (type !== undefined) champsMaj.type = type;
+    if (pays !== undefined) champsMaj.pays = pays;
+    if (contenu !== undefined) champsMaj.contenu = String(contenu);
+    if (champs_requis !== undefined) champsMaj.champs_requis = Array.isArray(champs_requis) ? champs_requis : [];
+    if (actif !== undefined) champsMaj.actif = !!actif;
+    const { data, error } = await sb.from('contrats_modeles').update(champsMaj).eq('id', id).eq('tenant_id', tenantId).select().maybeSingle();
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    if (!data) return NextResponse.json({ success: false, error: 'Modele introuvable' }, { status: 404 });
+    return NextResponse.json({ success: true, modele: data });
+  }
+
+  // ── SUPPRIMER UN MODÈLE DE CONTRAT ────────────────────────
+  if (action === 'supprimer_modele') {
+    if (!tenantId) return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 401 });
+    const { id } = body;
+    if (!id) return NextResponse.json({ success: false, error: 'id manquant' }, { status: 400 });
+    // Un modele deja utilise par un vrai contrat n'est jamais supprime (ca
+    // casserait l'historique) -- il est simplement desactive, il disparait
+    // de la liste proposee mais les contrats existants restent intacts.
+    const { data: enUsage } = await sb.from('contrats').select('id').eq('modele_id', id).eq('tenant_id', tenantId).limit(1);
+    if (enUsage && enUsage.length > 0) {
+      const { error } = await sb.from('contrats_modeles').update({ actif: false }).eq('id', id).eq('tenant_id', tenantId);
+      if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ success: true, desactive: true });
+    }
+    const { error } = await sb.from('contrats_modeles').delete().eq('id', id).eq('tenant_id', tenantId);
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
   return NextResponse.json({ success: false, error: 'action inconnue' }, { status: 400 });
 }

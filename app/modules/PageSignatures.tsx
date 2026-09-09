@@ -20,6 +20,9 @@ const PageSignatures=({plan,showToast,UpgradeWall,activeCompany}) => {
   const[filtreStatut,setFiltreStatut]=useState("Tous");
   const[recherche,setRecherche]=useState("");
   const[contratOuvert,setContratOuvert]=useState(null);
+  const[showCreerModele,setShowCreerModele]=useState(false);
+  const[nouveauModele,setNouveauModele]=useState({nom:"",type:"generique",contenu:"",champs_requis:""});
+  const[creationModele,setCreationModele]=useState(false);
   const load=async()=>{
     setLoading(true);
     try{
@@ -83,6 +86,31 @@ const PageSignatures=({plan,showToast,UpgradeWall,activeCompany}) => {
       else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
   };
+  const creerModele=async()=>{
+    if(!nouveauModele.nom.trim())return showToast("⚠️ Nom du modele requis");
+    if(!nouveauModele.contenu.trim())return showToast("⚠️ Contenu du modele requis");
+    setCreationModele(true);
+    try{
+      const champs_requis=nouveauModele.champs_requis.split(",").map(c=>c.trim()).filter(Boolean);
+      const res=await fetch('/api/contrats',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer_modele',nom:nouveauModele.nom,type:nouveauModele.type,contenu:nouveauModele.contenu,champs_requis})});
+      const data=await res.json();
+      if(data.success){
+        showToast("✅ Modele cree");
+        setNouveauModele({nom:"",type:"generique",contenu:"",champs_requis:""});
+        setShowCreerModele(false);
+        load();
+      }else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setCreationModele(false);
+  };
+  const supprimerModele=async(m)=>{
+    try{
+      const res=await fetch('/api/contrats',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer_modele',id:m.id})});
+      const data=await res.json();
+      if(data.success){showToast(data.desactive?"✅ Modele desactive (deja utilise par un contrat)":"✅ Modele supprime");load();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   // Ouvre le vrai PDF genere et stocke a la signature (contenu + certificat
   // de signature electronique), plutot que de reconstruire un apercu a part.
   const exporterImprimer=(c)=>{
@@ -104,14 +132,30 @@ const PageSignatures=({plan,showToast,UpgradeWall,activeCompany}) => {
       {[["contrats","📄 Contrats"],["signatures","✍️ Signatures"]].map(([id,label])=><button key={id} onClick={()=>setOngletPrincipal(id)} style={{background:"transparent",border:"none",borderBottom:ongletPrincipal===id?`2px solid ${C.gold}`:"2px solid transparent",color:ongletPrincipal===id?C.gold:C.muted,padding:"8px 4px",fontSize:13,fontWeight:ongletPrincipal===id?700:400,cursor:"pointer",fontFamily:"inherit"}}>{label}</button>)}
     </div>
     {ongletPrincipal==="contrats"&&<Card>
-      <STitle>📄 Generer un nouveau contrat</STitle>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <STitle>📄 Generer un nouveau contrat</STitle>
+        <BtnGhost onClick={()=>setShowCreerModele(s=>!s)} style={{fontSize:11}}>{showCreerModele?"Annuler":"➕ Creer un modele"}</BtnGhost>
+      </div>
+      {showCreerModele&&<div style={{background:C.card2,borderRadius:10,padding:14,border:`1px solid ${C.border}`,marginBottom:18}}>
+        <div style={{fontSize:11,fontWeight:700,color:C.gold,marginBottom:10}}>Nouveau modele de contrat</div>
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr",gap:8,marginBottom:8}}>
+          <Inp value={nouveauModele.nom} onChange={e=>setNouveauModele(m=>({...m,nom:e.target.value}))} placeholder="Nom du modele (ex: Contrat de prestation)"/>
+          <Inp value={nouveauModele.type} onChange={e=>setNouveauModele(m=>({...m,type:e.target.value}))} placeholder="Type (ex: prestation, nda...)"/>
+        </div>
+        <textarea value={nouveauModele.contenu} onChange={e=>setNouveauModele(m=>({...m,contenu:e.target.value}))} placeholder={"Texte du contrat. Utilisez {{variable}} pour les champs a remplir a la generation, ex: {{nom_client}}, {{montant}}."} rows={10} style={{width:"100%",background:"#0C0C1A",border:`1px solid ${C.border}`,borderRadius:8,padding:10,color:C.text,fontSize:12,fontFamily:"inherit",marginBottom:8,boxSizing:"border-box",resize:"vertical"}}/>
+        <Inp value={nouveauModele.champs_requis} onChange={e=>setNouveauModele(m=>({...m,champs_requis:e.target.value}))} placeholder="Champs a remplir, separes par des virgules (ex: nom_client, montant, date)" style={{width:"100%",marginBottom:10,boxSizing:"border-box"}}/>
+        <Btn onClick={creerModele} disabled={creationModele} style={{fontSize:12}}>{creationModele?"Creation...":"✅ Creer le modele"}</Btn>
+      </div>}
       {modeles.length===0&&!loading&&<div style={{fontSize:12,color:C.muted,marginBottom:14}}>Aucun modele disponible.</div>}
       {(()=>{
         const modelesTymeless=modeles.filter(m=>TYPES_TYMELESS.includes(m.type));
         const modelesGeneriques=modeles.filter(m=>!TYPES_TYMELESS.includes(m.type));
-        const CarteModele=(m)=><div key={m.id} onClick={()=>{setModeleChoisi(m);setVariables({});}} style={{background:modeleChoisi?.id===m.id?`${C.gold}18`:C.card2,border:`1px solid ${modeleChoisi?.id===m.id?C.gold:C.border}`,borderRadius:10,padding:12,cursor:"pointer"}}>
-          <div style={{fontSize:12,fontWeight:700,color:C.text}}>{m.nom}</div>
-          <div style={{fontSize:10,color:C.muted,marginTop:4}}>{m.pays} · {m.type}</div>
+        const CarteModele=(m)=><div key={m.id} style={{position:"relative",background:modeleChoisi?.id===m.id?`${C.gold}18`:C.card2,border:`1px solid ${modeleChoisi?.id===m.id?C.gold:C.border}`,borderRadius:10,padding:12,cursor:"pointer"}}>
+          <div onClick={()=>{setModeleChoisi(m);setVariables({});}}>
+            <div style={{fontSize:12,fontWeight:700,color:C.text,paddingRight:16}}>{m.nom}</div>
+            <div style={{fontSize:10,color:C.muted,marginTop:4}}>{m.pays} · {m.type}</div>
+          </div>
+          <button onClick={e=>{e.stopPropagation();if(confirm(`Supprimer le modele "${m.nom}" ?`))supprimerModele(m);}} title="Supprimer" style={{position:"absolute",top:8,right:8,background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:12}}>✕</button>
         </div>;
         return <>
           {modelesGeneriques.length>0&&<>
