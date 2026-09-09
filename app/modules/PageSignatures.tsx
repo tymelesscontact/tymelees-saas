@@ -2,7 +2,6 @@
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM, St } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
-const TYPES_TYMELESS=["conciergerie_abonnement","nettoyage_airbnb","nettoyage_jet","nettoyage_yacht","nettoyage_villa","nettoyage_bureaux","nettoyage_industriel","nettoyage_syndic","securite_privee","courtage_yacht","location_jet","rapatriement_funeraire"];
 const PageSignatures=({plan,showToast,UpgradeWall,activeCompany}) => {
   const[ongletPrincipal,setOngletPrincipal]=useState("contrats");
   const[modeles,setModeles]=useState([]);
@@ -148,23 +147,26 @@ const PageSignatures=({plan,showToast,UpgradeWall,activeCompany}) => {
       </div>}
       {modeles.length===0&&!loading&&<div style={{fontSize:12,color:C.muted,marginBottom:14}}>Aucun modele disponible.</div>}
       {(()=>{
-        const modelesTymeless=modeles.filter(m=>TYPES_TYMELESS.includes(m.type));
-        const modelesGeneriques=modeles.filter(m=>!TYPES_TYMELESS.includes(m.type));
-        const CarteModele=(m)=><div key={m.id} style={{position:"relative",background:modeleChoisi?.id===m.id?`${C.gold}18`:C.card2,border:`1px solid ${modeleChoisi?.id===m.id?C.gold:C.border}`,borderRadius:10,padding:12,cursor:"pointer"}}>
+        const modelesXyra=modeles.filter(m=>!m.tenant_id);
+        const mesModeles=modeles.filter(m=>m.tenant_id);
+        const CarteModele=(m,dupliquable)=><div key={m.id} style={{position:"relative",background:modeleChoisi?.id===m.id?`${C.gold}18`:C.card2,border:`1px solid ${modeleChoisi?.id===m.id?C.gold:C.border}`,borderRadius:10,padding:12,cursor:"pointer"}}>
           <div onClick={()=>{setModeleChoisi(m);setVariables({});}}>
             <div style={{fontSize:12,fontWeight:700,color:C.text,paddingRight:16}}>{m.nom}</div>
             <div style={{fontSize:10,color:C.muted,marginTop:4}}>{m.pays} · {m.type}</div>
           </div>
-          <button onClick={e=>{e.stopPropagation();if(confirm(`Supprimer le modele "${m.nom}" ?`))supprimerModele(m);}} title="Supprimer" style={{position:"absolute",top:8,right:8,background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:12}}>✕</button>
+          {dupliquable?
+            <button onClick={async e=>{e.stopPropagation();const res=await fetch('/api/contrats',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'dupliquer_modele',id:m.id})});const data=await res.json();if(data.success){showToast("✅ Modele duplique dans \"Mes modeles\" — modifiable librement");load();}else showToast("❌ "+(data.error||"Erreur"));}} title="Dupliquer pour le modifier" style={{position:"absolute",top:8,right:8,background:"transparent",border:"none",color:C.gold,cursor:"pointer",fontSize:12}}>⧉</button>
+            :<button onClick={e=>{e.stopPropagation();if(confirm(`Supprimer le modele "${m.nom}" ?`))supprimerModele(m);}} title="Supprimer" style={{position:"absolute",top:8,right:8,background:"transparent",border:"none",color:C.muted,cursor:"pointer",fontSize:12}}>✕</button>}
         </div>;
         return <>
-          {modelesGeneriques.length>0&&<>
-            <div style={{fontSize:10,fontWeight:700,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Contrats generiques</div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:8,marginBottom:18}}>{modelesGeneriques.map(CarteModele)}</div>
+          {modelesXyra.length>0&&<>
+            <div style={{fontSize:10,fontWeight:700,color:C.gold,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:4}}>🌐 Bibliotheque Xyra</div>
+            <div style={{fontSize:10,color:C.muted,marginBottom:8}}>Modeles standards fournis par la plateforme — a dupliquer pour les adapter et les modifier librement. A faire valider par un professionnel avant premiere utilisation reelle.</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:8,marginBottom:18}}>{modelesXyra.map(m=>CarteModele(m,true))}</div>
           </>}
-          {modelesTymeless.length>0&&<>
-            <div style={{fontSize:10,fontWeight:700,color:C.gold,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>Contrats Tymeless</div>
-            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:8,marginBottom:14}}>{modelesTymeless.map(CarteModele)}</div>
+          {mesModeles.length>0&&<>
+            <div style={{fontSize:10,fontWeight:700,color:C.muted,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:8}}>📁 Mes modeles</div>
+            <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(180px,1fr))",gap:8,marginBottom:14}}>{mesModeles.map(m=>CarteModele(m,false))}</div>
           </>}
         </>;
       })()}

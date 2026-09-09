@@ -104,7 +104,13 @@ export async function GET(req: NextRequest) {
   }
   if (!tenantId) return NextResponse.json({ modeles: [], contrats: [] });
   if (action === 'modeles') {
-    const { data } = await scoped(sb.from('contrats_modeles').select('*').eq('actif', true).order('nom'));
+    // Les modeles du tenant + la bibliotheque generique fournie par la
+    // plateforme (tenant_id null) -- jamais les modeles d'un autre tenant.
+    const { data } = await sb.from('contrats_modeles')
+      .select('*')
+      .eq('actif', true)
+      .or(`tenant_id.eq.${tenantId},tenant_id.is.null`)
+      .order('nom');
     return NextResponse.json({ modeles: data || [] });
   }
   if (action === 'contrats') {
@@ -288,6 +294,28 @@ export async function POST(req: NextRequest) {
     const { data, error } = await sb.from('contrats_modeles').update(champsMaj).eq('id', id).eq('tenant_id', tenantId).select().maybeSingle();
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     if (!data) return NextResponse.json({ success: false, error: 'Modele introuvable' }, { status: 404 });
+    return NextResponse.json({ success: true, modele: data });
+  }
+
+  // ── DUPLIQUER UN MODÈLE (generique -> copie propre au tenant) ─
+  if (action === 'dupliquer_modele') {
+    if (!tenantId) return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 401 });
+    const { id } = body;
+    if (!id) return NextResponse.json({ success: false, error: 'id manquant' }, { status: 400 });
+    // On ne duplique que ce que ce tenant a le droit de voir : le sien, ou
+    // un modele generique (tenant_id null) -- jamais celui d'un autre tenant.
+    const { data: source } = await sb.from('contrats_modeles').select('nom,type,pays,contenu,champs_requis').eq('id', id).or(`tenant_id.eq.${tenantId},tenant_id.is.null`).maybeSingle();
+    if (!source) return NextResponse.json({ success: false, error: 'Modele introuvable' }, { status: 404 });
+    const { data, error } = await sb.from('contrats_modeles').insert({
+      tenant_id: tenantId,
+      nom: source.nom + ' (copie)',
+      type: source.type,
+      pays: source.pays,
+      contenu: source.contenu,
+      champs_requis: source.champs_requis,
+      actif: true,
+    }).select().single();
+    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, modele: data });
   }
 
