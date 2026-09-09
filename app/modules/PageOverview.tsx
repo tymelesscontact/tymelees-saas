@@ -58,6 +58,12 @@ const PageOverview=({plan,profil,setPage,showToast,UpgradeWall,activeCompany})=>
       // Devis en cours
       const devisEnCours=devis.filter(d=>d.statut==="envoyé"||d.statut==="en_cours");
 
+      // Devis signes pas encore factures -- pipeline reel connu, pas une
+      // estimation (meme logique que la carte "Ce qui va arriver" en Tresorerie).
+      const idsDevisFactures=new Set(factures.map(f=>f.devis_id).filter(Boolean));
+      const devisSignesNonFactures=devis.filter(d=>d.statut==="signé"&&!idsDevisFactures.has(d.id));
+      const montantDevisSignesNonFactures=devisSignesNonFactures.reduce((a,d)=>a+Number(d.montant||0),0);
+
       // Deals pipeline
       const dealsActifs=deals.filter(d=>d.statut!=="perdu"&&d.statut!=="gagné");
       const valeurPipeline=dealsActifs.reduce((a,d)=>a+Number(d.valeur||d.montant||0),0);
@@ -81,7 +87,7 @@ const PageOverview=({plan,profil,setPage,showToast,UpgradeWall,activeCompany})=>
       const meteo=solde>10000&&caMois>3000?"🌞 Excellente":solde>5000&&caMois>1000?"🌤 Bonne":solde>2000?"⛅ Correcte":"🌧 Difficile";
       const meteoColor=solde>10000&&caMois>3000?C.green:solde>5000&&caMois>1000?C.teal:solde>2000?C.gold:C.red;
 
-      setData({caMois,caSemaine,caTotal,solde,commissionsDues,montantEnAttente,facturesEnAttente,devisEnCours,dealsActifs,valeurPipeline,scoreGlobal,activiteRecente,meteo,meteoColor,clients,partners});
+      setData({caMois,caSemaine,caTotal,solde,commissionsDues,montantEnAttente,facturesEnAttente,devisEnCours,devisSignesNonFactures,montantDevisSignesNonFactures,dealsActifs,valeurPipeline,scoreGlobal,activiteRecente,meteo,meteoColor,clients,partners});
     }catch(e){console.error("Overview:",e);}
     setLoading(false);
   };
@@ -156,6 +162,24 @@ Donne : 1 constat positif, 1 point de vigilance, et 3 priorités concrètes pour
         ].map((k,i)=><CT key={i}><div style={{fontSize:9,color:C.muted,marginBottom:3,letterSpacing:"0.08em"}}>{k.l}</div><div style={{fontSize:16,fontWeight:700,color:k.c}}>{k.v}</div><div style={{fontSize:9,color:C.muted,marginTop:2}}>{k.sub}</div></CT>)}
       </div>
     </div>
+
+    {/* CE QUI VA ARRIVER -- pipeline connu, pas une estimation */}
+    {(data.montantEnAttente>0||data.montantDevisSignesNonFactures>0)&&<Card style={{marginBottom:14}}>
+      <STitle>🔮 Ce qui va arriver</STitle>
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+        <CT>
+          <div style={{fontSize:9,color:C.muted,marginBottom:4}}>FACTURES ÉMISES EN ATTENTE DE PAIEMENT</div>
+          <div style={{fontSize:18,fontWeight:700,color:C.blue}}>{fmt(conv(data.montantEnAttente,"EUR",devise),devise)}</div>
+          <div style={{fontSize:9,color:C.muted,marginTop:2}}>{data.facturesEnAttente?.length||0} facture(s)</div>
+        </CT>
+        <CT>
+          <div style={{fontSize:9,color:C.muted,marginBottom:4}}>DEVIS SIGNÉS PAS ENCORE FACTURÉS</div>
+          <div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(conv(data.montantDevisSignesNonFactures,"EUR",devise),devise)}</div>
+          <div style={{fontSize:9,color:C.muted,marginTop:2}}>{data.devisSignesNonFactures?.length||0} devis — pense a les facturer</div>
+        </CT>
+      </div>
+      <div style={{marginTop:8,fontSize:10,color:C.muted}}>Detail semaine par semaine dans <button onClick={()=>setPage&&setPage("tresorerie")} style={{background:"transparent",border:"none",color:C.gold,cursor:"pointer",fontFamily:"inherit",fontSize:10,padding:0}}>Trésorerie →</button></div>
+    </Card>}
 
     {/* ACTIONS RAPIDES */}
     <Card style={{marginBottom:14}}>
