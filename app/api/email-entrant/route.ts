@@ -22,6 +22,29 @@ const sb = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
+// Retire la citation automatique que les clients mail ajoutent sous une
+// reponse ("Le ... a ecrit :", "On ... wrote:", lignes commencant par ">"),
+// pour ne garder que le texte reellement tape par la personne. Heuristique
+// simple, pas parfaite pour tous les clients mail, mais couvre les cas
+// courants (Gmail FR/EN, Outlook, Apple Mail).
+function nettoyerReponseEmail(texte: string): string {
+  const lignes = texte.split(/\r?\n/);
+  const motifsEntete = [
+    /^Le\s.+\s(a\s)?(écrit|ecrit)\s*:?\s*$/i,
+    /^On\s.+\swrote:?\s*$/i,
+    /^-{2,}\s*Message d'origine\s*-{2,}/i,
+    /^-{2,}\s*Original Message\s*-{2,}/i,
+  ];
+  for (let i = 0; i < lignes.length; i++) {
+    if (motifsEntete.some(m => m.test(lignes[i].trim()))) {
+      return lignes.slice(0, i).join('\n').trim();
+    }
+  }
+  let fin = lignes.length;
+  while (fin > 0 && lignes[fin - 1].trim().startsWith('>')) fin--;
+  return lignes.slice(0, fin).join('\n').trim();
+}
+
 function verifierSignatureSvix(id: string, timestamp: string, corps: string, entete: string, secret: string): boolean {
   if (!secret.startsWith('whsec_')) return false;
   const cleSecrete = Buffer.from(secret.slice('whsec_'.length), 'base64');
@@ -105,16 +128,12 @@ export async function POST(req: NextRequest) {
         if (!contenu && detail.html) {
           contenu = String(detail.html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
         }
+        contenu = nettoyerReponseEmail(contenu);
       } else {
-        // DIAGNOSTIC TEMPORAIRE (a retirer une fois le probleme identifie) :
-        // on met la vraie raison de l'echec dans le message pour pouvoir la
-        // lire directement en base, faute d'acces aux logs Vercel/Resend.
-        const corpsErreur = await res.text();
-        contenu = `(diagnostic : Resend a repondu ${res.status} — ${corpsErreur.slice(0, 300)})`;
+        console.error('email-entrant: Resend a repondu', res.status, await res.text());
       }
     } catch (e: any) {
       console.error('email-entrant: recuperation du corps', e.message);
-      contenu = `(diagnostic : exception — ${e.message})`;
     }
   }
   if (!contenu) contenu = `(email sans contenu lisible — sujet : ${event?.data?.subject || 'sans sujet'})`;
