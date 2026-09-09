@@ -201,9 +201,12 @@ Message court, naturel, non commercial, en français. 3-4 phrases max. Objectif 
   }
 
   if (action === 'set_objectif') {
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { objectif_ca } = body;
-    // Stocker dans parametres
-    await sb.from('parametres').upsert({ user_id: 'owner', objectif_ca_deals: objectif_ca });
+    // Stocke par tenant (onConflict tenant_id) -- avant, 'owner' etait ecrit
+    // en dur pour tout le monde, donc tous les tenants s'ecrasaient l'un
+    // l'autre sur la meme ligne.
+    await sb.from('parametres').upsert({ tenant_id: tenantId, objectif_ca_deals: objectif_ca }, { onConflict: 'tenant_id' });
     return NextResponse.json({ success: true });
   }
 
