@@ -100,8 +100,17 @@ export async function POST(req: NextRequest) {
         if (!contenu && detail.html) {
           contenu = String(detail.html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
         }
+      } else {
+        // DIAGNOSTIC TEMPORAIRE (a retirer une fois le probleme identifie) :
+        // on met la vraie raison de l'echec dans le message pour pouvoir la
+        // lire directement en base, faute d'acces aux logs Vercel/Resend.
+        const corpsErreur = await res.text();
+        contenu = `(diagnostic : Resend a repondu ${res.status} — ${corpsErreur.slice(0, 300)})`;
       }
-    } catch (e: any) { console.error('email-entrant: recuperation du corps', e.message); }
+    } catch (e: any) {
+      console.error('email-entrant: recuperation du corps', e.message);
+      contenu = `(diagnostic : exception — ${e.message})`;
+    }
   }
   if (!contenu) contenu = `(email sans contenu lisible — sujet : ${event?.data?.subject || 'sans sujet'})`;
 
