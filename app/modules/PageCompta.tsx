@@ -23,10 +23,12 @@ const PageCompta=({plan,showToast,UpgradeWall,activeCompany})=>{
       if(wRes.solde!=null)setSoldeReel(wRes.solde);
       if(fRes.factures)setFactures(fRes.factures);
       try{
-        const{createClient}=await import('@supabase/supabase-js');
-        const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-        const{data}=await sb.from('notes_frais').select('tva').eq('statut','validé');
-        if(data)setTvaDeductible(data.reduce((a,n)=>a+Number(n.tva||0),0));
+        // Passe par la route API (filtree par tenant cote serveur) au lieu
+        // d'un acces Supabase direct depuis le navigateur.
+        const nfUrl=activeCompany?.id?`/api/notefrais?company_id=${activeCompany.id}`:'/api/notefrais';
+        const nfRes=await fetch(nfUrl).then(r=>r.json()).catch(()=>({}));
+        const validees=(nfRes.notes||[]).filter((n:any)=>n.statut==='validé');
+        setTvaDeductible(validees.reduce((a:number,n:any)=>a+Number(n.tva||0),0));
       }catch(e){/* module Notes de Frais optionnel */}
     }catch(e){console.error("Compta:",e);}
     setLoadingCompta(false);
