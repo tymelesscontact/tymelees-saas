@@ -343,6 +343,7 @@ const SOON_MODULES={
 
 const UpgradeWall=({page,plan})=>{
   const[vraiPlan,setVraiPlan]=useState(null);
+  const[chargementAchat,setChargementAchat]=useState(false);
   useEffect(()=>{
     fetch("/api/tenant-info").then(r=>r.json()).then(d=>{
       if(d.plan)setVraiPlan(d.plan);
@@ -351,6 +352,18 @@ const UpgradeWall=({page,plan})=>{
   const preview=MODULE_PREVIEWS[page]||{icon:"📦",desc:page,features:["Fonctionnalités avancées","Analyses IA","Automatisations","Rapports détaillés"]};
   const modulePrice=MODULE_PRICES[page];
   const planPourRedirection=vraiPlan||plan;
+  const planEffectif=String(vraiPlan||plan||"").toLowerCase();
+  const peutAcheterAlaCarte=!!modulePrice&&(planEffectif==="starter"||planEffectif==="business");
+  const debloquerModule=async()=>{
+    setChargementAchat(true);
+    try{
+      const res=await fetch("/api/create-checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({module:page})});
+      const data=await res.json();
+      if(data.url){window.location.href=data.url;return;}
+      setChargementAchat(false);
+      alert(data.error||"Erreur lors de la création du paiement");
+    }catch(e){setChargementAchat(false);alert("Erreur de connexion");}
+  };
   return <div style={{padding:24,maxWidth:700,margin:"0 auto"}}>
     <div style={{textAlign:"center",marginBottom:24}}>
       <div style={{fontSize:48,marginBottom:8}}>{preview.icon||"🔒"}</div>
@@ -368,8 +381,11 @@ const UpgradeWall=({page,plan})=>{
         </div>)}
       </div>
     </div>
-    <a href={`/pricing?upgrade_from=${planPourRedirection}`} style={{display:"block",textAlign:"center",background:`linear-gradient(135deg,${C.gold},#a07c45)`,color:"#000",border:"none",borderRadius:8,padding:"14px 0",fontWeight:700,fontSize:14,fontFamily:"inherit",textDecoration:"none"}}>
-      Voir les forfaits disponibles →
+    {peutAcheterAlaCarte&&<button onClick={debloquerModule} disabled={chargementAchat} style={{display:"block",width:"100%",textAlign:"center",background:`linear-gradient(135deg,${C.gold},#a07c45)`,color:"#000",border:"none",borderRadius:8,padding:"14px 0",fontWeight:700,fontSize:14,fontFamily:"inherit",cursor:chargementAchat?"wait":"pointer",marginBottom:10,opacity:chargementAchat?0.6:1}}>
+      {chargementAchat?"Redirection vers le paiement…":`Débloquer ce module — ${modulePrice}€/mois`}
+    </button>}
+    <a href={`/pricing?upgrade_from=${planPourRedirection}`} style={{display:"block",textAlign:"center",background:peutAcheterAlaCarte?"transparent":`linear-gradient(135deg,${C.gold},#a07c45)`,color:peutAcheterAlaCarte?C.muted:"#000",border:peutAcheterAlaCarte?`1px solid ${C.border}`:"none",borderRadius:8,padding:"14px 0",fontWeight:peutAcheterAlaCarte?400:700,fontSize:peutAcheterAlaCarte?13:14,fontFamily:"inherit",textDecoration:"none"}}>
+      {peutAcheterAlaCarte?"Ou voir les forfaits complets →":"Voir les forfaits disponibles →"}
     </a>
   </div>;
 };
