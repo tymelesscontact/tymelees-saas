@@ -10,7 +10,7 @@ const TYPE_LABELS: Record<string, string> = {
   absence_injustifiee: "Absence injustifiée", retard: "Retard",
 };
 
-const PagePlanning = ({ plan, showToast, profil, UpgradeWall, activeCompany }: any) => {
+const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, activeCompany }: any) => {
   const [onglet, setOnglet] = useState("dispatch");
   const [collaborateurs, setCollaborateurs] = useState<any[]>([]);
   const [missions, setMissions] = useState<any[]>([]);
@@ -167,7 +167,7 @@ const PagePlanning = ({ plan, showToast, profil, UpgradeWall, activeCompany }: a
     } catch { showToast("❌ Erreur"); }
   };
 
-  if (!hasAccess(plan, "planning")) return <div style={{ padding: 20 }}><UpgradeWall page="Planning & Agenda" plan={plan} /></div>;
+  if (!hasAccess(plan,"planning",modulesActifs)) return <div style={{ padding: 20 }}><UpgradeWall page="Planning & Agenda" plan={plan} /></div>;
 
   const tabs = [
     ["dispatch", "📊 Dispatch"],

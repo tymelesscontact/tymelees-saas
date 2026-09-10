@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
-const PageServices=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
+const PageServices=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompany})=>{
   const[services,setServices]=useState([]);
   const[packages,setPackages]=useState([]);
   const[devisStats,setDevisStats]=useState([]);
@@ -134,7 +134,7 @@ const PageServices=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
     const ventes=devisStats.filter(d=>d.service_id===id);
     return {nb:ventes.length,ca:ventes.reduce((a,d)=>a+(Number(d.montant)||0),0)};
   };
-  if(!hasAccess(plan,"services"))return <div style={{padding:20}}><UpgradeWall page="services" plan={plan}/></div>;
+  if(!hasAccess(plan,"services",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="services" plan={plan}/></div>;
   const totalCA=devisStats.reduce((a,d)=>a+(Number(d.montant)||0),0);
   const margeMoyenne=services.length>0?Math.round(services.reduce((a,s)=>a+marge(s),0)/services.length):0;
   return <div style={{padding:20}}>

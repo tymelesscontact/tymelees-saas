@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI } from "../lib/ui";
 import { PLANNING, CONTRATS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
+const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPage})=>{
   const contacterMembreEquipe=async(m)=>{
     try{
       const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer_conversation',espace:'equipe',contact_nom:m.nom,contact_tel:m.tel,contact_email:m.email})});
@@ -112,7 +112,7 @@ const PageEquipe=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
     {id:"juridique",label:"⚖ Juridique"},
   ];
 
-  if(!hasAccess(plan,"equipe"))return <div style={{padding:20}}><UpgradeWall page="Équipe" plan={plan}/></div>;
+  if(!hasAccess(plan,"equipe",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="Équipe" plan={plan}/></div>;
 
   const totalSalaire=equipe.reduce((a,e)=>a+e.salaire,0);
   const totalArrets=equipe.reduce((a,e)=>a+e.arrets.length,0);

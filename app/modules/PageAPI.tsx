@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { C, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
-const PageAPI=({plan,showToast,UpgradeWall,activeCompany})=>{
+const PageAPI=({plan, modulesActifs,showToast,UpgradeWall,activeCompany})=>{
   const[onglet,setOnglet]=useState("keys");
   const[keys,setKeys]=useState([]);
   const[webhooks,setWebhooks]=useState([]);
@@ -93,7 +93,7 @@ const PageAPI=({plan,showToast,UpgradeWall,activeCompany})=>{
     }catch(e){}
   };
 
-  if(!hasAccess(plan,"deploiement"))return <div style={{padding:20}}><UpgradeWall page="API Xyra" plan={plan}/></div>;
+  if(!hasAccess(plan,"deploiement",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="API Xyra" plan={plan}/></div>;
   if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement API...</div></div>;
 
   const uptimeColor=tauxSucces>=99?C.green:tauxSucces>=95?C.gold:C.red;

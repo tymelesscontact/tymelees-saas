@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, S
 import { hasAccess } from "../lib/plans";
 import { generateDevisHTML } from "../lib/generateDevis";
 
-const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
+const PageDevis=({plan, modulesActifs,showToast,profil,activeCompany,UpgradeWall})=>{
   const MODELES=[
     {id:"airbnb",label:"Nettoyage Airbnb",lignes:[{desc:"Nettoyage complet appartement",qte:1,pu:180,tva:20},{desc:"Blanchisserie linge de lit",qte:1,pu:45,tva:20},{desc:"Réassort produits accueil",qte:1,pu:25,tva:20}]},
     {id:"bureau",label:"Nettoyage bureaux",lignes:[{desc:"Nettoyage bureaux (surface)",qte:1,pu:280,tva:20},{desc:"Nettoyage sanitaires",qte:1,pu:80,tva:20},{desc:"Vitrerie intérieure",qte:1,pu:120,tva:20}]},
@@ -265,7 +265,7 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
     }catch(e){showToast("❌ Erreur de connexion");}
   };
 
-  if(!hasAccess(plan,"devis"))return <div style={{padding:20}}><UpgradeWall page="devis" plan={plan}/></div>;
+  if(!hasAccess(plan,"devis",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="devis" plan={plan}/></div>;
 
   return <div style={{padding:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>

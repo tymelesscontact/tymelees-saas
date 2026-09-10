@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, St, inits } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
-const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
+const PageClubAffaires=({plan, modulesActifs,showToast,UpgradeWall,setPage})=>{
   const contacterMembre=async(m)=>{
     try{
       const res=await fetch('/api/chat',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer_conversation',espace:'externe',contact_nom:m.nom,contact_tel:m.tel,contact_email:m.email,contact_type:'partenaire'})});
@@ -162,7 +162,7 @@ const PageClubAffaires=({plan,showToast,UpgradeWall,setPage})=>{
   const totalCA=membres.reduce((a,m)=>a+Number(m.ca_genere||0),0);
   const totalDeals=membres.reduce((a,m)=>a+Number(m.nb_deals||0),0);
 
-  if(!hasAccess(plan,"club_affaires"))return <div style={{padding:20}}><UpgradeWall page="club_affaires" plan={plan}/></div>;
+  if(!hasAccess(plan,"club_affaires",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="club_affaires" plan={plan}/></div>;
 
   return <div style={{padding:20}}>
     {/* HEADER */}

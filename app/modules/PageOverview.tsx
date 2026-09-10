@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, BtnGhost, STitle, Pill, Sel, SM, conv, DEVISES } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
-const PageOverview=({plan,profil,setPage,showToast,UpgradeWall,activeCompany})=>{
+const PageOverview=({plan, modulesActifs,profil,setPage,showToast,UpgradeWall,activeCompany})=>{
   const[data,setData]=useState(null);
   const[loading,setLoading]=useState(true);
   const[briefing,setBriefing]=useState("");
@@ -110,7 +110,7 @@ Donne : 1 constat positif, 1 point de vigilance, et 3 priorités concrètes pour
     }
   },[data]);
 
-  if(!hasAccess(plan,"overview"))return <div style={{padding:20}}><UpgradeWall page="overview" plan={plan}/></div>;
+  if(!hasAccess(plan,"overview",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="overview" plan={plan}/></div>;
   if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement de votre vue d'ensemble...</div></div>;
 
   const scoreColor=data.scoreGlobal>=70?C.green:data.scoreGlobal>=40?C.gold:C.red;

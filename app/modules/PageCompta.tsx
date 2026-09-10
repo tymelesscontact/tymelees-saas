@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, BtnGhost, TH, Td, KPI, STitle, Pill, Tabs } from "../
 import { hasAccess } from "../lib/plans";
 import { TabCharges, TabFournisseurs } from "./PageInvestissement";
 
-const PageCompta=({plan,showToast,UpgradeWall,activeCompany})=>{
+const PageCompta=({plan, modulesActifs,showToast,UpgradeWall,activeCompany})=>{
   const[onglet,setOnglet]=useState("journal");
   const[wallet,setWallet]=useState([]);
   const[factures,setFactures]=useState([]);
@@ -36,7 +36,7 @@ const PageCompta=({plan,showToast,UpgradeWall,activeCompany})=>{
   useEffect(()=>{loadCompta();},[activeCompany?.id]);
 
   const tabs=[{id:"journal",label:"📋 Journal"},{id:"bilan",label:"📊 Bilan"},{id:"tva",label:"💶 TVA"},{id:"charges",label:"💸 Charges"},{id:"fournisseurs",label:"🏭 Fournisseurs"},{id:"ia",label:"🤖 IA Fiscale"},{id:"export",label:"📤 Export"}];
-  if(!hasAccess(plan,"compta"))return <div style={{padding:20}}><UpgradeWall page="Comptabilité" plan={plan}/></div>;
+  if(!hasAccess(plan,"compta",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="Comptabilité" plan={plan}/></div>;
 
   const journal=[
     ...wallet.filter(w=>w.statut==="confirmé"||w.statut==="viré").map(w=>({date:w.created_at,libelle:w.libelle,montant:Number(w.montant),type:w.type==="entree"?"recette":"depense"})),

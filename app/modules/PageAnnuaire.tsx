@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM, Tabs, St, inits } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
-const PageAnnuaire=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
+const PageAnnuaire=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPage})=>{
   const[contacts,setContacts]=useState([]);
   const[loadingContacts,setLoadingContacts]=useState(true);
   const[dealsReal,setDealsReal]=useState([]);
@@ -87,7 +87,7 @@ const PageAnnuaire=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
     {id:"annuaire",label:"🌍 Annuaire mondial"},
     {id:"deals",label:"🤝 Deals réseau"},
   ];
-  if(!hasAccess(plan,"annuaire"))return <div style={{padding:20}}><UpgradeWall page="Réseau & Annuaire" plan={plan}/></div>;
+  if(!hasAccess(plan,"annuaire",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="Réseau & Annuaire" plan={plan}/></div>;
   const filtered=contacts.filter(r=>{
     const matchSearch=search===""||(r.nom||'').toLowerCase().includes(search.toLowerCase())||(r.secteur||'').toLowerCase().includes(search.toLowerCase())||(r.ville||'').toLowerCase().includes(search.toLowerCase());
     const matchCont=filtreCont==="Tous"||r.continent===filtreCont;

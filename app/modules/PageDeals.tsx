@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
-const PageDeals=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
+const PageDeals=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPage})=>{
   const[_dealsReal,setDealsReal]=useState([]);
   const[_partenairesReal,setPartenairesReal]=useState([]);
   const[_caPipeline,setCaPipeline]=useState(0);
@@ -85,7 +85,7 @@ const PageDeals=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
   const totalPondere=deals.reduce((a,d)=>a+d.valeur*(d.prob/100),0);
   const etapeColor={Identification:C.muted,Qualification:C.blue,Proposition:C.gold,Négociation:C.orange,Closing:C.purple,Gagné:C.green,Perdu:C.red};
 
-  if(!hasAccess(plan,"deals"))return <div style={{padding:20}}><UpgradeWall page="deals" plan={plan}/></div>;
+  if(!hasAccess(plan,"deals",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="deals" plan={plan}/></div>;
 
   return <div style={{padding:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>

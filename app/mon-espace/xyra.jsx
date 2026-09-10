@@ -1,6 +1,7 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { useMultiSocietes } from "../lib/useMultiSocietes";
+import { MODULE_PRICES } from "../lib/plans";
 import PageWalletModule from "../modules/PageWallet";
 import PageCartesModule from "../modules/PageCartes";
 import PageAccueilModule from "../modules/PageAccueil";
@@ -57,15 +58,7 @@ const PLANS = {
   owner:          {id:"owner",          nom:"Owner",              prix:"—",           color:"#C9A84C", icon:"★", acces:["tout"], description:"Accès total — Curtiss"},
 };
 
-const MODULE_PRICES = {
-  overview:19, analytique:19, tresorerie:19, compta:19,
-  notefrais:19,
-  clients:14, partenaires:19, club_affaires:19, annuaire:14,
-  wallet_membres:19, evenements:14, scoring:14,
-  equipe:19, planning:14, prospection:29, deals:14,
-  stock:14, services:14, notifications:9, signature:19,
-  formation:14, deploiement:49, api:29, investissement:24,
-};
+// MODULE_PRICES importe depuis ../lib/plans (partage client/serveur).
 
 const MULTI = ["multi_societes","multi_pro","holding"];
 const PAGE_ACCESS = {
@@ -536,9 +529,11 @@ export default function Xyra() {
   const[tenantInfo,setTenantInfo]=useState(null);
   const[essaiExpire,setEssaiExpire]=useState(false);
   const[paiementLoading,setPaiementLoading]=useState(false);
+  const[modulesActifs,setModulesActifs]=useState([]);
   useEffect(()=>{
     fetch("/api/tenant-info").then(r=>r.json()).then(d=>{
       setTenantInfo(d);
+      if(Array.isArray(d.modules_actifs))setModulesActifs(d.modules_actifs);
       if(d.statut)setTenantStatut(d.statut);
       const trialFini=d.trial_ends_at&&new Date(d.trial_ends_at).getTime()<Date.now();
       if(d.statut==="essai"&&trialFini){
@@ -723,39 +718,39 @@ export default function Xyra() {
     accueil:<PageAccueilModule notifs={notifs} setNotifs={setNotifs} profil={profil} setPage={setPage}/>,
     // Pages bientôt disponibles
     ...Object.fromEntries(Object.entries(SOON_MODULES).map(([k,v])=>[k,<PageBientot key={k} {...v}/>])),
-    wallet:<PageWalletModule plan={plan} showToast={showToast} profil={profil} activeCompany={activeCompany} METHODES_PAY={METHODES_PAY} Convertisseur={Convertisseur} IbanMondial={IbanMondial}/>,
-    cartes:<PageCartesModule plan={plan} showToast={showToast} activeCompany={activeCompany}/>,
+    wallet:<PageWalletModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} activeCompany={activeCompany} METHODES_PAY={METHODES_PAY} Convertisseur={Convertisseur} IbanMondial={IbanMondial}/>,
+    cartes:<PageCartesModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} activeCompany={activeCompany} UpgradeWall={UpgradeWall}/>,
     overview:<PageOverviewModule plan={plan} profil={profil} setPage={setPage} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    crm:<PageCRMModule plan={plan} showToast={showToast} setPage={setPage} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    devis:<PageDevis plan={plan} showToast={showToast} profil={profil} activeCompany={activeCompany} UpgradeWall={UpgradeWall}/>,
-    investissement:<PageInvestissementModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    compta:<PageComptaModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    notefrais:<PageNoteFraisModule plan={plan} showToast={showToast} activeCompany={activeCompany}/>,
-    tresorerie:<PageTresorerieModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    analytique:<PageAnalytiqueModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    clients:<PageClientsModule plan={plan} showToast={showToast} profil={profil} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    fournisseurs:<PageFournisseursModule plan={plan} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    revendeur:<PageRevendeurModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
-    partenaires:<PagePartenairesModule plan={plan} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany} Chat={Chat}/>,
-    club_affaires:<PageClubAffairesModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} setPage={setPage}/>,
-    multi_societes:<PageMultiSocietesModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
-    annuaire:<PageAnnuaireModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany} setPage={setPage}/>,
-    evenements:<PageEvenementsModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    scoring:<PageScoringModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    equipe:<PageEquipeModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} setPage={setPage} activeCompany={activeCompany}/>,
-    planning:<PagePlanningModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
-    prospection:<PageProspectionModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    deals:<PageDealsModule plan={plan} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    stock:<PageStockModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    services:<PageServicesModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    chat:<PageChatModule plan={plan} showToast={showToast} Chat={Chat} activeCompany={activeCompany}/>,
+    crm:<PageCRMModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} setPage={setPage} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    devis:<PageDevis plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} activeCompany={activeCompany} UpgradeWall={UpgradeWall}/>,
+    investissement:<PageInvestissementModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    compta:<PageComptaModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    notefrais:<PageNoteFraisModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} activeCompany={activeCompany} UpgradeWall={UpgradeWall}/>,
+    tresorerie:<PageTresorerieModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    analytique:<PageAnalytiqueModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    clients:<PageClientsModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    fournisseurs:<PageFournisseursModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    revendeur:<PageRevendeurModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall}/>,
+    partenaires:<PagePartenairesModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany} Chat={Chat}/>,
+    club_affaires:<PageClubAffairesModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} setPage={setPage}/>,
+    multi_societes:<PageMultiSocietesModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall}/>,
+    annuaire:<PageAnnuaireModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany} setPage={setPage}/>,
+    evenements:<PageEvenementsModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    scoring:<PageScoringModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    equipe:<PageEquipeModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} setPage={setPage} activeCompany={activeCompany}/>,
+    planning:<PagePlanningModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
+    prospection:<PageProspectionModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    deals:<PageDealsModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    stock:<PageStockModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    services:<PageServicesModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    chat:<PageChatModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} Chat={Chat} activeCompany={activeCompany}/>,
     conversations_whatsapp:<PageConversationsWhatsapp/>,
     notifications:<PageNotificationsModule notifs={notifs} setNotifs={setNotifs} showToast={showToast} activeCompany={activeCompany}/>,
-    signature:<PageSignaturesModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    facturation:<PageFacturationModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    formation:<PageFormationModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
-    api:<PageAPIModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    settings:<PageSettingsModule plan={plan} showToast={showToast} sirApiKey={sirApiKey} setSirApiKey={setSirApiKey} profil={profil} setProfil={setProfil} PLANS={PLANS} PROFILS_SECTEURS={PROFILS_SECTEURS}/>,
+    signature:<PageSignaturesModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    facturation:<PageFacturationModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    formation:<PageFormationModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall}/>,
+    api:<PageAPIModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    settings:<PageSettingsModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} sirApiKey={sirApiKey} setSirApiKey={setSirApiKey} profil={profil} setProfil={setProfil} PLANS={PLANS} PROFILS_SECTEURS={PROFILS_SECTEURS}/>,
   };
 
   if(sbLoading)return <div style={{minHeight:"100vh",background:"#06060E",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
@@ -805,7 +800,7 @@ export default function Xyra() {
             <div style={{fontSize:9,color:"#9090B8",letterSpacing:"0.2em",textTransform:"uppercase",padding:"10px 13px 3px",marginTop:gi>0?4:0,fontWeight:600}}>{grp.group}</div>
             {grp.items.map((item)=>{
               const active=page===item.id;
-              const locked=!hasAccess(plan,item.id);
+              const locked=!hasAccess(plan,item.id)&&!modulesActifs.includes(item.id);
               const badge=item.badge?badges[item.badge]:0;
               if(item.soon) return (
                 <button key={item.id} onClick={()=>setPage(item.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 13px",cursor:"pointer",color:"#5A5A7A",background:"transparent",border:"none",borderLeft:"2px solid transparent",width:"100%",textAlign:"left",fontFamily:"inherit",fontSize:12,opacity:0.6}}>

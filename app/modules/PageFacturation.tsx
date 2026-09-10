@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp } from "../l
 import { FORMATION } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageFacturation=({plan,showToast,UpgradeWall,activeCompany})=>{
+const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany})=>{
   const[onglet,setOnglet]=useState("dashboard");
   const[factures,setFactures]=useState([]);
   const[loadingFact,setLoadingFact]=useState(true);
@@ -111,7 +111,7 @@ const PageFacturation=({plan,showToast,UpgradeWall,activeCompany})=>{
     }catch(e){showToast("❌ Erreur");}
   };
 
-  if(!hasAccess(plan,"facturation"))return <div style={{padding:20}}><UpgradeWall page="facturation" plan={plan}/></div>;
+  if(!hasAccess(plan,"facturation",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="facturation" plan={plan}/></div>;
 
   return <div style={{padding:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>

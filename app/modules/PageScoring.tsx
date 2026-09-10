@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { C, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM, St, inits } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
-const PageScoring=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
+const PageScoring=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompany})=>{
   const[data,setData]=useState(null);
   const[loading,setLoading]=useState(true);
   const[onglet,setOnglet]=useState("dashboard");
@@ -91,7 +91,7 @@ const PageScoring=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
     }catch(e){showToast("❌ Erreur");}
   };
 
-  if(!hasAccess(plan,"scoring"))return <div style={{padding:20}}><UpgradeWall page="Réputation & NPS" plan={plan}/></div>;
+  if(!hasAccess(plan,"scoring",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="Réputation & NPS" plan={plan}/></div>;
   if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement de la réputation...</div></div>;
 
   const avisAffichés=data?.avis||[];

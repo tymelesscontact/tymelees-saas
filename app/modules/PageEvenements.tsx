@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
-const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
+const PageEvenements=({plan, modulesActifs,showToast,UpgradeWall,activeCompany})=>{
   const[evts,setEvts]=useState([]);
   const[loading,setLoading]=useState(true);
   const[onglet,setOnglet]=useState("liste");
@@ -83,7 +83,7 @@ const PageEvenements=({plan,showToast,UpgradeWall,activeCompany})=>{
     navigator.clipboard?.writeText(url);
   };
 
-  if(!hasAccess(plan,"evenements"))return <div style={{padding:20}}><UpgradeWall page="Événements" plan={plan}/></div>;
+  if(!hasAccess(plan,"evenements",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="Événements" plan={plan}/></div>;
 
   const tabs=[
     {id:"liste",label:"📅 Événements"},

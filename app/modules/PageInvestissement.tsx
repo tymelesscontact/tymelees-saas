@@ -4,11 +4,11 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, SM, Ta
 import { CHARGES } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageInvestissement=({plan,showToast,UpgradeWall,activeCompany})=>{
+const PageInvestissement=({plan, modulesActifs,showToast,UpgradeWall,activeCompany})=>{
   const[onglet,setOnglet]=useState("reco");
   // FIX: apostrophe correcte ci-dessous
   const tabs=[{id:"reco",label:"🤖 Recommandations IA"},{id:"portefeuille",label:"💼 Portefeuille"},{id:"plan",label:"Plan d'action"},{id:"scenarios",label:"📊 Scénarios"}];
-  if(!hasAccess(plan,"investissement"))return <div style={{padding:20}}><UpgradeWall page="Investissement IA" plan={plan}/></div>;
+  if(!hasAccess(plan,"investissement",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="Investissement IA" plan={plan}/></div>;
   const recos=[{titre:"Automatisation prospection",roi:340,risque:"Faible",invest:2400,delai:"3 mois",score:94},{titre:"Expansion yacht Monaco",roi:280,risque:"Moyen",invest:8000,delai:"6 mois",score:87},{titre:"Formation équipe aviation",roi:190,risque:"Faible",invest:1200,delai:"1 mois",score:82},{titre:"Certification ISO services",roi:150,risque:"Faible",invest:3500,delai:"4 mois",score:78}];
   return <div style={{padding:20}}>
     <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◐ Investissement IA</div>

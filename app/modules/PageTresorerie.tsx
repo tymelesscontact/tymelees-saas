@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM, co
 import { CLIENTS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageTresorerie=({plan,showToast,UpgradeWall,activeCompany})=>{
+const PageTresorerie=({plan, modulesActifs,showToast,UpgradeWall,activeCompany})=>{
   const[devise,setDevise]=useState("EUR");
   const[onglet,setOnglet]=useState("dashboard");
   const[loading,setLoading]=useState(true);
@@ -102,7 +102,7 @@ const PageTresorerie=({plan,showToast,UpgradeWall,activeCompany})=>{
     }catch(e){showToast("❌ Erreur");}
   };
 
-  if(!hasAccess(plan,"tresorerie"))return <div style={{padding:20}}><UpgradeWall page="tresorerie" plan={plan}/></div>;
+  if(!hasAccess(plan,"tresorerie",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="tresorerie" plan={plan}/></div>;
   if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement des données réelles...</div></div>;
 
   const soldeActuel=data?.soldeActuel||0;

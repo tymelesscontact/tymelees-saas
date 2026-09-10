@@ -2,7 +2,7 @@
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM, St } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
-const PageSignatures=({plan,showToast,UpgradeWall,activeCompany}) => {
+const PageSignatures=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}) => {
   const[ongletPrincipal,setOngletPrincipal]=useState("contrats");
   const[modeles,setModeles]=useState([]);
   const[contrats,setContrats]=useState([]);
@@ -120,7 +120,7 @@ const PageSignatures=({plan,showToast,UpgradeWall,activeCompany}) => {
     const matchRecherche=recherche===""||(c.titre||'').toLowerCase().includes(recherche.toLowerCase())||(c.signataire_nom||'').toLowerCase().includes(recherche.toLowerCase());
     return matchStatut&&matchRecherche;
   });
-  if(!hasAccess(plan,"signature"))return <div style={{padding:20}}><UpgradeWall page="signature" plan={plan}/></div>;
+  if(!hasAccess(plan,"signature",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="signature" plan={plan}/></div>;
   const enAttente=contrats.filter(c=>c.statut==="envoye").length;
   const signes=contrats.filter(c=>c.statut==="signe").length;
   const tauxSignature=contrats.length>0?Math.round(signes/contrats.length*100):0;

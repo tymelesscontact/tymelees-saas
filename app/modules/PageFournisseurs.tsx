@@ -2,8 +2,9 @@
 import { useState, useEffect } from "react";
 import { C, fmt, Card, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel } from "../lib/ui";
 import { ouvrirChat } from "../lib/ouvrirChat";
+import { hasAccess } from "../lib/plans";
 
-const PageFournisseurs = ({ plan, showToast, UpgradeWall, activeCompany, setPage }: any) => {
+const PageFournisseurs = ({ plan, modulesActifs, showToast, UpgradeWall, activeCompany, setPage }: any) => {
   const [fournisseurs, setFournisseurs] = useState<any[]>([]);
   const [chargement, setChargement] = useState(true);
   const [sel, setSel] = useState<any>(null);
@@ -73,6 +74,8 @@ const PageFournisseurs = ({ plan, showToast, UpgradeWall, activeCompany, setPage
       <Inp value={(form as any)[cle]} onChange={(e: any) => setForm({ ...form, [cle]: e.target.value })} />
     </div>
   );
+
+  if (!hasAccess(plan, "fournisseurs", modulesActifs)) return <div style={{ padding: 20 }}><UpgradeWall page="fournisseurs" plan={plan} /></div>;
 
   return <div>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>

@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM, DEVISES } from "../lib/ui";
+import { hasAccess } from "../lib/plans";
 
-const PageCartes=({plan,showToast,activeCompany})=>{
+const PageCartes=({plan,modulesActifs,showToast,activeCompany,UpgradeWall})=>{
   const[cartes,setCartes]=useState([]);
   const[transactions,setTransactions]=useState([]);
   const[budgets,setBudgets]=useState([]);
@@ -103,6 +104,7 @@ const PageCartes=({plan,showToast,activeCompany})=>{
   const totalLimite=cartes.filter(c=>c.devise==="EUR").reduce((a,c)=>a+Number(c.limite||0),0);
   const cartesActives=cartes.filter(c=>c.statut==="active"||c.statut==="éphémère").length;
 
+  if(!hasAccess(plan,"cartes",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="cartes" plan={plan}/></div>;
   if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement des cartes...</div></div>;
 
   return <div style={{padding:20}}>

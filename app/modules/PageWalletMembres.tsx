@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Sel, SM, St, conv, DEVISES, inits } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
-const PageWalletMembres=({plan,showToast,UpgradeWall})=>{
+const PageWalletMembres=({plan, modulesActifs,showToast,UpgradeWall})=>{
   const[membres,setMembres]=useState([]);
   const[data,setData]=useState(null);
   const[loading,setLoading]=useState(true);
@@ -78,7 +78,7 @@ const PageWalletMembres=({plan,showToast,UpgradeWall})=>{
     showToast("✅ CSV téléchargé");
   };
 
-  if(!hasAccess(plan,"wallet_membres"))return <div style={{padding:20}}><UpgradeWall page="Wallets Membres" plan={plan}/></div>;
+  if(!hasAccess(plan,"wallet_membres",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="Wallets Membres" plan={plan}/></div>;
 
   const membresFiltres=membres.filter(m=>{
     if(filtre==="actifs")return m.statut==="actif";
