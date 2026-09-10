@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from "react";
 import { useMultiSocietes } from "../lib/useMultiSocietes";
 import { MODULE_PRICES } from "../lib/plans";
+import UpgradeWall from "../modules/UpgradeWall";
 import PageWalletModule from "../modules/PageWallet";
 import PageCartesModule from "../modules/PageCartes";
 import PageAccueilModule from "../modules/PageAccueil";
@@ -270,40 +271,7 @@ const SM=({val,max,color=C.green})=><div style={{height:4,borderRadius:2,backgro
 const St=({s})=>{const map={validé:[C.green,"✓ Validé"],signé:[C.green,"✓ Signé"],confirmé:[C.green,"✓ Confirmé"],envoyé:[C.blue,"→ Envoyé"],en_attente:[C.orange,"⏳ En attente"],actif:[C.green,"● Actif"],critique:[C.red,"⚠ Critique"],ouvert:[C.green,"Ouvert"],complet:[C.red,"Complet"],"en cours":[C.blue,"En cours"],"à faire":[C.muted,"À faire"],complété:[C.green,"✓ Complété"]};const[c,l]=map[s]||[C.muted,s];return <Pill color={c}>{l}</Pill>;};
 
 // Aperçus des modules par page
-const MODULE_PREVIEWS={
-  overview:{icon:"◈",desc:"Vue d'ensemble business",features:["8 KPIs en temps réel","Score santé business","Alertes critiques","Actions rapides IA"]},
-  crm:{icon:"◎",desc:"CRM & Pipeline",features:["Pipeline Kanban visuel","Score IA par lead","Relances automatiques","Analytics conversion"]},
-  devis:{icon:"◧",desc:"Devis & Facturation",features:["Devis PDF en 1 clic","Signature électronique","Envoi WhatsApp auto","Score solvabilité client"]},
-  investissement:{icon:"◐",desc:"Investissement IA",features:["Recommandations Claude","ROI par investissement","Plan d'action personnalisé","Scénarios prévisionnels"]},
-  compta:{icon:"◉",desc:"Comptabilité complète",features:["Journal + Bilan","Déclaration TVA","Export expert-comptable","Conseils IA fiscaux"]},
-  tresorerie:{icon:"◑",desc:"Trésorerie 90 jours",features:["Cash-flow prévisionnel","Alertes seuil critique","Multi-devises","Prévisions IA 3 mois"]},
-  analytique:{icon:"◒",desc:"Analytique & CA",features:["CA par service & pays","Prédictions IA mensuelles","Objectifs & suivi","Rapports automatiques"]},
-  clients:{icon:"◬",desc:"Gestion clients",features:["Fiches clients complètes","Score solvabilité","Upsell automatique","Historique missions"]},
-  partenaires:{icon:"⬡",desc:"Partenaires & AA",features:["Suivi commissions","Chat partenaires","Contrats automatiques","Score performance"]},
-  annuaire:{icon:"◱",desc:"Réseau mondial",features:["18+ contacts mondiaux","Carte réseau interactive","Deals entre membres","Messagerie intégrée"]},
-  wallet_membres:{icon:"◈",desc:"Wallets membres",features:["Soldes en temps réel","Cartes virtuelles","Multi-devises","Renouvellements auto"]},
-  evenements:{icon:"◆",desc:"Événements",features:["Créer des événements","QR Code inscription","Visio Jitsi intégrée","Gestion invités"]},
-  scoring:{icon:"★",desc:"Réputation & NPS",features:["Avis Google centralisés","Réponses IA automatiques","Rapport NPS mensuel","Widget site web"]},
-  equipe:{icon:"⊞",desc:"RH & Équipe",features:["16 modules RH complets","Pointage GPS","Paie automatique","IA RH + Juridique"]},
-  planning:{icon:"⊡",desc:"Planning & Agenda",features:["5 vues calendrier","IA auto-planification","Booking client","Règles horaires"]},
-  prospection:{icon:"⊕",desc:"Prospection Auto",features:["Base SIRENE 12M+","Bot WhatsApp IA","Bot d'appel vocal","Séquences automatiques"]},
-  stock:{icon:"⊟",desc:"Stock & Fournitures",features:["Alertes stock critique","IA prédictive","Commandes auto","QR terrain"]},
-  services:{icon:"⊛",desc:"Produits & Services",features:["Catalogue services","Tarification IA","Tunnel upsell","CGV/CGU auto"]},
-  deploiement:{icon:"🌍",desc:"Déploiement SaaS",features:["Clients white-label","Revenus MRR/ARR","Onboarding auto","Dashboard revendeurs"]},
-  api:{icon:"◇",desc:"API Xyra",features:["Clés API sécurisées","Webhooks temps réel","Documentation complète","Logs & monitoring"]},
-  // Modules à la carte
-  notifications:{icon:"🔔",desc:"Notifications avancées",features:["Push temps réel","WhatsApp auto","Email auto","Configuration complète"]},
-  signature:{icon:"✦",desc:"Contrats & Signatures",features:["E-signature légale","10+ modèles","Archivage sécurisé","Avenants auto"]},
-  formation:{icon:"⊿",desc:"Formation équipe",features:["Modules vidéo","Certifications","Protocoles métier","Quiz & scores"]},
-  facturation:{icon:"🧾",desc:"Facturation électronique",features:["Factur-X conforme","Chorus Pro","E-reporting TVA","DGFiP automatique"]},
-  evenements:{icon:"◆",desc:"Événements & Networking",features:["Créer événements","QR inscriptions","Visio Jitsi","Gestion invités"]},
-  wallet_membres:{icon:"◈",desc:"Wallets membres",features:["Soldes temps réel","Cartes virtuelles","Multi-devises","Abonnements auto"]},
-  scoring:{icon:"★",desc:"Réputation & NPS",features:["Avis Google","Réponses IA","Score NPS","Widget site web"]},
-  annuaire:{icon:"◱",desc:"Réseau & Annuaire mondial",features:["18+ pays","Deals membres","Messagerie","IA Match business"]},
-  club_affaires:{icon:"◈",desc:"Club d'affaires privé",features:["Réseau VIP","Deals -10%","Événements exclusifs","IA Match"]},
-  wallet_membres:{icon:"◈",desc:"Wallets membres",features:["Soldes temps réel","Cartes virtuelles","Multi-devises","Renouvellements"]},
-  investissement:{icon:"◐",desc:"Investissement IA",features:["Recommandations Claude","ROI estimé","Plan d'action","Scénarios"]},
-};
+// (bloc deplace vers app/modules/UpgradeWall.tsx)
 
 
 // ─── PAGE BIENTÔT DISPONIBLE ─────────────────────────────────
@@ -341,54 +309,7 @@ const SOON_MODULES={
   centre_appels:{titre:"Centre d'appels IA",icon:"📞",desc:"Un agent vocal IA appelle automatiquement vos prospects, qualifie les leads et planifie les RDV dans votre agenda.",features:["Agent vocal IA (Vapi)","Qualification automatique","Prise de RDV auto","Résumé CRM auto","Multi-langues","Scripts personnalisés","Statistiques appels","Intégration SIRENE"]},
 };
 
-const UpgradeWall=({page,plan})=>{
-  const[vraiPlan,setVraiPlan]=useState(null);
-  const[chargementAchat,setChargementAchat]=useState(false);
-  useEffect(()=>{
-    fetch("/api/tenant-info").then(r=>r.json()).then(d=>{
-      if(d.plan)setVraiPlan(d.plan);
-    }).catch(()=>{});
-  },[]);
-  const preview=MODULE_PREVIEWS[page]||{icon:"📦",desc:page,features:["Fonctionnalités avancées","Analyses IA","Automatisations","Rapports détaillés"]};
-  const modulePrice=MODULE_PRICES[page];
-  const planPourRedirection=vraiPlan||plan;
-  const planEffectif=String(vraiPlan||plan||"").toLowerCase();
-  const peutAcheterAlaCarte=!!modulePrice&&(planEffectif==="starter"||planEffectif==="business");
-  const debloquerModule=async()=>{
-    setChargementAchat(true);
-    try{
-      const res=await fetch("/api/create-checkout",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({module:page})});
-      const data=await res.json();
-      if(data.url){window.location.href=data.url;return;}
-      setChargementAchat(false);
-      alert(data.error||"Erreur lors de la création du paiement");
-    }catch(e){setChargementAchat(false);alert("Erreur de connexion");}
-  };
-  return <div style={{padding:24,maxWidth:700,margin:"0 auto"}}>
-    <div style={{textAlign:"center",marginBottom:24}}>
-      <div style={{fontSize:48,marginBottom:8}}>{preview.icon||"🔒"}</div>
-      <div style={{fontSize:22,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>{preview.desc}</div>
-      {modulePrice&&<div style={{display:"inline-flex",alignItems:"center",gap:8,background:`${C.gold}15`,border:`1px solid ${C.gold}44`,borderRadius:20,padding:"6px 16px",marginBottom:8}}>
-        <span style={{fontSize:11,color:C.muted}}>Module a la carte :</span>
-        <span style={{fontSize:16,fontWeight:700,color:C.gold}}>{modulePrice}€/mois</span>
-      </div>}
-    </div>
-    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:20,marginBottom:20}}>
-      <div style={{fontSize:11,color:C.muted,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:12}}>Ce que vous debloquez</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:8}}>
-        {preview.features.map((f,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.text,display:"flex",alignItems:"center",gap:8,border:`1px solid ${C.border}`}}>
-          <span style={{color:C.gold,fontSize:14}}>✦</span>{f}
-        </div>)}
-      </div>
-    </div>
-    {peutAcheterAlaCarte&&<button onClick={debloquerModule} disabled={chargementAchat} style={{display:"block",width:"100%",textAlign:"center",background:`linear-gradient(135deg,${C.gold},#a07c45)`,color:"#000",border:"none",borderRadius:8,padding:"14px 0",fontWeight:700,fontSize:14,fontFamily:"inherit",cursor:chargementAchat?"wait":"pointer",marginBottom:10,opacity:chargementAchat?0.6:1}}>
-      {chargementAchat?"Redirection vers le paiement…":`Débloquer ce module — ${modulePrice}€/mois`}
-    </button>}
-    <a href={`/pricing?upgrade_from=${planPourRedirection}`} style={{display:"block",textAlign:"center",background:peutAcheterAlaCarte?"transparent":`linear-gradient(135deg,${C.gold},#a07c45)`,color:peutAcheterAlaCarte?C.muted:"#000",border:peutAcheterAlaCarte?`1px solid ${C.border}`:"none",borderRadius:8,padding:"14px 0",fontWeight:peutAcheterAlaCarte?400:700,fontSize:peutAcheterAlaCarte?13:14,fontFamily:"inherit",textDecoration:"none"}}>
-      {peutAcheterAlaCarte?"Ou voir les forfaits complets →":"Voir les forfaits disponibles →"}
-    </a>
-  </div>;
-};
+// (bloc deplace vers app/modules/UpgradeWall.tsx)
 // ─── CHAT COMPONENT ───────────────────────────────────────────
 const Chat=({msgs,onSend,title="Chat",subtitle=""})=>{
   const[msg,setMsg]=useState("");
