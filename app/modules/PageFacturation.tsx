@@ -111,7 +111,7 @@ const PageFacturation=({plan,showToast,UpgradeWall,activeCompany})=>{
     }catch(e){showToast("❌ Erreur");}
   };
 
-  if(!hasAccess(plan,"compta"))return <div style={{padding:20}}><UpgradeWall page="compta" plan={plan}/></div>;
+  if(!hasAccess(plan,"facturation"))return <div style={{padding:20}}><UpgradeWall page="facturation" plan={plan}/></div>;
 
   return <div style={{padding:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>

@@ -85,7 +85,7 @@ const PageDeals=({plan,showToast,UpgradeWall,activeCompany,setPage})=>{
   const totalPondere=deals.reduce((a,d)=>a+d.valeur*(d.prob/100),0);
   const etapeColor={Identification:C.muted,Qualification:C.blue,Proposition:C.gold,Négociation:C.orange,Closing:C.purple,Gagné:C.green,Perdu:C.red};
 
-  if(!hasAccess(plan,"crm"))return <div style={{padding:20}}><UpgradeWall page="crm" plan={plan}/></div>;
+  if(!hasAccess(plan,"deals"))return <div style={{padding:20}}><UpgradeWall page="deals" plan={plan}/></div>;
 
   return <div style={{padding:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>

@@ -120,7 +120,7 @@ const PageSignatures=({plan,showToast,UpgradeWall,activeCompany}) => {
     const matchRecherche=recherche===""||(c.titre||'').toLowerCase().includes(recherche.toLowerCase())||(c.signataire_nom||'').toLowerCase().includes(recherche.toLowerCase());
     return matchStatut&&matchRecherche;
   });
-  if(!hasAccess(plan,"signatures"))return <div style={{padding:20}}><UpgradeWall page="Contrats & Signatures" plan={plan}/></div>;
+  if(!hasAccess(plan,"signature"))return <div style={{padding:20}}><UpgradeWall page="signature" plan={plan}/></div>;
   const enAttente=contrats.filter(c=>c.statut==="envoye").length;
   const signes=contrats.filter(c=>c.statut==="signe").length;
   const tauxSignature=contrats.length>0?Math.round(signes/contrats.length*100):0;
