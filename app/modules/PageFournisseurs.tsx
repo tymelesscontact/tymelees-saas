@@ -75,7 +75,7 @@ const PageFournisseurs = ({ plan, modulesActifs, showToast, UpgradeWall, activeC
     </div>
   );
 
-  if (!hasAccess(plan, "fournisseurs", modulesActifs)) return <div style={{ padding: 20 }}><UpgradeWall page="fournisseurs" plan={plan} /></div>;
+  if (!hasAccess(plan,"fournisseurs",modulesActifs)) return <div style={{ padding: 20 }}><UpgradeWall page="fournisseurs" plan={plan} /></div>;
 
   return <div>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14 }}>

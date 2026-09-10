@@ -167,7 +167,7 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
     } catch { showToast("❌ Erreur"); }
   };
 
-  if (!hasAccess(plan,"planning",modulesActifs)) return <div style={{ padding: 20 }}><UpgradeWall page="Planning & Agenda" plan={plan} /></div>;
+  if (!hasAccess(plan,"planning",modulesActifs)) return <div style={{ padding: 20 }}><UpgradeWall page="planning" plan={plan} /></div>;
 
   const tabs = [
     ["dispatch", "📊 Dispatch"],

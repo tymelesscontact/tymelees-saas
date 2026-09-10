@@ -93,7 +93,7 @@ const PageAPI=({plan, modulesActifs,showToast,UpgradeWall,activeCompany})=>{
     }catch(e){}
   };
 
-  if(!hasAccess(plan,"deploiement",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="API Xyra" plan={plan}/></div>;
+  if(!hasAccess(plan,"api",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="api" plan={plan}/></div>;
   if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement API...</div></div>;
 
   const uptimeColor=tauxSucces>=99?C.green:tauxSucces>=95?C.gold:C.red;

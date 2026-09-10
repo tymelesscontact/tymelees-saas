@@ -28,7 +28,7 @@ const PageCRM=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompany,s
   useEffect(()=>{loadAll();},[activeCompany?.id]);
   useEffect(()=>{if(sel)setSel(s=>leads.find(l=>l.id===s.id)||null);},[leads]);
 
-  if(!hasAccess(plan,"crm",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="CRM" plan={plan}/></div>;
+  if(!hasAccess(plan,"crm",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="crm" plan={plan}/></div>;
 
   const ajouterLead=async()=>{
     if(!addForm.nom)return showToast("⚠️ Le nom de l'entreprise est requis");

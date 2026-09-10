@@ -83,7 +83,7 @@ const PageEvenements=({plan, modulesActifs,showToast,UpgradeWall,activeCompany})
     navigator.clipboard?.writeText(url);
   };
 
-  if(!hasAccess(plan,"evenements",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="Événements" plan={plan}/></div>;
+  if(!hasAccess(plan,"evenements",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="evenements" plan={plan}/></div>;
 
   const tabs=[
     {id:"liste",label:"📅 Événements"},

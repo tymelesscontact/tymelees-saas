@@ -112,7 +112,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     {id:"juridique",label:"⚖ Juridique"},
   ];
 
-  if(!hasAccess(plan,"equipe",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="Équipe" plan={plan}/></div>;
+  if(!hasAccess(plan,"equipe",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="equipe" plan={plan}/></div>;
 
   const totalSalaire=equipe.reduce((a,e)=>a+e.salaire,0);
   const totalArrets=equipe.reduce((a,e)=>a+e.arrets.length,0);

@@ -87,7 +87,7 @@ const PageAnnuaire=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,set
     {id:"annuaire",label:"🌍 Annuaire mondial"},
     {id:"deals",label:"🤝 Deals réseau"},
   ];
-  if(!hasAccess(plan,"annuaire",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="Réseau & Annuaire" plan={plan}/></div>;
+  if(!hasAccess(plan,"annuaire",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="annuaire" plan={plan}/></div>;
   const filtered=contacts.filter(r=>{
     const matchSearch=search===""||(r.nom||'').toLowerCase().includes(search.toLowerCase())||(r.secteur||'').toLowerCase().includes(search.toLowerCase())||(r.ville||'').toLowerCase().includes(search.toLowerCase());
     const matchCont=filtreCont==="Tous"||r.continent===filtreCont;

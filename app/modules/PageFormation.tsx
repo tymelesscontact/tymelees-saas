@@ -5,7 +5,7 @@ import { FORMATION } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
 const PageFormation=({plan, modulesActifs,showToast,UpgradeWall})=>{
-  if(!hasAccess(plan,"formation",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="Formation" plan={plan}/></div>;
+  if(!hasAccess(plan,"formation",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="formation" plan={plan}/></div>;
   return <div style={{padding:20}}>
     <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>⊿ Formation équipe</div>
     <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Normes sectorielles · Certifications · Protocoles · Vente modules</div>

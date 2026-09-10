@@ -153,7 +153,7 @@ const PageDeploiementTenant=({plan, modulesActifs,showToast,UpgradeWall})=>{
     }catch(e){showToast("❌ Erreur");}
   };
 
-  if(!hasAccess(plan,"deploiement",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="Déploiement SaaS" plan={plan}/></div>;
+  if(!hasAccess(plan,"deploiement",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="deploiement" plan={plan}/></div>;
 
   // ── FICHE CLIENT ──────────────────────────────────────────────
   if(selectedClient){

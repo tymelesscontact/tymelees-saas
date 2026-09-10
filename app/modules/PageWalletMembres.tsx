@@ -78,7 +78,7 @@ const PageWalletMembres=({plan, modulesActifs,showToast,UpgradeWall})=>{
     showToast("✅ CSV téléchargé");
   };
 
-  if(!hasAccess(plan,"wallet_membres",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="Wallets Membres" plan={plan}/></div>;
+  if(!hasAccess(plan,"wallet_membres",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="wallet_membres" plan={plan}/></div>;
 
   const membresFiltres=membres.filter(m=>{
     if(filtre==="actifs")return m.statut==="actif";

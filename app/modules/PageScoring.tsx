@@ -91,7 +91,7 @@ const PageScoring=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompa
     }catch(e){showToast("❌ Erreur");}
   };
 
-  if(!hasAccess(plan,"scoring",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="Réputation & NPS" plan={plan}/></div>;
+  if(!hasAccess(plan,"scoring",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="scoring" plan={plan}/></div>;
   if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement de la réputation...</div></div>;
 
   const avisAffichés=data?.avis||[];

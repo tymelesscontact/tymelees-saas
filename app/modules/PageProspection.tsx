@@ -306,7 +306,7 @@ const PageProspection=({plan, modulesActifs,showToast,profil=null,UpgradeWall,ac
     }catch(e){showToast("❌ Erreur de connexion");}
   };
   const tabs=[{id:"sirene",label:"🏢 SIRENE / Leads"},{id:"sequences",label:"📧 Séquences"},{id:"bot",label:"🤖 Bot WhatsApp"},{id:"vocal",label:"🎙 Lea"},{id:"linkedin",label:"💼 LinkedIn"},{id:"stats",label:"📊 Stats"}];
-  if(!hasAccess(plan,"prospection",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="Prospection Auto" plan={plan}/></div>;
+  if(!hasAccess(plan,"prospection",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="prospection" plan={plan}/></div>;
   return <div style={{padding:20}}>
     <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>⊕ Prospection Automatique</div>
     <div style={{fontSize:11,color:C.muted,marginBottom:16}}>SIRENE · Bot vocal · Bot WhatsApp · LinkedIn · 59 fonctionnalités</div>
