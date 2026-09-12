@@ -64,6 +64,7 @@ export async function GET(req: NextRequest) {
   const { data: acomptes } = await sb.from('acomptes').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   const { data: evaluations } = await sb.from('evaluations').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   const { data: formations } = await sb.from('formations_equipe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
+  const { data: catalogue } = await sb.from('formations_catalogue').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   const { data: missions } = await sb.from('missions').select('*').eq('tenant_id', tenantId).order('date_mission', { ascending: false });
 
   const enriched = (membres || []).map((m: any) => {
@@ -111,12 +112,39 @@ export async function GET(req: NextRequest) {
     if (m.conges_solde > 20) alertes.push({ type: 'conges_eleves', nom: `${m.prenom || ''} ${m.nom}`, detail: `${m.conges_solde} jours de congés accumulés`, couleur: '#5A5A7A' });
   }
 
-  return NextResponse.json({ membres: enriched, alertes });
+  return NextResponse.json({ membres: enriched, alertes, catalogue: catalogue || [] });
 }
 
 export async function POST(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+
+  // Upload d'une vidéo dans la bibliothèque de formations — formulaire
+  // multipart, traité à part avant le parsing JSON du reste des actions.
+  const contentType = req.headers.get('content-type') || '';
+  if (contentType.includes('multipart/form-data')) {
+    const formData = await req.formData();
+    const titre = String(formData.get('titre') || '').trim();
+    const description = String(formData.get('description') || '');
+    const fichier = formData.get('video') as File | null;
+    if (!titre) return NextResponse.json({ error: 'Titre requis' }, { status: 400 });
+    if (!fichier) return NextResponse.json({ error: 'Fichier vidéo requis' }, { status: 400 });
+    const extension = (fichier.name.split('.').pop() || 'mp4').toLowerCase();
+    const chemin = `${tenantId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extension}`;
+    const bytes = await fichier.arrayBuffer();
+    const { error: errUpload } = await sb.storage.from('formations-videos').upload(chemin, Buffer.from(bytes), {
+      contentType: fichier.type || 'video/mp4',
+      upsert: false,
+    });
+    if (errUpload) return NextResponse.json({ error: errUpload.message }, { status: 500 });
+    const { data: urlData } = sb.storage.from('formations-videos').getPublicUrl(chemin);
+    const { data, error } = await sb.from('formations_catalogue').insert({
+      tenant_id: tenantId, titre, description, video_url: urlData.publicUrl,
+    }).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, modele: data });
+  }
+
   const body = await req.json();
   const { action } = body;
   if (action === 'message_groupe') {
@@ -292,10 +320,27 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'ajouter_formation') {
-    const { employe_id, titre, statut } = body;
+    let { employe_id, titre, statut, catalogue_id } = body;
     const { data: empVerifForm } = await sb.from('equipe').select('id').eq('id', employe_id).eq('tenant_id', tenantId).maybeSingle();
     if (!empVerifForm) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
-    const { data, error } = await sb.from('formations_equipe').insert({ employe_id, titre, statut: statut || 'a_faire', tenant_id: tenantId }).select().single();
+    if (catalogue_id) {
+      const { data: modele } = await sb.from('formations_catalogue').select('titre').eq('id', catalogue_id).eq('tenant_id', tenantId).maybeSingle();
+      if (!modele) return NextResponse.json({ error: 'Vidéo introuvable' }, { status: 404 });
+      titre = modele.titre;
+    }
+    const { data, error } = await sb.from('formations_equipe').insert({ employe_id, titre, statut: statut || 'a_faire', tenant_id: tenantId, catalogue_id: catalogue_id || null }).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, formation: data });
+  }
+
+  if (action === 'maj_formation') {
+    const { id, statut, score } = body;
+    const { data: formVerif } = await sb.from('formations_equipe').select('id').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!formVerif) return NextResponse.json({ error: 'Formation introuvable' }, { status: 404 });
+    const champs: any = { statut };
+    if (score !== undefined && score !== null) champs.score = score;
+    if (statut === 'complété') champs.date_completion = new Date().toISOString().split('T')[0];
+    const { data, error } = await sb.from('formations_equipe').update(champs).eq('id', id).eq('tenant_id', tenantId).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, formation: data });
   }
