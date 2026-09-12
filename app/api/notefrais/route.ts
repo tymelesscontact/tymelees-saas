@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { calculerTva } from '../../lib/reglesTva';
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -8,6 +8,8 @@ function getAdminClient() {
   return createClient(url, key)
 }
 export async function GET(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "notefrais")
+  if (!acces.ok) return acces.reponse
   const sb = getAdminClient()
   const { searchParams } = new URL(req.url)
   const companyId = searchParams.get("company_id")
@@ -29,6 +31,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ notes: data || [], budgets })
 }
 export async function POST(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "notefrais")
+  if (!acces.ok) return acces.reponse
   const body = await req.json()
   const { action } = body
   const tenantId = await getTenantIdFromRequest(req)

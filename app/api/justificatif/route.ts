@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,6 +14,8 @@ function getAdminClient() {
 // Genere un lien temporaire vers le justificatif d'une note de frais.
 // Le bucket est prive : aucune adresse permanente n'est jamais exposee.
 export async function GET(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "notefrais");
+  if (!acces.ok) return acces.reponse;
   const { searchParams } = new URL(req.url);
   const noteId = searchParams.get('note_id');
   if (!noteId) {

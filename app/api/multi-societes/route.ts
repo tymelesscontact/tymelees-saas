@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 
 // Service role : le tenant_id est verifie et impose dans chaque requete de
 // ce fichier -- la cle anonyme ne marchait pas ici car ce client n'attache
@@ -31,6 +31,8 @@ async function companyAppartientAuTenant(companyId: string, tenantId: string): P
 
 // GET — liste des sociétés + données consolidées
 export async function GET(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "multi_societes");
+  if (!acces.ok) return acces.reponse;
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
 
@@ -101,6 +103,8 @@ export async function GET(req: NextRequest) {
 
 // POST — créer/modifier société, transfert, droits
 export async function POST(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "multi_societes");
+  if (!acces.ok) return acces.reponse;
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
 

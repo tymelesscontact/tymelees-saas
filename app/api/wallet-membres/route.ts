@@ -26,7 +26,25 @@ const PLAN_PRICES: Record<string, number> = {
   multi_societes: 499, multi_pro: 799, holding: 1200,
 };
 
+// Ce tableau de bord expose TOUS les clients de Xyra avec leurs revenus.
+// Il est reserve a l'editeur : aucun client, meme Enterprise, n'y a acces.
+async function estOwner(req: NextRequest): Promise<boolean> {
+  const token = req.cookies.get('sb-access-token')?.value;
+  if (!token) return false;
+  const ownerEmail = process.env.OWNER_EMAIL;
+  if (!ownerEmail) return false;
+  try {
+    const { data } = await sb.auth.getUser(token);
+    return data?.user?.email?.toLowerCase() === ownerEmail.toLowerCase();
+  } catch {
+    return false;
+  }
+}
+
 export async function GET(req: NextRequest) {
+  if (!(await estOwner(req))) {
+    return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+  }
   const { searchParams } = new URL(req.url);
   const action = searchParams.get('action') || 'membres';
 
@@ -57,6 +75,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!(await estOwner(req))) {
+    return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+  }
   const tenantIdClaude = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;

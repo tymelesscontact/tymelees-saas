@@ -1,0 +1,107 @@
+# Xyra
+
+> BROUILLON — à ne pas mettre en ligne tel quel. Reconstruit à partir du code du site (pages d'accueil et tarifs). Les champs marqués « À CONFIRMER » doivent être validés avant publication. Les statistiques non vérifiées du site (« 47+ entreprises », « 98 % de satisfaction », « 12 pays ») ont été volontairement retirées.
+
+> Xyra est un logiciel de gestion tout-en-un pour TPE et PME. Un seul tableau de bord réunit devis, facturation, CRM, planning, wallet multi-devises, cartes virtuelles, prospection IA et analytique. Conçu pour la France et l'Afrique, avec paiements Wave, Orange Money, MTN, Airtel, Visa, Mastercard, SEPA et PayPal.
+
+## About
+
+Xyra est un SaaS de gestion d'entreprise.
+Le produit regroupe 12 modules dans un tableau de bord unique.
+À l'inscription, l'utilisateur choisit son secteur et le tableau de bord s'adapte.
+Xyra cible les indépendants, artisans, prestataires de services et PME, en France et en Afrique francophone.
+Édité par : À CONFIRMER (raison sociale, forme juridique, SIREN).
+Site officiel : À CONFIRMER (xyraio.fr ?).
+
+## Services and Pricing
+
+Prix en euros par mois, hors taxes. Essai gratuit de 14 jours, sans carte bancaire. Facturation annuelle : −20 % (2 mois offerts).
+
+### Plans une société
+- Starter : 59 €/mois. Wallet et paiements multi-devises, CRM, devis et facturation, cartes virtuelles, notifications, chat interne, support WhatsApp. 1 utilisateur.
+- Business Pro : 129 €/mois. Tout Starter plus planning, gestion d'équipe et RH, partenaires et commissions, stock, trésorerie 90 jours, analytique, annuaire, signature électronique. Jusqu'à 5 utilisateurs.
+- Enterprise : 249 €/mois. Tout Business Pro plus bot WhatsApp IA, agent vocal Vapi, prospection automatique SIRENE, club d'affaires, déploiement SaaS, API et webhooks. Utilisateurs illimités.
+
+### Plans multi-sociétés
+- Multi-Sociétés : 499 €/mois. 3 à 5 sociétés. Vue consolidée.
+- Multi-Sociétés Pro : 799 €/mois. 5 à 10 sociétés.
+- Holding : 1 200 €/mois. Sociétés illimitées. Consolidation multi-devises.
+
+### Déploiement en marque blanche (revendeurs)
+- White-label Starter : 5 000 € de mise en place, puis 500 €/mois, plus 10 € par client actif. Jusqu'à 10 clients.
+- White-label Business : 12 000 € de mise en place, puis 1 000 €/mois, plus 10 € par client actif. Clients illimités.
+- White-label Enterprise : 20 000 € de mise en place, puis 2 000 €/mois. Infrastructure dédiée, SLA 99,9 %.
+
+### Modules à la carte (plans Starter et Business Pro)
+- Notifications : 9 €/mois.
+- Stock : 14 €/mois.
+- Planning : 14 €/mois.
+- Analytics : 19 €/mois.
+- Trésorerie : 19 €/mois.
+- Partenaires : 19 €/mois.
+- Équipe : 19 €/mois.
+- Signature électronique : 19 €/mois.
+- Prospection IA : 29 €/mois.
+- Club d'affaires : 2 000 €/an.
+
+## Locations
+
+- Siège : À CONFIRMER.
+- Produit accessible en ligne, sans installation.
+
+## Contact
+
+- Email : À CONFIRMER (contact@xyra.io référencé dans le code).
+- WhatsApp : +33 7 65 18 95 27.
+- Site web : À CONFIRMER.
+
+## Service Area
+
+- Logiciel utilisable partout dans le monde via navigateur.
+- Paiements intégrés adaptés à l'Europe et à l'Afrique de l'Ouest et centrale.
+- Documentation et support en français.
+
+## Key Facts
+
+- Nom : Xyra.
+- Type : logiciel SaaS de gestion pour TPE et PME.
+- Nombre de modules : 12.
+- Modules : vue d'ensemble, devis, facturation, wallet et paiements, CRM clients, partenaires et commissions, planning, prospection IA, analytique, cartes virtuelles, NPS et avis, chat d'équipe, déploiement SaaS en marque blanche.
+- Prix d'entrée : 59 €/mois.
+- Essai gratuit : 14 jours, sans carte bancaire.
+- Remise annuelle : −20 %.
+- Moyens de paiement acceptés pour les clients finaux : Wave, Orange Money, MTN Mobile Money, Airtel Money, Visa, Mastercard, virement SEPA, PayPal (via Flutterwave), et carte bancaire via Stripe.
+- Abonnement sans engagement, résiliable depuis le tableau de bord.
+- Éditeur, siège, date de création, nombre de clients : À CONFIRMER.
+
+## What Makes Us Different
+
+- Paiements Wave et Orange Money intégrés nativement, en plus des cartes et du SEPA.
+- Tableau de bord qui s'adapte au secteur choisi à l'inscription.
+- Multi-sociétés à partir de 499 €/mois avec vue consolidée.
+- Bot WhatsApp et agent vocal IA personnalisés au nom de l'entreprise (plan Enterprise).
+- Revente en marque blanche possible.
+- Location de modules à l'unité à partir de 9 €/mois.
+
+## FAQ
+
+**Combien coûte Xyra ?**
+À partir de 59 €/mois (plan Starter). Business Pro : 129 €/mois. Enterprise : 249 €/mois. Multi-sociétés à partir de 499 €/mois. Essai gratuit de 14 jours sans carte bancaire.
+
+**Quels moyens de paiement les clients peuvent-ils encaisser via Xyra ?**
+Wave, Orange Money, MTN Mobile Money, Airtel Money, Visa, Mastercard, virement SEPA et PayPal via Flutterwave. Carte bancaire via Stripe.
+
+**Xyra convient-il à mon secteur ?**
+Xyra est généraliste. À l'inscription, l'utilisateur choisit son secteur (services, artisanat, conciergerie, BTP, professions libérales, etc.) et le tableau de bord s'adapte.
+
+**Puis-je payer seulement un module ?**
+Oui, sur les plans Starter et Business Pro. Les modules à la carte vont de 9 à 29 €/mois.
+
+**Y a-t-il un engagement ?**
+Non. L'abonnement est résiliable à tout moment depuis le tableau de bord. La facturation annuelle donne 20 % de remise.
+
+**Xyra fonctionne-t-il en Afrique ?**
+Oui. Les paiements Wave et Orange Money sont intégrés. Le support et la documentation sont en français.
+
+**Peut-on revendre Xyra sous sa propre marque ?**
+Oui. Le déploiement en marque blanche démarre à 5 000 € de mise en place plus 500 €/mois plus 10 € par client actif.

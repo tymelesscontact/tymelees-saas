@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -33,6 +33,8 @@ async function askClaude(prompt: string, maxTokens = 400) {
 }
 
 export async function GET(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "tresorerie");
+  if (!acces.ok) return acces.reponse;
   const { searchParams } = new URL(req.url);
   const entiteId = searchParams.get('entite_id');
   const tenantId = await getTenantIdFromRequest(req);
@@ -240,6 +242,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "tresorerie");
+  if (!acces.ok) return acces.reponse;
   const tenantId = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;

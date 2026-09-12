@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 // Service role : le tenant_id est deja verifie et impose dans chaque requete
 // de ce fichier (scoped()/.eq('tenant_id', tenantId)) -- la clé anonyme ne
@@ -98,6 +98,8 @@ async function genererPdfContrat(contrat: any, tenantInfo: { societe?: string | 
   });
 }
 export async function GET(req: NextRequest) {
+  const acces = await verifierAccesModule(req, ["signature", "club_affaires"]);
+  if (!acces.ok) return acces.reponse;
   const { searchParams } = new URL(req.url);
   const action = searchParams.get('action') || 'contrats';
   const tenantId = await getTenantIdFromRequest(req);
@@ -140,6 +142,13 @@ export async function GET(req: NextRequest) {
 export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
+  // 'verifier_code' et 'signer' sont appeles par le signataire externe depuis
+  // le lien public /signature/[token], sans session Xyra -- ne jamais les
+  // soumettre au controle de plan (ca casserait la signature electronique).
+  if (action !== 'verifier_code' && action !== 'signer') {
+    const acces = await verifierAccesModule(req, ["signature", "club_affaires"]);
+    if (!acces.ok) return acces.reponse;
+  }
   const tenantId = await getTenantIdFromRequest(req);
   if (action === 'generer') {
     const { modele_id, titre, source_type, source_id, variables, company_id, signataire_nom, signataire_email, signataire_role } = body;
