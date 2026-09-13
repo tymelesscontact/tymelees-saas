@@ -9,7 +9,7 @@ OBSERVATION → ANALYSE → PROPOSITION → VALIDATION HUMAINE → MODIFICATION 
 TEST → VÉRIFICATION → VALIDATION FINALE → MAIN. Ce document ne fait que
 lister ce qui a été trouvé — rien n'est corrigé ici sans validation.
 
-Dernière mise à jour : 2026-09-12.
+Dernière mise à jour : 2026-09-13.
 
 ---
 
@@ -54,7 +54,7 @@ Dernière mise à jour : 2026-09-12.
 | T8 | Menu réel vs code | ✅ non-problème | Le premier menu collé était partiel. Le second collage (complet, avec "Bientôt disponible") correspond exactement au `NAV` du code — même ordre, mêmes 24 items + 10 items "à venir", mêmes badges. Pas de filtrage anormal, le compte Tymeless voit tout. |
 | T9 | Cluster "business" abandonné (16 tables) | ✅ réglé (09/09/2026) | Supprimé — voir séance du jour. |
 | T10 | Annuaire/Réseau cassé (`reseau_contacts`/`reseau_deals` inexistantes en base) | 🔴 à faire — reporté à plus tard | Décision explicite : on s'en occupe après. Ne pas commencer sans feu vert. |
-| T11 | 13 tables mortes supplémentaires trouvées (`escrow_transactions`, `payment_links`, `payment_customers`, `annuaire`, `demandes_missions`, `inscriptions_evenements`, `investissement_declenchements`, `investissement_recommandations`, `kpi_annuels`, `kpi_mensuels`, `payouts`, `transactions`, `commissions`) | 🔍 à trier | 0 ligne, 0 usage code, hors périmètre autorisé aujourd'hui. À voir si on les supprime aussi ou si elles sont réservées à une feature future (`investissement_*`/`kpi_*` semblent liées au module "Investissement IA" actuel — à vérifier avant suppression, contrairement au cluster business qui était clairement mort). |
+| T11 | 13 tables mortes supplémentaires trouvées (`escrow_transactions`, `payment_links`, `payment_customers`, `annuaire`, `demandes_missions`, `inscriptions_evenements`, `investissement_declenchements`, `investissement_recommandations`, `kpi_annuels`, `kpi_mensuels`, `payouts`, `transactions`, `commissions`) | 🟡 12 à trier | `investissement_recommandations` sortie du lot (13/09/2026) : remise en service avec l'ajout de `tenant_id`, voir fiche Investissement IA. Les 12 autres restent 0 ligne, 0 usage code — à trier. `investissement_declenchements`/`kpi_annuels`/`kpi_mensuels` restent délibérément hors périmètre (moteur de règles par employé jamais fini, non nécessaire au rôle du module). |
 | T12 | Policy publique `companies` (boutique) | 🔴 bloqué | Migration refusée par le classifieur auto-mode (volume de migrations). La boutique publique (lookup société par slug) reste cassée pour visiteurs anonymes. |
 | T13 | RLS : ~35 tables "fonctionnalité jamais construite" restantes sur les 91 initiales | 🔍 en attente d'arbitrage | Recommandation : ne pas créer de policy tant que la fonctionnalité n'est pas réellement développée (éviter policies spéculatives sur un schéma pas encore figé). |
 | T22 | `/api/wallet-membres` (page "Wallet & Membres") totalement ouvert — aucune vérification | ✅ réglé (12/09/2026) | Découvert en travaillant sur T1 : cette page n'est pas un module client, c'est le tableau de bord interne listant **tous les clients Xyra** (société, forfait, MRR, statut) — et la route ne vérifiait ni session ni identité. N'importe qui, même non connecté, pouvait lire la liste complète des clients et leur chiffre d'affaires, et même changer le forfait ou suspendre n'importe quel client (`upgrade`/`downgrade`/`suspendre`/`reactiver` sans contrôle). Corrigé en ajoutant la même vérification `estOwner()` déjà utilisée sur `/api/deploiement` (compare l'email de la session à `OWNER_EMAIL`) sur GET et POST. Build vérifié. `/api/deploiement` (page "Déploiement Tenant", même famille) avait déjà cette protection sur l'essentiel de ses actions — non retouché. |
@@ -125,14 +125,11 @@ Légende statut : ✅ audité et sain · 🟡 audité, problèmes mineurs notés
     session précédente) ;
   - fuite de `error.message` brut sur certaines routes.
 
-#### ◐ Investissement IA — `PageInvestissement.tsx` — **aucune route API**
-- **Statut** : 🔴 — module entièrement factice
-- **Rôle annoncé** : recommandations d'investissement IA (ROI, risque, délai), portefeuille, plan d'action, scénarios.
-- **Tables** : aucune — les tables `investissement_declenchements/recommandations/actions/regles` (T11) ne sont référencées nulle part dans le code, confirmé mortes.
-- **Problèmes trouvés** :
-  - **Aucune route `app/api/investissement*` n'existe.** Tout le contenu (recos, portefeuille "15 100€ / +242% / 3 projets", plan d'action, scénarios) est du texte statique en dur dans le composant — rien n'est jamais lu ni écrit en base.
-  - Le bouton "Valider cet investissement" affiche "✅ Investissement validé !" sans la moindre écriture — bouton entièrement trompeur.
-  - `hasAccess` correct (pas un problème de paywall, juste un module vide derrière une façade).
+#### ◐ Investissement IA — `PageInvestissement.tsx` — `api/investissement`
+- **Statut** : ✅ réglé, build vérifié (13/09/2026) — module reconstruit pour de vrai (T15, 2/3)
+- **Rôle** : l'IA analyse la vraie situation financière du tenant (CA réel via `factures` payées, charges réelles) et propose des investissements chiffrés (budget, ROI, délai) ; le patron valide ou refuse pour de vrai.
+- **Ce qui a changé** : nouvelle route `app/api/investissement/route.ts` — `GET` renvoie les recommandations réelles + un portefeuille calculé sur celles validées ; `POST action:'generer'` calcule le CA/charges/marge réels du tenant, interroge Claude (`askClaude`, même pattern que `scoring`/`analytique`) avec un prompt demandant un JSON strict, parse et persiste le résultat (`investissement_recommandations`, colonne `tenant_id` ajoutée — table prévue à l'origine mais jamais dotée de cette colonne, même défaut que `formations_equipe`) ; `POST action:'valider'/'rejeter'` change réellement le statut. `PageInvestissement.tsx` entièrement réécrit sur ces vraies données ; l'onglet Scénarios calcule désormais 3 projections (+15/+35/+60%) sur le vrai CA au lieu de 3 montants fixes ; l'onglet Plan d'action affiche la description de la dernière recommandation validée au lieu d'un plan à 4 étapes toujours identique.
+- **Volontairement hors périmètre** (décidé avec l'utilisateur) : les tables `investissement_declenchements`/`kpi_mensuels`/`kpi_annuels` (T11) restent mortes — elles étaient conçues pour un moteur de règles automatique par employé (`regle_id` pointant vers une table de règles qui n'existe même pas), jamais fini, hors du rôle demandé pour ce module.
   - Ce module facture pourtant 24€/mois (`MODULE_PRICES.investissement`) pour une fonctionnalité qui n'existe pas côté backend.
 
 #### ◉ Comptabilité — `PageCompta.tsx` — pas de route dédiée (agrège `/api/wallet`, `/api/factures`, `/api/charges`, `/api/fournisseurs` + 1 requête directe client)
@@ -320,11 +317,12 @@ Légende statut : ✅ audité et sain · 🟡 audité, problèmes mineurs notés
   Reste à auditer : conformité Factur-X/Chorus Pro annoncée dans
   `MODULE_PREVIEWS` mais jamais confirmée comme réellement implémentée.
 
-#### ⊿ Formation équipe — `PageFormation.tsx` — **aucune route API**
-- **Statut** : 🔴 — module 100% façade
-- **Rôle annoncé** : modules de formation/certification de l'équipe (protocoles, scores, statuts par secteur).
-- **Tables** : aucune — aucun `fetch`/appel Supabase dans tout le module.
-- **Problèmes trouvés** : aucune route `app/api/formation*` n'existe. Les données viennent du tableau `FORMATION` codé en dur (`app/lib/seedData.tsx`, doublon dans `xyra.jsx`). Boutons "▶ Démarrer"/"↺ Refaire" → `showToast` seul, aucune persistance. `hasAccess` correct (le seul point sain).
+#### ⊿ Formation équipe — `PageFormation.tsx` — `api/equipe`
+- **Statut** : ✅ réglé et testé (13/09/2026) — module reconstruit pour de vrai (T15, 1/3)
+- **Rôle** : suivi des formations de l'équipe + bibliothèque de vidéos de formation réelles par métier.
+- **Ce qui a changé** : `formations_equipe` avait déjà une vraie table et une vraie action `ajouter_formation` côté API, jamais branchées côté écran — colonne `tenant_id` manquante ajoutée (migration), nouvelle action `maj_formation` (statut/score), `PageFormation.tsx` entièrement réécrit sur les vraies données (`GET /api/equipe`), KPIs recalculés dessus, formulaire d'ajout + boutons Démarrer/Terminer persistant réellement.
+- **Bibliothèque vidéo** : nouvelle table `formations_catalogue` + bucket Storage public `formations-videos`. 10 vidéos de formation produites (script réel fourni par l'utilisateur, `Tymeless_Scripts_Formation.docx`) : Réception, Bagagiste, Conciergerie, Femmes de chambre, Normes de luxe, Nettoyage hôtel, Protocole général, HACCP, Yachts, Jet privé. Pipeline Remotion (scratchpad, hors dépôt Xyra) : photos réelles Wikimedia Commons par point/situation (jamais deux modules sur la même image), voix off en français via Microsoft Edge TTS (neuronal, gratuit, illimité — remplace la voix macOS de secours et l'API ElevenLabs dont le quota gratuit est épuisé jusqu'au 13/10/2026). Plusieurs allers-retours de correction avec l'utilisateur (images non représentatives, voix robotique, yacht pas assez luxueux) avant validation de l'état actuel.
+- **Limite connue, assumée** : contenu pédagogique de bonnes pratiques générales du secteur, pas les procédures internes exactes de Tymeless — à corriger par l'utilisateur si besoin. Pas de vraie vidéo filmée (texte + voix + photos fixes), faute de solution de génération vidéo gratuite.
 
 #### ◇ API Xyra — `PageAPI.tsx` / `api/api-xyra`
 - **Statut** : 🟡 — voir T5 (mineur, sans effet réel). Client déjà passé en
@@ -358,7 +356,7 @@ d'appels IA.
 | # | Constat | Statut | Détail |
 |---|---|---|---|
 | T14 | IDOR sur Chat (`api/chat/route.ts`) | ✅ réglé et testé (10/09/2026) | Motif `tenantId && c.tenant_id !== tenantId` : si `tenantId` est `null` (appel non authentifié), le contrôle était court-circuité et désactivé. Touchait `marquer_lu`, `supprimer_conversation`, `contexte` (6e cas trouvé pendant la correction, pas dans l'audit initial), `lien_fichier`, `participants`, `ajouter_participant`/`retirer_participant`. Corrigé partout en `!tenantId \|\| c.tenant_id !== tenantId`. Testé en conditions réelles sur `test` — OK. |
-| T15 | Modules entièrement factices facturés comme réels | 🔴 à faire — décision produit en attente | **Investissement IA** (24€/mois) : aucune route API, 100% mock. **Formation équipe** : aucune route API, 100% mock. **Agent vocal "Lea"** dans Prospection Auto (module 29€/mois) : bouton présent côté UI, zéro backend (pas de `POST`, pas d'intégration Vapi trouvée) — fonctionnalité phare mise en scène. |
+| T15 | Modules entièrement factices facturés comme réels | 🟡 2/3 réglé | **Formation équipe** (13/09/2026) : ✅ reconstruit pour de vrai, voir fiche module ci-dessus. **Investissement IA** (13/09/2026) : ✅ reconstruit pour de vrai, voir fiche module ci-dessous. **Agent vocal "Lea"** dans Prospection Auto (module 29€/mois) : toujours aucun backend. Décision prise : construire les trois pour de vrai plutôt que les retirer de la facturation. |
 | T16 | Modules RH (Équipe) : très nombreux boutons qui ne persistent rien | 🔴 à faire | Pointage GPS, congés, arrêts, paie, contrats, évaluations, formations, carrière, juridique : la plupart des actions ne font qu'un `showToast` local alors que le backend expose déjà les vraies actions (non branchées côté UI). Risque : l'entreprise croit avoir un dossier RH à jour alors que rien n'est enregistré. |
 | T17 | Paywall absent au niveau composant sur plusieurs modules (pas seulement des clés inversées T2/T3/T4) | ✅ réglé (11/09/2026) | Garde `hasAccess(plan,"x",modulesActifs)` + `<UpgradeWall/>` ajoutés sur Cartes Virtuelles, Fournisseurs, Notes de Frais — dans le même chantier que le déploiement des modules à la carte (T21). |
 | T18 | `error.message` brut renvoyé au client | 🟡 à faire (transversal, priorité basse) | Quasi tous les modules audités renvoient le message d'erreur Postgres/Supabase brut au front. Pas une fuite critique en soi mais à nettoyer un jour (messages génériques côté client, détail en log serveur). |
