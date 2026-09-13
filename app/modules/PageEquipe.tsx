@@ -162,6 +162,45 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       loadRealData();
     }catch(err){showToast("❌ Erreur de connexion");}
   };
+  const [envoiFicheEnCours,setEnvoiFicheEnCours]=useState(null);
+  const voirFichePaie=async(e)=>{
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generer_fiche_paie',id:e.id,envoyer:false})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      const fenetre=window.open('','_blank');
+      if(fenetre){fenetre.document.write(data.html);fenetre.document.close();}
+    }catch(err){showToast("❌ Erreur de connexion");}
+  };
+  const envoyerFichePaie=async(e)=>{
+    if(!e.email)return showToast(`⚠️ ${e.nom} n'a pas d'email enregistré`);
+    setEnvoiFicheEnCours(e.id);
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generer_fiche_paie',id:e.id,envoyer:true})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);setEnvoiFicheEnCours(null);return;}
+      showToast(`📧 Bulletin envoyé à ${e.email}`);
+      loadRealData();
+    }catch(err){showToast("❌ Erreur de connexion");}
+    setEnvoiFicheEnCours(null);
+  };
+  const [envoiToutesFichesEnCours,setEnvoiToutesFichesEnCours]=useState(false);
+  const envoyerToutesLesFiches=async()=>{
+    const eligibles=equipe.filter(e=>e.email);
+    if(eligibles.length===0)return showToast("⚠️ Aucun employé avec un email enregistré");
+    setEnvoiToutesFichesEnCours(true);
+    let envoyees=0;
+    for(const e of eligibles){
+      try{
+        const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generer_fiche_paie',id:e.id,envoyer:true})});
+        const data=await res.json();
+        if(res.ok&&!data.error)envoyees++;
+      }catch(err){}
+    }
+    showToast(`✅ ${envoyees}/${eligibles.length} fiche(s) de paie envoyée(s)`);
+    setEnvoiToutesFichesEnCours(false);
+    loadRealData();
+  };
   const[onglet,setOnglet]=useState("dashboard");
   const[sel,setSel]=useState(null);
   const[showAdd,setShowAdd]=useState(false);
@@ -583,9 +622,14 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     </div>;})()}
 
     {/* ─── PAIE ──────────────────────────────────────────────── */}
-    {onglet==="paie"&&<div>
+    {onglet==="paie"&&(()=>{
+      const moisLabel=new Date().toLocaleDateString('fr-FR',{month:'long',year:'numeric'});
+      const totalNet=equipe.reduce((a,e)=>a+(e.paie?.salaireNet||0),0);
+      const totalPatronales=equipe.reduce((a,e)=>a+(e.paie?.chargesPatronales||0),0);
+      const totalCout=equipe.reduce((a,e)=>a+(e.paie?.coutTotal||0),0);
+      return <div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
-        {[["Masse nette/mois","€"+totalSalaire.toLocaleString("fr"),"#FF5252"],["Charges patronales (~43%)","€"+Math.round(totalSalaire*0.43).toLocaleString("fr"),"#FF8C3A"],["Coût total employeur","€"+Math.round(totalSalaire*1.43).toLocaleString("fr"),"#C9A84C"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:c}}>{v}</div></div>)}
+        {[["Masse nette/mois","€"+totalNet.toLocaleString("fr"),"#FF5252"],["Charges patronales (42%)","€"+totalPatronales.toLocaleString("fr"),"#FF8C3A"],["Coût total employeur","€"+totalCout.toLocaleString("fr"),"#C9A84C"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:c}}>{v}</div></div>)}
       </div>
       <div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18,marginBottom:12}}>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
@@ -593,21 +637,21 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
           <tbody>{equipe.map((e,i)=><tr key={i}>
             <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:600}}>{e.nom}</td>
             <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}><span style={{background:(e.contrat==="CDI"?"#2EC9B0":"#4B7BFF")+"22",color:e.contrat==="CDI"?"#2EC9B0":"#4B7BFF",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>{e.contrat}</span></td>
-            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:700}}>{e.salaire.toLocaleString("fr")} €</td>
-            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#FF8C3A"}}>{Math.round(e.salaire*0.43).toLocaleString("fr")} €</td>
-            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#FF5252",fontWeight:700}}>{Math.round(e.salaire*1.43).toLocaleString("fr")} €</td>
-            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}><span style={{background:"#2EC9B022",color:"#2EC9B0",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>✓ À jour</span></td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:700}}>{(e.paie?.salaireNet||0).toLocaleString("fr")} €</td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#FF8C3A"}}>{(e.paie?.chargesPatronales||0).toLocaleString("fr")} €</td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#FF5252",fontWeight:700}}>{(e.paie?.coutTotal||0).toLocaleString("fr")} €</td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}>{e.fichePaieEnvoyee?<span style={{background:"#2EC9B022",color:"#2EC9B0",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>✓ Envoyée</span>:<span style={{background:"#5A5A7A22",color:"#5A5A7A",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>○ Non envoyée</span>}</td>
             <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}>
               <div style={{display:"flex",gap:4}}>
-                <button onClick={()=>showToast(`✅ Fiche de paie ${e.nom} générée !`)} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>💸 Fiche</button>
-                <button onClick={()=>showToast(`📧 Bulletin envoyé à ${e.email}`)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>📧</button>
+                <button onClick={()=>voirFichePaie(e)} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>💸 Fiche</button>
+                <button onClick={()=>envoyerFichePaie(e)} disabled={envoiFicheEnCours===e.id} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>{envoiFicheEnCours===e.id?"...":"📧"}</button>
               </div>
             </td>
           </tr>)}</tbody>
         </table>
       </div>
-      <button onClick={()=>showToast("✅ Toutes les fiches de paie générées et envoyées !")} style={{width:"100%",background:"#C9A84C",color:"#000",border:"none",borderRadius:8,padding:"10px 16px",cursor:"pointer",fontWeight:600,fontSize:13,fontFamily:"inherit"}}>💸 Générer & Envoyer toutes les fiches de paie — Avril 2026</button>
-    </div>}
+      <button onClick={envoyerToutesLesFiches} disabled={envoiToutesFichesEnCours} style={{width:"100%",background:"#C9A84C",color:"#000",border:"none",borderRadius:8,padding:"10px 16px",cursor:"pointer",fontWeight:600,fontSize:13,fontFamily:"inherit"}}>{envoiToutesFichesEnCours?"Envoi en cours...":`💸 Générer & Envoyer toutes les fiches de paie — ${moisLabel}`}</button>
+    </div>;})()}
 
     {/* ─── CONTRATS ──────────────────────────────────────────── */}
     {onglet==="contrats"&&<div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18}}>

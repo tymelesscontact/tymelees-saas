@@ -86,6 +86,8 @@ export async function GET(req: NextRequest) {
   const { data: catalogue } = await sb.from('formations_catalogue').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   const { data: missions } = await sb.from('missions').select('*').eq('tenant_id', tenantId).order('date_mission', { ascending: false });
   const { data: positions } = await sb.from('positions_collaborateurs').select('*').eq('tenant_id', tenantId);
+  const moisIsoCourant = new Date().toISOString().slice(0, 7);
+  const { data: fichesPaie } = await sb.from('fiches_paie').select('*').eq('tenant_id', tenantId).eq('mois', moisIsoCourant);
 
   const enriched = (membres || []).map((m: any) => {
     const mId = m.user_id || m.id;
@@ -97,6 +99,7 @@ export async function GET(req: NextRequest) {
     const mFormations = (formations || []).filter((f: any) => f.employe_id === m.id);
     const mMissions = (missions || []).filter((ms: any) => ms.employe_id === m.id || ms.collaborateur_id === m.id);
     const mPosition = (positions || []).find((p: any) => p.collaborateur_id === m.id) || null;
+    const mFichePaie = (fichesPaie || []).find((f: any) => f.employe_id === m.id) || null;
 
     const heuresCeMois = mPointages
       .filter((p: any) => new Date(p.date).getMonth() === new Date().getMonth())
@@ -117,6 +120,8 @@ export async function GET(req: NextRequest) {
       paie,
       accesEspace: !!m.user_id,
       position: mPosition,
+      fichePaieEnvoyee: !!mFichePaie?.envoyee_le,
+      fichePaieEnvoyeeLe: mFichePaie?.envoyee_le || null,
     };
   });
 
@@ -421,10 +426,12 @@ Rédige une analyse RH courte (4-5 phrases) avec une recommandation concrète su
   }
 
   if (action === 'generer_fiche_paie') {
-    const { id } = body;
+    const { id, envoyer } = body;
     const { data: m } = await sb.from('equipe').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
     if (!m) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const paie = calculerPaie(Number(m.salaire_brut || m.salaire || 0));
+    const moisIso = new Date().toISOString().slice(0, 7);
     const mois = new Date().toLocaleDateString('fr', { month: 'long', year: 'numeric' });
     const html = `<div style="font-family:sans-serif;padding:24px;max-width:600px;">
       <h2 style="color:#C9A84C">Fiche de paie — ${mois}</h2>
@@ -439,13 +446,21 @@ Rédige une analyse RH courte (4-5 phrases) avec une recommandation concrète su
       <p style="color:#888;font-size:12px;margin-top:16px;">Xyra Services · Signé Curtiss — Fondateur</p>
     </div>`;
 
-    if (m.email) {
+    let envoyee = false;
+    if (envoyer !== false) {
+      if (!m.email) return NextResponse.json({ error: 'Aucun email pour cet employé' }, { status: 400 });
       try {
         await sendEmail(m.email, `Votre fiche de paie — ${mois}`, html);
-      } catch { /* non bloquant */ }
+        envoyee = true;
+      } catch (e: any) {
+        return NextResponse.json({ error: 'Envoi email échoué : ' + e.message }, { status: 500 });
+      }
+      await sb.from('fiches_paie').upsert({
+        tenant_id: tenantId, employe_id: id, mois: moisIso, envoyee_le: new Date().toISOString(),
+      }, { onConflict: 'employe_id,mois' });
     }
 
-    return NextResponse.json({ success: true, html, paie, mois });
+    return NextResponse.json({ success: true, html, paie, mois, envoyee });
   }
 
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });
