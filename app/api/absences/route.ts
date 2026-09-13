@@ -12,6 +12,9 @@ const sb = createClient(
 const TYPES_VALIDES = [
   'conge_paye', 'conge_sans_solde', 'arret_maladie', 'accident_travail',
   'evenement_familial', 'enfant_malade', 'absence_injustifiee', 'retard',
+  'maternite_paternite', 'adoption', 'conge_parental', 'proche_aidant',
+  'conge_sabbatique', 'creation_entreprise', 'conge_formation', 'conge_examen',
+  'reserve_militaire', 'mandat_politique',
 ];
 
 export async function GET(req: NextRequest) {

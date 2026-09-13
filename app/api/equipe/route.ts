@@ -50,6 +50,25 @@ async function estAutoriseGererEquipe(req: NextRequest, tenantId: string): Promi
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
+  const action = searchParams.get('action');
+
+  // Route dediee self-service : l'employe connecte voit UNIQUEMENT ses
+  // propres formations + le catalogue (pas les donnees RH sensibles des
+  // collegues, contrairement au reste de cette route reserve au RH).
+  if (action === 'mes_formations') {
+    const tokenMoi = req.cookies.get('sb-access-token')?.value;
+    if (!tokenMoi) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const { data: authMoi } = await sb.auth.getUser(tokenMoi);
+    if (!authMoi?.user) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const { data: moi } = await sb.from('equipe').select('id, tenant_id').eq('user_id', authMoi.user.id).maybeSingle();
+    if (!moi) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const [{ data: mesFormations }, { data: catalogueMoi }] = await Promise.all([
+      sb.from('formations_equipe').select('*').eq('tenant_id', moi.tenant_id).eq('employe_id', moi.id).order('created_at', { ascending: false }),
+      sb.from('formations_catalogue').select('*').eq('tenant_id', moi.tenant_id),
+    ]);
+    return NextResponse.json({ formations: mesFormations || [], catalogue: catalogueMoi || [] });
+  }
+
   const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ membres: [], alertes: [] });
