@@ -476,6 +476,22 @@ authentification, confirme le nouveau code bien déployé).
 synchro** : PROD a deux comptes "TYMELESS" alors qu'un seul est réellement
 utilisé (voir ci-dessus) — pas creusé plus loin, juste signalé.
 
+**Audit des journaux réels de production** (13/09/2026, via Vercel) : sur
+151 requêtes réussies en 24h, seulement deux sujets en erreur — aucune
+vague liée à la fusion du jour.
+- `/api/annuaire` → 500 (x2) : déjà connu, voir T10 (tables manquantes,
+  mise de côté volontairement). Pas une régression.
+- **Nouveau** : envoi WhatsApp échoué depuis `/api/tresorerie` (alerte
+  solde bas ou rapport hebdomadaire) — Meta refuse avec "Object with ID
+  '1309197707798157' does not exist, cannot be loaded due to missing
+  permissions" (code 100, subcode 33). Le numéro WhatsApp Business utilisé
+  (celui de la plateforme par défaut, ou celui connecté par ce tenant —
+  `app/lib/whatsapp.ts`) semble invalide ou le jeton n'a plus les
+  permissions dessus. Un seul incident observé, non bloquant (la route
+  répond quand même 200, l'échec est seulement journalisé) — à vérifier
+  quand tu auras un moment : le compte WhatsApp Business Meta associé à
+  cet ID de numéro.
+
 **Point ouvert (T21)** : le reverrouillage n'a lieu qu'à l'annulation
 complète de l'abonnement Stripe côté client, pas au premier paiement échoué
 — un client qui ne paie plus garde l'accès pendant toute la durée des
