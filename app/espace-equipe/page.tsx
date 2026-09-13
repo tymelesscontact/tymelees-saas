@@ -63,6 +63,7 @@ export default function EspaceEquipe() {
   const [monPointage, setMonPointage] = useState<any>(null);
   const [mesFormations, setMesFormations] = useState<any[]>([]);
   const [catalogueFormations, setCatalogueFormations] = useState<any[]>([]);
+  const [mesValidations, setMesValidations] = useState<any[]>([]);
   const finMessagesRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -95,6 +96,7 @@ export default function EspaceEquipe() {
       if (msgs.conversations) setConversations(msgs.conversations);
       fetch("/api/pointage").then(r => r.json()).then(d => setMonPointage(d.pointage)).catch(() => {});
       fetch("/api/equipe?action=mes_formations").then(r => r.json()).then(d => { setMesFormations(d.formations || []); setCatalogueFormations(d.catalogue || []); }).catch(() => {});
+      fetch("/api/absences?vue=mes_validations").then(r => r.json()).then(d => setMesValidations(d.absences || [])).catch(() => {});
       setMembre({ email: who.email, employe_id: who.employeId, ...(who.profil || {}) });
     } catch (e: any) {
       setErreur("connexion");
@@ -149,6 +151,25 @@ export default function EspaceEquipe() {
       (err) => showToast("⚠️ Localisation refusee ou indisponible: " + err.message),
       { enableHighAccuracy: false, timeout: 8000 }
     );
+  };
+
+  const validerCommeResponsable = async (id: string) => {
+    try {
+      const r = await fetch("/api/absences", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "valider_responsable", id }) });
+      const d = await r.json();
+      if (!r.ok || d.error) { showToast("❌ " + (d.error || "Erreur")); return; }
+      showToast("✅ Avis transmis au RH pour validation finale");
+      charger();
+    } catch { showToast("❌ Erreur de connexion"); }
+  };
+  const refuserCommeResponsable = async (id: string) => {
+    try {
+      const r = await fetch("/api/absences", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "valider", id, statut: "refusee" }) });
+      const d = await r.json();
+      if (!r.ok || d.error) { showToast("❌ " + (d.error || "Erreur")); return; }
+      showToast("❌ Demande refusée");
+      charger();
+    } catch { showToast("❌ Erreur de connexion"); }
   };
 
   useEffect(() => {
@@ -408,6 +429,22 @@ export default function EspaceEquipe() {
             <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif" }}>🏖 Congés & Absences</div>
             <Btn onClick={() => setShowAbsenceForm(s => !s)}>+ Déclarer une absence</Btn>
           </div>
+
+          {mesValidations.length > 0 && (
+            <Card style={{ marginBottom: 16, borderColor: `${C.orange}44` }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: C.orange }}>✅ Demandes de mon équipe à valider</div>
+              {mesValidations.map((v: any) => (
+                <div key={v.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}`, fontSize: 12 }}>
+                  <div><span style={{ fontWeight: 600 }}>{v.nom_employe}</span> — {v.debut}{v.fin && v.fin !== v.debut ? ` au ${v.fin}` : ""} ({v.jours}j · {TYPE_ABSENCE_LABELS[v.type] || v.type})</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => validerCommeResponsable(v.id)} style={{ background: C.green, color: "#000", border: "none", borderRadius: 5, padding: "4px 10px", cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>Avis favorable</button>
+                    <button onClick={() => refuserCommeResponsable(v.id)} style={{ background: "transparent", color: C.red, border: `1px solid ${C.red}33`, borderRadius: 5, padding: "4px 10px", cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>Refuser</button>
+                  </div>
+                </div>
+              ))}
+              <div style={{ fontSize: 9, color: C.muted, marginTop: 8 }}>Un avis favorable transmet la demande à la direction pour validation finale. Un refus est définitif.</div>
+            </Card>
+          )}
 
           {showAbsenceForm && (
             <Card style={{ marginBottom: 16, borderColor: `${C.gold}44` }}>

@@ -57,7 +57,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
           embauche:m.date_embauche||"—",dateNaissance:m.date_naissance||"",
           salaire:m.salaire||0,contrat:m.contrat||"CDI",statut:m.statut||"Disponible",
           ...m,
-          congesDemandes:m.conges||[],
+          congesDemandes:(m.absences||[]).filter(a=>a.type==="conge_paye"||a.type==="conge_sans_solde"),
           absencesReelles:m.absences||[],
         })));
         setAlertes(data.alertes||[]);
@@ -567,7 +567,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
         </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        {[["🎯 Objectifs atteints",`${equipe.reduce((a,e)=>a+(e.objectifs||[]).filter(o=>o.actuel>=o.cible).length,0)}/${equipe.reduce((a,e)=>a+(e.objectifs||[]).length,0)}`,"#2EC9B0"],["🎓 Formations complètes",`${equipe.reduce((a,e)=>a+e.formations.filter(f=>f.statut==="complété").length,0)}/${equipe.reduce((a,e)=>a+e.formations.length,0)}`,"#4B7BFF"],["📅 Jours de congés pris",equipe.reduce((a,e)=>a+(e.congesDemandes||[]).filter(d=>d.statut==="validé").reduce((s,d)=>s+Number(d.jours||0),0),0),"#C9A84C"]].map(([l,v,c],i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:10,padding:14,textAlign:"center"}}><div style={{fontSize:11,color:"#5A5A7A",marginBottom:4}}>{l}</div><div style={{fontSize:22,fontWeight:700,color:c}}>{v}</div></div>)}
+        {[["🎯 Objectifs atteints",`${equipe.reduce((a,e)=>a+(e.objectifs||[]).filter(o=>o.actuel>=o.cible).length,0)}/${equipe.reduce((a,e)=>a+(e.objectifs||[]).length,0)}`,"#2EC9B0"],["🎓 Formations complètes",`${equipe.reduce((a,e)=>a+e.formations.filter(f=>f.statut==="complété").length,0)}/${equipe.reduce((a,e)=>a+e.formations.length,0)}`,"#4B7BFF"],["📅 Jours de congés pris",equipe.reduce((a,e)=>a+(e.congesDemandes||[]).filter(d=>d.statut==="validee").reduce((s,d)=>s+Number(d.jours||0),0),0),"#C9A84C"]].map(([l,v,c],i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:10,padding:14,textAlign:"center"}}><div style={{fontSize:11,color:"#5A5A7A",marginBottom:4}}>{l}</div><div style={{fontSize:22,fontWeight:700,color:c}}>{v}</div></div>)}
       </div>
     </div>}
 
@@ -696,7 +696,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     {onglet==="pointage"&&(()=>{
       const aujourdhui=new Date().toISOString().slice(0,10);
       const pointageDuJour=(e)=>(e.pointages||[]).find(p=>p.date===aujourdhui);
-      const absentAujourdhui=(e)=>(e.absences||[]).some(a=>a.debut<=aujourdhui&&(a.fin||a.debut)>=aujourdhui&&a.statut!=="refusé");
+      const absentAujourdhui=(e)=>(e.absences||[]).some(a=>a.debut<=aujourdhui&&(a.fin||a.debut)>=aujourdhui&&a.statut!=="refusee");
       const presents=equipe.filter(e=>!!pointageDuJour(e)).length;
       const absents=equipe.filter(absentAujourdhui).length;
       const heuresTotales=equipe.reduce((a,e)=>a+Number(pointageDuJour(e)?.heures_travaillees||0),0);
@@ -753,7 +753,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
           const mois=(new Date().getFullYear()-d.getFullYear())*12+(new Date().getMonth()-d.getMonth());
           return Math.max(0,Math.round(mois*2.5*10)/10);
         };
-        const joursPris=(e)=>(e.congesDemandes||[]).filter(d=>d.statut==="validé").reduce((a,d)=>a+Number(d.jours||0),0);
+        const joursPris=(e)=>(e.congesDemandes||[]).filter(d=>d.statut==="validee").reduce((a,d)=>a+Number(d.jours||0),0);
         // RTT : aucun jour fixe par la loi -- n'existe que si l'employe travaille
         // au-dela de 35h/semaine (accord d'entreprise). Formule reelle : heures
         // au-dela de 35h x ~45,4 semaines travaillees / heures par jour.
@@ -771,14 +771,22 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
             loadRealData();
           }catch(e){showToast("❌ Erreur de connexion");}
         };
-        const moisActuel=new Date().getMonth(),anneeActuelle=new Date().getFullYear();
-        const prisCeMois=toutesDemandes.filter(d=>d.statut==="validé"&&d.debut&&new Date(d.debut).getMonth()===moisActuel&&new Date(d.debut).getFullYear()===anneeActuelle).reduce((a,d)=>a+Number(d.jours||0),0);
-        const statuerConge=async(d,statut)=>{
+        const majResponsable=async(id,responsableId)=>{
           try{
-            const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:statut==="validé"?'valider_conge':'refuser_conge',id:d.id,employe_id:d.employe_id,jours:d.jours})});
+            const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'modifier',id,responsable_id:responsableId||null})});
             const data=await res.json();
             if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
-            showToast(statut==="validé"?`✅ Congé approuvé — ${d._employe.nom}`:`❌ Congé refusé — ${d._employe.nom}`);
+            loadRealData();
+          }catch(e){showToast("❌ Erreur de connexion");}
+        };
+        const moisActuel=new Date().getMonth(),anneeActuelle=new Date().getFullYear();
+        const prisCeMois=toutesDemandes.filter(d=>d.statut==="validee"&&d.debut&&new Date(d.debut).getMonth()===moisActuel&&new Date(d.debut).getFullYear()===anneeActuelle).reduce((a,d)=>a+Number(d.jours||0),0);
+        const statuerConge=async(d,statut)=>{
+          try{
+            const res=await fetch('/api/absences',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'valider',id:d.id,statut})});
+            const data=await res.json();
+            if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+            showToast(statut==="validee"?`✅ Congé approuvé — ${d._employe.nom}`:`❌ Congé refusé — ${d._employe.nom}`);
             loadRealData();
           }catch(e){showToast("❌ Erreur de connexion");}
         };
@@ -790,7 +798,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
         <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:10,fontWeight:600}}>Soldes par collaborateur</div>
         {loadingEquipe?<div style={{fontSize:12,color:"#5A5A7A"}}>Chargement...</div>:equipe.length===0?<div style={{fontSize:12,color:"#5A5A7A"}}>Aucun employé enregistré.</div>:
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr>{["Collaborateur","Acquis","Pris","Solde restant","RTT"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
+          <thead><tr>{["Collaborateur","Acquis","Pris","Solde restant","RTT","Responsable"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
           <tbody>{equipe.map((e,i)=><tr key={i}>
             <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:600}}>{e.nom}</td>
             <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#4B7BFF",fontWeight:700}}>{joursAcquis(e.embauche)}j</td>
@@ -801,6 +809,12 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
               <input type="number" defaultValue={e.heures_semaine||35} min={35} max={45} onBlur={ev=>majHeuresSemaine(e.id,ev.target.value)} style={{width:38,marginLeft:6,background:"#121222",border:"1px solid #1E1E36",borderRadius:4,padding:"2px 4px",color:"#5A5A7A",fontSize:9,fontFamily:"inherit"}}/>
               <span style={{color:"#5A5A7A",fontSize:9}}>h/sem</span>
             </td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}>
+              <select defaultValue={e.responsable_id||""} onChange={ev=>majResponsable(e.id,ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:4,padding:"3px 6px",color:"#EDEDF5",fontSize:10,fontFamily:"inherit"}}>
+                <option value="">Aucun (validation directe)</option>
+                {equipe.filter(x=>x.id!==e.id).map(x=><option key={x.id} value={x.id}>{x.nom}</option>)}
+              </select>
+            </td>
           </tr>)}</tbody>
         </table>}
       </div>
@@ -808,10 +822,13 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
         <div style={{fontSize:10,color:"#FF8C3A",fontWeight:600,marginBottom:8}}>📋 Demandes en attente</div>
         {enAttente.length===0&&<div style={{fontSize:11,color:"#5A5A7A"}}>Aucune demande en attente.</div>}
         {enAttente.map((d,i)=><div key={i} style={{display:"flex",justifyContent:"space-between",alignItems:"center",padding:"8px 0",borderBottom:"1px solid #FF8C3A22",fontSize:12}}>
-          <div><span style={{fontWeight:600}}>{d._employe.nom}</span> — {d.debut}{d.fin&&d.fin!==d.debut?` au ${d.fin}`:""} ({d.jours}j · {d.type||"Congés"})</div>
+          <div>
+            <span style={{fontWeight:600}}>{d._employe.nom}</span> — {d.debut}{d.fin&&d.fin!==d.debut?` au ${d.fin}`:""} ({d.jours}j · {d.type||"Congés"})
+            {d._employe.responsable_id&&<span style={{marginLeft:8,fontSize:9,background:d.valide_par_responsable_le?"#2EC9B022":"#5A5A7A22",color:d.valide_par_responsable_le?"#2EC9B0":"#5A5A7A",padding:"1px 6px",borderRadius:8}}>{d.valide_par_responsable_le?"✓ Avis responsable":"En attente du responsable"}</span>}
+          </div>
           <div style={{display:"flex",gap:6}}>
-            <button onClick={()=>statuerConge(d,"validé")} style={{background:"#2EC9B0",color:"#000",border:"none",borderRadius:5,padding:"3px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>Approuver</button>
-            <button onClick={()=>statuerConge(d,"refusé")} style={{background:"transparent",color:"#FF5252",border:"1px solid #FF525233",borderRadius:5,padding:"3px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>Refuser</button>
+            <button onClick={()=>statuerConge(d,"validee")} style={{background:"#2EC9B0",color:"#000",border:"none",borderRadius:5,padding:"3px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>Approuver</button>
+            <button onClick={()=>statuerConge(d,"refusee")} style={{background:"transparent",color:"#FF5252",border:"1px solid #FF525233",borderRadius:5,padding:"3px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>Refuser</button>
           </div>
         </div>)}
       </div>
