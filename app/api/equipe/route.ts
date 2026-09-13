@@ -85,6 +85,7 @@ export async function GET(req: NextRequest) {
   const { data: formations } = await sb.from('formations_equipe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   const { data: catalogue } = await sb.from('formations_catalogue').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   const { data: missions } = await sb.from('missions').select('*').eq('tenant_id', tenantId).order('date_mission', { ascending: false });
+  const { data: positions } = await sb.from('positions_collaborateurs').select('*').eq('tenant_id', tenantId);
 
   const enriched = (membres || []).map((m: any) => {
     const mId = m.user_id || m.id;
@@ -95,6 +96,7 @@ export async function GET(req: NextRequest) {
     const mEvals = (evaluations || []).filter((e: any) => e.employe_id === m.id);
     const mFormations = (formations || []).filter((f: any) => f.employe_id === m.id);
     const mMissions = (missions || []).filter((ms: any) => ms.employe_id === m.id || ms.collaborateur_id === m.id);
+    const mPosition = (positions || []).find((p: any) => p.collaborateur_id === m.id) || null;
 
     const heuresCeMois = mPointages
       .filter((p: any) => new Date(p.date).getMonth() === new Date().getMonth())
@@ -114,6 +116,7 @@ export async function GET(req: NextRequest) {
       heuresCeMois: Math.round(heuresCeMois * 10) / 10,
       paie,
       accesEspace: !!m.user_id,
+      position: mPosition,
     };
   });
 
@@ -193,6 +196,29 @@ export async function POST(req: NextRequest) {
     }
     return NextResponse.json({ success: true, envoyes });
   }
+  if (action === 'corriger_pointage') {
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { employe_id, date, heure_arrivee, heure_depart } = body;
+    if (!employe_id || !date) return NextResponse.json({ error: 'employe_id et date requis' }, { status: 400 });
+    let heures_travaillees = null;
+    if (heure_arrivee && heure_depart) {
+      const [ha, ma] = heure_arrivee.split(':').map(Number);
+      const [hd, md] = heure_depart.split(':').map(Number);
+      heures_travaillees = Math.round(((hd * 60 + md) - (ha * 60 + ma)) / 6) / 10;
+    }
+    const { data: existant } = await sb.from('pointages').select('id').eq('employe_id', employe_id).eq('date', date).eq('tenant_id', tenantId).maybeSingle();
+    const champsPointage = { heure_arrivee: heure_arrivee || null, heure_depart: heure_depart || null, heures_travaillees };
+    if (existant) {
+      const { error } = await sb.from('pointages').update(champsPointage).eq('id', existant.id).eq('tenant_id', tenantId);
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    } else {
+      const { error } = await sb.from('pointages').insert({ employe_id, tenant_id: tenantId, date, ...champsPointage });
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+    return NextResponse.json({ success: true });
+  }
+
   if (action === 'creer') {
     if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });

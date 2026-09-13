@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect } from "react";
+import { useState, useEffect, Fragment } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI } from "../lib/ui";
 import { PLANNING, CONTRATS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
@@ -85,6 +85,37 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
       showToast("✅ Formation assignée");
       setAssignerPourId(null);setChoixCatalogueId("");
+      loadRealData();
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const voirPosition=(e)=>{
+    if(e.position?.latitude&&e.position?.longitude){
+      const maj=e.position.updated_at?new Date(e.position.updated_at).toLocaleString('fr-FR'):"date inconnue";
+      window.open(`https://www.google.com/maps?q=${e.position.latitude},${e.position.longitude}`,'_blank');
+      showToast(`📍 Position de ${e.nom} (mise à jour ${maj})`);
+    }else{
+      showToast(`📍 Pas de position GPS récente pour ${e.nom} — disponible dès qu'il est en mission sur le Planning`);
+    }
+  };
+  const[correctionPointageId,setCorrectionPointageId]=useState(null);
+  const[correctionArrivee,setCorrectionArrivee]=useState("");
+  const[correctionDepart,setCorrectionDepart]=useState("");
+  const ouvrirCorrectionPointage=(e)=>{
+    const aujourdhui=new Date().toISOString().slice(0,10);
+    const p=(e.pointages||[]).find(pp=>pp.date===aujourdhui);
+    setCorrectionArrivee(p?.heure_arrivee||"");
+    setCorrectionDepart(p?.heure_depart||"");
+    setCorrectionPointageId(correctionPointageId===e.id?null:e.id);
+  };
+  const validerCorrectionPointage=async(employeId)=>{
+    if(!correctionArrivee&&!correctionDepart)return showToast("⚠️ Renseigne au moins une heure");
+    try{
+      const aujourdhui=new Date().toISOString().slice(0,10);
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'corriger_pointage',employe_id:employeId,date:aujourdhui,heure_arrivee:correctionArrivee||null,heure_depart:correctionDepart||null})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      showToast("✅ Pointage corrigé");
+      setCorrectionPointageId(null);
       loadRealData();
     }catch(e){showToast("❌ Erreur de connexion");}
   };
@@ -318,33 +349,53 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     </div>}
 
     {/* ─── POINTAGE ──────────────────────────────────────────── */}
-    {onglet==="pointage"&&<div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18}}>
+    {onglet==="pointage"&&(()=>{
+      const aujourdhui=new Date().toISOString().slice(0,10);
+      const pointageDuJour=(e)=>(e.pointages||[]).find(p=>p.date===aujourdhui);
+      const absentAujourdhui=(e)=>(e.absences||[]).some(a=>a.debut<=aujourdhui&&(a.fin||a.debut)>=aujourdhui&&a.statut!=="refusé");
+      const presents=equipe.filter(e=>!!pointageDuJour(e)).length;
+      const absents=equipe.filter(absentAujourdhui).length;
+      const heuresTotales=equipe.reduce((a,e)=>a+Number(pointageDuJour(e)?.heures_travaillees||0),0);
+      return <div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18}}>
+      <div style={{fontSize:10,color:"#5A5A7A",marginBottom:10}}>Chaque collaborateur pointe lui-même depuis son espace — le RH peut consulter sa position et corriger un pointage en cas d'oubli.</div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
-        {[["Présents",equipe.length,"#2EC9B0"],["Heures totales",equipe.reduce((a,e)=>a+e.heures,0).toFixed(1)+"h","#4B7BFF"],["Retards","0","#C9A84C"],["Absents","0","#FF5252"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",borderRadius:8,padding:12,textAlign:"center"}}><div style={{fontSize:9,color:"#5A5A7A",marginBottom:4}}>{l}</div><div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div></div>)}
+        {[["Ont pointé aujourd'hui",presents,"#2EC9B0"],["Heures totales (jour)",heuresTotales.toFixed(1)+"h","#4B7BFF"],["Retards","—","#C9A84C"],["Absents aujourd'hui",absents,"#FF5252"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",borderRadius:8,padding:12,textAlign:"center"}}><div style={{fontSize:9,color:"#5A5A7A",marginBottom:4}}>{l}</div><div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div></div>)}
       </div>
+      {loadingEquipe?<div style={{fontSize:12,color:"#5A5A7A"}}>Chargement...</div>:equipe.length===0?<div style={{fontSize:12,color:"#5A5A7A"}}>Aucun employé enregistré.</div>:
       <table style={{width:"100%",borderCollapse:"collapse"}}>
-        <thead><tr>{["Collaborateur","Pointage arrivée","Localisation GPS","Heures/j","Mission en cours","Actions"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
-        <tbody>{equipe.map((e,i)=>{const sc=e.statut==="En mission"?"#C9A84C":e.statut==="Disponible"?"#2EC9B0":"#4B7BFF";return <tr key={i}>
+        <thead><tr>{["Collaborateur","Arrivée","Départ","Heures (jour)","Statut","Actions"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
+        <tbody>{equipe.map((e,i)=>{const sc=e.statut==="En mission"?"#C9A84C":e.statut==="Disponible"?"#2EC9B0":"#4B7BFF";const p=pointageDuJour(e);const absent=absentAujourdhui(e);return <Fragment key={i}><tr>
           <td style={{padding:"10px 10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}>
             <div style={{display:"flex",alignItems:"center",gap:8}}>
               <div style={{width:28,height:28,borderRadius:"50%",background:e.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:11,fontWeight:700,color:e.couleur}}>{e.nom[0]}</div>
               <span style={{fontWeight:600}}>{e.nom}</span>
             </div>
           </td>
-          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#2ECDC4",fontWeight:700}}>{e.pointage!=="—"?`✅ ${e.pointage}`:"⏳ En attente"}</td>
-          <td style={{padding:"10px",fontSize:11,borderBottom:"1px solid #1E1E3622",color:"#5A5A7A"}}>📍 {e.localisation}</td>
-          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#4B7BFF",fontWeight:700}}>{e.heures}h</td>
+          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#2ECDC4",fontWeight:700}}>{absent?"🏖 Absent":p?.heure_arrivee?`✅ ${p.heure_arrivee}`:"⏳ Pas encore pointé"}</td>
+          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#5A5A7A"}}>{p?.heure_depart||"—"}</td>
+          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#4B7BFF",fontWeight:700}}>{p?.heures_travaillees?`${p.heures_travaillees}h`:"—"}</td>
           <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}><span style={{background:sc+"22",color:sc,padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>{e.statut}</span></td>
           <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}>
             <div style={{display:"flex",gap:4}}>
-              <button onClick={()=>showToast(`📍 ${e.nom} — GPS : ${e.localisation}`)} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>📍 GPS</button>
-              <button onClick={()=>{setEquipe(eq=>eq.map((x,j)=>j===i?{...x,pointage:new Date().toLocaleTimeString("fr",{hour:"2-digit",minute:"2-digit"})}:x));showToast(`✅ Pointage ${e.nom} enregistré`);}} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>⏰ Pointer</button>
+              <button onClick={()=>voirPosition(e)} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>📍 GPS</button>
+              <button onClick={()=>ouvrirCorrectionPointage(e)} style={{background:correctionPointageId===e.id?"#4B7BFF":"transparent",color:correctionPointageId===e.id?"#fff":"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>⏰ Pointer</button>
             </div>
           </td>
-        </tr>;})}
+        </tr>
+        {correctionPointageId===e.id&&<tr>
+          <td colSpan={6} style={{padding:"10px 10px 14px",borderBottom:"1px solid #1E1E3622",background:"#0A0A16"}}>
+            <div style={{fontSize:10,color:"#5A5A7A",marginBottom:8}}>Correction manuelle du pointage du jour pour {e.nom} — à réserver aux oublis ou incidents techniques.</div>
+            <div style={{display:"flex",gap:8,alignItems:"center",flexWrap:"wrap"}}>
+              <label style={{fontSize:10,color:"#5A5A7A"}}>Arrivée<br/><input type="time" value={correctionArrivee} onChange={ev=>setCorrectionArrivee(ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+              <label style={{fontSize:10,color:"#5A5A7A"}}>Départ<br/><input type="time" value={correctionDepart} onChange={ev=>setCorrectionDepart(ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+              <button onClick={()=>validerCorrectionPointage(e.id)} style={{background:"#4B7BFF",color:"#fff",border:"none",borderRadius:5,padding:"7px 14px",cursor:"pointer",fontSize:11,fontFamily:"inherit",alignSelf:"flex-end"}}>Valider</button>
+              <button onClick={()=>setCorrectionPointageId(null)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"7px 14px",cursor:"pointer",fontSize:11,fontFamily:"inherit",alignSelf:"flex-end"}}>Annuler</button>
+            </div>
+          </td>
+        </tr>}</Fragment>;})}
         </tbody>
-      </table>
-    </div>}
+      </table>}
+    </div>;})()}
 
     {/* ─── CONGES ────────────────────────────────────────────── */}
     {onglet==="conges"&&<div>
