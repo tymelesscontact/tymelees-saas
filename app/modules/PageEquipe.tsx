@@ -51,11 +51,12 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
         setEquipe(data.membres.map((m,idx)=>({
           heures:0,soldeConges:m.conges_solde??0,perf:m.performance||0,localisation:"—",pointage:"—",
           nss:"",rib:"",couleur:m.couleur||["#4B7BFF","#9B5FFF","#FF5F9E","#2EC9B0","#FF8C3A"][idx%5],
-          missions:[],evaluations:[],formations:[],documents:[],arrets:[],objectifs:[],carriere:[],
+          missions:[],evaluations:[],formations:[],documents:[],objectifs:[],carriere:[],
           embauche:m.date_embauche||"—",dateNaissance:m.date_naissance||"",
           salaire:m.salaire||0,contrat:m.contrat||"CDI",statut:m.statut||"Disponible",
           ...m,
           congesDemandes:m.conges||[],
+          absencesReelles:m.absences||[],
         })));
         setAlertes(data.alertes||[]);
       }
@@ -119,6 +120,48 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       loadRealData();
     }catch(e){showToast("❌ Erreur de connexion");}
   };
+  const[arretFormId,setArretFormId]=useState(null);
+  const[arretType,setArretType]=useState("arret_maladie");
+  const[arretDebut,setArretDebut]=useState("");
+  const[arretFin,setArretFin]=useState("");
+  const[arretMotif,setArretMotif]=useState("");
+  const ouvrirDeclarationArret=(id)=>{
+    setArretType("arret_maladie");
+    setArretDebut(new Date().toISOString().slice(0,10));
+    setArretFin("");
+    setArretMotif("");
+    setArretFormId(arretFormId===id?null:id);
+  };
+  const declarerArret=async(e)=>{
+    if(!arretDebut)return showToast("⚠️ Renseigne une date de début");
+    try{
+      const res=await fetch('/api/absences',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'declarer',employe_id:e.id,nom_employe:e.nom,type:arretType,debut:arretDebut,fin:arretFin||arretDebut,motif:arretMotif||null,declaree_par:'rh'})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      showToast(`✅ Arrêt enregistré pour ${e.nom}`);
+      setArretFormId(null);
+      loadRealData();
+    }catch(err){showToast("❌ Erreur de connexion");}
+  };
+  const[evalFormId,setEvalFormId]=useState(null);
+  const[evalNote,setEvalNote]=useState("80");
+  const[evalPoints,setEvalPoints]=useState("");
+  const[evalAxes,setEvalAxes]=useState("");
+  const ouvrirNouvelleEvaluation=(id)=>{
+    setEvalNote("80");setEvalPoints("");setEvalAxes("");
+    setEvalFormId(evalFormId===id?null:id);
+  };
+  const creerEvaluation=async(e)=>{
+    if(!evalPoints&&!evalAxes)return showToast("⚠️ Renseigne au moins un commentaire");
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter_evaluation',employe_id:e.id,note:Number(evalNote)||0,points_forts:evalPoints||null,axes_amelioration:evalAxes||null})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      showToast(`✅ Évaluation enregistrée pour ${e.nom}`);
+      setEvalFormId(null);
+      loadRealData();
+    }catch(err){showToast("❌ Erreur de connexion");}
+  };
   const[onglet,setOnglet]=useState("dashboard");
   const[sel,setSel]=useState(null);
   const[showAdd,setShowAdd]=useState(false);
@@ -148,7 +191,10 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
   if(!hasAccess(plan,"equipe",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="equipe" plan={plan}/></div>;
 
   const totalSalaire=equipe.reduce((a,e)=>a+e.salaire,0);
-  const totalArrets=equipe.reduce((a,e)=>a+e.arrets.length,0);
+  const arretsDe=(e)=>(e.absencesReelles||[]).filter(a=>a.type==="arret_maladie"||a.type==="accident_travail");
+  const moisActuel=new Date().toISOString().slice(0,7);
+  const arretsCeMoisDe=(e)=>arretsDe(e).filter(a=>(a.debut||"").slice(0,7)===moisActuel);
+  const totalArrets=equipe.reduce((a,e)=>a+arretsCeMoisDe(e).length,0);
   const perfMoy=Math.round(equipe.reduce((a,e)=>a+e.perf,0)/equipe.length);
 
   return <div style={{padding:20}}>
@@ -506,23 +552,35 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     </div>}
 
     {/* ─── ARRETS MALADIE ────────────────────────────────────── */}
-    {onglet==="arrets"&&<div>
+    {onglet==="arrets"&&(()=>{
+      const joursOuvresMois=22;
+      const joursPerdusMois=equipe.reduce((a,e)=>a+arretsCeMoisDe(e).reduce((b,ar)=>b+(ar.jours||0),0),0);
+      const tauxAbsenteisme=equipe.length>0?((joursPerdusMois/(joursOuvresMois*equipe.length))*100).toFixed(1)+"%":"—";
+      return <div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
-        {[["Arrêts ce mois",totalArrets,"#FF5252"],["Jours perdus",equipe.reduce((a,e)=>a+e.arrets.reduce((b,ar)=>b+ar.jours,0),0)+"j","#FF8C3A"],["Taux absentéisme","2.4%","#C9A84C"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:c}}>{v}</div></div>)}
+        {[["Arrêts ce mois",totalArrets,"#FF5252"],["Jours perdus (mois)",joursPerdusMois+"j","#FF8C3A"],["Taux absentéisme (est.)",tauxAbsenteisme,"#C9A84C"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:c}}>{v}</div></div>)}
       </div>
-      {equipe.map((e,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16,marginBottom:10}}>
+      {loadingEquipe?<div style={{fontSize:12,color:"#5A5A7A"}}>Chargement...</div>:equipe.length===0?<div style={{fontSize:12,color:"#5A5A7A"}}>Aucun employé enregistré.</div>:
+      equipe.map((e,i)=>{const ar=arretsDe(e);return <div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16,marginBottom:10}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
           <div style={{width:32,height:32,borderRadius:"50%",background:e.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:e.couleur}}>{e.nom[0]}</div>
           <div style={{flex:1,fontSize:13,fontWeight:700}}>{e.nom}</div>
-          <span style={{fontSize:11,color:e.arrets.length>0?"#FF5252":"#2EC9B0"}}>{e.arrets.length>0?e.arrets.length+" arrêt(s)":"✅ Aucun arrêt"}</span>
+          <span style={{fontSize:11,color:ar.length>0?"#FF5252":"#2EC9B0"}}>{ar.length>0?ar.length+" arrêt(s)":"✅ Aucun arrêt"}</span>
         </div>
-        {e.arrets.length>0?<table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr>{["Début","Fin","Jours","Motif","Justificatif"].map(h=><th key={h} style={{textAlign:"left",padding:"6px 8px",fontSize:9,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
-          <tbody>{e.arrets.map((ar,j)=><tr key={j}><td style={{padding:"7px 8px",fontSize:11,borderBottom:"1px solid #1E1E3622",color:"#FF5252"}}>{ar.debut}</td><td style={{padding:"7px 8px",fontSize:11,borderBottom:"1px solid #1E1E3622"}}>{ar.fin}</td><td style={{padding:"7px 8px",fontSize:11,borderBottom:"1px solid #1E1E3622",fontWeight:700}}>{ar.jours}j</td><td style={{padding:"7px 8px",fontSize:11,borderBottom:"1px solid #1E1E3622"}}>{ar.motif}</td><td style={{padding:"7px 8px",fontSize:11,borderBottom:"1px solid #1E1E3622",color:"#2EC9B0"}}>{ar.justif}</td></tr>)}</tbody>
+        {ar.length>0?<table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr>{["Début","Fin","Jours","Motif","Statut"].map(h=><th key={h} style={{textAlign:"left",padding:"6px 8px",fontSize:9,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
+          <tbody>{ar.map((a,j)=><tr key={j}><td style={{padding:"7px 8px",fontSize:11,borderBottom:"1px solid #1E1E3622",color:"#FF5252"}}>{a.debut}</td><td style={{padding:"7px 8px",fontSize:11,borderBottom:"1px solid #1E1E3622"}}>{a.fin||"—"}</td><td style={{padding:"7px 8px",fontSize:11,borderBottom:"1px solid #1E1E3622",fontWeight:700}}>{a.jours}j</td><td style={{padding:"7px 8px",fontSize:11,borderBottom:"1px solid #1E1E3622"}}>{a.motif||(a.type==="accident_travail"?"Accident du travail":"Arrêt maladie")}</td><td style={{padding:"7px 8px",fontSize:11,borderBottom:"1px solid #1E1E3622",color:a.statut==="validee"?"#2EC9B0":a.statut==="refusee"?"#FF5252":"#C9A84C"}}>{a.statut}</td></tr>)}</tbody>
         </table>:<div style={{fontSize:11,color:"#5A5A7A",padding:"8px 0"}}>Aucun arrêt maladie enregistré</div>}
-        <button onClick={()=>{const ar={debut:new Date().toLocaleDateString("fr"),fin:"—",jours:1,motif:"À préciser",justif:"En attente"};setEquipe(eq=>eq.map((x,j)=>j===i?{...x,arrets:[...x.arrets,ar]}:x));showToast(`✅ Arrêt enregistré pour ${e.nom}`);}} style={{marginTop:10,background:"transparent",color:"#FF5252",border:"1px solid #FF525233",borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Déclarer un arrêt</button>
-      </div>)}
-    </div>}
+        {arretFormId===e.id?<div style={{marginTop:10,background:"#0A0A16",borderRadius:8,padding:12,display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap"}}>
+          <label style={{fontSize:10,color:"#5A5A7A"}}>Type<br/><select value={arretType} onChange={ev=>setArretType(ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}><option value="arret_maladie">Arrêt maladie</option><option value="accident_travail">Accident du travail</option></select></label>
+          <label style={{fontSize:10,color:"#5A5A7A"}}>Début<br/><input type="date" value={arretDebut} onChange={ev=>setArretDebut(ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+          <label style={{fontSize:10,color:"#5A5A7A"}}>Fin<br/><input type="date" value={arretFin} onChange={ev=>setArretFin(ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+          <label style={{fontSize:10,color:"#5A5A7A",flex:1,minWidth:140}}>Motif (facultatif)<br/><input type="text" value={arretMotif} onChange={ev=>setArretMotif(ev.target.value)} style={{width:"100%",background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+          <button onClick={()=>declarerArret(e)} style={{background:"#FF5252",color:"#fff",border:"none",borderRadius:6,padding:"7px 14px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Enregistrer</button>
+          <button onClick={()=>setArretFormId(null)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:6,padding:"7px 14px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Annuler</button>
+        </div>:<button onClick={()=>ouvrirDeclarationArret(e.id)} style={{marginTop:10,background:"transparent",color:"#FF5252",border:"1px solid #FF525233",borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Déclarer un arrêt</button>}
+      </div>;})}
+    </div>;})()}
 
     {/* ─── PAIE ──────────────────────────────────────────────── */}
     {onglet==="paie"&&<div>
@@ -610,21 +668,29 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       {equipe.map((e,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16,marginBottom:10}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
           <div style={{width:36,height:36,borderRadius:"50%",background:e.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:e.couleur}}>{e.nom[0]}</div>
-          <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{e.nom}</div><div style={{fontSize:10,color:"#5A5A7A"}}>{e.evaluations.length} évaluation(s)</div></div>
+          <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{e.nom}</div><div style={{fontSize:10,color:"#5A5A7A"}}>{(e.evaluations||[]).length} évaluation(s)</div></div>
           <div style={{fontSize:18,fontWeight:700,color:e.perf>=90?"#2EC9B0":"#C9A84C"}}>{e.perf}%</div>
         </div>
-        {e.evaluations.map((ev,j)=><div key={j} style={{background:"#121222",borderRadius:8,padding:12,marginBottom:8,border:"1px solid #1E1E36"}}>
+        {(e.evaluations||[]).map((ev,j)=><div key={j} style={{background:"#121222",borderRadius:8,padding:12,marginBottom:8,border:"1px solid #1E1E36"}}>
           <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}>
-            <div style={{fontSize:11,fontWeight:600}}>Évaluation du {ev.date}</div>
+            <div style={{fontSize:11,fontWeight:600}}>Évaluation du {ev.created_at?new Date(ev.created_at).toLocaleDateString("fr-FR"):"—"}</div>
             <div style={{fontSize:16,fontWeight:700,color:ev.note>=90?"#2EC9B0":"#C9A84C"}}>{ev.note}/100</div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,fontSize:11}}>
-            <div style={{background:"#2EC9B011",borderRadius:6,padding:8}}><div style={{fontSize:9,color:"#2EC9B0",fontWeight:600,marginBottom:3}}>✅ POINTS FORTS</div><div style={{color:"#EAE6DE"}}>{ev.points}</div></div>
-            <div style={{background:"#FF8C3A11",borderRadius:6,padding:8}}><div style={{fontSize:9,color:"#FF8C3A",fontWeight:600,marginBottom:3}}>📈 AXES D'AMÉLIORATION</div><div style={{color:"#EAE6DE"}}>{ev.axes}</div></div>
+            <div style={{background:"#2EC9B011",borderRadius:6,padding:8}}><div style={{fontSize:9,color:"#2EC9B0",fontWeight:600,marginBottom:3}}>✅ POINTS FORTS</div><div style={{color:"#EAE6DE"}}>{ev.points_forts||"—"}</div></div>
+            <div style={{background:"#FF8C3A11",borderRadius:6,padding:8}}><div style={{fontSize:9,color:"#FF8C3A",fontWeight:600,marginBottom:3}}>📈 AXES D'AMÉLIORATION</div><div style={{color:"#EAE6DE"}}>{ev.axes_amelioration||"—"}</div></div>
           </div>
           <div style={{fontSize:10,color:"#5A5A7A",marginTop:6}}>Évaluateur : {ev.evaluateur}</div>
         </div>)}
-        <button onClick={()=>showToast(`✅ Nouvelle évaluation créée pour ${e.nom}`)} style={{background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Nouvelle évaluation</button>
+        {evalFormId===e.id?<div style={{background:"#0A0A16",borderRadius:8,padding:12,display:"flex",flexDirection:"column",gap:8}}>
+          <label style={{fontSize:10,color:"#5A5A7A"}}>Note /100<br/><input type="number" min="0" max="100" value={evalNote} onChange={ev=>setEvalNote(ev.target.value)} style={{width:80,background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+          <label style={{fontSize:10,color:"#5A5A7A"}}>Points forts<br/><textarea value={evalPoints} onChange={ev=>setEvalPoints(ev.target.value)} rows={2} style={{width:"100%",background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"6px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit",resize:"vertical"}}/></label>
+          <label style={{fontSize:10,color:"#5A5A7A"}}>Axes d'amélioration<br/><textarea value={evalAxes} onChange={ev=>setEvalAxes(ev.target.value)} rows={2} style={{width:"100%",background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"6px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit",resize:"vertical"}}/></label>
+          <div style={{display:"flex",gap:8}}>
+            <button onClick={()=>creerEvaluation(e)} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:6,padding:"6px 14px",cursor:"pointer",fontWeight:600,fontSize:11,fontFamily:"inherit"}}>Enregistrer</button>
+            <button onClick={()=>setEvalFormId(null)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:6,padding:"6px 14px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Annuler</button>
+          </div>
+        </div>:<button onClick={()=>ouvrirNouvelleEvaluation(e.id)} style={{background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Nouvelle évaluation</button>}
       </div>)}
     </div>}
 
