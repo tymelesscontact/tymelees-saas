@@ -877,6 +877,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
         </table>
       </div>
       <button onClick={envoyerToutesLesFiches} disabled={envoiToutesFichesEnCours} style={{width:"100%",background:"#C9A84C",color:"#000",border:"none",borderRadius:8,padding:"10px 16px",cursor:"pointer",fontWeight:600,fontSize:13,fontFamily:"inherit"}}>{envoiToutesFichesEnCours?"Envoi en cours...":`💸 Générer & Envoyer toutes les fiches de paie — ${moisLabel}`}</button>
+      <button onClick={()=>window.open('/api/equipe?action=export_paie','_blank')} style={{width:"100%",marginTop:8,background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:8,padding:"9px 16px",cursor:"pointer",fontWeight:600,fontSize:12,fontFamily:"inherit"}}>📤 Export paie du mois (CSV, prêt pour expert-comptable / Silae / PayFit)</button>
     </div>;})()}
 
     {/* ─── CONTRATS ──────────────────────────────────────────── */}

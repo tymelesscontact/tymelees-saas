@@ -85,6 +85,42 @@ export async function GET(req: NextRequest) {
     if (errSignee || !signee) return NextResponse.json({ error: errSignee?.message || 'Lien indisponible' }, { status: 500 });
     return NextResponse.json({ url: signee.signedUrl, nom: doc.nom });
   }
+
+  // Export mensuel "pret pour DSN" : donnees reelles structurees pour un
+  // expert-comptable ou un futur branchement API Silae/PayFit -- ce n'est
+  // PAS une DSN officielle (norme NEODES), juste les donnees source.
+  if (action === 'export_paie') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const moisExport = searchParams.get('mois') || new Date().toISOString().slice(0, 7);
+    const { data: membresExport } = await sb.from('equipe').select('*').eq('tenant_id', tenantId).order('nom', { ascending: true });
+    const { data: pointagesExport } = await sb.from('pointages').select('*').eq('tenant_id', tenantId);
+    const { data: absencesExport } = await sb.from('absences').select('*').eq('tenant_id', tenantId).eq('statut', 'validee');
+
+    const lignes = (membresExport || []).map((m: any) => {
+      const heures = (pointagesExport || [])
+        .filter((p: any) => (p.employe_id === m.id || p.user_id === m.user_id) && String(p.date || '').slice(0, 7) === moisExport)
+        .reduce((a: number, p: any) => a + Number(p.heures_travaillees || 0), 0);
+      const absMois = (absencesExport || []).filter((a: any) => a.employe_id === m.id && String(a.debut || '').slice(0, 7) === moisExport);
+      const joursMaladie = absMois.filter((a: any) => a.type === 'arret_maladie' || a.type === 'accident_travail').reduce((s: number, a: any) => s + Number(a.jours || 0), 0);
+      const joursConges = absMois.filter((a: any) => a.type === 'conge_paye').reduce((s: number, a: any) => s + Number(a.jours || 0), 0);
+      const joursAutres = absMois.filter((a: any) => !['arret_maladie', 'accident_travail', 'conge_paye'].includes(a.type)).reduce((s: number, a: any) => s + Number(a.jours || 0), 0);
+      return [
+        m.nom || '', m.prenom || '', m.nss || '', m.date_embauche || '', m.date_fin_contrat || '',
+        m.contrat || '', Number(m.salaire_brut || m.salaire || 0), m.heures_semaine || 35,
+        Math.round(heures * 10) / 10, joursMaladie, joursConges, joursAutres, m.rib || '',
+      ];
+    });
+    const entetes = ['Nom', 'Prenom', 'NSS', 'Date embauche', 'Date fin contrat', 'Type contrat', 'Salaire brut', 'Heures/semaine contractuelles', 'Heures travaillees (mois)', 'Jours arret maladie/AT (mois)', 'Jours conges payes (mois)', 'Jours autres absences (mois)', 'RIB'];
+    const echapper = (v: any) => `"${String(v ?? '').replace(/"/g, '""')}"`;
+    const csv = '﻿' + [entetes.map(echapper).join(';'), ...lignes.map((l) => l.map(echapper).join(';'))].join('\n');
+    return new NextResponse(csv, {
+      headers: {
+        'Content-Type': 'text/csv; charset=utf-8',
+        'Content-Disposition': `attachment; filename="export-paie-${moisExport}.csv"`,
+      },
+    });
+  }
+
   let membresQuery = sb.from('equipe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (companyId && UUID_RE.test(companyId)) membresQuery = membresQuery.eq('company_id', companyId);
   const { data: membres, error } = await membresQuery;
