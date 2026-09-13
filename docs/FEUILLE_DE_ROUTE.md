@@ -67,25 +67,46 @@ Légende statut : ✅ audité et sain · 🟡 audité, problèmes mineurs notés
 
 ### ACCUEIL
 
-#### 🏠 Accueil — `PageAccueil.tsx`
-- **Statut** : 🟡
+#### 🏠 Accueil — `PageAccueil.tsx` / `api/brief-ia`
+- **Statut** : ✅ audité en profondeur le 13/09/2026, aucune faille trouvée
 - Vue d'accueil : notifications, résumé. Utilise aussi en parallèle
   `PageOverview.tsx` (id `overview`, "Vue d'ensemble" dans BUSINESS) qui,
   lui, calcule le vrai pipeline devis/factures (voir séance précédente :
   8 KPIs, score santé business).
 - Corrigé cette session : client Supabase passé en service-role (routes
   concernées), sinon tout s'affichait à 0 à cause du bug JWT/anon-key.
+- **Audit du 13/09/2026** : relecture complète du fichier. Un seul point
+  noté — l'appel direct au client Supabase navigateur (ligne ~72, lecture
+  du prochain rendez-vous planifié) sans filtre tenant explicite dans le
+  code ; vérifié non exploitable, la policy RLS de `planning` protège déjà
+  correctement (même famille que T20). Pas de vraie faille sur ce module.
+- **Brief IA reconstruit (13/09/2026)** : ne se contentait que de reformuler
+  4 chiffres déjà visibles dans les tuiles juste en dessous, régénéré (appel
+  IA payant) à chaque ouverture de page. Nouvelle route `app/api/brief-ia/route.ts` :
+  agrège de vrais signaux dans toute l'app (devis qui expirent sous 3 jours,
+  factures en retard, stock sous seuil, signalements d'équipe non traités,
+  contrats en attente de signature, événements sous 7 jours, en plus des
+  4 KPI existants) — tous calculés côté serveur à partir de vraies requêtes,
+  jamais inventés par l'IA ; Claude ne fait que rédiger le texte de synthèse.
+  Résultat mis en cache un par jour et par tenant (table `brief_quotidien`,
+  contrainte unique `tenant_id`+`date`) avec bouton "🔄 Régénérer" pour forcer
+  un recalcul — au lieu d'un appel IA à chaque ouverture de page. Les alertes
+  réelles trouvées sont affichées sous le brief, cliquables, chacune renvoie
+  vers le bon module.
 - **Reste à vérifier** : bouton par bouton, cohérence avec `PageOverview`
-  (redondance ou complémentarité réelle ?).
+  (redondance ou complémentarité réelle ?) — non lié au brief IA, point
+  antérieur toujours ouvert.
 
 ### MON ESPACE
 
 #### 💳 Wallet & Paiements — `PageWallet.tsx` / `api/wallet`
-- **Statut** : 🔴 (à cause de T6, `IbanMondial`)
+- **Statut** : ✅ (T6 réglé et testé le 10/09/2026 — fiche mise à jour le 13/09, statut resté "🔴" par oubli malgré la correction)
 - Encaissement (lien Stripe), paiement sortant (virement à exécuter
-  manuellement), historique. Déjà audité et sécurisé cette session
-  (service-role + tenant_id partout dans `api/wallet/route.ts`).
-- Contient `IbanMondial` → **fuite cross-tenant confirmée (T6)**.
+  manuellement), historique. Audité et sécurisé (service-role + tenant_id
+  partout dans `api/wallet/route.ts`, vérifié à nouveau le 13/09 :
+  `company_id` ne fait que restreindre un `tenant_id` déjà imposé, pas de
+  contournement possible).
+- `IbanMondial` : fuite cross-tenant corrigée (T6).
 - Contient aussi le "Convertisseur" (calcul local, pas de faille).
 
 #### ◈ Cartes Virtuelles — `PageCartes.tsx` / `api/cartes`
@@ -96,7 +117,7 @@ Légende statut : ✅ audité et sain · 🟡 audité, problèmes mineurs notés
   - ✅ **Réglé (T17)** : `hasAccess(plan,"cartes",modulesActifs)` + `<UpgradeWall/>` ajoutés. Le verrou sidebar reste purement visuel (`xyra.jsx`/`tymeless.jsx` laissent `setPage()` s'exécuter même sur un item "🔒") mais le composant lui-même bloque désormais correctement l'affichage pour un plan non autorisé.
   - `api/cartes/route.ts` action `create` (l.71-86) : pas de garde `if(!tenantId)` avant l'insert (contrairement aux autres actions) → un appel non authentifié crée une carte `tenant_id: null` (client service-role, bypass RLS).
   - `ajouter_transaction` (l.119-129) : insère sans `tenant_id` alors que les lectures filtrent dessus → transaction invisible ensuite dans l'historique/les approbations (bug fonctionnel, pas juste sécurité).
-  - `approuver_transaction` (l.136-142) : `update().eq('id',id)` **sans** `.eq('tenant_id',tenantId)` → un autre tenant connaissant/devinant un id de transaction pourrait l'approuver (fuite cross-tenant en écriture).
+  - `approuver_transaction` (l.140-146) : `update().eq('id',id)` **sans** `.eq('tenant_id',tenantId)` → un autre tenant connaissant/devinant un id de transaction pourrait l'approuver (fuite cross-tenant en écriture). **Reconfirmé le 13/09/2026, en production, toujours non corrigé** — client service-role (bypass RLS), aucune autre protection.
   - Fuites `error.message` brutes : l.84, 126, 152, 160.
   - Onglet "🛡 Sécurité" (plafonds, pays autorisés, toggles) entièrement cosmétique : aucun bouton Enregistrer, aucun `onClick` sur les toggles — faux boutons.
 
