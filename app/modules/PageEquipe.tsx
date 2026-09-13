@@ -40,6 +40,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
   // Chargement des vraies données Supabase
   const[alertes,setAlertes]=useState([]);
   const[catalogue,setCatalogue]=useState([]);
+  const[obligationsLegales,setObligationsLegales]=useState([]);
   const[loadingEquipe,setLoadingEquipe]=useState(true);
   const loadRealData=async()=>{
     try{
@@ -47,6 +48,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       const res=await fetch('/api/equipe'+companyParam);
       const data=await res.json();
       setCatalogue(data.catalogue||[]);
+      setObligationsLegales(data.obligationsLegales||[]);
       if(data.membres){
         setEquipe(data.membres.map((m,idx)=>({
           heures:0,soldeConges:m.conges_solde??0,perf:m.performance||0,localisation:"—",pointage:"—",
@@ -343,6 +345,76 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       setPromoFormId(null);
       loadRealData();
     }catch(err){showToast("❌ Erreur de connexion");}
+  };
+  const majVisiteMedicale=async(id,date)=>{
+    try{
+      await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'modifier',id,visite_medicale_echeance:date||null})});
+      loadRealData();
+    }catch(err){}
+  };
+  const[oblFormOuvert,setOblFormOuvert]=useState(false);
+  const[oblLibelle,setOblLibelle]=useState("");
+  const[oblEcheance,setOblEcheance]=useState("");
+  const ajouterObligation=async()=>{
+    if(!oblLibelle)return showToast("⚠️ Libellé requis");
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter_obligation',libelle:oblLibelle,echeance:oblEcheance||null})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      showToast("✅ Obligation ajoutée");
+      setOblFormOuvert(false);setOblLibelle("");setOblEcheance("");
+      loadRealData();
+    }catch(err){showToast("❌ Erreur de connexion");}
+  };
+  const toggleStatutObligation=async(obl)=>{
+    const nouveauStatut=obl.statut==="a_jour"?"a_faire":"a_jour";
+    try{
+      await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'maj_obligation',id:obl.id,statut:nouveauStatut})});
+      loadRealData();
+    }catch(err){}
+  };
+  const supprimerObligation=async(obl)=>{
+    if(!window.confirm(`Supprimer "${obl.libelle}" ?`))return;
+    try{
+      await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer_obligation',id:obl.id})});
+      loadRealData();
+    }catch(err){}
+  };
+  const[genObligationsEnCours,setGenObligationsEnCours]=useState(false);
+  const genererObligationsIa=async()=>{
+    setGenObligationsEnCours(true);
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generer_obligations_ia'})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);setGenObligationsEnCours(false);return;}
+      showToast(`✅ ${data.obligations?.length||0} obligation(s) ajoutée(s) par l'IA`);
+      loadRealData();
+    }catch(err){showToast("❌ Erreur de connexion");}
+    setGenObligationsEnCours(false);
+  };
+  const[genRegistreEnCours,setGenRegistreEnCours]=useState(false);
+  const voirRegistrePersonnel=async()=>{
+    setGenRegistreEnCours(true);
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'apercu_registre_personnel'})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);setGenRegistreEnCours(false);return;}
+      const fenetre=window.open('','_blank');
+      if(fenetre){fenetre.document.write(data.html);fenetre.document.close();}
+    }catch(err){showToast("❌ Erreur de connexion");}
+    setGenRegistreEnCours(false);
+  };
+  const[genDuerEnCours,setGenDuerEnCours]=useState(false);
+  const voirDuer=async()=>{
+    setGenDuerEnCours(true);
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generer_duer'})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);setGenDuerEnCours(false);return;}
+      const fenetre=window.open('','_blank');
+      if(fenetre){fenetre.document.write(data.html);fenetre.document.close();}
+    }catch(err){showToast("❌ Erreur de connexion");}
+    setGenDuerEnCours(false);
   };
   const[onglet,setOnglet]=useState("dashboard");
   const[sel,setSel]=useState(null);
@@ -1016,16 +1088,47 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
 
     {/* ─── JURIDIQUE ─────────────────────────────────────────── */}
     {onglet==="juridique"&&<div>
+      <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",fontWeight:600,marginBottom:8}}>Visites médicales</div>
       <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
-        {[["DPAE (Déclaration préalable à l'embauche)","✅ Faite à chaque embauche","Permanent","#2EC9B0"],["Registre du personnel","✅ À jour — 3 collaborateur","Permanent","#2EC9B0"],["Affichage obligatoire (conventions, harcèlement...)","✅ Conforme","Vérifié 01/04/2026","#2EC9B0"],["Visite médicale — Thomas Beaumont","⚠️ Renouvellement obligatoire","Avant 30/04/2026","#FF8C3A"],["Visite médicale — Abou et Fatou","✅ Effectuées","Valides 12 mois","#2EC9B0"],["Formation sécurité SST — Thomas & Abou","✅ Certifiés","Valide jusqu'en 2027","#2EC9B0"],["Entretien professionnel — Fatou Sarr","⏳ À planifier","Avant 01/09/2026","#4B7BFF"],["Document unique d'évaluation des risques (DUER)","⚠️ À mettre à jour","Avant 30/06/2026","#FF8C3A"],["Mutuelle d'entreprise obligatoire (>1 salarié)","✅ Souscrite — Alan","Active","#2EC9B0"],["Prévoyance collective","✅ Souscrite","Active","#2EC9B0"]].map(([o,s,d,c],i)=><div key={i} style={{background:"#0C0C1A",borderRadius:8,padding:12,border:`1px solid ${c}22`,display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-          <div><div style={{fontSize:12,fontWeight:600}}>{o}</div><div style={{fontSize:10,color:"#5A5A7A"}}>Échéance : {d}</div></div>
-          <span style={{background:c+"22",color:c,padding:"2px 10px",borderRadius:10,fontSize:10,fontWeight:600,border:`1px solid ${c}44`,flexShrink:0,marginLeft:10}}>{s}</span>
-        </div>)}
+        {equipe.length===0?<div style={{fontSize:11,color:"#5A5A7A"}}>Aucun employé.</div>:equipe.map((e,i)=>{
+          const echeance=e.visite_medicale_echeance;
+          const aujourdhui=new Date().toISOString().slice(0,10);
+          const enRetard=echeance&&echeance<aujourdhui;
+          const c=!echeance?"#5A5A7A":enRetard?"#FF8C3A":"#2EC9B0";
+          return <div key={i} style={{background:"#0C0C1A",borderRadius:8,padding:12,border:`1px solid ${c}22`,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+            <div style={{fontSize:12,fontWeight:600}}>Visite médicale — {e.nom}</div>
+            <div style={{display:"flex",alignItems:"center",gap:8}}>
+              <input type="date" defaultValue={echeance||""} onBlur={ev=>majVisiteMedicale(e.id,ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 8px",color:"#EDEDF5",fontSize:10,fontFamily:"inherit"}}/>
+              <span style={{background:c+"22",color:c,padding:"2px 10px",borderRadius:10,fontSize:10,fontWeight:600,border:`1px solid ${c}44`,flexShrink:0}}>{!echeance?"Non renseignée":enRetard?"⚠️ Renouvellement":"✅ À jour"}</span>
+            </div>
+          </div>;
+        })}
       </div>
-      <div style={{display:"flex",gap:8}}>
-        <button onClick={()=>showToast("📄 Registre du personnel téléchargé")} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:12,fontFamily:"inherit"}}>📄 Registre personnel</button>
-        <button onClick={()=>showToast("🤖 Checklist juridique complète générée")} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>🤖 Checklist IA</button>
-        <button onClick={()=>showToast("📋 DUER mis à jour par IA")} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>📋 Mettre à jour DUER</button>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+        <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",fontWeight:600}}>Obligations légales de l'entreprise</div>
+        <button onClick={()=>setOblFormOuvert(o=>!o)} style={{background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>+ Ajouter</button>
+      </div>
+      {oblFormOuvert&&<div style={{background:"#0A0A16",borderRadius:8,padding:12,marginBottom:10,display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap"}}>
+        <label style={{fontSize:10,color:"#5A5A7A",flex:1,minWidth:160}}>Obligation<br/><input type="text" value={oblLibelle} onChange={ev=>setOblLibelle(ev.target.value)} placeholder="Ex : Affichage obligatoire" style={{width:"100%",background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+        <label style={{fontSize:10,color:"#5A5A7A"}}>Échéance (facultatif)<br/><input type="date" value={oblEcheance} onChange={ev=>setOblEcheance(ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+        <button onClick={ajouterObligation} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:6,padding:"7px 14px",cursor:"pointer",fontWeight:600,fontSize:11,fontFamily:"inherit"}}>Ajouter</button>
+      </div>}
+      <div style={{display:"flex",flexDirection:"column",gap:8,marginBottom:16}}>
+        {obligationsLegales.length===0?<div style={{fontSize:11,color:"#5A5A7A"}}>Aucune obligation enregistrée — utilise "+ Ajouter" ou "🤖 Checklist IA".</div>:obligationsLegales.map((o,i)=>{
+          const c=o.statut==="a_jour"?"#2EC9B0":"#FF8C3A";
+          return <div key={i} style={{background:"#0C0C1A",borderRadius:8,padding:12,border:`1px solid ${c}22`,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10}}>
+            <div><div style={{fontSize:12,fontWeight:600}}>{o.libelle}</div>{o.echeance&&<div style={{fontSize:10,color:"#5A5A7A"}}>Échéance : {new Date(o.echeance).toLocaleDateString("fr-FR")}</div>}</div>
+            <div style={{display:"flex",alignItems:"center",gap:6}}>
+              <button onClick={()=>toggleStatutObligation(o)} style={{background:c+"22",color:c,padding:"2px 10px",borderRadius:10,fontSize:10,fontWeight:600,border:`1px solid ${c}44`,cursor:"pointer",fontFamily:"inherit"}}>{o.statut==="a_jour"?"✅ À jour":"⏳ À faire"}</button>
+              <button onClick={()=>supprimerObligation(o)} style={{background:"transparent",color:"#5A5A7A",border:"none",cursor:"pointer",fontSize:11}}>🗑</button>
+            </div>
+          </div>;
+        })}
+      </div>
+      <div style={{display:"flex",gap:8,flexWrap:"wrap"}}>
+        <button onClick={voirRegistrePersonnel} disabled={genRegistreEnCours} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:12,fontFamily:"inherit"}}>{genRegistreEnCours?"...":"📄 Registre personnel"}</button>
+        <button onClick={genererObligationsIa} disabled={genObligationsEnCours} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>{genObligationsEnCours?"...":"🤖 Checklist IA"}</button>
+        <button onClick={voirDuer} disabled={genDuerEnCours} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>{genDuerEnCours?"...":"📋 Brouillon DUER (IA)"}</button>
       </div>
     </div>}
   </div>;

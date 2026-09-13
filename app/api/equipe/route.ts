@@ -165,7 +165,9 @@ export async function GET(req: NextRequest) {
     if (m.conges_solde > 20) alertes.push({ type: 'conges_eleves', nom: `${m.prenom || ''} ${m.nom}`, detail: `${m.conges_solde} jours de congés accumulés`, couleur: '#5A5A7A' });
   }
 
-  return NextResponse.json({ membres: enriched, alertes, catalogue: catalogue || [] });
+  const { data: obligationsLegales } = await sb.from('obligations_legales').select('*').eq('tenant_id', tenantId).order('echeance', { ascending: true, nullsFirst: false });
+
+  return NextResponse.json({ membres: enriched, alertes, catalogue: catalogue || [], obligationsLegales: obligationsLegales || [] });
 }
 
 export async function POST(req: NextRequest) {
@@ -314,6 +316,107 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Envoi email échoué : ' + e.message }, { status: 500 });
     }
     return NextResponse.json({ success: true, email: emailDest });
+  }
+
+  if (action === 'ajouter_obligation') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { libelle, echeance, statut } = body;
+    if (!libelle) return NextResponse.json({ error: 'Libellé requis' }, { status: 400 });
+    const { data, error } = await sb.from('obligations_legales').insert({
+      tenant_id: tenantId, libelle, echeance: echeance || null, statut: statut || 'a_faire',
+    }).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, obligation: data });
+  }
+
+  if (action === 'maj_obligation') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { id, statut, echeance } = body;
+    if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
+    const champs: any = {};
+    if (statut !== undefined) champs.statut = statut;
+    if (echeance !== undefined) champs.echeance = echeance || null;
+    const { error } = await sb.from('obligations_legales').update(champs).eq('id', id).eq('tenant_id', tenantId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'supprimer_obligation') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { id } = body;
+    if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
+    const { error } = await sb.from('obligations_legales').delete().eq('id', id).eq('tenant_id', tenantId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'generer_obligations_ia') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { data: tenantObl } = await sb.from('tenants').select('societe,metier,secteur').eq('id', tenantId).maybeSingle();
+    const { count: effectif } = await sb.from('equipe').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId);
+    try {
+      const prompt = `Pour une entreprise française du secteur "${tenantObl?.secteur || tenantObl?.metier || 'services'}" avec ${effectif || 0} salarié(s), liste 5 à 8 obligations légales RH concrètes et actuellement d'actualité (affichage obligatoire, registre du personnel, DUER, mutuelle/prévoyance, visites médicales, formations sécurité, etc.), adaptées à cette taille d'effectif. Réponds UNIQUEMENT en JSON strict : un tableau d'objets {"libelle": string}. Pas de texte autour.`;
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, messages: [{ role: 'user', content: prompt }] }),
+      });
+      const data = await res.json();
+      const texte = (data.content?.[0]?.text || '[]').trim();
+      const jsonMatch = texte.match(/\[[\s\S]*\]/);
+      const items = JSON.parse(jsonMatch ? jsonMatch[0] : texte);
+      if (!Array.isArray(items)) throw new Error('Réponse IA invalide');
+      const lignes = items.filter((it: any) => it?.libelle).map((it: any) => ({ tenant_id: tenantId, libelle: String(it.libelle), statut: 'a_faire' }));
+      if (lignes.length === 0) return NextResponse.json({ error: 'Aucune obligation générée' }, { status: 500 });
+      const { data: inserees, error } = await sb.from('obligations_legales').insert(lignes).select();
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ success: true, obligations: inserees });
+    } catch (e: any) {
+      return NextResponse.json({ error: 'Génération IA échouée : ' + e.message }, { status: 500 });
+    }
+  }
+
+  if (action === 'apercu_registre_personnel') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { data: membresReg } = await sb.from('equipe').select('nom,prenom,role,contrat,date_embauche,date_fin_contrat').eq('tenant_id', tenantId).order('date_embauche', { ascending: true });
+    const { data: tenantReg } = await sb.from('tenants').select('societe,siret,adresse,ville,code_postal').eq('id', tenantId).maybeSingle();
+    const lignes = (membresReg || []).map((m: any) => `<tr><td style="padding:8px;border-bottom:1px solid #eee;">${m.prenom || ''} ${m.nom}</td><td style="padding:8px;border-bottom:1px solid #eee;">${m.role || '—'}</td><td style="padding:8px;border-bottom:1px solid #eee;">${m.contrat}</td><td style="padding:8px;border-bottom:1px solid #eee;">${m.date_embauche ? new Date(m.date_embauche).toLocaleDateString('fr-FR') : '—'}</td><td style="padding:8px;border-bottom:1px solid #eee;">${m.date_fin_contrat ? new Date(m.date_fin_contrat).toLocaleDateString('fr-FR') : '—'}</td></tr>`).join('');
+    const html = `<div style="font-family:sans-serif;padding:32px;color:#222;">
+      <h2 style="color:#C9A84C">Registre unique du personnel</h2>
+      <p><strong>${tenantReg?.societe || 'Xyra'}</strong>${tenantReg?.siret ? ' · SIRET ' + tenantReg.siret : ''}${tenantReg?.adresse ? '<br/>' + tenantReg.adresse + (tenantReg.code_postal ? ', ' + tenantReg.code_postal : '') + (tenantReg.ville ? ' ' + tenantReg.ville : '') : ''}</p>
+      <p style="color:#888;font-size:12px;">Édité le ${new Date().toLocaleDateString('fr-FR')} — ${(membresReg || []).length} salarié(s) inscrit(s)</p>
+      <table style="width:100%;border-collapse:collapse;margin-top:16px;">
+        <thead><tr><th style="text-align:left;padding:8px;border-bottom:2px solid #C9A84C;">Nom</th><th style="text-align:left;padding:8px;border-bottom:2px solid #C9A84C;">Poste</th><th style="text-align:left;padding:8px;border-bottom:2px solid #C9A84C;">Contrat</th><th style="text-align:left;padding:8px;border-bottom:2px solid #C9A84C;">Embauche</th><th style="text-align:left;padding:8px;border-bottom:2px solid #C9A84C;">Fin (si CDD)</th></tr></thead>
+        <tbody>${lignes}</tbody>
+      </table>
+    </div>`;
+    return NextResponse.json({ success: true, html });
+  }
+
+  if (action === 'generer_duer') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { data: tenantDuer } = await sb.from('tenants').select('societe,metier,secteur').eq('id', tenantId).maybeSingle();
+    const { count: effectifDuer } = await sb.from('equipe').select('id', { count: 'exact', head: true }).eq('tenant_id', tenantId);
+    let corpsDuer = '';
+    try {
+      const prompt = `Rédige un brouillon de Document Unique d'Évaluation des Risques (DUER) pour une entreprise française du secteur "${tenantDuer?.secteur || tenantDuer?.metier || 'services'}" avec ${effectifDuer || 0} salarié(s). Liste 5 à 7 risques professionnels plausibles pour ce secteur, chacun avec : nature du risque, niveau (faible/modéré/élevé), mesures de prévention. Format concis, professionnel. Réponds en HTML simple (juste des <h4>, <p>, <ul><li>), sans <html>/<body>.`;
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+        body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1200, messages: [{ role: 'user', content: prompt }] }),
+      });
+      const data = await res.json();
+      corpsDuer = data.content?.[0]?.text || '';
+    } catch (e: any) {
+      return NextResponse.json({ error: 'Génération IA échouée : ' + e.message }, { status: 500 });
+    }
+    const html = `<div style="font-family:sans-serif;padding:32px;color:#222;max-width:750px;">
+      <h2 style="color:#C9A84C">Document Unique d'Évaluation des Risques — Brouillon</h2>
+      <p><strong>${tenantDuer?.societe || 'Xyra'}</strong> · ${effectifDuer || 0} salarié(s) · Édité le ${new Date().toLocaleDateString('fr-FR')}</p>
+      <p style="background:#fff3cd;border:1px solid #ffe69c;padding:10px;border-radius:6px;font-size:12px;">⚠️ Brouillon généré automatiquement, à faire valider et compléter par l'employeur avant tenue officielle du DUER.</p>
+      ${corpsDuer}
+    </div>`;
+    return NextResponse.json({ success: true, html });
   }
 
   if (action === 'ajouter_promotion') {
