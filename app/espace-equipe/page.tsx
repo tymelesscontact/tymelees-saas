@@ -534,7 +534,7 @@ export default function EspaceEquipe() {
               <div style={{ fontSize: 16, fontWeight: 700 }}>{membre?.prenom ? `${membre.prenom} ${membre.nom}` : membre?.nom || "—"}</div>
               <div style={{ fontSize: 12, color: C.muted }}>{membre?.role || "Collaborateur"}</div>
             </div>
-            {[["📧 Email", membre?.email], ["📱 Téléphone", membre?.tel], ["🏠 Adresse", membre?.adresse], ["📋 Contrat", membre?.contrat], ["📅 Depuis le", membre?.date_embauche]].map(([label, valeur], i) => (
+            {[["📧 Email", membre?.email], ["📱 Téléphone", membre?.tel], ["🏠 Adresse", membre?.adresse], ["📋 Contrat", membre?.contrat], ["⏱ Heures/semaine", membre?.heures_semaine ? `${membre.heures_semaine}h` : "35h"], ["📅 Depuis le", membre?.date_embauche]].map(([label, valeur], i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}22`, fontSize: 12 }}>
                 <span style={{ color: C.muted }}>{label}</span>
                 <span>{valeur || "—"}</span>
