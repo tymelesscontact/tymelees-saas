@@ -283,6 +283,48 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       loadRealData();
     }catch(err){showToast("❌ Erreur de connexion");}
   };
+  const[genContratEnCours,setGenContratEnCours]=useState(null);
+  const genererContrat=async(e,avecIa)=>{
+    setGenContratEnCours(e.id);
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generer_contrat',id:e.id,avecIa})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);setGenContratEnCours(null);return;}
+      const fenetre=window.open('','_blank');
+      if(fenetre){fenetre.document.write(data.html);fenetre.document.close();}
+    }catch(err){showToast("❌ Erreur de connexion");}
+    setGenContratEnCours(null);
+  };
+  const envoyerContratWhatsApp=async(e)=>{
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_contrat_whatsapp',id:e.id})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      showToast(`📱 Envoyé à ${e.nom}`);
+    }catch(err){showToast("❌ Erreur de connexion");}
+  };
+  const majDateFinContrat=async(id,date)=>{
+    try{
+      await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'modifier',id,date_fin_contrat:date||null})});
+      loadRealData();
+    }catch(err){}
+  };
+  const[envoiContratsGroupeEnCours,setEnvoiContratsGroupeEnCours]=useState(false);
+  const genererEtEnvoyerTousLesContrats=async()=>{
+    const eligibles=equipe.filter(e=>e.email);
+    if(eligibles.length===0)return showToast("⚠️ Aucun employé avec un email enregistré");
+    setEnvoiContratsGroupeEnCours(true);
+    let envoyes=0;
+    for(const e of eligibles){
+      try{
+        const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generer_contrat',id:e.id,avecIa:true,envoyer:true})});
+        const data=await res.json();
+        if(res.ok&&!data.error)envoyes++;
+      }catch(err){}
+    }
+    showToast(`✅ ${envoyes}/${eligibles.length} contrat(s) IA généré(s) et envoyé(s) par email`);
+    setEnvoiContratsGroupeEnCours(false);
+  };
   const[onglet,setOnglet]=useState("dashboard");
   const[sel,setSel]=useState(null);
   const[showAdd,setShowAdd]=useState(false);
@@ -750,26 +792,27 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     {onglet==="contrats"&&<div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",fontWeight:600}}>📋 Contrats de travail</div>
-        <button onClick={()=>showToast("🤖 Contrat IA généré !")} style={{background:"#9B5FFF",color:"#fff",border:"none",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>🤖 Générer (IA)</button>
+        <button onClick={genererEtEnvoyerTousLesContrats} disabled={envoiContratsGroupeEnCours} style={{background:"#9B5FFF",color:"#fff",border:"none",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>{envoiContratsGroupeEnCours?"Envoi...":"🤖 Générer (IA) & envoyer à tous"}</button>
       </div>
       <table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr>{["Collaborateur","Type","Embauche","Fin prévue","Poste","Salaire","Statut","Actions"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
-        <tbody>{equipe.map((e,i)=><tr key={i}>
+        <tbody>{equipe.map((e,i)=>{const contratSigne=(e.documents||[]).some(d=>d.type==="Contrat signé");return <tr key={i}>
           <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:600}}>{e.nom}</td>
           <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}><span style={{background:(e.contrat==="CDI"?"#2EC9B0":"#4B7BFF")+"22",color:e.contrat==="CDI"?"#2EC9B0":"#4B7BFF",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>{e.contrat}</span></td>
           <td style={{padding:"10px",fontSize:10,borderBottom:"1px solid #1E1E3622",color:"#5A5A7A"}}>{e.embauche}</td>
-          <td style={{padding:"10px",fontSize:10,borderBottom:"1px solid #1E1E3622",color:e.contrat==="CDD"?"#FF8C3A":"#5A5A7A"}}>{e.contrat==="CDD"?"15/09/2025":"Indéterminée"}</td>
+          <td style={{padding:"10px",fontSize:10,borderBottom:"1px solid #1E1E3622",color:e.contrat==="CDD"?"#FF8C3A":"#5A5A7A"}}>{e.contrat==="CDD"?<input type="date" defaultValue={e.date_fin_contrat||""} onBlur={ev=>majDateFinContrat(e.id,ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:4,padding:"2px 4px",color:"#FF8C3A",fontSize:10,fontFamily:"inherit"}}/>:"Indéterminée"}</td>
           <td style={{padding:"10px",fontSize:11,borderBottom:"1px solid #1E1E3622",color:"#5A5A7A"}}>{e.role}</td>
           <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#C9A84C",fontWeight:700}}>{e.salaire.toLocaleString("fr")} €</td>
-          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}><span style={{background:"#2EC9B022",color:"#2EC9B0",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>✓ Signé</span></td>
+          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}>{contratSigne?<span style={{background:"#2EC9B022",color:"#2EC9B0",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>✓ Signé</span>:<span style={{background:"#5A5A7A22",color:"#5A5A7A",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>○ En attente</span>}</td>
           <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}>
             <div style={{display:"flex",gap:4}}>
-              <button onClick={()=>showToast(`📄 Contrat ${e.nom} PDF`)} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>📄 PDF</button>
-              <button onClick={()=>showToast(`📱 Envoyé à ${e.nom}`)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>WA</button>
+              <button onClick={()=>genererContrat(e,true)} disabled={genContratEnCours===e.id} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>{genContratEnCours===e.id?"...":"📄 Aperçu IA"}</button>
+              <button onClick={()=>envoyerContratWhatsApp(e)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>WA</button>
             </div>
           </td>
-        </tr>)}</tbody>
+        </tr>;})}</tbody>
       </table>
+      <div style={{fontSize:9,color:"#5A5A7A",marginTop:10}}>Le statut "Signé" reflète un document de type "Contrat signé" déposé dans l'onglet Documents. L'aperçu IA est un projet de contrat à faire relire avant signature.</div>
     </div>}
 
     {/* ─── DOCUMENTS RH ──────────────────────────────────────── */}

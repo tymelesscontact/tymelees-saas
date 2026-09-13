@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { estProprietaireDuTenant } from '../../lib/permissions';
+import { envoyerWhatsApp } from '../../lib/whatsapp';
 import { createClient } from '@supabase/supabase-js';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -339,6 +340,76 @@ export async function POST(req: NextRequest) {
     if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
     const { error } = await sb.from('objectifs_equipe').delete().eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'generer_contrat') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { id, avecIa, envoyer } = body;
+    const { data: m } = await sb.from('equipe').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!m) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
+    const { data: tenant } = await sb.from('tenants').select('societe,siret,adresse,ville,code_postal,forme_juridique,nom_contact').eq('id', tenantId).maybeSingle();
+    const salaireBrut = Number(m.salaire_brut || m.salaire || 0);
+    const dateEmbauche = m.date_embauche ? new Date(m.date_embauche).toLocaleDateString('fr-FR') : '—';
+    const dateFin = m.date_fin_contrat ? new Date(m.date_fin_contrat).toLocaleDateString('fr-FR') : null;
+
+    let corpsIa = '';
+    if (avecIa) {
+      try {
+        const prompt = `Rédige les clauses principales (objet du contrat, période d'essai, durée du travail, confidentialité, non-concurrence légère) d'un contrat de travail ${m.contrat} français, de façon concise et professionnelle (6-8 lignes), pour :
+Employeur : ${tenant?.societe || 'Xyra'}
+Salarié : ${m.prenom || ''} ${m.nom}, poste : ${m.role}
+Rémunération brute : ${salaireBrut}€/mois
+Durée hebdomadaire : ${m.heures_semaine || 35}h
+${dateFin ? `Terme prévu : ${dateFin}` : ''}
+Ne rédige que les clauses, sans en-tête ni signature.`;
+        const res = await fetch('https://api.anthropic.com/v1/messages', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+          body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, messages: [{ role: 'user', content: prompt }] }),
+        });
+        const data = await res.json();
+        corpsIa = (data.content?.[0]?.text || '').replace(/\n/g, '<br/>');
+      } catch (e: any) {
+        return NextResponse.json({ error: 'Génération IA échouée : ' + e.message }, { status: 500 });
+      }
+    }
+
+    const html = `<div style="font-family:sans-serif;padding:32px;max-width:700px;color:#222;">
+      <h2 style="color:#C9A84C">Contrat de travail — ${m.contrat}</h2>
+      <p><strong>${tenant?.societe || 'Xyra'}</strong>${tenant?.siret ? ' · SIRET ' + tenant.siret : ''}${tenant?.adresse ? '<br/>' + tenant.adresse + (tenant.code_postal ? ', ' + tenant.code_postal : '') + (tenant.ville ? ' ' + tenant.ville : '') : ''}</p>
+      <p>Entre l'employeur ci-dessus et <strong>${m.prenom || ''} ${m.nom}</strong>, il est convenu ce qui suit :</p>
+      <table style="width:100%;border-collapse:collapse;margin:16px 0;">
+        <tr style="background:#f5f5f5"><td style="padding:8px">Poste</td><td style="padding:8px;text-align:right">${m.role || '—'}</td></tr>
+        <tr><td style="padding:8px">Type de contrat</td><td style="padding:8px;text-align:right">${m.contrat}</td></tr>
+        <tr style="background:#f5f5f5"><td style="padding:8px">Date d'embauche</td><td style="padding:8px;text-align:right">${dateEmbauche}</td></tr>
+        ${dateFin ? `<tr><td style="padding:8px">Terme prévu</td><td style="padding:8px;text-align:right">${dateFin}</td></tr>` : ''}
+        <tr style="background:#f5f5f5"><td style="padding:8px">Durée hebdomadaire</td><td style="padding:8px;text-align:right">${m.heures_semaine || 35}h</td></tr>
+        <tr><td style="padding:8px"><strong>Rémunération brute mensuelle</strong></td><td style="padding:8px;text-align:right"><strong>${salaireBrut}€</strong></td></tr>
+      </table>
+      ${corpsIa ? `<div style="margin-top:16px;"><h3 style="font-size:14px;color:#555;">Clauses</h3><p style="line-height:1.6;">${corpsIa}</p></div>` : ''}
+      <p style="color:#888;font-size:12px;margin-top:24px;">Document généré le ${new Date().toLocaleDateString('fr-FR')} — à faire relire et signer avant application. ${tenant?.societe || 'Xyra'} — Document généré automatiquement, ne vaut pas contrat définitif tant que non signé.</p>
+    </div>`;
+    if (envoyer) {
+      if (!m.email) return NextResponse.json({ error: 'Aucun email pour cet employé' }, { status: 400 });
+      try {
+        await sendEmail(m.email, `Votre contrat de travail (${m.contrat})`, html);
+      } catch (e: any) {
+        return NextResponse.json({ error: 'Envoi email échoué : ' + e.message }, { status: 500 });
+      }
+    }
+
+    return NextResponse.json({ success: true, html });
+  }
+
+  if (action === 'envoyer_contrat_whatsapp') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { id } = body;
+    const { data: m } = await sb.from('equipe').select('nom,prenom,tel,contrat').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!m) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
+    if (!m.tel) return NextResponse.json({ error: 'Aucun numéro de téléphone pour cet employé' }, { status: 400 });
+    const resultat = await envoyerWhatsApp(m.tel, `Bonjour ${m.prenom || m.nom}, votre contrat de travail (${m.contrat}) est prêt. Votre RH vous le transmettra pour signature. À bientôt !`, tenantId);
+    if (!resultat.ok) return NextResponse.json({ error: resultat.raison || 'Envoi échoué' }, { status: 500 });
     return NextResponse.json({ success: true });
   }
 
