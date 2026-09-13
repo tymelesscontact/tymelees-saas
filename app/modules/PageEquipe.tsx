@@ -358,6 +358,23 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
           return Math.max(0,Math.round(mois*2.5*10)/10);
         };
         const joursPris=(e)=>(e.congesDemandes||[]).filter(d=>d.statut==="validé").reduce((a,d)=>a+Number(d.jours||0),0);
+        // RTT : aucun jour fixe par la loi -- n'existe que si l'employe travaille
+        // au-dela de 35h/semaine (accord d'entreprise). Formule reelle : heures
+        // au-dela de 35h x ~45,4 semaines travaillees / heures par jour.
+        const joursRTT=(heuresSemaine)=>{
+          const h=Number(heuresSemaine||35);
+          if(h<=35)return 0;
+          const heuresRttAn=(h-35)*45.4;
+          return Math.round((heuresRttAn/(h/5))*10)/10;
+        };
+        const majHeuresSemaine=async(id,heures)=>{
+          try{
+            const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'modifier',id,heures_semaine:Number(heures)||35})});
+            const data=await res.json();
+            if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+            loadRealData();
+          }catch(e){showToast("❌ Erreur de connexion");}
+        };
         const moisActuel=new Date().getMonth(),anneeActuelle=new Date().getFullYear();
         const prisCeMois=toutesDemandes.filter(d=>d.statut==="validé"&&d.debut&&new Date(d.debut).getMonth()===moisActuel&&new Date(d.debut).getFullYear()===anneeActuelle).reduce((a,d)=>a+Number(d.jours||0),0);
         const statuerConge=async(d,statut)=>{
@@ -377,12 +394,17 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
         <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:10,fontWeight:600}}>Soldes par collaborateur</div>
         {loadingEquipe?<div style={{fontSize:12,color:"#5A5A7A"}}>Chargement...</div>:equipe.length===0?<div style={{fontSize:12,color:"#5A5A7A"}}>Aucun employé enregistré.</div>:
         <table style={{width:"100%",borderCollapse:"collapse"}}>
-          <thead><tr>{["Collaborateur","Acquis","Pris","Solde restant"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
+          <thead><tr>{["Collaborateur","Acquis","Pris","Solde restant","RTT"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
           <tbody>{equipe.map((e,i)=><tr key={i}>
             <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:600}}>{e.nom}</td>
             <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#4B7BFF",fontWeight:700}}>{joursAcquis(e.embauche)}j</td>
             <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#5A5A7A"}}>{joursPris(e)}j</td>
             <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:e.soldeConges>5?"#2EC9B0":"#FF8C3A",fontWeight:700}}>{e.soldeConges}j</td>
+            <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#C9A84C"}}>
+              {joursRTT(e.heures_semaine)}j
+              <input type="number" defaultValue={e.heures_semaine||35} min={35} max={45} onBlur={ev=>majHeuresSemaine(e.id,ev.target.value)} style={{width:38,marginLeft:6,background:"#121222",border:"1px solid #1E1E36",borderRadius:4,padding:"2px 4px",color:"#5A5A7A",fontSize:9,fontFamily:"inherit"}}/>
+              <span style={{color:"#5A5A7A",fontSize:9}}>h/sem</span>
+            </td>
           </tr>)}</tbody>
         </table>}
       </div>
