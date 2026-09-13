@@ -223,12 +223,13 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
           </div>
           <div style={{background:"#FF525211",border:"1px solid #FF525233",borderRadius:10,padding:14}}>
             <div style={{fontSize:10,color:"#FF5252",fontWeight:600,marginBottom:8}}>🔔 Alertes RH du jour</div>
-            {[["⚠️","CDD Abou expire dans 2 mois","Décision CDI requise"],["📅","Visite médicale Thomas","Avant le 30/04/2026"],["📋","Entretien pro Fatou","À planifier avant sept."]].map(([ic,t,d],i)=><div key={i} style={{display:"flex",gap:8,padding:"5px 0",borderBottom:"1px solid #FF525222",fontSize:11}}><span>{ic}</span><div><div style={{color:"#EAE6DE",fontWeight:600}}>{t}</div><div style={{color:"#5A5A7A",fontSize:10}}>{d}</div></div></div>)}
+            {alertes.length===0&&<div style={{fontSize:11,color:"#5A5A7A"}}>Aucune alerte pour le moment.</div>}
+            {alertes.slice(0,4).map((al,i)=><div key={i} style={{display:"flex",gap:8,padding:"5px 0",borderBottom:"1px solid #FF525222",fontSize:11}}><span>{al.type==="contrat"?"⚠️":al.type==="conge"?"📅":al.type==="acompte"?"💰":"📋"}</span><div><div style={{color:"#EAE6DE",fontWeight:600}}>{al.nom}</div><div style={{color:"#5A5A7A",fontSize:10}}>{al.detail}</div></div></div>)}
           </div>
         </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        {[["🎯 Objectifs atteints","8/12","#2EC9B0"],["🎓 Formations complètes","3/5","#4B7BFF"],["📅 Jours de congés pris","12/52","#C9A84C"]].map(([l,v,c],i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:10,padding:14,textAlign:"center"}}><div style={{fontSize:11,color:"#5A5A7A",marginBottom:4}}>{l}</div><div style={{fontSize:22,fontWeight:700,color:c}}>{v}</div></div>)}
+        {[["🎯 Objectifs atteints","—","#2EC9B0"],["🎓 Formations complètes",`${equipe.reduce((a,e)=>a+e.formations.filter(f=>f.statut==="complété").length,0)}/${equipe.reduce((a,e)=>a+e.formations.length,0)}`,"#4B7BFF"],["📅 Jours de congés pris",equipe.reduce((a,e)=>a+(e.congesDemandes||[]).filter(d=>d.statut==="validé").reduce((s,d)=>s+Number(d.jours||0),0),0),"#C9A84C"]].map(([l,v,c],i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:10,padding:14,textAlign:"center"}}><div style={{fontSize:11,color:"#5A5A7A",marginBottom:4}}>{l}</div><div style={{fontSize:22,fontWeight:700,color:c}}>{v}</div></div>)}
       </div>
     </div>}
 
