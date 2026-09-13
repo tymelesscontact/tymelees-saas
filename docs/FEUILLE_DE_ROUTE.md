@@ -110,14 +110,14 @@ Légende statut : ✅ audité et sain · 🟡 audité, problèmes mineurs notés
 - Contient aussi le "Convertisseur" (calcul local, pas de faille).
 
 #### ◈ Cartes Virtuelles — `PageCartes.tsx` / `api/cartes`
-- **Statut** : 🔴 (paywall composant réglé — T17, 11/09/2026)
+- **Statut** : 🟡 (failles serveur réglées le 13/09/2026 ; onglet "Sécurité" cosmétique toujours faux, non traité)
 - **Rôle** : cartes bancaires virtuelles par collaborateur/projet, transactions, approbations de dépenses, budgets par projet, analyse IA des dépenses.
 - **Tables** : `cartes_virtuelles`, `cartes_transactions`, `cartes_budgets_projet`.
 - **Problèmes trouvés** :
   - ✅ **Réglé (T17)** : `hasAccess(plan,"cartes",modulesActifs)` + `<UpgradeWall/>` ajoutés. Le verrou sidebar reste purement visuel (`xyra.jsx`/`tymeless.jsx` laissent `setPage()` s'exécuter même sur un item "🔒") mais le composant lui-même bloque désormais correctement l'affichage pour un plan non autorisé.
-  - `api/cartes/route.ts` action `create` (l.71-86) : pas de garde `if(!tenantId)` avant l'insert (contrairement aux autres actions) → un appel non authentifié crée une carte `tenant_id: null` (client service-role, bypass RLS).
-  - `ajouter_transaction` (l.119-129) : insère sans `tenant_id` alors que les lectures filtrent dessus → transaction invisible ensuite dans l'historique/les approbations (bug fonctionnel, pas juste sécurité).
-  - `approuver_transaction` (l.140-146) : `update().eq('id',id)` **sans** `.eq('tenant_id',tenantId)` → un autre tenant connaissant/devinant un id de transaction pourrait l'approuver (fuite cross-tenant en écriture). **Reconfirmé le 13/09/2026, en production, toujours non corrigé** — client service-role (bypass RLS), aucune autre protection.
+  - ✅ **Réglé (13/09/2026)** : `create` avait pas de garde `if(!tenantId)` avant l'insert (contrairement aux autres actions) → un appel non authentifié pouvait créer une carte `tenant_id: null`. Garde ajoutée.
+  - ✅ **Réglé (13/09/2026)** : `ajouter_transaction` insérait sans `tenant_id` alors que les lectures (`transactions_all`/`en_attente`) filtrent dessus → transaction invisible ensuite dans certains écrans (bug fonctionnel). `tenant_id` ajouté à l'insert.
+  - ✅ **Réglé (13/09/2026)** : `approuver_transaction` faisait `update().eq('id',id)` **sans** `.eq('tenant_id',tenantId)` → un autre tenant connaissant/devinant un id de transaction pouvait l'approuver (fuite cross-tenant en écriture), et le `carte_id`/`montant` utilisés pour créditer le solde venaient du corps de la requête (donc manipulables) plutôt que de la transaction réelle. Corrigé : la transaction est d'abord relue avec `.eq('tenant_id',tenantId)` (existence + autorisation en un seul filtre), le `carte_id`/`montant` utilisés pour le crédit viennent de cette ligne réelle, jamais du client. Build vérifié.
   - Fuites `error.message` brutes : l.84, 126, 152, 160.
   - Onglet "🛡 Sécurité" (plafonds, pays autorisés, toggles) entièrement cosmétique : aucun bouton Enregistrer, aucun `onClick` sur les toggles — faux boutons.
 
