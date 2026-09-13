@@ -72,6 +72,18 @@ export async function GET(req: NextRequest) {
   const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ membres: [], alertes: [] });
+
+  // Lien temporaire vers un document employe (bucket prive) -- reserve RH/owner.
+  if (action === 'document_url') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const idDoc = searchParams.get('id');
+    if (!idDoc) return NextResponse.json({ error: 'id requis' }, { status: 400 });
+    const { data: doc } = await sb.from('documents_equipe').select('chemin,nom').eq('id', idDoc).eq('tenant_id', tenantId).maybeSingle();
+    if (!doc) return NextResponse.json({ error: 'Document introuvable' }, { status: 404 });
+    const { data: signee, error: errSignee } = await sb.storage.from('documents-equipe').createSignedUrl(doc.chemin, 300);
+    if (errSignee || !signee) return NextResponse.json({ error: errSignee?.message || 'Lien indisponible' }, { status: 500 });
+    return NextResponse.json({ url: signee.signedUrl, nom: doc.nom });
+  }
   let membresQuery = sb.from('equipe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (companyId && UUID_RE.test(companyId)) membresQuery = membresQuery.eq('company_id', companyId);
   const { data: membres, error } = await membresQuery;
@@ -88,6 +100,7 @@ export async function GET(req: NextRequest) {
   const { data: positions } = await sb.from('positions_collaborateurs').select('*').eq('tenant_id', tenantId);
   const moisIsoCourant = new Date().toISOString().slice(0, 7);
   const { data: fichesPaie } = await sb.from('fiches_paie').select('*').eq('tenant_id', tenantId).eq('mois', moisIsoCourant);
+  const { data: documents } = await sb.from('documents_equipe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
 
   const enriched = (membres || []).map((m: any) => {
     const mId = m.user_id || m.id;
@@ -100,6 +113,7 @@ export async function GET(req: NextRequest) {
     const mMissions = (missions || []).filter((ms: any) => ms.employe_id === m.id || ms.collaborateur_id === m.id);
     const mPosition = (positions || []).find((p: any) => p.collaborateur_id === m.id) || null;
     const mFichePaie = (fichesPaie || []).find((f: any) => f.employe_id === m.id) || null;
+    const mDocuments = (documents || []).filter((d: any) => d.employe_id === m.id);
 
     const heuresCeMois = mPointages
       .filter((p: any) => new Date(p.date).getMonth() === new Date().getMonth())
@@ -115,6 +129,7 @@ export async function GET(req: NextRequest) {
       acomptes: mAcomptes,
       evaluations: mEvals,
       formations: mFormations,
+      documents: mDocuments,
       missions: mMissions.slice(0, 20),
       heuresCeMois: Math.round(heuresCeMois * 10) / 10,
       paie,
@@ -146,11 +161,38 @@ export async function POST(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
 
-  // Upload d'une vidéo dans la bibliothèque de formations — formulaire
-  // multipart, traité à part avant le parsing JSON du reste des actions.
+  // Upload d'une vidéo dans la bibliothèque de formations, ou d'un document
+  // employé (bucket privé) — formulaire multipart, traité à part avant le
+  // parsing JSON du reste des actions.
   const contentType = req.headers.get('content-type') || '';
   if (contentType.includes('multipart/form-data')) {
     const formData = await req.formData();
+
+    if (formData.get('cible') === 'document_employe') {
+      if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+      const employeId = String(formData.get('employe_id') || '');
+      const type = String(formData.get('type') || 'Autre');
+      const expireLe = String(formData.get('expire_le') || '') || null;
+      const fichierDoc = formData.get('fichier') as File | null;
+      if (!employeId || !fichierDoc) return NextResponse.json({ error: 'Employé et fichier requis' }, { status: 400 });
+      const { data: empDoc } = await sb.from('equipe').select('id').eq('id', employeId).eq('tenant_id', tenantId).maybeSingle();
+      if (!empDoc) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
+      const extensionDoc = (fichierDoc.name.split('.').pop() || 'pdf').toLowerCase();
+      const cheminDoc = `${tenantId}/${employeId}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${extensionDoc}`;
+      const bytesDoc = await fichierDoc.arrayBuffer();
+      const { error: errUploadDoc } = await sb.storage.from('documents-equipe').upload(cheminDoc, Buffer.from(bytesDoc), {
+        contentType: fichierDoc.type || 'application/octet-stream',
+        upsert: false,
+      });
+      if (errUploadDoc) return NextResponse.json({ error: errUploadDoc.message }, { status: 500 });
+      const { data: docInsere, error: errDocInsert } = await sb.from('documents_equipe').insert({
+        tenant_id: tenantId, employe_id: employeId, nom: fichierDoc.name, type,
+        chemin: cheminDoc, taille: fichierDoc.size, expire_le: expireLe,
+      }).select().single();
+      if (errDocInsert) return NextResponse.json({ error: errDocInsert.message }, { status: 500 });
+      return NextResponse.json({ success: true, document: docInsere });
+    }
+
     const titre = String(formData.get('titre') || '').trim();
     const description = String(formData.get('description') || '');
     const fichier = formData.get('video') as File | null;
@@ -222,6 +264,45 @@ export async function POST(req: NextRequest) {
       if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     }
     return NextResponse.json({ success: true });
+  }
+
+  if (action === 'supprimer_document') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { id } = body;
+    if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
+    const { data: docSuppr } = await sb.from('documents_equipe').select('chemin').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!docSuppr) return NextResponse.json({ error: 'Document introuvable' }, { status: 404 });
+    await sb.storage.from('documents-equipe').remove([docSuppr.chemin]);
+    const { error } = await sb.from('documents_equipe').delete().eq('id', id).eq('tenant_id', tenantId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'envoyer_document') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { id } = body;
+    if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
+    const { data: docEnvoi } = await sb.from('documents_equipe').select('*, equipe:employe_id(nom,prenom,email)').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!docEnvoi) return NextResponse.json({ error: 'Document introuvable' }, { status: 404 });
+    const emailDest = (docEnvoi as any).equipe?.email;
+    if (!emailDest) return NextResponse.json({ error: 'Aucun email pour cet employé' }, { status: 400 });
+    const { data: fichierTelecharge, error: errTelecharge } = await sb.storage.from('documents-equipe').download(docEnvoi.chemin);
+    if (errTelecharge || !fichierTelecharge) return NextResponse.json({ error: errTelecharge?.message || 'Fichier introuvable' }, { status: 500 });
+    const octetsDoc = Buffer.from(await fichierTelecharge.arrayBuffer());
+    try {
+      const { Resend } = await import('resend');
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      await resend.emails.send({
+        from: 'Xyra <notifications@xyraio.fr>',
+        to: emailDest,
+        subject: `Document — ${docEnvoi.nom}`,
+        html: `<div style="font-family:sans-serif;padding:24px;"><p>Bonjour ${(docEnvoi as any).equipe?.prenom || ''},</p><p>Vous trouverez en pièce jointe le document <strong>${docEnvoi.nom}</strong> (${docEnvoi.type || 'document'}).</p></div>`,
+        attachments: [{ filename: docEnvoi.nom, content: octetsDoc.toString('base64') }],
+      });
+    } catch (e: any) {
+      return NextResponse.json({ error: 'Envoi email échoué : ' + e.message }, { status: 500 });
+    }
+    return NextResponse.json({ success: true, email: emailDest });
   }
 
   if (action === 'creer') {

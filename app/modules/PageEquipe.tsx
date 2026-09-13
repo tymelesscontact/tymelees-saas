@@ -201,6 +201,50 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     setEnvoiToutesFichesEnCours(false);
     loadRealData();
   };
+  const[docFormId,setDocFormId]=useState(null);
+  const[docType,setDocType]=useState("Carte d'identité");
+  const[docExpire,setDocExpire]=useState("");
+  const[docFichier,setDocFichier]=useState(null);
+  const[uploadDocEnCours,setUploadDocEnCours]=useState(false);
+  const ouvrirAjoutDocument=(id)=>{
+    setDocType("Carte d'identité");setDocExpire("");setDocFichier(null);
+    setDocFormId(docFormId===id?null:id);
+  };
+  const ajouterDocument=async(employeId)=>{
+    if(!docFichier)return showToast("⚠️ Choisis un fichier");
+    setUploadDocEnCours(true);
+    try{
+      const fd=new FormData();
+      fd.append('cible','document_employe');
+      fd.append('employe_id',employeId);
+      fd.append('type',docType);
+      if(docExpire)fd.append('expire_le',docExpire);
+      fd.append('fichier',docFichier);
+      const res=await fetch('/api/equipe',{method:'POST',body:fd});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);setUploadDocEnCours(false);return;}
+      showToast("✅ Document ajouté");
+      setDocFormId(null);
+      loadRealData();
+    }catch(err){showToast("❌ Erreur de connexion");}
+    setUploadDocEnCours(false);
+  };
+  const voirDocument=async(d)=>{
+    try{
+      const res=await fetch(`/api/equipe?action=document_url&id=${d.id}`);
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      window.open(data.url,'_blank');
+    }catch(err){showToast("❌ Erreur de connexion");}
+  };
+  const envoyerDocument=async(d,employeNom)=>{
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_document',id:d.id})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      showToast(`📧 Envoyé à ${employeNom}`);
+    }catch(err){showToast("❌ Erreur de connexion");}
+  };
   const[onglet,setOnglet]=useState("dashboard");
   const[sel,setSel]=useState(null);
   const[showAdd,setShowAdd]=useState(false);
@@ -681,25 +725,35 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
 
     {/* ─── DOCUMENTS RH ──────────────────────────────────────── */}
     {onglet==="documents"&&<div>
-      {equipe.map((e,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16,marginBottom:10}}>
+      {loadingEquipe?<div style={{fontSize:12,color:"#5A5A7A"}}>Chargement...</div>:equipe.length===0?<div style={{fontSize:12,color:"#5A5A7A"}}>Aucun employé enregistré.</div>:
+      equipe.map((e,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16,marginBottom:10}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
           <div style={{width:32,height:32,borderRadius:"50%",background:e.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:e.couleur}}>{e.nom[0]}</div>
           <div style={{flex:1,fontSize:13,fontWeight:700}}>{e.nom}</div>
-          <button onClick={()=>showToast(`📤 Document ajouté pour ${e.nom}`)} style={{background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>+ Ajouter document</button>
+          <button onClick={()=>ouvrirAjoutDocument(e.id)} style={{background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>+ Ajouter document</button>
         </div>
+        {docFormId===e.id&&<div style={{background:"#0A0A16",borderRadius:8,padding:12,marginBottom:10,display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap"}}>
+          <label style={{fontSize:10,color:"#5A5A7A"}}>Type<br/><select value={docType} onChange={ev=>setDocType(ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}><option>Carte d'identité</option><option>Contrat signé</option><option>RIB</option><option>Justificatif de domicile</option><option>Autre</option></select></label>
+          <label style={{fontSize:10,color:"#5A5A7A"}}>Expiration (facultatif)<br/><input type="date" value={docExpire} onChange={ev=>setDocExpire(ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+          <label style={{fontSize:10,color:"#5A5A7A"}}>Fichier<br/><input type="file" onChange={ev=>setDocFichier(ev.target.files?.[0]||null)} style={{fontSize:10,color:"#EDEDF5"}}/></label>
+          <button onClick={()=>ajouterDocument(e.id)} disabled={uploadDocEnCours} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:6,padding:"7px 14px",cursor:"pointer",fontWeight:600,fontSize:11,fontFamily:"inherit"}}>{uploadDocEnCours?"Envoi...":"Ajouter"}</button>
+          <button onClick={()=>setDocFormId(null)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:6,padding:"7px 14px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Annuler</button>
+        </div>}
+        {(e.documents||[]).length===0?<div style={{fontSize:11,color:"#5A5A7A"}}>Aucun document.</div>:
         <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:8}}>
           {e.documents.map((d,j)=><div key={j} style={{background:"#121222",borderRadius:8,padding:10,border:"1px solid #1E1E36"}}>
             <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}>
               <span style={{fontSize:11,fontWeight:600}}>{d.nom}</span>
-              <span style={{fontSize:9,background:(d.statut==="valide"||d.statut==="signé")?"#2EC9B022":"#FF525222",color:(d.statut==="valide"||d.statut==="signé")?"#2EC9B0":"#FF5252",padding:"1px 5px",borderRadius:8,fontWeight:600}}>{d.statut}</span>
+              <span style={{fontSize:9,background:"#2EC9B022",color:"#2EC9B0",padding:"1px 5px",borderRadius:8,fontWeight:600}}>{d.statut}</span>
             </div>
-            <div style={{fontSize:9,color:"#5A5A7A",marginBottom:6}}>{d.type}{d.expire?" · Expire : "+d.expire:""}{d.date?" · "+d.date:""}</div>
+            <div style={{fontSize:9,color:"#5A5A7A",marginBottom:6}}>{d.type}{d.expire_le?" · Expire : "+new Date(d.expire_le).toLocaleDateString("fr-FR"):""}{d.created_at?" · "+new Date(d.created_at).toLocaleDateString("fr-FR"):""}</div>
             <div style={{display:"flex",gap:4}}>
-              <button onClick={()=>showToast(`📄 ${d.nom} téléchargé`)} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:4,padding:"3px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>📥 Voir</button>
-              <button onClick={()=>showToast(`📧 Envoyé à ${e.nom}`)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:4,padding:"3px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>📧</button>
+              <button onClick={()=>voirDocument(d)} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:4,padding:"3px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>📥 Voir</button>
+              <button onClick={()=>envoyerDocument(d,e.nom)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:4,padding:"3px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>📧</button>
+              <button onClick={async()=>{if(!window.confirm(`Supprimer ${d.nom} ?`))return;const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer_document',id:d.id})});const data=await res.json();if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}showToast("✅ Document supprimé");loadRealData();}} style={{background:"transparent",color:"#FF5252",border:"1px solid #FF525233",borderRadius:4,padding:"3px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>🗑</button>
             </div>
           </div>)}
-        </div>
+        </div>}
       </div>)}
     </div>}
 
