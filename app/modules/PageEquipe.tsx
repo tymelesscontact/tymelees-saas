@@ -332,7 +332,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
         </div>
         <div style={{height:3,borderRadius:2,background:"#1E1E36",marginBottom:10}}><div style={{height:"100%",width:e.perf+"%",background:e.perf>=90?"#2EC9B0":e.perf>=70?"#C9A84C":"#FF8C3A",borderRadius:2}}/></div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr",gap:5}}>
-          {[["💸 Paie",()=>showToast(`✅ Fiche paie ${e.nom} générée`)],["📍 GPS",()=>showToast("📍 GPS ouvert")],["💬 Chat",()=>contacterMembreEquipe(e)],["📋 Fiche",()=>setSel(sel?.id===e.id?null:e)],["🗑 Suppr.",async()=>{
+          {[["💸 Paie",()=>showToast(`✅ Fiche paie ${e.nom} générée`)],["📍 GPS",()=>voirPosition(e)],["💬 Chat",()=>contacterMembreEquipe(e)],["📋 Fiche",()=>setSel(sel?.id===e.id?null:e)],["🗑 Suppr.",async()=>{
             if(!window.confirm(`Supprimer ${e.nom} de l'equipe ? Son compte de connexion sera aussi supprime.`))return;
             try{
               const res=await fetch("/api/equipe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"supprimer",id:e.id})});
