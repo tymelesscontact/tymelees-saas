@@ -64,6 +64,9 @@ export default function EspaceEquipe() {
   const [mesFormations, setMesFormations] = useState<any[]>([]);
   const [catalogueFormations, setCatalogueFormations] = useState<any[]>([]);
   const [mesValidations, setMesValidations] = useState<any[]>([]);
+  const [pulseEtat, setPulseEtat] = useState<{ dejaRepondu: boolean; entree: any } | null>(null);
+  const [pulseCommentaire, setPulseCommentaire] = useState("");
+  const [envoiPulse, setEnvoiPulse] = useState(false);
   const finMessagesRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -97,6 +100,7 @@ export default function EspaceEquipe() {
       fetch("/api/pointage").then(r => r.json()).then(d => setMonPointage(d.pointage)).catch(() => {});
       fetch("/api/equipe?action=mes_formations").then(r => r.json()).then(d => { setMesFormations(d.formations || []); setCatalogueFormations(d.catalogue || []); }).catch(() => {});
       fetch("/api/absences?vue=mes_validations").then(r => r.json()).then(d => setMesValidations(d.absences || [])).catch(() => {});
+      fetch("/api/pulse-bienetre?action=moi").then(r => r.json()).then(d => setPulseEtat(d)).catch(() => {});
       setMembre({ email: who.email, employe_id: who.employeId, ...(who.profil || {}) });
     } catch (e: any) {
       setErreur("connexion");
@@ -151,6 +155,19 @@ export default function EspaceEquipe() {
       (err) => showToast("⚠️ Localisation refusee ou indisponible: " + err.message),
       { enableHighAccuracy: false, timeout: 8000 }
     );
+  };
+
+  const envoyerPulse = async (score: number) => {
+    setEnvoiPulse(true);
+    try {
+      const r = await fetch("/api/pulse-bienetre", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "repondre", score, commentaire: pulseCommentaire || null }) });
+      const d = await r.json();
+      if (!r.ok || d.error) { showToast("❌ " + (d.error || "Erreur")); setEnvoiPulse(false); return; }
+      showToast("✅ Merci pour ton retour");
+      setPulseCommentaire("");
+      fetch("/api/pulse-bienetre?action=moi").then(res => res.json()).then(dd => setPulseEtat(dd)).catch(() => {});
+    } catch { showToast("❌ Erreur de connexion"); }
+    setEnvoiPulse(false);
   };
 
   const validerCommeResponsable = async (id: string) => {
@@ -330,6 +347,25 @@ export default function EspaceEquipe() {
             <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 4 }}>Bonjour 👋</div>
             <div style={{ fontSize: 11, color: C.muted }}>{new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</div>
           </div>
+
+          {pulseEtat && !pulseEtat.dejaRepondu && (
+            <Card style={{ marginBottom: 16, borderColor: `${C.purple}44` }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>🙂 Comment te sens-tu au travail ce mois-ci ?</div>
+              <div style={{ fontSize: 10, color: C.muted, marginBottom: 12 }}>Anonyme pour tes collègues — seule la direction voit qui répond quoi.</div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                {[["😞", 1], ["😐", 2], ["🙂", 3], ["😊", 4], ["🤩", 5]].map(([emoji, score]) => (
+                  <button key={score as number} onClick={() => envoyerPulse(score as number)} disabled={envoiPulse} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", fontSize: 22, cursor: "pointer" }}>{emoji}</button>
+                ))}
+              </div>
+              <textarea value={pulseCommentaire} onChange={(e) => setPulseCommentaire(e.target.value)} placeholder="Un commentaire (facultatif)..." rows={2} style={{ width: "100%", background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: 10, color: C.text, fontSize: 12, fontFamily: "inherit", resize: "vertical" as any, boxSizing: "border-box" as any }} />
+            </Card>
+          )}
+          {pulseEtat?.dejaRepondu && pulseEtat.entree?.reponse_rh && (
+            <Card style={{ marginBottom: 16, borderColor: `${C.purple}44` }}>
+              <div style={{ fontSize: 11, color: C.purple, fontWeight: 700, marginBottom: 6 }}>💬 Réponse de la direction à ton retour de ce mois-ci</div>
+              <div style={{ fontSize: 12, color: C.text }}>{pulseEtat.entree.reponse_rh}</div>
+            </Card>
+          )}
 
           <Card>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>✅ Missions du jour</div>

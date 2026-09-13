@@ -422,7 +422,32 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       loadRealData();
     }catch(err){}
   };
+  const[qvtData,setQvtData]=useState(null);
+  const[qvtChargement,setQvtChargement]=useState(false);
+  const[qvtReponseId,setQvtReponseId]=useState(null);
+  const[qvtReponseTexte,setQvtReponseTexte]=useState("");
+  const chargerQvt=async()=>{
+    setQvtChargement(true);
+    try{
+      const res=await fetch('/api/pulse-bienetre?action=aggregate');
+      const data=await res.json();
+      setQvtData(data);
+    }catch(e){}
+    setQvtChargement(false);
+  };
+  const repondreQvt=async(id)=>{
+    if(!qvtReponseTexte)return showToast("⚠️ Ecris une réponse");
+    try{
+      const res=await fetch('/api/pulse-bienetre',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'repondre_rh',id,reponse:qvtReponseTexte})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      showToast("✅ Réponse envoyée");
+      setQvtReponseId(null);setQvtReponseTexte("");
+      chargerQvt();
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const[onglet,setOnglet]=useState("dashboard");
+  useEffect(()=>{if(onglet==="qvt")chargerQvt();},[onglet]);
   const[sel,setSel]=useState(null);
   const[showAdd,setShowAdd]=useState(false);
   const[debugErreur,setDebugErreur]=useState(null);
@@ -433,6 +458,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     {id:"dashboard",label:"📊 Tableau de bord"},
     {id:"equipe",label:"👥 Équipe"},
     {id:"onboarding",label:"🚀 Onboarding"},
+    {id:"qvt",label:"🙂 QVT & Bien-être"},
     {id:"objectifs",label:"🎯 Objectifs & KPIs"},
     {id:"pointage",label:"⏰ Pointage GPS"},
     {id:"conges",label:"🏖 Congés"},
@@ -652,6 +678,46 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
           </div>
         </div>;
       })}
+    </div>}
+
+    {/* ─── QVT & BIEN-ÊTRE ───────────────────────────────────── */}
+    {onglet==="qvt"&&<div>
+      {qvtChargement?<div style={{fontSize:12,color:"#5A5A7A"}}>Chargement...</div>:!qvtData?<div style={{fontSize:12,color:"#5A5A7A"}}>Erreur de chargement.</div>:(()=>{
+        const emojiDe=(s)=>s>=4.5?"🤩":s>=3.5?"😊":s>=2.5?"🙂":s>=1.5?"😐":"😞";
+        const tendance=qvtData.moyenneMois!=null&&qvtData.moyennePrecedente!=null?Math.round((qvtData.moyenneMois-qvtData.moyennePrecedente)*10)/10:null;
+        return <>
+        <div style={{fontSize:10,color:"#5A5A7A",marginBottom:14}}>Réponses anonymes pour l'équipe — seul le propriétaire du compte voit qui a répondu quoi.</div>
+        <div style={{display:"grid",gridTemplateColumns:qvtData.benchmarkXyra?"repeat(4,1fr)":"repeat(3,1fr)",gap:10,marginBottom:14}}>
+          <div style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>Score moyen ce mois</div><div style={{fontSize:22,fontWeight:700,color:"#9B5FFF"}}>{qvtData.moyenneMois!=null?`${qvtData.moyenneMois} ${emojiDe(qvtData.moyenneMois)}`:"—"}</div></div>
+          <div style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>Tendance vs mois dernier</div><div style={{fontSize:22,fontWeight:700,color:tendance==null?"#5A5A7A":tendance>=0?"#2EC9B0":"#FF8C3A"}}>{tendance==null?"—":`${tendance>0?"+":""}${tendance}`}</div></div>
+          <div style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>Participation</div><div style={{fontSize:22,fontWeight:700,color:"#4B7BFF"}}>{qvtData.participation}%</div></div>
+          {qvtData.benchmarkXyra&&<div style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>Moy. autres clients Xyra</div><div style={{fontSize:22,fontWeight:700,color:"#C9A84C"}}>{qvtData.benchmarkXyra.moyenne}</div><div style={{fontSize:8,color:"#5A5A7A",marginTop:2}}>sur {qvtData.benchmarkXyra.nbEntreprises} entreprises</div></div>}
+        </div>
+        {qvtData.historique.length>0&&<div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18,marginBottom:14}}>
+          <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:12,fontWeight:600}}>Évolution du score moyen</div>
+          <div style={{display:"flex",alignItems:"flex-end",gap:10,height:80}}>
+            {qvtData.historique.map((h,i)=><div key={i} style={{flex:1,display:"flex",flexDirection:"column",alignItems:"center",gap:4}}>
+              <div style={{width:"100%",background:"#9B5FFF33",borderRadius:"4px 4px 0 0",height:`${((h.moyenne||0)/5)*100}%`,minHeight:h.moyenne?4:0,position:"relative"}}><div style={{position:"absolute",top:-16,left:0,right:0,textAlign:"center",fontSize:9,color:"#9B5FFF",fontWeight:700}}>{h.moyenne??"—"}</div></div>
+              <div style={{fontSize:8,color:"#5A5A7A"}}>{h.mois.slice(5)}</div>
+            </div>)}
+          </div>
+        </div>}
+        {qvtData.estProprietaire?<div>
+          <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:10,fontWeight:600}}>Réponses de ce mois (nominatif — visible uniquement par toi)</div>
+          {(!qvtData.detail||qvtData.detail.length===0)?<div style={{fontSize:11,color:"#5A5A7A"}}>Aucune réponse ce mois-ci.</div>:qvtData.detail.map((d,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:10,padding:14,marginBottom:8}}>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:6}}>
+              <div style={{fontWeight:700,fontSize:12}}>{d.nom_employe}</div>
+              <div style={{fontSize:18}}>{emojiDe(d.score)} {d.score}/5</div>
+            </div>
+            {d.commentaire&&<div style={{fontSize:12,color:"#EAE6DE",marginBottom:8}}>"{d.commentaire}"</div>}
+            {d.reponse_rh?<div style={{fontSize:11,color:"#9B5FFF",background:"#9B5FFF11",padding:8,borderRadius:6}}>💬 Ta réponse : {d.reponse_rh}</div>:
+            qvtReponseId===d.id?<div style={{display:"flex",gap:6}}>
+              <input type="text" value={qvtReponseTexte} onChange={ev=>setQvtReponseTexte(ev.target.value)} placeholder="Répondre en privé..." style={{flex:1,background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/>
+              <button onClick={()=>repondreQvt(d.id)} style={{background:"#9B5FFF",color:"#fff",border:"none",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Envoyer</button>
+            </div>:<button onClick={()=>{setQvtReponseId(d.id);setQvtReponseTexte("");}} style={{background:"transparent",color:"#9B5FFF",border:"1px solid #9B5FFF44",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>💬 Répondre en privé</button>}
+          </div>)}
+        </div>:<div style={{fontSize:11,color:"#5A5A7A"}}>Le détail nominatif des réponses est réservé au propriétaire du compte.</div>}
+        </>;})()}
     </div>}
 
     {onglet==="objectifs"&&<div>
