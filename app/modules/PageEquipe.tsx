@@ -325,6 +325,25 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     showToast(`✅ ${envoyes}/${eligibles.length} contrat(s) IA généré(s) et envoyé(s) par email`);
     setEnvoiContratsGroupeEnCours(false);
   };
+  const[promoFormId,setPromoFormId]=useState(null);
+  const[promoPoste,setPromoPoste]=useState("");
+  const[promoSalaire,setPromoSalaire]=useState("");
+  const[promoDate,setPromoDate]=useState("");
+  const ouvrirAjoutPromotion=(e)=>{
+    setPromoPoste(e.role||"");setPromoSalaire(String(e.salaire||""));setPromoDate(new Date().toISOString().slice(0,10));
+    setPromoFormId(promoFormId===e.id?null:e.id);
+  };
+  const ajouterPromotion=async(employeId)=>{
+    if(!promoPoste||!promoSalaire)return showToast("⚠️ Poste et salaire requis");
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter_promotion',employe_id:employeId,poste:promoPoste,salaire:Number(promoSalaire),date:promoDate})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      showToast("✅ Promotion enregistrée");
+      setPromoFormId(null);
+      loadRealData();
+    }catch(err){showToast("❌ Erreur de connexion");}
+  };
   const[onglet,setOnglet]=useState("dashboard");
   const[sel,setSel]=useState(null);
   const[showAdd,setShowAdd]=useState(false);
@@ -932,20 +951,27 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
           <div style={{flex:1}}><div style={{fontSize:14,fontWeight:700}}>{e.nom}</div><div style={{fontSize:10,color:"#5A5A7A"}}>Depuis {e.embauche} · Poste actuel : {e.role}</div></div>
           <div style={{textAlign:"right"}}><div style={{fontSize:10,color:"#5A5A7A"}}>Salaire actuel</div><div style={{fontSize:16,fontWeight:700,color:"#C9A84C"}}>{e.salaire.toLocaleString("fr")} €</div></div>
         </div>
+        {(e.carriere||[]).length===0?<div style={{fontSize:11,color:"#5A5A7A",padding:"8px 0"}}>Aucun historique enregistré.</div>:
         <div style={{position:"relative",paddingLeft:24}}>
           <div style={{position:"absolute",left:8,top:0,bottom:0,width:2,background:"#1E1E36",borderRadius:1}}/>
           {e.carriere.map((c,j)=><div key={j} style={{position:"relative",marginBottom:16}}>
             <div style={{position:"absolute",left:-20,top:4,width:10,height:10,borderRadius:"50%",background:j===e.carriere.length-1?e.couleur:"#1E1E36",border:`2px solid ${e.couleur}`}}/>
             <div style={{background:"#121222",borderRadius:8,padding:10,border:`1px solid ${j===e.carriere.length-1?e.couleur+"44":"#1E1E36"}`}}>
               <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
-                <div><div style={{fontSize:12,fontWeight:700,color:j===e.carriere.length-1?e.couleur:"#EAE6DE"}}>{c.poste}</div><div style={{fontSize:9,color:"#5A5A7A"}}>{c.date}</div></div>
+                <div><div style={{fontSize:12,fontWeight:700,color:j===e.carriere.length-1?e.couleur:"#EAE6DE"}}>{c.poste}</div><div style={{fontSize:9,color:"#5A5A7A"}}>{new Date(c.date).toLocaleDateString("fr-FR")}</div></div>
                 <div style={{fontSize:13,fontWeight:700,color:"#C9A84C"}}>{c.salaire.toLocaleString("fr")} €</div>
               </div>
               {j>0&&<div style={{fontSize:9,color:"#2EC9B0",marginTop:4}}>↗ +{(c.salaire-e.carriere[j-1].salaire).toLocaleString("fr")}€ ({Math.round((c.salaire-e.carriere[j-1].salaire)/e.carriere[j-1].salaire*100)}%)</div>}
             </div>
           </div>)}
-        </div>
-        <button onClick={()=>showToast(`✅ Promotion ${e.nom} enregistrée !`)} style={{background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Ajouter une promotion</button>
+        </div>}
+        {promoFormId===e.id?<div style={{marginTop:10,background:"#0A0A16",borderRadius:8,padding:12,display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap"}}>
+          <label style={{fontSize:10,color:"#5A5A7A"}}>Nouveau poste<br/><input type="text" value={promoPoste} onChange={ev=>setPromoPoste(ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+          <label style={{fontSize:10,color:"#5A5A7A"}}>Nouveau salaire<br/><input type="number" value={promoSalaire} onChange={ev=>setPromoSalaire(ev.target.value)} style={{width:100,background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+          <label style={{fontSize:10,color:"#5A5A7A"}}>Date<br/><input type="date" value={promoDate} onChange={ev=>setPromoDate(ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+          <button onClick={()=>ajouterPromotion(e.id)} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:6,padding:"7px 14px",cursor:"pointer",fontWeight:600,fontSize:11,fontFamily:"inherit"}}>Enregistrer</button>
+          <button onClick={()=>setPromoFormId(null)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:6,padding:"7px 14px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Annuler</button>
+        </div>:<button onClick={()=>ouvrirAjoutPromotion(e)} style={{marginTop:10,background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Ajouter une promotion</button>}
       </div>)}
     </div>}
 

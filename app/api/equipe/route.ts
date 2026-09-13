@@ -103,6 +103,7 @@ export async function GET(req: NextRequest) {
   const { data: fichesPaie } = await sb.from('fiches_paie').select('*').eq('tenant_id', tenantId).eq('mois', moisIsoCourant);
   const { data: documents } = await sb.from('documents_equipe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   const { data: objectifs } = await sb.from('objectifs_equipe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
+  const { data: carriere } = await sb.from('carriere_equipe').select('*').eq('tenant_id', tenantId).order('date', { ascending: true });
 
   const enriched = (membres || []).map((m: any) => {
     const mId = m.user_id || m.id;
@@ -118,6 +119,9 @@ export async function GET(req: NextRequest) {
     const mDocuments = (documents || []).filter((d: any) => d.employe_id === m.id);
     const mObjectifs = (objectifs || []).filter((o: any) => o.employe_id === m.id).map((o: any) => ({
       id: o.id, obj: o.titre, actuel: Number(o.actuel), cible: Number(o.cible), color: o.couleur, unite: o.unite,
+    }));
+    const mCarriere = (carriere || []).filter((c: any) => c.employe_id === m.id).map((c: any) => ({
+      id: c.id, poste: c.poste, salaire: Number(c.salaire), date: c.date,
     }));
 
     const heuresCeMois = mPointages
@@ -136,6 +140,7 @@ export async function GET(req: NextRequest) {
       formations: mFormations,
       documents: mDocuments,
       objectifs: mObjectifs,
+      carriere: mCarriere,
       missions: mMissions.slice(0, 20),
       heuresCeMois: Math.round(heuresCeMois * 10) / 10,
       paie,
@@ -309,6 +314,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Envoi email échoué : ' + e.message }, { status: 500 });
     }
     return NextResponse.json({ success: true, email: emailDest });
+  }
+
+  if (action === 'ajouter_promotion') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { employe_id, poste, salaire, date } = body;
+    if (!employe_id || !poste || !salaire) return NextResponse.json({ error: 'Poste, salaire et employé requis' }, { status: 400 });
+    const { data: empCar } = await sb.from('equipe').select('id, salaire_brut').eq('id', employe_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!empCar) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
+    const { data, error } = await sb.from('carriere_equipe').insert({
+      tenant_id: tenantId, employe_id, poste, salaire: Number(salaire), date: date || new Date().toISOString().slice(0, 10),
+    }).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    const majEquipe: any = { role: poste, salaire: Number(salaire) };
+    if (empCar.salaire_brut) majEquipe.salaire_brut = Number(salaire);
+    await sb.from('equipe').update(majEquipe).eq('id', employe_id).eq('tenant_id', tenantId);
+    return NextResponse.json({ success: true, promotion: data });
   }
 
   if (action === 'ajouter_objectif') {
