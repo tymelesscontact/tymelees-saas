@@ -10,6 +10,18 @@ const sbAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Cette route gere TOUS les tenants de la plateforme (lister, changer de
+// plan, suspendre, supprimer, emailer en masse) -- reservee au proprietaire
+// de Xyra. Aucune verification n'existait avant : n'importe quel client
+// Xyra connecte pouvait gerer les comptes des autres (faille corrigee).
+async function estProprietairePlateforme(req: NextRequest): Promise<boolean> {
+  const token = req.cookies.get('sb-access-token')?.value;
+  const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase();
+  if (!token || !ownerEmail) return false;
+  const { data } = await sbAdmin.auth.getUser(token);
+  return !!data?.user?.email && data.user.email.toLowerCase() === ownerEmail;
+}
+
 async function sendEmail(to: string, subject: string, html: string) {
   const { Resend } = await import('resend');
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -24,7 +36,8 @@ async function inviterCompte(email: string): Promise<{ userId: string | null; in
   } catch { return { userId: null, inviteLink: null }; }
 }
 
-export async function GET() {
+export async function GET(req: NextRequest) {
+  if (!(await estProprietairePlateforme(req))) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
   const { data: tenants, error } = await sb.from('tenants').select('*').order('created_at', { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -70,6 +83,7 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
+  if (!(await estProprietairePlateforme(req))) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
   const body = await req.json();
   const { action } = body;
 

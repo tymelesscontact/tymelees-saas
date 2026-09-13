@@ -5,7 +5,7 @@ import { PARTENAIRES } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 import { ouvrirChat } from "../lib/ouvrirChat";
 
-const PageClients=({plan,showToast,profil,setPage,UpgradeWall,activeCompany})=>{
+const PageClients=({plan, modulesActifs,showToast,profil,setPage,UpgradeWall,activeCompany})=>{
   const[clients,setClients]=useState([]);
   const[loadingClients,setLoadingClients]=useState(true);
   const[sel,setSel]=useState(null);
@@ -31,7 +31,7 @@ const PageClients=({plan,showToast,profil,setPage,UpgradeWall,activeCompany})=>{
   const scoreColor=(s)=>s>=80?C.green:s>=60?C.gold:s>=40?C.orange:C.red;
   const scoreLabel=(s)=>s>=80?"Excellent":s>=60?"Bon":s>=40?"Moyen":"Risqué";
 
-  if(!hasAccess(plan,"clients"))return <div style={{padding:20}}><UpgradeWall page="clients" plan={plan}/></div>;
+  if(!hasAccess(plan,"clients",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="clients" plan={plan}/></div>;
 
   const ajouterClient=async()=>{
     if(!addForm.nom)return showToast("⚠️ Le nom est requis");

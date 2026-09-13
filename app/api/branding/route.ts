@@ -10,7 +10,7 @@ export async function GET(req: NextRequest) {
   // Jamais d'identifiant venu de l'exterieur -- uniquement celui de la vraie session connectee
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
-  const { data } = await sb.from('tenants').select('societe,logo_url,couleur_primaire,couleur_secondaire,couleur_accent').eq('id', tenantId).single();
+  const { data } = await sb.from('tenants').select('societe,logo_url,couleur_primaire,couleur_secondaire,couleur_accent,adresse,ville,code_postal,pays,telephone_entreprise,email,site_web,siret,siren,forme_juridique,capital_social,rcs_ville,tva_intracommunautaire').eq('id', tenantId).single();
   if (!data) return NextResponse.json({ error: 'Tenant introuvable' }, { status: 404 });
   return NextResponse.json({ branding: data });
 }

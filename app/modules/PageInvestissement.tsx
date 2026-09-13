@@ -1,59 +1,112 @@
 "use client";
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, SM, Tabs } from "../lib/ui";
-import { CHARGES } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageInvestissement=({plan,showToast,UpgradeWall,activeCompany})=>{
+const RISQUE_COULEUR={Faible:"green",Moyen:"orange",Élevé:"red"};
+
+const PageInvestissement=({plan, modulesActifs,showToast,UpgradeWall,activeCompany})=>{
   const[onglet,setOnglet]=useState("reco");
-  // FIX: apostrophe correcte ci-dessous
+  const[recommandations,setRecommandations]=useState([]);
+  const[portefeuille,setPortefeuille]=useState({investiTotal:0,roiMoyen:0,nbActifs:0});
+  const[finances,setFinances]=useState(null);
+  const[loading,setLoading]=useState(true);
+  const[generation,setGeneration]=useState(false);
   const tabs=[{id:"reco",label:"🤖 Recommandations IA"},{id:"portefeuille",label:"💼 Portefeuille"},{id:"plan",label:"Plan d'action"},{id:"scenarios",label:"📊 Scénarios"}];
-  if(!hasAccess(plan,"investissement"))return <div style={{padding:20}}><UpgradeWall page="Investissement IA" plan={plan}/></div>;
-  const recos=[{titre:"Automatisation prospection",roi:340,risque:"Faible",invest:2400,delai:"3 mois",score:94},{titre:"Expansion yacht Monaco",roi:280,risque:"Moyen",invest:8000,delai:"6 mois",score:87},{titre:"Formation équipe aviation",roi:190,risque:"Faible",invest:1200,delai:"1 mois",score:82},{titre:"Certification ISO services",roi:150,risque:"Faible",invest:3500,delai:"4 mois",score:78}];
+
+  const charger=async()=>{
+    setLoading(true);
+    try{
+      const res=await fetch('/api/investissement');
+      const data=await res.json();
+      setRecommandations(data.recommandations||[]);
+      setPortefeuille(data.portefeuille||{investiTotal:0,roiMoyen:0,nbActifs:0});
+      setFinances(data.finances||null);
+    }catch{showToast("❌ Erreur de chargement");}
+    setLoading(false);
+  };
+  useEffect(()=>{charger();},[]);
+
+  if(!hasAccess(plan,"investissement",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="investissement" plan={plan}/></div>;
+
+  const generer=async()=>{
+    setGeneration(true);
+    try{
+      const res=await fetch('/api/investissement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generer'})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur génération"}`);}
+      else{showToast("✅ Recommandations générées");await charger();}
+    }catch{showToast("❌ Erreur génération");}
+    setGeneration(false);
+  };
+  const statuer=async(id,action)=>{
+    try{
+      const res=await fetch('/api/investissement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,id})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      showToast(action==='valider'?"✅ Investissement validé":"↩ Recommandation rejetée");
+      await charger();
+    }catch{showToast("❌ Erreur");}
+  };
+
+  const proposees=recommandations.filter(r=>r.statut==="proposee");
+  const validees=recommandations.filter(r=>r.statut==="validee");
+  const derniereValidee=validees[0];
+
   return <div style={{padding:20}}>
     <div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>◐ Investissement IA</div>
     <div style={{fontSize:11,color:C.muted,marginBottom:16}}>Recommandations Claude · ROI · Plan d'action · Portefeuille</div>
     <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
     {onglet==="reco"&&<div>
-      <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:14,marginBottom:16}}>
-        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Analyse IA — Claude Sonnet</div>
-        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>Basé sur votre CA de 24 380 € et votre marge de 61%, je recommande de prioriser l'automatisation de la prospection. Le ROI estimé à 340% sur 3 mois en fait l'investissement le plus rentable de votre pipeline actuel.</div>
+      {finances&&<div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:14,marginBottom:16}}>
+        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Situation réelle analysée</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>CA cumulé (factures payées) : <b>{fmt(finances.caTotal)}</b> · Charges mensuelles : <b>{fmt(finances.chargesMensuelles)}</b> · Marge estimée : <b>{finances.marge}%</b></div>
+      </div>}
+      <div style={{marginBottom:16}}>
+        <Btn onClick={generer} disabled={generation}>{generation?"⏳ Analyse en cours...":"🤖 Générer mes recommandations"}</Btn>
       </div>
+      {loading?<div style={{fontSize:12,color:C.muted}}>Chargement...</div>:
+       proposees.length===0?<div style={{fontSize:12,color:C.muted}}>Aucune recommandation pour l'instant — clique sur "Générer mes recommandations" pour que l'IA analyse ta situation réelle.</div>:
       <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:12}}>
-        {recos.map((r,i)=><Card key={i} style={{borderColor:r.score>=90?`${C.gold}44`:C.border}}>
-          {r.score>=90&&<div style={{marginBottom:8}}><Pill color={C.gold}>★ Recommandé par IA</Pill></div>}
-          <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:8}}>{r.titre}</div>
+        {proposees.map((r)=><Card key={r.id} style={{borderColor:r.priorite==="haute"?`${C.gold}44`:C.border}}>
+          {r.priorite==="haute"&&<div style={{marginBottom:8}}><Pill color={C.gold}>★ Priorité haute</Pill></div>}
+          <div style={{fontSize:14,fontWeight:700,color:C.text,marginBottom:4}}>{r.titre}</div>
+          <div style={{fontSize:11,color:C.muted,marginBottom:10,lineHeight:1.6}}>{r.description}</div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:10}}>
-            <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>ROI estimé</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>+{r.roi}%</div></CT>
-            <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Investissement</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(r.invest)}</div></CT>
+            <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>ROI estimé</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>+{r.roi_estime_pct}%</div></CT>
+            <CT style={{textAlign:"center"}}><div style={{fontSize:9,color:C.muted}}>Investissement</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(r.budget_estime)}</div></CT>
           </div>
-          <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:10}}>
-            <span style={{color:C.muted}}>Risque : <b style={{color:r.risque==="Faible"?C.green:C.orange}}>{r.risque}</b></span>
-            <span style={{color:C.muted}}>Délai : <b style={{color:C.blue}}>{r.delai}</b></span>
+          {r.notes&&<div style={{fontSize:11,color:C.muted,marginBottom:10}}>{r.notes}</div>}
+          <div style={{display:"flex",gap:8}}>
+            <Btn onClick={()=>statuer(r.id,'valider')} style={{flex:1}}>Valider</Btn>
+            <BtnGhost onClick={()=>statuer(r.id,'rejeter')} style={{flex:1}}>Rejeter</BtnGhost>
           </div>
-          <SM val={r.score} max={100} color={r.score>=90?C.gold:C.blue}/>
-          <Btn onClick={()=>showToast("✅ Investissement validé !")} style={{marginTop:10,width:"100%"}}>Valider cet investissement</Btn>
         </Card>)}
-      </div>
+      </div>}
     </div>}
     {onglet==="portefeuille"&&<Card><STitle>💼 Portefeuille d'investissements</STitle>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        <KPI label="Investi total" val="15 100 €" color={C.gold}/>
-        <KPI label="ROI moyen" val="+242%" color={C.green}/>
-        <KPI label="Actif" val="3 projets" color={C.blue}/>
+      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:validees.length>0?16:0}}>
+        <KPI label="Investi total" val={fmt(portefeuille.investiTotal)} color={C.gold}/>
+        <KPI label="ROI moyen" val={`+${portefeuille.roiMoyen}%`} color={C.green}/>
+        <KPI label="Actif" val={`${portefeuille.nbActifs} projet${portefeuille.nbActifs>1?"s":""}`} color={C.blue}/>
       </div>
-    </Card>}
-    {onglet==="plan"&&<Card><STitle>Plan d'action — Automatisation</STitle>
-      {[["Sem. 1","Configurer le bot WhatsApp prospection",C.blue],["Sem. 2","Importer la liste SIRENE Val-de-Marne",C.gold],["Sem. 3","Lancer les séquences de relance automatique",C.green],["Sem. 4","Analyser les résultats & optimiser",C.teal]].map(([s,a,c],i)=><div key={i} style={{display:"flex",gap:12,padding:"10px 0",borderBottom:`1px solid ${C.border}22`}}>
-        <div style={{width:48,height:24,borderRadius:4,background:`${c}22`,border:`1px solid ${c}44`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:10,color:c,fontWeight:700,flexShrink:0}}>{s}</div>
-        <div style={{fontSize:12,color:C.text,alignSelf:"center"}}>{a}</div>
+      {validees.map(r=><div key={r.id} style={{display:"flex",justifyContent:"space-between",padding:"10px 0",borderBottom:`1px solid ${C.border}22`}}>
+        <div style={{fontSize:12,color:C.text,fontWeight:600}}>{r.titre}</div>
+        <div style={{fontSize:12,color:C.gold,fontWeight:700}}>{fmt(r.budget_estime)}</div>
       </div>)}
     </Card>}
-    {onglet==="scenarios"&&<Card><STitle>📊 Scénarios d'investissement</STitle>
-      {[["Conservateur","Marge +5%, CA +15%",C.blue,85000],["Modéré","Marge +12%, CA +35%",C.gold,140000],["Agressif","Marge +20%, CA +60%",C.green,200000]].map(([n,d,c,v],i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${c}33`}}>
-        <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><div style={{fontSize:12,fontWeight:700,color:c}}>{n}</div><div style={{fontSize:14,fontWeight:700,color:c}}>{fmt(v)}</div></div>
-        <div style={{fontSize:11,color:C.muted}}>{d}</div>
-      </div>)}
+    {onglet==="plan"&&<Card><STitle>Plan d'action{derniereValidee?` — ${derniereValidee.titre}`:""}</STitle>
+      {derniereValidee?<div style={{fontSize:12,color:C.text,lineHeight:1.8}}>{derniereValidee.description}{derniereValidee.notes&&<div style={{marginTop:10,fontSize:11,color:C.muted}}>{derniereValidee.notes}</div>}</div>:
+      <div style={{fontSize:12,color:C.muted}}>Valide une recommandation dans l'onglet "Recommandations IA" pour voir son plan d'action ici.</div>}
+    </Card>}
+    {onglet==="scenarios"&&<Card><STitle>📊 Scénarios de croissance</STitle>
+      {finances&&finances.caTotal>0?[["Conservateur",15,C.blue],["Modéré",35,C.gold],["Agressif",60,C.green]].map(([n,pct,c])=>{
+        const projection=Math.round(finances.caTotal*(1+Number(pct)/100));
+        return <div key={n} style={{background:C.card2,borderRadius:8,padding:12,marginBottom:8,border:`1px solid ${c}33`}}>
+          <div style={{display:"flex",justifyContent:"space-between",marginBottom:4}}><div style={{fontSize:12,fontWeight:700,color:c}}>{n}</div><div style={{fontSize:14,fontWeight:700,color:c}}>{fmt(projection)}</div></div>
+          <div style={{fontSize:11,color:C.muted}}>CA +{pct}% par rapport au cumul actuel ({fmt(finances.caTotal)})</div>
+        </div>;
+      }):<div style={{fontSize:12,color:C.muted}}>Pas encore de facture payée enregistrée — les scénarios apparaîtront une fois du chiffre d'affaires réel disponible.</div>}
     </Card>}
   </div>;
 };

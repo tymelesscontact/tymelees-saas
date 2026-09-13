@@ -5,7 +5,7 @@ import { PARTENAIRES, ANNUAIRE, CONTRATS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 import { ouvrirChat } from "../lib/ouvrirChat";
 
-const PagePartenaires=({plan,showToast,UpgradeWall,activeCompany,Chat,setPage})=>{
+const PagePartenaires=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,Chat,setPage})=>{
   const[parts,setParts]=useState([]);
   const[loadingParts,setLoadingParts]=useState(true);
   const[alertes,setAlertes]=useState([]);
@@ -45,7 +45,7 @@ const PagePartenaires=({plan,showToast,UpgradeWall,activeCompany,Chat,setPage})=
     {id:"ia",label:"🤖 IA"},
   ];
 
-  if(!hasAccess(plan,"partenaires"))return <div style={{padding:20}}><UpgradeWall page="partenaires" plan={plan}/></div>;
+  if(!hasAccess(plan,"partenaires",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="partenaires" plan={plan}/></div>;
 
   const totalCA=parts.reduce((a,p)=>a+p.ca,0);
   const totalDues=parts.reduce((a,p)=>a+p.dues,0);

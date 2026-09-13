@@ -1,12 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 
@@ -17,6 +17,8 @@ async function sendEmail(to: string, subject: string, html: string) {
 }
 
 export async function GET(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "deals");
+  if (!acces.ok) return acces.reponse;
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
@@ -58,6 +60,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "deals");
+  if (!acces.ok) return acces.reponse;
   const body = await req.json();
   const { action } = body;
   const tenantId = await getTenantIdFromRequest(req);
@@ -201,9 +205,12 @@ Message court, naturel, non commercial, en français. 3-4 phrases max. Objectif 
   }
 
   if (action === 'set_objectif') {
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { objectif_ca } = body;
-    // Stocker dans parametres
-    await sb.from('parametres').upsert({ user_id: 'owner', objectif_ca_deals: objectif_ca });
+    // Stocke par tenant (onConflict tenant_id) -- avant, 'owner' etait ecrit
+    // en dur pour tout le monde, donc tous les tenants s'ecrasaient l'un
+    // l'autre sur la meme ligne.
+    await sb.from('parametres').upsert({ tenant_id: tenantId, objectif_ca_deals: objectif_ca }, { onConflict: 'tenant_id' });
     return NextResponse.json({ success: true });
   }
 

@@ -1,7 +1,8 @@
-import { NextRequest } from "next/server"
+import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
+import { normaliserPlan, hasAccess } from "./plans"
 
-function getAdminClient() {
+export function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   return createClient(url, key)
@@ -48,4 +49,33 @@ export async function getTenantFromRequest(req: NextRequest): Promise<any | null
 
   const tenants = await getTenantsForRequest(req)
   return tenants.find(t => t.id === tenantId) || null
+}
+
+// Verifie que le tenant appelant a bien acces a ce module (plan ou module
+// achete a la carte), en reutilisant exactement la meme regle que cote
+// client (hasAccess). "page" peut etre une seule cle ou plusieurs (autorise
+// si au moins une correspond).
+export async function verifierAccesModule(req: NextRequest, page: string | string[]) {
+  const tenant = await getTenantFromRequest(req)
+  if (!tenant) {
+    return { ok: false as const, reponse: NextResponse.json({ error: "Non authentifie" }, { status: 401 }) }
+  }
+  const plan = normaliserPlan(tenant.plan)
+
+  let modulesActifs: string[] = []
+  try {
+    const sb = getAdminClient()
+    const { data } = await sb.from("modules_actifs")
+      .select("type_module")
+      .eq("tenant_id", tenant.id)
+      .eq("statut", "actif")
+    modulesActifs = (data || []).map((m: any) => m.type_module).filter(Boolean)
+  } catch { /* non bloquant */ }
+
+  const pages = Array.isArray(page) ? page : [page]
+  const autorise = pages.some(p => hasAccess(plan, p, modulesActifs))
+  if (!autorise) {
+    return { ok: false as const, reponse: NextResponse.json({ error: "Ce module n'est pas inclus dans votre forfait" }, { status: 403 }) }
+  }
+  return { ok: true as const, tenant, tenantId: tenant.id as string, plan }
 }

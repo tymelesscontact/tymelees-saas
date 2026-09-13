@@ -2,8 +2,9 @@
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
+import { generateDevisHTML } from "../lib/generateDevis";
 
-const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
+const PageDevis=({plan, modulesActifs,showToast,profil,activeCompany,UpgradeWall})=>{
   const MODELES=[
     {id:"airbnb",label:"Nettoyage Airbnb",lignes:[{desc:"Nettoyage complet appartement",qte:1,pu:180,tva:20},{desc:"Blanchisserie linge de lit",qte:1,pu:45,tva:20},{desc:"Réassort produits accueil",qte:1,pu:25,tva:20}]},
     {id:"bureau",label:"Nettoyage bureaux",lignes:[{desc:"Nettoyage bureaux (surface)",qte:1,pu:280,tva:20},{desc:"Nettoyage sanitaires",qte:1,pu:80,tva:20},{desc:"Vitrerie intérieure",qte:1,pu:120,tva:20}]},
@@ -26,11 +27,28 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
         date:new Date(d.created_at).toLocaleDateString("fr"),
         lignes:d.lignes||[],remise:0,note:d.notes||"",vu:!!d.validé_at,
         tauxTva:Number(d.taux_tva ?? 20),description:d.description||"",
+        html:d.html||"",
       })));
     }catch(e){console.error("Devis:",e);}
     setLoadingDevis(false);
   };
   useEffect(()=>{loadDevis();},[activeCompany?.id]);
+  const[branding,setBranding]=useState(null);
+  useEffect(()=>{
+    fetch('/api/branding').then(r=>r.json()).then(d=>{if(d.branding)setBranding(d.branding);}).catch(()=>{});
+  },[]);
+  const[peutSignerDevisManuel,setPeutSignerDevisManuel]=useState(false);
+  useEffect(()=>{
+    fetch('/api/whoami').then(r=>r.json()).then(d=>setPeutSignerDevisManuel(!!d.peutSignerDevisManuel)).catch(()=>{});
+  },[]);
+  const[catalogue,setCatalogue]=useState([]);
+  useEffect(()=>{
+    fetch('/api/services-catalogue?action=catalogue').then(r=>r.json()).then(d=>{if(d.services)setCatalogue(d.services);}).catch(()=>{});
+  },[]);
+  const[produits,setProduits]=useState([]);
+  useEffect(()=>{
+    fetch('/api/produits-catalogue?action=liste').then(r=>r.json()).then(d=>{if(d.produits)setProduits(d.produits.filter(p=>p.vente_active!==false));}).catch(()=>{});
+  },[]);
   const[onglet,setOnglet]=useState("liste");
   const[showCreate,setShowCreate]=useState(false);
   const[modeleId,setModeleId]=useState("airbnb");
@@ -56,6 +74,18 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
   };
 
   const ajouterLigne=()=>setLignes(ls=>[...ls,{desc:"",qte:1,pu:0,tva:20}]);
+  const ajouterLigneDepuisCatalogue=(cle)=>{
+    const[type,id]=cle.split(":");
+    if(type==="svc"){
+      const service=catalogue.find(s=>s.id===id);
+      if(!service)return;
+      setLignes(ls=>[...ls,{desc:service.nom,qte:1,pu:Number(service.prix_standard)||0,tva:20}]);
+    }else if(type==="prod"){
+      const produit=produits.find(p=>p.id===id);
+      if(!produit)return;
+      setLignes(ls=>[...ls,{desc:produit.nom,qte:1,pu:Number(produit.prix_vente)||0,tva:20}]);
+    }
+  };
   const supprimerLigne=(i)=>setLignes(ls=>ls.filter((_,j)=>j!==i));
   const updateLigne=(i,k,v)=>setLignes(ls=>ls.map((l,j)=>j===i?{...l,[k]:v}:l));
 
@@ -69,13 +99,14 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
-          clientName:form.client,clientPhone:form.tel,clientEmail:form.email,
+          clientName:form.client,clientPhone:form.tel,clientEmail:form.email,clientAdresse:form.adresse,
           service:serviceLabel,description:descriptionResume,
           montant:Math.round(totalTTC),lignes,notes:form.note,taux_tva:tauxTvaMoyen,statut,
+          validite:Number(form.validite)||30,remise:Number(form.remise)||0,
         }),
       });
       const data=await res.json();
-      if(!data.success)return null;
+      if(!data.success){showToast("❌ "+(data.error||"Erreur lors de la creation du devis"));return null;}
       const nd={id:data.numeroDevis,client:form.client,email:form.email,tel:form.tel,service:serviceLabel,montant:Math.round(totalTTC),statut,date:new Date().toLocaleDateString("fr"),lignes:[...lignes],remise:form.remise,note:form.note,vu:false};
       loadDevis();
       return nd;
@@ -88,29 +119,76 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
     setOnglet("liste");
   };
 
-  const apercuPDF=()=>{
-    if(!form.client)return showToast("⚠️ Remplissez le nom du client");
+  // Repart des lignes/objet d'un devis existant pour en creer un nouveau --
+  // le client est laisse vide volontairement (on duplique la prestation,
+  // pas forcement pour le meme client).
+  const dupliquerDevis=(d)=>{
+    setModeleId("custom");
+    setLignes((d.lignes&&d.lignes.length>0?d.lignes:[{desc:d.service||"",qte:1,pu:d.montant||0,tva:d.tauxTva||20}]).map(l=>({...l})));
+    setForm(f=>({...f,client:"",email:"",tel:"",adresse:"",objet:d.service||"",validite:"30",remise:0,note:d.note||""}));
+    setOnglet("creer");
+    showToast("📋 Devis duplique — renseignez le client et verifiez les lignes");
+  };
+
+  const boutonImprimerApercu=`<button onclick="window.print()" style="position:fixed;bottom:24px;right:24px;background:#C9A84C;color:#000;border:none;padding:10px 24px;border-radius:6px;font-weight:700;cursor:pointer;font-family:sans-serif;" class="btn-imprimer-apercu">🖨 Imprimer / Enregistrer en PDF</button><style>@media print{.btn-imprimer-apercu{display:none;}}</style>`;
+  const ouvrirApercu=(html)=>{
     const win=window.open("","_blank");
     if(!win)return showToast("⚠️ Autorisez les pop-ups pour voir l'aperçu");
-    const lignesHtml=lignes.map(l=>`<tr><td style="padding:8px 0;border-bottom:1px solid #1E1E3633;">${l.desc}</td><td style="padding:8px 0;text-align:center;border-bottom:1px solid #1E1E3633;">${l.qte}</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #1E1E3633;">${l.pu}€</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #1E1E3633;">${(l.qte*l.pu).toFixed(2)}€</td></tr>`).join("");
-    win.document.write(`<!DOCTYPE html><html><head><title>Devis — ${form.client}</title><style>
-      body{font-family:'Segoe UI',sans-serif;background:#fff;color:#111;padding:40px;max-width:700px;margin:0 auto;}
-      h1{font-size:22px;color:#C9A84C;font-family:Georgia,serif;letter-spacing:.1em;}
-      table{width:100%;border-collapse:collapse;font-size:13px;margin-top:20px;}
-      th{text-align:left;padding-bottom:8px;color:#888;border-bottom:2px solid #ddd;}
-      .total{text-align:right;margin-top:20px;font-size:20px;font-weight:700;color:#C9A84C;}
-      .btn{background:#C9A84C;color:#000;border:none;padding:10px 24px;border-radius:6px;font-weight:700;cursor:pointer;margin-top:30px;}
-      @media print{.btn{display:none;}}
-    </style></head><body>
-      <h1>XYRA</h1>
-      <p style="color:#888;font-size:11px;">Devis pour ${form.client}${form.email?" · "+form.email:""}${form.tel?" · "+form.tel:""}</p>
-      <h2 style="margin-top:20px;">${form.objet||MODELES.find(m=>m.id===modeleId)?.label||"Devis"}</h2>
-      <table><tr><th>Description</th><th>Qté</th><th style="text-align:right;">PU</th><th style="text-align:right;">Total</th></tr>${lignesHtml}</table>
-      <div class="total">Total TTC : ${totalTTC.toFixed(2)}€</div>
-      ${form.note?`<p style="margin-top:16px;color:#666;font-size:12px;">${form.note}</p>`:""}
-      <button class="btn" onclick="window.print()">🖨 Imprimer / Enregistrer en PDF</button>
-    </body></html>`);
+    const avecBouton=html.includes("</body>")?html.replace("</body>",boutonImprimerApercu+"</body>"):html+boutonImprimerApercu;
+    win.document.write(avecBouton);
     win.document.close();
+  };
+
+  // Apercu du brouillon en cours de creation : meme fonction generateDevisHTML
+  // que celle utilisee reellement a l'enregistrement -- ce qui est affiche ici
+  // est exactement ce qui sera genere si on sauvegarde maintenant.
+  const apercuPDF=()=>{
+    if(!form.client)return showToast("⚠️ Remplissez le nom du client");
+    const tauxTvaMoyen=totalHT>0?Math.round((totalTVA/totalHT)*100):20;
+    const html=generateDevisHTML({
+      clientName:form.client,clientPhone:form.tel,clientEmail:form.email,clientAdresse:form.adresse,
+      service:form.objet||MODELES.find(m=>m.id===modeleId)?.label||"Devis",
+      description:lignes.map(l=>`${l.desc||"Ligne"} x${l.qte} — ${l.pu}€`).join("; "),
+      montant:String(Math.round(totalTTC)),
+      dateDevis:new Date().toLocaleDateString("fr-FR"),
+      dateExpiration:new Date(Date.now()+(Number(form.validite)||30)*86400000).toLocaleDateString("fr-FR"),
+      numeroDevis:"APERÇU (brouillon)",
+      lignes,tauxTva:tauxTvaMoyen,remise:Number(form.remise)||0,
+      tenant:branding?{
+        societe:branding.societe,logoUrl:branding.logo_url,email:branding.email,siteWeb:branding.site_web,
+        adresse:branding.adresse,ville:branding.ville,codePostal:branding.code_postal,pays:branding.pays,
+        telephone:branding.telephone_entreprise,siret:branding.siret,siren:branding.siren,
+        formeJuridique:branding.forme_juridique,capitalSocial:branding.capital_social,rcsVille:branding.rcs_ville,
+        tvaIntracommunautaire:branding.tva_intracommunautaire,
+      }:undefined,
+    });
+    ouvrirApercu(html);
+  };
+
+  // Apercu d'un devis deja enregistre : on affiche le document reellement
+  // stocke (generateDevisHTML au moment de la creation) -- exactement ce que
+  // le client a recu et signe, plutot qu'un resume reconstruit a part qui
+  // pourrait diverger de l'original.
+  const apercuPDFExistant=(d)=>{
+    if(!d.html){
+      showToast("⚠️ Document non disponible pour ce devis (cree avant cette fonctionnalite)");
+      return;
+    }
+    ouvrirApercu(d.html);
+  };
+
+  const relancerDevis=async(d)=>{
+    showToast("📤 Envoi en cours...");
+    try{
+      const res=await fetch('/api/devis/notify',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({id:d.id})});
+      const data=await res.json();
+      if(data.success){
+        const sent=[];
+        if(data.results?.email)sent.push("email");
+        if(data.results?.whatsapp)sent.push("WhatsApp");
+        showToast(sent.length?`✅ Relance envoyée à ${d.client} par ${sent.join(" et ")}`:"⚠️ Échec de l'envoi — vérifiez la config");
+      }else showToast("❌ "+(data.error||"Erreur d'envoi"));
+    }catch(e){showToast("❌ Erreur de connexion");}
   };
 
   const creerEtEnvoyer=async()=>{
@@ -159,12 +237,13 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({
           action:'creer',client_nom:d.client,client_email:d.email,client_tel:d.tel,
-          description:d.description||d.service,montant_ht:montantHT,taux_tva:taux,
+          description:d.description||d.service,montant_ht:montantHT,taux_tva:taux,devis_id:d.dbId,
         }),
       });
       const data=await res.json();
       if(data.success&&data.facture){
-        await majStatutDevis(d.dbId,{statut:"payé"},"✅ Facture "+data.facture.numero+" creee, devis marque paye");
+        showToast("✅ Facture "+data.facture.numero+" creee — en attente de paiement");
+        loadDevis();
       }else{
         showToast("❌ Erreur creation facture: "+(data.error||"inconnue"));
       }
@@ -186,14 +265,13 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
     }catch(e){showToast("❌ Erreur de connexion");}
   };
 
-  if(!hasAccess(plan,"devis"))return <div style={{padding:20}}><UpgradeWall page="devis" plan={plan}/></div>;
+  if(!hasAccess(plan,"devis",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="devis" plan={plan}/></div>;
 
   return <div style={{padding:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
       <div><div style={{fontSize:18,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>◧ {profil?.termes?.devis||"Devis"}</div>
-        <div style={{fontSize:11,color:C.muted}}>Créateur complet · PDF · WhatsApp · E-signature · Bot WhatsApp · {devis.length} {(profil?.termes?.devis||"devis").toLowerCase()}</div></div>
+        <div style={{fontSize:11,color:C.muted}}>Créateur complet · PDF · WhatsApp · Signature électronique · {devis.length} {(profil?.termes?.devis||"devis").toLowerCase()}</div></div>
       <div style={{display:"flex",gap:8}}>
-        <BtnGhost onClick={()=>showToast("🤖 Bot WhatsApp connecté — réponse auto activée")}>🤖 Bot WA</BtnGhost>
         <Btn onClick={()=>setOnglet("creer")}>+ Nouveau devis</Btn>
       </div>
     </div>
@@ -223,35 +301,27 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
             <Td><Pill color={statutColor[d.statut]||C.muted}>{d.statut}</Pill></Td>
             <Td onClick={e=>e.stopPropagation()}><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
               {d.statut==="brouillon"&&<Btn onClick={()=>majStatutDevis(d.dbId,{statut:"envoyé"},`📤 Devis ${d.id} marqué envoyé`)} style={{fontSize:9,padding:"3px 7px"}}>📤 Envoyer</Btn>}
-              {(d.statut==="envoyé"||d.statut==="vu")&&<Btn onClick={()=>setSignEtape({id:d.id,dbId:d.dbId,client:d.client,etape:1})} style={{fontSize:9,padding:"3px 7px",background:C.green}}>✒ Signer</Btn>}
-              {d.statut==="signé"&&<Btn onClick={()=>convertirEnFacture(d)} style={{fontSize:9,padding:"3px 7px",background:C.teal}}>💳 Payé</Btn>}
-              <BtnGhost onClick={()=>showToast(`📄 PDF ${d.id} généré`)} style={{fontSize:9,padding:"3px 7px"}}>PDF</BtnGhost>
-              <BtnGhost onClick={()=>showToast(`📱 Relance envoyée à ${d.client}`)} style={{fontSize:9,padding:"3px 7px"}}>WA</BtnGhost>
+              {(d.statut==="envoyé"||d.statut==="vu")&&<Btn onClick={()=>setSignEtape({id:d.id,dbId:d.dbId,client:d.client})} style={{fontSize:9,padding:"3px 7px",background:C.green}}>🔗 Lien signature</Btn>}
+              {d.statut==="signé"&&<Btn onClick={()=>convertirEnFacture(d)} style={{fontSize:9,padding:"3px 7px",background:C.teal}}>🧾 Facturer</Btn>}
+              <BtnGhost onClick={()=>apercuPDFExistant(d)} style={{fontSize:9,padding:"3px 7px"}}>PDF</BtnGhost>
+              <BtnGhost onClick={()=>relancerDevis(d)} style={{fontSize:9,padding:"3px 7px"}}>WA</BtnGhost>
+              <BtnGhost onClick={()=>dupliquerDevis(d)} style={{fontSize:9,padding:"3px 7px"}} title="Dupliquer">📋</BtnGhost>
             </div></Td>
           </tr>)}</tbody>
         </table>
       </Card>
       {signEtape&&<div style={{position:"fixed",inset:0,background:"#000000AA",display:"flex",alignItems:"center",justifyContent:"center",zIndex:999}}>
         <Card style={{width:440,maxWidth:"90vw"}}>
-          <div style={{fontSize:14,fontWeight:700,marginBottom:4}}>✒ Signature électronique</div>
+          <div style={{fontSize:14,fontWeight:700,marginBottom:4}}>🔗 Lien de signature</div>
           <div style={{fontSize:11,color:C.muted,marginBottom:14}}>Devis {signEtape.id} · {signEtape.client}</div>
-          {signEtape.etape===1&&<div>
-            <div style={{fontSize:11,color:C.text,lineHeight:1.7,marginBottom:12}}>Vous allez signer électroniquement ce devis. La signature a valeur légale (règlement eIDAS).</div>
-            <div style={{display:"flex",gap:8}}><Btn onClick={()=>setSignEtape(s=>({...s,etape:2}))}>Continuer →</Btn><BtnGhost onClick={()=>setSignEtape(null)}>Annuler</BtnGhost></div>
-          </div>}
-          {signEtape.etape===2&&<div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:8}}>Tapez votre nom pour valider :</div>
-            <Inp placeholder={signEtape.client} style={{marginBottom:10}}/>
-            <div style={{fontSize:10,color:C.muted,marginBottom:10}}>📍 IP + horodatage enregistrés · Conforme eIDAS</div>
-            <div style={{display:"flex",gap:8}}><Btn onClick={()=>setSignEtape(s=>({...s,etape:3}))} style={{background:C.green}}>✒ Signer</Btn><BtnGhost onClick={()=>setSignEtape(s=>({...s,etape:1}))}>← Retour</BtnGhost></div>
-          </div>}
-          {signEtape.etape===3&&<div style={{textAlign:"center",padding:"10px 0"}}>
-            <div style={{fontSize:32,marginBottom:8}}>✅</div>
-            <div style={{fontSize:14,fontWeight:700,color:C.green,marginBottom:4}}>Devis signé !</div>
-            <div style={{fontSize:11,color:C.muted,marginBottom:12}}>Signé le {new Date().toLocaleDateString("fr")} — eIDAS conforme</div>
-            <div style={{display:"flex",gap:8,justifyContent:"center"}}>
-              <Btn onClick={async()=>{await majStatutDevis(signEtape.dbId,{statut:"signé"},"✅ Signe ! PDF envoye par email et WhatsApp");setSignEtape(null);}}>📄 Télécharger PDF signé</Btn>
-            </div>
+          <div style={{fontSize:11,color:C.text,lineHeight:1.7,marginBottom:14}}>Le client signe lui-même en ligne, via le lien qui lui a été envoyé. Ce bouton renvoie ce lien par email et/ou WhatsApp — rien n'est signé ici.</div>
+          <div style={{display:"flex",gap:8,marginBottom:peutSignerDevisManuel?14:0}}>
+            <Btn onClick={async()=>{await relancerDevis({id:signEtape.id,dbId:signEtape.dbId,client:signEtape.client});setSignEtape(null);}}>📤 Renvoyer le lien</Btn>
+            <BtnGhost onClick={()=>setSignEtape(null)}>Fermer</BtnGhost>
+          </div>
+          {peutSignerDevisManuel&&<div style={{borderTop:`1px solid ${C.border}`,paddingTop:12}}>
+            <div style={{fontSize:10,color:C.muted,marginBottom:8}}>Le client a signé autrement (papier, accord téléphonique) ? Aucun email ni WhatsApp ne sera envoyé.</div>
+            <Btn onClick={async()=>{await majStatutDevis(signEtape.dbId,{statut:"signé"},"✅ Devis marqué signé manuellement (aucun email/WhatsApp envoyé)");setSignEtape(null);}} style={{background:C.orange,width:"100%"}}>✍ Marquer signé manuellement</Btn>
           </div>}
         </Card>
       </div>}
@@ -284,14 +354,28 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
         <Card style={{marginBottom:12}}>
           <STitle>👤 Informations client</STitle>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
-            {[["Client *","client","Nom ou raison sociale"],["Email","email","email@client.com"],["Téléphone WhatsApp","tel","+33 6..."],["Objet du devis","objet","Ex: Nettoyage Airbnb Montmartre"]].map(([l,k,ph])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={ph}/></div>)}
+            {[["Client *","client","Nom ou raison sociale"],["Email","email","email@client.com"],["Téléphone WhatsApp","tel","+33 6..."],["Objet du devis","objet","Ex: Nettoyage Airbnb Montmartre"],["Adresse du client","adresse","12 rue de la Paix, 75002 Paris"]].map(([l,k,ph])=><div key={k}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>{l}</label><Inp value={form[k]} onChange={e=>setForm(f=>({...f,[k]:e.target.value}))} placeholder={ph}/></div>)}
           </div>
         </Card>
         <Card style={{marginBottom:12}}>
-          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+          <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10,gap:8,flexWrap:"wrap"}}>
             <STitle>📦 Lignes de prestation</STitle>
-            <Btn onClick={ajouterLigne} style={{fontSize:11,padding:"5px 12px"}}>+ Ligne</Btn>
+            <div style={{display:"flex",gap:8,alignItems:"center"}}>
+              {(catalogue.length>0||produits.length>0) && (
+                <Sel value="" onChange={e=>{if(e.target.value)ajouterLigneDepuisCatalogue(e.target.value);}} style={{fontSize:11}}>
+                  <option value="">+ Depuis mon catalogue...</option>
+                  {catalogue.length>0 && <optgroup label="Prestations">
+                    {catalogue.map(s=><option key={"svc:"+s.id} value={"svc:"+s.id}>{s.nom} — {fmt(Number(s.prix_standard)||0)}</option>)}
+                  </optgroup>}
+                  {produits.length>0 && <optgroup label="Produits">
+                    {produits.map(p=><option key={"prod:"+p.id} value={"prod:"+p.id}>{p.nom} — {fmt(Number(p.prix_vente)||0)}</option>)}
+                  </optgroup>}
+                </Sel>
+              )}
+              <Btn onClick={ajouterLigne} style={{fontSize:11,padding:"5px 12px"}}>+ Ligne vide</Btn>
+            </div>
           </div>
+          {catalogue.length===0 && produits.length===0 && <div style={{fontSize:10,color:C.muted,marginBottom:10}}>Aucune prestation ni produit dans votre catalogue pour l'instant — ajoutez-en dans "Services" ou "Produits" pour les retrouver ici a chaque devis, ou continuez avec des lignes libres.</div>}
           <table style={{width:"100%",borderCollapse:"collapse"}}>
             <thead><tr><TH>Description</TH><TH>Qté</TH><TH>PU HT (€)</TH><TH>TVA %</TH><TH>Total HT</TH><TH></TH></tr></thead>
             <tbody>{lignes.map((l,i)=><tr key={i}>
@@ -328,8 +412,8 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
           </div>
         </Card>
         <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
-          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>🤖 Bot WhatsApp connecté</div>
-          <div style={{fontSize:11,color:C.text,lineHeight:1.6}}>Le devis sera automatiquement envoyé via le bot WhatsApp Xyra. Le client peut signer directement depuis WhatsApp.</div>
+          <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>📱 Envoi par email / WhatsApp</div>
+          <div style={{fontSize:11,color:C.text,lineHeight:1.6}}>Avec "Créer & Envoyer" (ou "Renvoyer le lien" plus tard), le client reçoit un lien vers ce devis par email et/ou WhatsApp selon les coordonnées renseignées. Il consulte et signe depuis cette page — la signature ne se fait pas dans WhatsApp lui-même.</div>
         </Card>
       </div>
     </div>}
@@ -361,9 +445,7 @@ const PageDevis=({plan,showToast,profil,activeCompany,UpgradeWall})=>{
           "Bonjour {d.client}, je me permets de vous relancer concernant notre devis {d.id} de {fmt(d.montant)} pour {d.service}. Avez-vous eu l'occasion de le consulter ? Je reste disponible pour tout ajustement."
         </div>
         <div style={{display:"flex",gap:8}}>
-          <Btn onClick={()=>showToast(`📱 Relance envoyée à ${d.client} via WhatsApp`)} style={{fontSize:11}}>📱 Envoyer relance WA</Btn>
-          <BtnGhost onClick={()=>showToast(`📧 Relance email envoyée à ${d.client}`)} style={{fontSize:11}}>📧 Email</BtnGhost>
-          <BtnGhost onClick={()=>showToast("🤖 Relance IA personnalisée générée")} style={{fontSize:11}}>🤖 Personnaliser</BtnGhost>
+          <Btn onClick={()=>relancerDevis(d)} style={{fontSize:11}}>🔁 Relancer (email + WhatsApp)</Btn>
         </div>
       </Card>)}
       <Card>

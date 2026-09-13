@@ -1,12 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+// Service role : le tenant_id est deja verifie et impose dans chaque requete
+// (scoped()/.eq('tenant_id', tenantId)) -- la clé anonyme ne marchait pas ici
+// car ce client n'attache jamais le JWT de l'utilisateur, donc RLS le voit
+// comme anon (auth.uid() toujours nul), ce qui bloquait silencieusement
+// l'acces meme aux donnees du bon tenant.
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 function startOfWeek(d: Date) {
@@ -28,6 +33,8 @@ async function askClaude(prompt: string, maxTokens = 400) {
 }
 
 export async function GET(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "tresorerie");
+  if (!acces.ok) return acces.reponse;
   const { searchParams } = new URL(req.url);
   const entiteId = searchParams.get('entite_id');
   const tenantId = await getTenantIdFromRequest(req);
@@ -38,7 +45,7 @@ export async function GET(req: NextRequest) {
     return q;
   }
   if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
-  const [walletRes, facturesRes, chargesRes, paramRes, stockRes, equipeRes, clientsRes, missionsRes] = await Promise.all([
+  const [walletRes, facturesRes, chargesRes, paramRes, stockRes, equipeRes, clientsRes, missionsRes, devisRes, lignesManuellesRes] = await Promise.all([
     scoped(sb.from('wallet_transactions').select('*')),
     scoped(sb.from('factures').select('*')),
     scoped(sb.from('charges').select('*')),
@@ -47,6 +54,8 @@ export async function GET(req: NextRequest) {
     scoped(sb.from('equipe').select('salaire,nom')),
     scoped(sb.from('clients').select('id,nom')),
     scoped(sb.from('factures').select('client_nom,montant_ttc,statut,date_emission,date_echeance')),
+    scoped(sb.from('devis').select('id,montant,statut')),
+    scoped(sb.from('tresorerie_lignes_manuelles').select('*')),
   ]);
 
   const wallet = walletRes.data || [];
@@ -56,6 +65,14 @@ export async function GET(req: NextRequest) {
   const stock = stockRes.data || [];
   const equipe = equipeRes.data || [];
   const facturesList = missionsRes.data || [];
+  const lignesManuelles = lignesManuellesRes.data || [];
+
+  // Pipeline commercial reel : devis signes mais pas encore convertis en
+  // facture (donc pas de date d'echeance connue -- expose a part, pas force
+  // dans le calendrier semaine par semaine).
+  const idsDevisFactures = new Set(factures.map((f: any) => f.devis_id).filter(Boolean));
+  const devisSignesNonFactures = (devisRes.data || []).filter((d: any) => d.statut === 'signé' && !idsDevisFactures.has(d.id));
+  const montantDevisSignesNonFactures = devisSignesNonFactures.reduce((a: number, d: any) => a + Number(d.montant || 0), 0);
 
   // ── SOLDE ACTUEL ─────────────────────────────────────────
   const entreesConfirmees = wallet.filter((t: any) => t.type === 'entree' && t.statut === 'confirmé').reduce((a: number, t: any) => a + Number(t.montant || 0), 0);
@@ -99,15 +116,39 @@ export async function GET(req: NextRequest) {
   const facteurSaisonnier = moisEteAirbnb.includes(moisActuel) ? 1.15 : moisHiverRapatriement.includes(moisActuel) ? 1.1 : 1.0;
 
   // ── 3 SCÉNARIOS DE PRÉVISION ─────────────────────────────
+  // La prevision melange desormais du connu (factures emises non payees,
+  // avec leur vraie date d'echeance ; lignes ajoutees a la main) et une
+  // estimation statistique pour le reste -- au lieu de tout extrapoler
+  // depuis la moyenne des 4 dernieres semaines. Le connu ne varie pas
+  // selon le scenario (ce sont des faits, pas des projections) ; seule
+  // la partie estimee est ajustee par les facteurs optimiste/pessimiste.
+  const facturesDues = factures.filter((f: any) => f.statut !== 'payée' && f.statut !== 'annulée' && f.date_echeance);
   const genererPrevisions = (facteurEntrees: number, facteurSorties: number) => {
     const prevs: any[] = [];
     let solde = soldeActuel;
     for (let i = 1; i <= 13; i++) {
-      const debut = new Date(now.getTime() + i * 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
-      const entrees = Math.round(moyEntrees * facteurEntrees * facteurSaisonnier);
-      const sorties = Math.round(Math.max(moySorties * facteurSorties, chargesHebdo));
+      const debutSemaine = startOfWeek(new Date(now.getTime() + i * 7 * 24 * 60 * 60 * 1000));
+      const finSemaine = new Date(debutSemaine.getTime() + 7 * 24 * 60 * 60 * 1000);
+      const debut = debutSemaine.toISOString().slice(0, 10);
+
+      const connuEntreesFactures = facturesDues
+        .filter((f: any) => { const d = new Date(f.date_echeance); return d >= debutSemaine && d < finSemaine; })
+        .reduce((a: number, f: any) => a + Number(f.montant_ttc || 0), 0);
+      const connuEntreesManuel = lignesManuelles
+        .filter((l: any) => l.sens === 'entree' && (() => { const d = new Date(l.semaine); return d >= debutSemaine && d < finSemaine; })())
+        .reduce((a: number, l: any) => a + Number(l.montant || 0), 0);
+      const connuSorties = lignesManuelles
+        .filter((l: any) => l.sens === 'sortie' && (() => { const d = new Date(l.semaine); return d >= debutSemaine && d < finSemaine; })())
+        .reduce((a: number, l: any) => a + Number(l.montant || 0), 0);
+      const connuEntrees = connuEntreesFactures + connuEntreesManuel;
+
+      const estimEntrees = Math.round(moyEntrees * facteurEntrees * facteurSaisonnier);
+      const estimSorties = Math.round(Math.max(moySorties * facteurSorties, chargesHebdo));
+
+      const entrees = Math.round(connuEntrees) + estimEntrees;
+      const sorties = Math.round(connuSorties) + estimSorties;
       solde += entrees - sorties;
-      prevs.push({ debut, entrees, sorties, net: entrees - sorties, sol: Math.round(solde), pred: true });
+      prevs.push({ debut, entrees, sorties, net: entrees - sorties, sol: Math.round(solde), pred: true, connu: connuEntrees > 0 || connuSorties > 0 });
     }
     return prevs;
   };
@@ -192,6 +233,8 @@ export async function GET(req: NextRequest) {
     excedent,
     seuilPlacement,
     parametres: param,
+    devisSignesNonFactures: montantDevisSignesNonFactures,
+    nbDevisSignesNonFactures: devisSignesNonFactures.length,
     soldeJ90: prevRealiste[prevRealiste.length - 1]?.sol ?? soldeActuel,
     soldeJ90Optimiste: prevOptimiste[prevOptimiste.length - 1]?.sol ?? soldeActuel,
     soldeJ90Pessimiste: prevPessimiste[prevPessimiste.length - 1]?.sol ?? soldeActuel,
@@ -199,15 +242,17 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "tresorerie");
+  if (!acces.ok) return acces.reponse;
   const tenantId = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;
 
   // ── ANALYSE IA COMPLÈTE ──────────────────────────────────
   if (action === 'analyse_ia') {
-    const { soldeActuel, soldeJ90, soldeJ90Optimiste, soldeJ90Pessimiste, commissionsDues, facturesEnAttente, chargesMensuelles, scoreFinancier, pointMort, bfr, clientsEnRetard, semaines } = body;
+    const { soldeActuel, soldeJ90, soldeJ90Optimiste, soldeJ90Pessimiste, commissionsDues, facturesEnAttente, chargesMensuelles, scoreFinancier, pointMort, bfr, clientsEnRetard, semaines, devisSignesNonFactures, nbDevisSignesNonFactures } = body;
     try {
-      const prompt = `Tu es analyste financier expert pour une PME de services premium (Airbnb, jet privé, yacht, rapatriement). Données réelles :
+      const prompt = `Tu es analyste financier expert, conseillant une PME sur sa tresorerie. Données réelles :
 
 Solde actuel : ${soldeActuel}€
 Score de santé financière : ${scoreFinancier}/100
@@ -217,7 +262,8 @@ Solde J+90 scénario pessimiste : ${soldeJ90Pessimiste}€
 Point mort hebdomadaire : ${pointMort}€ à encaisser cette semaine minimum
 BFR : ${bfr}€ bloqués dans le cycle d'exploitation
 Commissions partenaires dues : ${commissionsDues}€
-Factures clients en attente : ${facturesEnAttente}€
+Factures clients emises en attente de paiement : ${facturesEnAttente}€
+Devis signés pas encore facturés (pipeline commercial, ${nbDevisSignesNonFactures || 0} devis) : ${devisSignesNonFactures || 0}€
 Charges mensuelles fixes : ${chargesMensuelles}€
 Clients en retard de paiement : ${(clientsEnRetard || []).length}
 
@@ -258,17 +304,21 @@ Explique POURQUOI le solde va baisser et donne 2 actions concrètes pour l'évit
 
   // ── RAPPORT HEBDOMADAIRE WHATSAPP ─────────────────────────
   if (action === 'rapport_hebdo') {
-    const ownerTel = process.env.OWNER_WHATSAPP;
-    if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    // Le numero destinataire est celui du tenant lui-meme, jamais une valeur
+    // globale -- sinon le rapport financier d'un tenant part chez un autre.
+    const { data: tenantRow } = await sb.from('tenants').select('telephone_contact,prenom,civilite').eq('id', tenantId).maybeSingle();
+    const destTel = tenantRow?.telephone_contact;
+    if (!destTel) return NextResponse.json({ error: 'Aucun numero de telephone configure pour ce compte' }, { status: 400 });
     const { soldeActuel, scoreFinancier, pointMort, clientsEnRetard, commissionsDues } = body;
     try {
       const prompt = `Génère un rapport trésorerie hebdomadaire WhatsApp (5-6 lignes max, français, emojis autorisés) :
 Solde : ${soldeActuel}€ | Score santé : ${scoreFinancier}/100 | Point mort semaine : ${pointMort}€
 Commissions dues : ${commissionsDues}€ | Clients en retard : ${(clientsEnRetard || []).length}
-Inclus : 1 chiffre clé, 1 risque, 1 priorité cette semaine. Commence par "Bonjour Curtiss"`;
+Inclus : 1 chiffre clé, 1 risque, 1 priorité cette semaine. Commence par "Bonjour${tenantRow?.prenom ? ' ' + tenantRow.prenom : ''}"`;
 
       const message = await askClaude(prompt, 300);
-      await envoyerWhatsApp(ownerTel, message, tenantId);
+      await envoyerWhatsApp(destTel, message, tenantId);
       return NextResponse.json({ success: true });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -277,11 +327,44 @@ Inclus : 1 chiffre clé, 1 risque, 1 priorité cette semaine. Commence par "Bonj
 
   // ── ALERTE CRITIQUE WHATSAPP ──────────────────────────────
   if (action === 'alerte_critique_whatsapp') {
-    const ownerTel = process.env.OWNER_WHATSAPP;
-    if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const { data: tenantRow } = await sb.from('tenants').select('telephone_contact').eq('id', tenantId).maybeSingle();
+    const destTel = tenantRow?.telephone_contact;
+    if (!destTel) return NextResponse.json({ error: 'Aucun numero de telephone configure pour ce compte' }, { status: 400 });
     const { soldeActuel, seuil } = body;
     try {
-      await envoyerWhatsApp(ownerTel, `Xyra ALERTE TRESORERIE - Solde actuel : ${soldeActuel}€ est passe sous le seuil critique de ${seuil}€. Action requise immediatement.`, tenantId);
+      await envoyerWhatsApp(destTel, `Xyra ALERTE TRESORERIE - Solde actuel : ${soldeActuel}€ est passe sous le seuil critique de ${seuil}€. Action requise immediatement.`, tenantId);
+      return NextResponse.json({ success: true });
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 500 });
+    }
+  }
+
+  // ── RAPPORT EMAIL (envoi immediat, pas une programmation) ─
+  if (action === 'rapport_email') {
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const { data: tenantRow } = await sb.from('tenants').select('email,societe').eq('id', tenantId).maybeSingle();
+    if (!tenantRow?.email) return NextResponse.json({ error: 'Aucun email configure pour ce compte' }, { status: 400 });
+    const { soldeActuel, scoreFinancier, soldeJ90, pointMort, bfr, commissionsDues, facturesEnAttente, devisSignesNonFactures, clientsEnRetard } = body;
+    try {
+      const prompt = `Génère un rapport trésorerie (8-10 lignes, français, sans emojis, ton professionnel, format prêt pour un email) :
+Solde actuel : ${soldeActuel}€ | Score santé : ${scoreFinancier}/100 | Solde projeté à 90 jours : ${soldeJ90}€
+Point mort hebdomadaire : ${pointMort}€ | BFR : ${bfr}€
+Commissions dues : ${commissionsDues}€ | Factures emises en attente : ${facturesEnAttente}€ | Devis signés non facturés : ${devisSignesNonFactures || 0}€
+Clients en retard : ${(clientsEnRetard || []).length}
+Structure : un résumé de la situation, le point le plus urgent, une recommandation.`;
+      const contenu = await askClaude(prompt, 500);
+      const res = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          from: 'Xyra <notifications@xyraio.fr>',
+          to: tenantRow.email,
+          subject: `Rapport trésorerie — ${tenantRow.societe || 'votre entreprise'}`,
+          html: `<div style="font-family:sans-serif;padding:24px;white-space:pre-wrap;line-height:1.7;">${contenu}</div>`,
+        }),
+      });
+      if (!res.ok) return NextResponse.json({ error: 'Echec de l\'envoi' }, { status: 502 });
       return NextResponse.json({ success: true });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });

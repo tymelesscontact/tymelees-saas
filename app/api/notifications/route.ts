@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 
@@ -117,6 +117,8 @@ async function envoyerNotification(tenantId: string, params: {
 }
 
 export async function GET(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "notifications");
+  if (!acces.ok) return acces.reponse;
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
 
@@ -132,6 +134,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "notifications");
+  if (!acces.ok) return acces.reponse;
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ success: false, error: 'Session invalide' }, { status: 401 });
   const body = await req.json();

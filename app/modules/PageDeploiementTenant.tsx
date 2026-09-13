@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM, St
 import { CLIENTS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageDeploiementTenant=({plan,showToast,UpgradeWall})=>{
+const PageDeploiementTenant=({plan, modulesActifs,showToast,UpgradeWall})=>{
   const[tenants,setTenants]=useState([]);
   const[loading,setLoading]=useState(true);
   const[onglet,setOnglet]=useState("tenants");
@@ -153,7 +153,7 @@ const PageDeploiementTenant=({plan,showToast,UpgradeWall})=>{
     }catch(e){showToast("❌ Erreur");}
   };
 
-  if(!hasAccess(plan,"deploiement"))return <div style={{padding:20}}><UpgradeWall page="Déploiement SaaS" plan={plan}/></div>;
+  if(!hasAccess(plan,"deploiement",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="deploiement" plan={plan}/></div>;
 
   // ── FICHE CLIENT ──────────────────────────────────────────────
   if(selectedClient){

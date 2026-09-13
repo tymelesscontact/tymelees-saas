@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -46,6 +46,8 @@ export async function POST(req: NextRequest) {
 
 // Bene recupere les positions de tous ses collaborateurs actuellement en mission
 export async function GET(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "planning");
+  if (!acces.ok) return acces.reponse;
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ error: 'non_connecte' }, { status: 401 });
 

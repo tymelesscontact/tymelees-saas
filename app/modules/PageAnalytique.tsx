@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, BtnGhost, STitle, Sel, SM, DEVISES } from "../lib/ui"
 import { CLIENTS } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageAnalytique=({plan,showToast,UpgradeWall,activeCompany})=>{
+const PageAnalytique=({plan, modulesActifs,showToast,UpgradeWall,activeCompany})=>{
   const[data,setData]=useState(null);
   const[loading,setLoading]=useState(true);
   const[devise,setDevise]=useState("EUR");
@@ -61,7 +61,7 @@ const PageAnalytique=({plan,showToast,UpgradeWall,activeCompany})=>{
     showToast("✅ CSV téléchargé");
   };
 
-  if(!hasAccess(plan,"analytique"))return <div style={{padding:20}}><UpgradeWall page="analytique" plan={plan}/></div>;
+  if(!hasAccess(plan,"analytique",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="analytique" plan={plan}/></div>;
   if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement des données réelles...</div></div>;
 
   const caParMoisEntries=Object.entries(data?.caParMois||{});

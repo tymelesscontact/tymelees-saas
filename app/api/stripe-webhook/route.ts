@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PLAN_PRIX, PLAN_LABELS } from '../../lib/plans';
+import { PLAN_PRIX, PLAN_LABELS, MODULE_PRICES } from '../../lib/plans';
 
 export const dynamic = 'force-dynamic';
 
@@ -26,6 +26,37 @@ export async function POST(req: NextRequest) {
         process.env.NEXT_PUBLIC_SUPABASE_URL!,
         process.env.SUPABASE_SERVICE_ROLE_KEY!
       );
+
+      // ── Achat d'un module a la carte ──
+      if (session.metadata?.type === 'module') {
+        const moduleKey = session.metadata.module;
+        const tenantId = session.metadata.tenant_id;
+        if (tenantId && moduleKey) {
+          const prix = MODULE_PRICES[moduleKey] ?? null;
+          const { data: existant } = await sb.from('modules_actifs')
+            .select('id').eq('tenant_id', tenantId).eq('type_module', moduleKey).maybeSingle();
+          const champs = {
+            statut: 'actif', prix, date_activation: new Date().toISOString(), date_fin: null,
+            stripe_subscription_id: session.subscription || null,
+          };
+          if (existant) {
+            await sb.from('modules_actifs').update(champs).eq('id', existant.id);
+          } else {
+            await sb.from('modules_actifs').insert({ tenant_id: tenantId, type_module: moduleKey, ...champs });
+          }
+          try {
+            const { Resend } = await import('resend');
+            const resend = new Resend(process.env.RESEND_API_KEY);
+            await resend.emails.send({
+              from: 'Xyra Alerts <notifications@xyraio.fr>',
+              to: 'xyra.solution@gmail.com',
+              subject: `Module a la carte souscrit — ${moduleKey} (${(session.amount_total / 100).toFixed(2)}€)`,
+              html: `<div style="font-family:sans-serif;padding:24px;"><h2>Module a la carte</h2><p>Module : <strong>${moduleKey}</strong></p><p>Tenant : ${session.metadata.email || tenantId}</p><p>Montant : <strong>${(session.amount_total / 100).toFixed(2)}€/mois</strong></p></div>`,
+            });
+          } catch (e) { console.error('Email module:', e); }
+        }
+        return NextResponse.json({ received: true });
+      }
 
       if (session.metadata?.type === 'wallet_payment') {
         await sb.from('wallet_transactions')
@@ -300,6 +331,21 @@ export async function POST(req: NextRequest) {
           </div>
         `
       });
+    }
+
+    // ── Abonnement annule : reverrouille le module a la carte correspondant ──
+    // (ne touche jamais les forfaits : ceux-la ne sont pas dans modules_actifs)
+    if (event.type === 'customer.subscription.deleted') {
+      const subscription = event.data.object as any;
+      const { createClient } = await import('@supabase/supabase-js');
+      const sb = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      await sb.from('modules_actifs')
+        .update({ statut: 'annulé', date_fin: new Date().toISOString() })
+        .eq('stripe_subscription_id', subscription.id)
+        .eq('statut', 'actif');
     }
 
     return NextResponse.json({ received: true });

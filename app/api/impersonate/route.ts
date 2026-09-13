@@ -4,15 +4,25 @@ export const dynamic = 'force-dynamic';
 
 export async function POST(req: NextRequest) {
   try {
-    const { email } = await req.json();
-    if (!email) {
-      return NextResponse.json({ error: 'Email requis' }, { status: 400 });
-    }
-
     const sb = createClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     );
+
+    const token = req.cookies.get('sb-access-token')?.value;
+    if (!token) {
+      return NextResponse.json({ error: 'Non authentifie' }, { status: 401 });
+    }
+    const { data: auth, error: authError } = await sb.auth.getUser(token);
+    const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase();
+    if (authError || !auth?.user?.email || !ownerEmail || auth.user.email.toLowerCase() !== ownerEmail) {
+      return NextResponse.json({ error: 'Interdit' }, { status: 403 });
+    }
+
+    const { email } = await req.json();
+    if (!email) {
+      return NextResponse.json({ error: 'Email requis' }, { status: 400 });
+    }
 
     const { data, error } = await sb.auth.admin.generateLink({
       type: 'magiclink',

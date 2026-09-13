@@ -1,6 +1,8 @@
 "use client";
 import { useState, useRef, useEffect } from "react";
 import { useMultiSocietes } from "../lib/useMultiSocietes";
+import { MODULE_PRICES } from "../lib/plans";
+import UpgradeWall from "../modules/UpgradeWall";
 import PageWalletModule from "../modules/PageWallet";
 import PageCartesModule from "../modules/PageCartes";
 import PageAccueilModule from "../modules/PageAccueil";
@@ -57,15 +59,7 @@ const PLANS = {
   owner:          {id:"owner",          nom:"Owner",              prix:"—",           color:"#C9A84C", icon:"★", acces:["tout"], description:"Accès total — Curtiss"},
 };
 
-const MODULE_PRICES = {
-  overview:19, analytique:19, tresorerie:19, compta:19,
-  notefrais:19,
-  clients:14, partenaires:19, club_affaires:19, annuaire:14,
-  wallet_membres:19, evenements:14, scoring:14,
-  equipe:19, planning:14, prospection:29, deals:14,
-  stock:14, services:14, notifications:9, signature:19,
-  formation:14, deploiement:49, api:29, investissement:24,
-};
+// MODULE_PRICES importe depuis ../lib/plans (partage client/serveur).
 
 const MULTI = ["multi_societes","multi_pro","holding"];
 const PAGE_ACCESS = {
@@ -277,40 +271,7 @@ const SM=({val,max,color=C.green})=><div style={{height:4,borderRadius:2,backgro
 const St=({s})=>{const map={validé:[C.green,"✓ Validé"],signé:[C.green,"✓ Signé"],confirmé:[C.green,"✓ Confirmé"],envoyé:[C.blue,"→ Envoyé"],en_attente:[C.orange,"⏳ En attente"],actif:[C.green,"● Actif"],critique:[C.red,"⚠ Critique"],ouvert:[C.green,"Ouvert"],complet:[C.red,"Complet"],"en cours":[C.blue,"En cours"],"à faire":[C.muted,"À faire"],complété:[C.green,"✓ Complété"]};const[c,l]=map[s]||[C.muted,s];return <Pill color={c}>{l}</Pill>;};
 
 // Aperçus des modules par page
-const MODULE_PREVIEWS={
-  overview:{icon:"◈",desc:"Vue d'ensemble business",features:["8 KPIs en temps réel","Score santé business","Alertes critiques","Actions rapides IA"]},
-  crm:{icon:"◎",desc:"CRM & Pipeline",features:["Pipeline Kanban visuel","Score IA par lead","Relances automatiques","Analytics conversion"]},
-  devis:{icon:"◧",desc:"Devis & Facturation",features:["Devis PDF en 1 clic","Signature électronique","Envoi WhatsApp auto","Score solvabilité client"]},
-  investissement:{icon:"◐",desc:"Investissement IA",features:["Recommandations Claude","ROI par investissement","Plan d'action personnalisé","Scénarios prévisionnels"]},
-  compta:{icon:"◉",desc:"Comptabilité complète",features:["Journal + Bilan","Déclaration TVA","Export expert-comptable","Conseils IA fiscaux"]},
-  tresorerie:{icon:"◑",desc:"Trésorerie 90 jours",features:["Cash-flow prévisionnel","Alertes seuil critique","Multi-devises","Prévisions IA 3 mois"]},
-  analytique:{icon:"◒",desc:"Analytique & CA",features:["CA par service & pays","Prédictions IA mensuelles","Objectifs & suivi","Rapports automatiques"]},
-  clients:{icon:"◬",desc:"Gestion clients",features:["Fiches clients complètes","Score solvabilité","Upsell automatique","Historique missions"]},
-  partenaires:{icon:"⬡",desc:"Partenaires & AA",features:["Suivi commissions","Chat partenaires","Contrats automatiques","Score performance"]},
-  annuaire:{icon:"◱",desc:"Réseau mondial",features:["18+ contacts mondiaux","Carte réseau interactive","Deals entre membres","Messagerie intégrée"]},
-  wallet_membres:{icon:"◈",desc:"Wallets membres",features:["Soldes en temps réel","Cartes virtuelles","Multi-devises","Renouvellements auto"]},
-  evenements:{icon:"◆",desc:"Événements",features:["Créer des événements","QR Code inscription","Visio Jitsi intégrée","Gestion invités"]},
-  scoring:{icon:"★",desc:"Réputation & NPS",features:["Avis Google centralisés","Réponses IA automatiques","Rapport NPS mensuel","Widget site web"]},
-  equipe:{icon:"⊞",desc:"RH & Équipe",features:["16 modules RH complets","Pointage GPS","Paie automatique","IA RH + Juridique"]},
-  planning:{icon:"⊡",desc:"Planning & Agenda",features:["5 vues calendrier","IA auto-planification","Booking client","Règles horaires"]},
-  prospection:{icon:"⊕",desc:"Prospection Auto",features:["Base SIRENE 12M+","Bot WhatsApp IA","Bot d'appel vocal","Séquences automatiques"]},
-  stock:{icon:"⊟",desc:"Stock & Fournitures",features:["Alertes stock critique","IA prédictive","Commandes auto","QR terrain"]},
-  services:{icon:"⊛",desc:"Produits & Services",features:["Catalogue services","Tarification IA","Tunnel upsell","CGV/CGU auto"]},
-  deploiement:{icon:"🌍",desc:"Déploiement SaaS",features:["Clients white-label","Revenus MRR/ARR","Onboarding auto","Dashboard revendeurs"]},
-  api:{icon:"◇",desc:"API Xyra",features:["Clés API sécurisées","Webhooks temps réel","Documentation complète","Logs & monitoring"]},
-  // Modules à la carte
-  notifications:{icon:"🔔",desc:"Notifications avancées",features:["Push temps réel","WhatsApp auto","Email auto","Configuration complète"]},
-  signature:{icon:"✦",desc:"Contrats & Signatures",features:["E-signature légale","10+ modèles","Archivage sécurisé","Avenants auto"]},
-  formation:{icon:"⊿",desc:"Formation équipe",features:["Modules vidéo","Certifications","Protocoles métier","Quiz & scores"]},
-  facturation:{icon:"🧾",desc:"Facturation électronique",features:["Factur-X conforme","Chorus Pro","E-reporting TVA","DGFiP automatique"]},
-  evenements:{icon:"◆",desc:"Événements & Networking",features:["Créer événements","QR inscriptions","Visio Jitsi","Gestion invités"]},
-  wallet_membres:{icon:"◈",desc:"Wallets membres",features:["Soldes temps réel","Cartes virtuelles","Multi-devises","Abonnements auto"]},
-  scoring:{icon:"★",desc:"Réputation & NPS",features:["Avis Google","Réponses IA","Score NPS","Widget site web"]},
-  annuaire:{icon:"◱",desc:"Réseau & Annuaire mondial",features:["18+ pays","Deals membres","Messagerie","IA Match business"]},
-  club_affaires:{icon:"◈",desc:"Club d'affaires privé",features:["Réseau VIP","Deals -10%","Événements exclusifs","IA Match"]},
-  wallet_membres:{icon:"◈",desc:"Wallets membres",features:["Soldes temps réel","Cartes virtuelles","Multi-devises","Renouvellements"]},
-  investissement:{icon:"◐",desc:"Investissement IA",features:["Recommandations Claude","ROI estimé","Plan d'action","Scénarios"]},
-};
+// (bloc deplace vers app/modules/UpgradeWall.tsx)
 
 
 // ─── PAGE BIENTÔT DISPONIBLE ─────────────────────────────────
@@ -348,38 +309,7 @@ const SOON_MODULES={
   centre_appels:{titre:"Centre d'appels IA",icon:"📞",desc:"Un agent vocal IA appelle automatiquement vos prospects, qualifie les leads et planifie les RDV dans votre agenda.",features:["Agent vocal IA (Vapi)","Qualification automatique","Prise de RDV auto","Résumé CRM auto","Multi-langues","Scripts personnalisés","Statistiques appels","Intégration SIRENE"]},
 };
 
-const UpgradeWall=({page,plan})=>{
-  const[vraiPlan,setVraiPlan]=useState(null);
-  useEffect(()=>{
-    fetch("/api/tenant-info").then(r=>r.json()).then(d=>{
-      if(d.plan)setVraiPlan(d.plan);
-    }).catch(()=>{});
-  },[]);
-  const preview=MODULE_PREVIEWS[page]||{icon:"📦",desc:page,features:["Fonctionnalités avancées","Analyses IA","Automatisations","Rapports détaillés"]};
-  const modulePrice=MODULE_PRICES[page];
-  const planPourRedirection=vraiPlan||plan;
-  return <div style={{padding:24,maxWidth:700,margin:"0 auto"}}>
-    <div style={{textAlign:"center",marginBottom:24}}>
-      <div style={{fontSize:48,marginBottom:8}}>{preview.icon||"🔒"}</div>
-      <div style={{fontSize:22,fontWeight:700,color:C.text,fontFamily:"Georgia,serif",marginBottom:4}}>{preview.desc}</div>
-      {modulePrice&&<div style={{display:"inline-flex",alignItems:"center",gap:8,background:`${C.gold}15`,border:`1px solid ${C.gold}44`,borderRadius:20,padding:"6px 16px",marginBottom:8}}>
-        <span style={{fontSize:11,color:C.muted}}>Module a la carte :</span>
-        <span style={{fontSize:16,fontWeight:700,color:C.gold}}>{modulePrice}€/mois</span>
-      </div>}
-    </div>
-    <div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,padding:20,marginBottom:20}}>
-      <div style={{fontSize:11,color:C.muted,fontWeight:600,letterSpacing:"0.1em",textTransform:"uppercase",marginBottom:12}}>Ce que vous debloquez</div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(200px,1fr))",gap:8}}>
-        {preview.features.map((f,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:"8px 12px",fontSize:12,color:C.text,display:"flex",alignItems:"center",gap:8,border:`1px solid ${C.border}`}}>
-          <span style={{color:C.gold,fontSize:14}}>✦</span>{f}
-        </div>)}
-      </div>
-    </div>
-    <a href={`/pricing?upgrade_from=${planPourRedirection}`} style={{display:"block",textAlign:"center",background:`linear-gradient(135deg,${C.gold},#a07c45)`,color:"#000",border:"none",borderRadius:8,padding:"14px 0",fontWeight:700,fontSize:14,fontFamily:"inherit",textDecoration:"none"}}>
-      Voir les forfaits disponibles →
-    </a>
-  </div>;
-};
+// (bloc deplace vers app/modules/UpgradeWall.tsx)
 // ─── CHAT COMPONENT ───────────────────────────────────────────
 const Chat=({msgs,onSend,title="Chat",subtitle=""})=>{
   const[msg,setMsg]=useState("");
@@ -452,40 +382,31 @@ const IbanMondial=({showToast})=>{
   const[cid,setCid]=useState(null);
   const[showForm,setShowForm]=useState(false);
   const[form,setForm]=useState({pays:"",iban:"",banque:"",bic:"",pour:""});
-  const[sb,setSb]=useState(null);
 
   useEffect(()=>{
-    const init=async()=>{
-      try{
-        const{createClient}=await import('@supabase/supabase-js');
-        const client=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-        setSb(client);
-        const{data,error}=await client.from('wallet_ibans').select('*').order('created_at',{ascending:true});
-        if(!error&&data)setIbans(data);
-      }catch(e){console.error('IBAN load:',e);}
-      setLoadingIbans(false);
-    };
-    init();
+    fetch("/api/wallet-ibans").then(r=>r.json()).then(d=>{
+      if(d.ibans)setIbans(d.ibans);
+    }).catch(e=>console.error('IBAN load:',e)).finally(()=>setLoadingIbans(false));
   },[]);
 
   const handleAdd=async()=>{
     if(!form.pays||!form.iban)return;
-    if(!sb)return showToast&&showToast("❌ Connexion Supabase indisponible");
     try{
-      const{data,error}=await sb.from('wallet_ibans').insert([{pays:form.pays,iban:form.iban,banque:form.banque,bic:form.bic,pour:form.pour}]).select();
-      if(error)throw error;
-      if(data&&data[0])setIbans(ib=>[...ib,data[0]]);
+      const res=await fetch("/api/wallet-ibans",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"ajouter",...form})});
+      const data=await res.json();
+      if(!data.success)throw new Error(data.error||"Erreur");
+      setIbans(ib=>[...ib,data.iban]);
       setForm({pays:"",iban:"",banque:"",bic:"",pour:""});
       setShowForm(false);
       showToast&&showToast("✅ IBAN ajouté et sauvegardé !");
-    }catch(e){showToast&&showToast("❌ Erreur lors de l'ajout — vérifie que la table wallet_ibans existe");}
+    }catch(e){showToast&&showToast("❌ Erreur lors de l'ajout de l'IBAN");}
   };
 
   const handleDelete=async(id)=>{
-    if(!sb)return;
     try{
-      const{error}=await sb.from('wallet_ibans').delete().eq('id',id);
-      if(error)throw error;
+      const res=await fetch("/api/wallet-ibans",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"supprimer",id})});
+      const data=await res.json();
+      if(!data.success)throw new Error(data.error||"Erreur");
       setIbans(ib=>ib.filter(x=>x.id!==id));
       showToast&&showToast("✅ IBAN supprimé");
     }catch(e){showToast&&showToast("❌ Erreur lors de la suppression");}
@@ -545,9 +466,11 @@ export default function Xyra() {
   const[tenantInfo,setTenantInfo]=useState(null);
   const[essaiExpire,setEssaiExpire]=useState(false);
   const[paiementLoading,setPaiementLoading]=useState(false);
+  const[modulesActifs,setModulesActifs]=useState([]);
   useEffect(()=>{
     fetch("/api/tenant-info").then(r=>r.json()).then(d=>{
       setTenantInfo(d);
+      if(Array.isArray(d.modules_actifs))setModulesActifs(d.modules_actifs);
       if(d.statut)setTenantStatut(d.statut);
       const trialFini=d.trial_ends_at&&new Date(d.trial_ends_at).getTime()<Date.now();
       if(d.statut==="essai"&&trialFini){
@@ -732,39 +655,39 @@ export default function Xyra() {
     accueil:<PageAccueilModule notifs={notifs} setNotifs={setNotifs} profil={profil} setPage={setPage}/>,
     // Pages bientôt disponibles
     ...Object.fromEntries(Object.entries(SOON_MODULES).map(([k,v])=>[k,<PageBientot key={k} {...v}/>])),
-    wallet:<PageWalletModule plan={plan} showToast={showToast} profil={profil} activeCompany={activeCompany} METHODES_PAY={METHODES_PAY} Convertisseur={Convertisseur} IbanMondial={IbanMondial}/>,
-    cartes:<PageCartesModule plan={plan} showToast={showToast} activeCompany={activeCompany}/>,
+    wallet:<PageWalletModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} activeCompany={activeCompany} METHODES_PAY={METHODES_PAY} Convertisseur={Convertisseur} IbanMondial={IbanMondial}/>,
+    cartes:<PageCartesModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} activeCompany={activeCompany} UpgradeWall={UpgradeWall}/>,
     overview:<PageOverviewModule plan={plan} profil={profil} setPage={setPage} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    crm:<PageCRMModule plan={plan} showToast={showToast} setPage={setPage} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    devis:<PageDevis plan={plan} showToast={showToast} profil={profil} activeCompany={activeCompany} UpgradeWall={UpgradeWall}/>,
-    investissement:<PageInvestissementModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    compta:<PageComptaModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    notefrais:<PageNoteFraisModule plan={plan} showToast={showToast} activeCompany={activeCompany}/>,
-    tresorerie:<PageTresorerieModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    analytique:<PageAnalytiqueModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    clients:<PageClientsModule plan={plan} showToast={showToast} profil={profil} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    fournisseurs:<PageFournisseursModule plan={plan} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    revendeur:<PageRevendeurModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
-    partenaires:<PagePartenairesModule plan={plan} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany} Chat={Chat}/>,
-    club_affaires:<PageClubAffairesModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} setPage={setPage}/>,
-    multi_societes:<PageMultiSocietesModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
-    annuaire:<PageAnnuaireModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany} setPage={setPage}/>,
-    evenements:<PageEvenementsModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    scoring:<PageScoringModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    equipe:<PageEquipeModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} setPage={setPage} activeCompany={activeCompany}/>,
-    planning:<PagePlanningModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
-    prospection:<PageProspectionModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    deals:<PageDealsModule plan={plan} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    stock:<PageStockModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    services:<PageServicesModule plan={plan} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    chat:<PageChatModule plan={plan} showToast={showToast} Chat={Chat} activeCompany={activeCompany}/>,
+    crm:<PageCRMModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} setPage={setPage} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    devis:<PageDevis plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} activeCompany={activeCompany} UpgradeWall={UpgradeWall}/>,
+    investissement:<PageInvestissementModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    compta:<PageComptaModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    notefrais:<PageNoteFraisModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} activeCompany={activeCompany} UpgradeWall={UpgradeWall}/>,
+    tresorerie:<PageTresorerieModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    analytique:<PageAnalytiqueModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    clients:<PageClientsModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    fournisseurs:<PageFournisseursModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    revendeur:<PageRevendeurModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall}/>,
+    partenaires:<PagePartenairesModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany} Chat={Chat}/>,
+    club_affaires:<PageClubAffairesModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} setPage={setPage}/>,
+    multi_societes:<PageMultiSocietesModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall}/>,
+    annuaire:<PageAnnuaireModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany} setPage={setPage}/>,
+    evenements:<PageEvenementsModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    scoring:<PageScoringModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    equipe:<PageEquipeModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} setPage={setPage} activeCompany={activeCompany}/>,
+    planning:<PagePlanningModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
+    prospection:<PageProspectionModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    deals:<PageDealsModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    stock:<PageStockModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    services:<PageServicesModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    chat:<PageChatModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} Chat={Chat} activeCompany={activeCompany}/>,
     conversations_whatsapp:<PageConversationsWhatsapp/>,
     notifications:<PageNotificationsModule notifs={notifs} setNotifs={setNotifs} showToast={showToast} activeCompany={activeCompany}/>,
-    signature:<PageSignaturesModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    facturation:<PageFacturationModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    formation:<PageFormationModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall}/>,
-    api:<PageAPIModule plan={plan} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
-    settings:<PageSettingsModule plan={plan} showToast={showToast} sirApiKey={sirApiKey} setSirApiKey={setSirApiKey} profil={profil} setProfil={setProfil} PLANS={PLANS} PROFILS_SECTEURS={PROFILS_SECTEURS}/>,
+    signature:<PageSignaturesModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    facturation:<PageFacturationModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    formation:<PageFormationModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall}/>,
+    api:<PageAPIModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
+    settings:<PageSettingsModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} sirApiKey={sirApiKey} setSirApiKey={setSirApiKey} profil={profil} setProfil={setProfil} PLANS={PLANS} PROFILS_SECTEURS={PROFILS_SECTEURS}/>,
   };
 
   if(sbLoading)return <div style={{minHeight:"100vh",background:"#06060E",display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:16}}>
@@ -814,7 +737,7 @@ export default function Xyra() {
             <div style={{fontSize:9,color:"#9090B8",letterSpacing:"0.2em",textTransform:"uppercase",padding:"10px 13px 3px",marginTop:gi>0?4:0,fontWeight:600}}>{grp.group}</div>
             {grp.items.map((item)=>{
               const active=page===item.id;
-              const locked=!hasAccess(plan,item.id);
+              const locked=!hasAccess(plan,item.id)&&!modulesActifs.includes(item.id);
               const badge=item.badge?badges[item.badge]:0;
               if(item.soon) return (
                 <button key={item.id} onClick={()=>setPage(item.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 13px",cursor:"pointer",color:"#5A5A7A",background:"transparent",border:"none",borderLeft:"2px solid transparent",width:"100%",textAlign:"left",fontFamily:"inherit",fontSize:12,opacity:0.6}}>

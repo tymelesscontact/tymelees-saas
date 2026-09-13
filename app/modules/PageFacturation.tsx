@@ -4,7 +4,7 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp } from "../l
 import { FORMATION } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 
-const PageFacturation=({plan,showToast,UpgradeWall,activeCompany})=>{
+const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany})=>{
   const[onglet,setOnglet]=useState("dashboard");
   const[factures,setFactures]=useState([]);
   const[loadingFact,setLoadingFact]=useState(true);
@@ -41,6 +41,8 @@ const PageFacturation=({plan,showToast,UpgradeWall,activeCompany})=>{
   const apercuPDF=(f)=>{
     const win=window.open("","_blank");
     if(!win)return showToast("⚠️ Autorisez les pop-ups pour voir l'aperçu");
+    const nomEntreprise=f.tenant_snapshot?.societe||"Xyra";
+    const logoHtml=f.tenant_snapshot?.logo_url?`<img src="${f.tenant_snapshot.logo_url}" alt="${nomEntreprise}" style="max-height:36px;" />`:`<h1>${nomEntreprise}</h1>`;
     win.document.write(`<!DOCTYPE html><html><head><title>Facture ${f.numero}</title><style>
       body{font-family:'Segoe UI',sans-serif;background:#fff;color:#111;padding:40px;max-width:700px;margin:0 auto;}
       h1{font-size:22px;color:#C9A84C;font-family:Georgia,serif;letter-spacing:.1em;}
@@ -52,7 +54,7 @@ const PageFacturation=({plan,showToast,UpgradeWall,activeCompany})=>{
       .btn{background:#C9A84C;color:#000;border:none;padding:10px 24px;border-radius:6px;font-weight:700;cursor:pointer;margin-top:30px;}
       @media print{.btn{display:none;}}
     </style></head><body>
-      <h1>XYRA</h1>
+      ${logoHtml}
       <div class="meta">Facture ${f.numero} · ${f.date_emission||""}</div>
       <div class="meta">Facturé à : ${f.client_nom}${f.siren?" · SIREN "+f.siren:""}</div>
       <table>
@@ -109,7 +111,7 @@ const PageFacturation=({plan,showToast,UpgradeWall,activeCompany})=>{
     }catch(e){showToast("❌ Erreur");}
   };
 
-  if(!hasAccess(plan,"compta"))return <div style={{padding:20}}><UpgradeWall page="compta" plan={plan}/></div>;
+  if(!hasAccess(plan,"facturation",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="facturation" plan={plan}/></div>;
 
   return <div style={{padding:20}}>
     <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
@@ -184,7 +186,7 @@ const PageFacturation=({plan,showToast,UpgradeWall,activeCompany})=>{
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
         <Card style={{background:`${C.blue}08`,borderColor:`${C.blue}33`}}>
           <STitle>📋 Mentions obligatoires</STitle>
-          {[["Numéro de facture séquentiel","✅ Auto-généré"],["Date d'émission","✅ Auto"],["Montant HT/TVA/TTC","✅ Calculé auto"],["Format structuré Factur-X","✅ Sélectionné par défaut"]].map(([m,s],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}><span>{m}</span><span style={{color:C.green,fontWeight:600}}>{s}</span></div>)}
+          {[["Numéro de facture séquentiel","✅ Auto-généré",C.green],["Date d'émission","✅ Auto",C.green],["Montant HT/TVA/TTC","✅ Calculé auto",C.green],["Format du document","PDF simple — Factur-X prévu Phase 6",C.orange]].map(([m,s,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}><span>{m}</span><span style={{color:c,fontWeight:600}}>{s}</span></div>)}
         </Card>
         <Card style={{background:`${C.purple}11`,borderColor:`${C.purple}33`}}>
           <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:6}}>💳 Encaissement</div>

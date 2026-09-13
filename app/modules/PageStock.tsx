@@ -3,7 +3,7 @@ import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 
-const PageStock=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
+const PageStock=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompany})=>{
   const[_stockReal,setStockReal]=useState([]);
   const[_mouvementsReal,setMouvementsReal]=useState([]);
   const[emplacements,setEmplacements]=useState([]);
@@ -83,7 +83,7 @@ const PageStock=({plan,showToast,profil,UpgradeWall,activeCompany})=>{
   const critiques=stock.filter(s=>s.qte<s.min);
   const valeurTotale=stock.reduce((a,s)=>a+s.qte*s.prixU,0);
 
-  if(!hasAccess(plan,"stock"))return <div style={{padding:20}}><UpgradeWall page="stock" plan={plan}/></div>;
+  if(!hasAccess(plan,"stock",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="stock" plan={plan}/></div>;
 
   const[mvt,setMvt]=useState(null);
   const[mvtForm,setMvtForm]=useState({type:"",quantite:"",note:"",cause:"",emplacement_id:"",emplacement_destination_id:"",numero_lot:"",date_peremption:""});

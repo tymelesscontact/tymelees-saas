@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { normaliserPlan } from '../../lib/plans';
+import { normaliserPlan, MODULE_PRICES } from '../../lib/plans';
+import { getTenantFromRequest } from '../../lib/supabaseServer';
 
 export const dynamic = 'force-dynamic';
 
@@ -20,6 +21,41 @@ export async function POST(req: NextRequest) {
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-05-27.dahlia' });
 
     const body = await req.json();
+
+    // ── Achat d'un module a la carte (Starter / Business) ──
+    if (body.module) {
+      const moduleKey = String(body.module);
+      const prix = MODULE_PRICES[moduleKey];
+      if (!prix) {
+        return NextResponse.json({ error: `Le module "${moduleKey}" n'est pas disponible a la carte.` }, { status: 400 });
+      }
+      const tenant = await getTenantFromRequest(req);
+      if (!tenant) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+
+      const origin = req.headers.get('origin') || 'https://xyraio.fr';
+      const sessionModule = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        mode: 'subscription',
+        customer_email: tenant.email || undefined,
+        metadata: { type: 'module', module: moduleKey, tenant_id: tenant.id, email: tenant.email || '' },
+        line_items: [{
+          price_data: {
+            currency: 'eur',
+            product_data: {
+              name: `Xyra — Module ${moduleKey}`,
+              description: `Ajout du module ${moduleKey} — ${tenant.societe || ''}`,
+            },
+            unit_amount: prix * 100,
+            recurring: { interval: 'month' },
+          },
+          quantity: 1,
+        }],
+        success_url: `${origin}/mon-espace?module=${moduleKey}&payment=success`,
+        cancel_url: `${origin}/mon-espace?payment=cancelled`,
+      });
+      return NextResponse.json({ url: sessionModule.url });
+    }
+
     const planRecu = body.plan || 'starter';
     const planKey = normaliserPlan(planRecu);
     const email = body.email || '';

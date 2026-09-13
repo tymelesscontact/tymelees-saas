@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 async function askClaude(prompt: string, maxTokens = 400) {
@@ -32,6 +32,8 @@ function getNPSCategorie(score: number): string {
 }
 
 export async function GET(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "scoring");
+  if (!acces.ok) return acces.reponse;
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get('company_id');
   const action = searchParams.get('action') || 'all';
@@ -92,6 +94,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "scoring");
+  if (!acces.ok) return acces.reponse;
   const tenantId = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;

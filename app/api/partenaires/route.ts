@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 import PDFDocument from 'pdfkit';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
@@ -8,7 +8,7 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // Client normal (lectures/écritures courantes)
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
 // Client admin (clé service_role) — uniquement pour créer/inviter de vrais comptes
@@ -78,6 +78,8 @@ function genererPdfContrat(p: any): Promise<Buffer> {
 }
 
 export async function GET(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "partenaires");
+  if (!acces.ok) return acces.reponse;
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
@@ -124,6 +126,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "partenaires");
+  if (!acces.ok) return acces.reponse;
   const body = await req.json();
   const { action } = body;
   const tenantId = await getTenantIdFromRequest(req);

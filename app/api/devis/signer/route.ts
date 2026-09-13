@@ -13,19 +13,20 @@ function getSupabase() {
 export async function POST(req: NextRequest) {
   try {
     const supabase = getSupabase()
-    const { reference, email, nom } = await req.json()
+    const { reference, token, nom } = await req.json()
 
-    if (!reference || !email) {
-      return NextResponse.json({ success: false, error: "reference ou email manquant" }, { status: 400 })
+    if (!reference || !token) {
+      return NextResponse.json({ success: false, error: "parametres manquants" }, { status: 400 })
     }
 
     const { data: devisRow, error: findErr } = await supabase
       .from("devis")
-      .select("id,statut,client_email,tenant_id,client_nom,montant")
+      .select("id,statut,client_email,tenant_id,client_nom,montant,expire_le")
       .eq("reference", reference)
+      .eq("token_public", token)
       .single()
 
-    if (findErr || !devisRow) {
+    if (findErr || !devisRow || (devisRow.expire_le && new Date(devisRow.expire_le) < new Date())) {
       return NextResponse.json({ success: false, error: "Devis introuvable" }, { status: 404 })
     }
 
@@ -59,17 +60,25 @@ export async function POST(req: NextRequest) {
       } catch (e) { /* non bloquant */ }
     }
 
-    try {
-      await supabase.auth.admin.createUser({
-        email: email,
-        email_confirm: true,
-        user_metadata: { societe: nom || email },
-      })
-    } catch (e) {
-      console.log("Utilisateur existe probablement deja:", e)
+    // Securite : on ne cree jamais un compte avec un email fourni par l'appelant.
+    // Uniquement l'email deja enregistre sur le devis en base (celui du vrai client).
+    let compteCree = false
+    if (devisRow.client_email) {
+      try {
+        await supabase.auth.admin.createUser({
+          email: devisRow.client_email,
+          email_confirm: true,
+          user_metadata: { societe: nom || devisRow.client_email },
+        })
+        compteCree = true
+      } catch (e) {
+        console.log("Utilisateur existe probablement deja:", e)
+      }
+    } else {
+      console.log("Signature devis", reference, ": pas de client_email en base, compte non cree")
     }
 
-    return NextResponse.json({ success: true })
+    return NextResponse.json({ success: true, compteCree })
   } catch (e: any) {
     console.error("POST /api/devis/signer error:", e)
     return NextResponse.json({ success: false, error: "Erreur serveur" }, { status: 500 })

@@ -1,12 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 export async function GET(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "fournisseurs");
+  if (!acces.ok) return acces.reponse;
   const { searchParams } = new URL(req.url);
   const companyId = searchParams.get('company_id');
   const tenantId = await getTenantIdFromRequest(req);
@@ -18,6 +20,8 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ fournisseurs: data || [] });
 }
 export async function POST(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "fournisseurs");
+  if (!acces.ok) return acces.reponse;
   const body = await req.json();
   const { action } = body;
   const tenantId = await getTenantIdFromRequest(req);

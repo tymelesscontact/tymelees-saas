@@ -1,8 +1,9 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
 import { C, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp, Sel, SM, Tabs } from "../lib/ui";
+import { hasAccess } from "../lib/plans";
 
-const PageNoteFrais=({plan,showToast,activeCompany})=>{
+const PageNoteFrais=({plan,modulesActifs,showToast,activeCompany,UpgradeWall})=>{
   const[onglet,setOnglet]=useState("saisie");
   const[notes,setNotes]=useState([]);
   const[loadingNotes,setLoadingNotes]=useState(true);
@@ -181,6 +182,8 @@ const PageNoteFrais=({plan,showToast,activeCompany})=>{
   // Dépenses par catégorie
   const depCat={};
   cats.forEach(c=>{depCat[c]=notes.filter(n=>n.categorie===c).reduce((a,n)=>a+n.montant,0);});
+
+  if(!hasAccess(plan,"notefrais",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="notefrais" plan={plan}/></div>;
 
   return <div style={{padding:4}}>
     {/* Header */}

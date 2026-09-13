@@ -107,8 +107,24 @@ export const PAGE_ACCESS: Record<string, string[]> = {
   api: ["enterprise", "owner"],
 }
 
-export function hasAccess(plan: string, page: string): boolean {
+// Prix mensuel (en €) d'un module acheté à la carte, sur les forfaits qui ne
+// l'incluent pas. Sert à l'affichage (badge sidebar, écran d'upsell) et au
+// paiement Stripe (price_data inline). Un module absent d'ici n'est pas
+// vendu à la carte.
+export const MODULE_PRICES: Record<string, number> = {
+  overview: 19, analytique: 19, tresorerie: 19, compta: 19,
+  notefrais: 19,
+  clients: 14, partenaires: 19, club_affaires: 19, annuaire: 14,
+  wallet_membres: 19, evenements: 14, scoring: 14,
+  equipe: 19, planning: 14, prospection: 29, deals: 14,
+  stock: 14, services: 14, notifications: 9, signature: 19,
+  formation: 14, deploiement: 49, api: 29, investissement: 24,
+  fournisseurs: 14,
+}
+
+// modulesActifs = modules achetés à la carte par ce tenant (table modules_actifs).
+export function hasAccess(plan: string, page: string, modulesActifs: string[] = []): boolean {
   const allowed = PAGE_ACCESS[page]
   if (!allowed) return true
-  return allowed.includes(plan)
+  return allowed.includes(plan) || modulesActifs.includes(page)
 }

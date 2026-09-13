@@ -1,18 +1,38 @@
 "use client";
 import { useState, useEffect } from "react";
 import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, SM, Tabs, St, conv, DEVISES } from "../lib/ui";
-import { INIT_HISTO } from "../lib/seedData";
 
 const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseur,IbanMondial})=>{
   const[onglet,setOnglet]=useState("solde");
   const[devise,setDevise]=useState("EUR");
-  const[histo,setHisto]=useState(INIT_HISTO);
+  const[histo,setHisto]=useState([]);
   const[showPay,setShowPay]=useState(false);
   const[showEnc,setShowEnc]=useState(false);
   const[payForm,setPayForm]=useState({nom:"",montant:"",devise:"EUR",methode:"carte",ref:""});
   const[loadingWallet,setLoadingWallet]=useState(true);
   const[soldeReel,setSoldeReel]=useState(0);
   const[payUnified,setPayUnified]=useState({type:"",contact:"",contactEmail:"",contactTel:"",contactIban:"",montant:"",motif:"",methode:"sepa"});
+  const[pipeline,setPipeline]=useState({montantFactures:0,nbFactures:0,montantDevis:0,nbDevis:0});
+
+  const loadPipeline=async()=>{
+    try{
+      const[fRes,dRes]=await Promise.all([
+        fetch('/api/factures?action=list').then(r=>r.json()).catch(()=>({})),
+        fetch('/api/devis?action=list').then(r=>r.json()).catch(()=>({})),
+      ]);
+      const factures=fRes.factures||[];
+      const devis=dRes.devis||[];
+      const facturesEnAttente=factures.filter(f=>f.statut!=="payée"&&f.statut!=="annulée");
+      const idsDevisFactures=new Set(factures.map(f=>f.devis_id).filter(Boolean));
+      const devisSignesNonFactures=devis.filter(d=>d.statut==="signé"&&!idsDevisFactures.has(d.id));
+      setPipeline({
+        montantFactures:facturesEnAttente.reduce((a,f)=>a+Number(f.montant_ttc||0),0),
+        nbFactures:facturesEnAttente.length,
+        montantDevis:devisSignesNonFactures.reduce((a,d)=>a+Number(d.montant||0),0),
+        nbDevis:devisSignesNonFactures.length,
+      });
+    }catch(e){console.error("Pipeline:",e);}
+  };
 
   const TYPES_PAYER=[
     {id:"remboursement",label:"↩ Remboursement",color:C.red,desc:"Rembourser un client"},
@@ -20,11 +40,16 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
     {id:"fournisseur",label:"🏭 Facture fournisseur",color:C.purple,desc:"Payer un fournisseur"},
     {id:"sortie",label:"🏦 Virement libre",color:C.blue,desc:"Virement à un membre de l'équipe"},
   ];
-  const EQUIPE_CONTACTS=[
-    {nom:"Thomas Beaumont",email:"thomas@xyra.io",tel:"+33 6 12 34 56 78"},
-    {nom:"Abou Diallo",email:"abou@xyra.io",tel:"+33 6 98 76 54 32"},
-    {nom:"Fatou Sarr",email:"fatou@xyra.io",tel:"+33 6 55 44 33 22"},
-  ];
+  const[equipeContacts,setEquipeContacts]=useState([]);
+  const EQUIPE_CONTACTS=equipeContacts;
+
+  const loadEquipe=async()=>{
+    try{
+      const res=await fetch('/api/equipe');
+      const d=await res.json();
+      if(d.membres)setEquipeContacts(d.membres.map(m=>({nom:[m.prenom,m.nom].filter(Boolean).join(" ")||m.nom,email:m.email,tel:m.tel})));
+    }catch(e){console.error("Equipe:",e);}
+  };
 
   const loadWallet=async()=>{
     try{
@@ -39,7 +64,7 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
     setLoadingWallet(false);
   };
 
-  useEffect(()=>{loadWallet();},[activeCompany?.id]);
+  useEffect(()=>{loadWallet();loadEquipe();loadPipeline();},[activeCompany?.id]);
   const[virementForm,setVirementForm]=useState({iban:"",bic:"",nom:"",montant:"",devise:"EUR",motif:""});
 
   const handleVirementSepa=async()=>{
@@ -211,6 +236,11 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
         </div>
         <div style={{display:"flex",gap:8}}><Btn onClick={()=>setShowPay(true)}>⚡ Payer</Btn><Btn onClick={()=>setOnglet("encaisser")} style={{background:C.green,color:"#000"}}>📲 Encaisser</Btn></div>
       </div>
+      {(pipeline.montantFactures>0||pipeline.montantDevis>0)&&<div style={{background:`${C.gold}0D`,border:`1px solid ${C.gold}33`,borderRadius:10,padding:14,marginBottom:16,fontSize:11,color:C.text}}>
+        <div style={{fontWeight:700,color:C.gold,marginBottom:4}}>🔮 Ce n'est pas encore dans ce solde, mais ça arrive</div>
+        {pipeline.montantFactures>0&&<div>{fmt(pipeline.montantFactures)} de factures emises en attente de paiement ({pipeline.nbFactures})</div>}
+        {pipeline.montantDevis>0&&<div>{fmt(pipeline.montantDevis)} de devis signes pas encore factures ({pipeline.nbDevis})</div>}
+      </div>}
       <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:16}}>
         <KPI label="Transactions" val={histo.length} color={C.blue}/>
         <KPI label="Commissions dues" val={fmt(histo.filter(h=>h.type==="commission"&&h.statut==="à_virer").reduce((a,h)=>a+h.montant,0))} color={C.orange}/>

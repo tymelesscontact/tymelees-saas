@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'crypto';
 import sharp from 'sharp';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { getAnthropicKey } from '../../lib/anthropicKey';
 
 export const dynamic = 'force-dynamic';
@@ -11,6 +11,8 @@ const TAILLE_MAX = 10 * 1024 * 1024;
 const TYPES_OK = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp', 'image/heic', 'image/heif'];
 
 export async function POST(req: NextRequest) {
+  const acces = await verifierAccesModule(req, "notefrais");
+  if (!acces.ok) return acces.reponse;
   try {
     const formData = await req.formData();
     const file = formData.get('image') as File;
