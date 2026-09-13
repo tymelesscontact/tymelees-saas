@@ -58,6 +58,7 @@ Dernière mise à jour : 2026-09-13.
 | T12 | Policy publique `companies` (boutique) | 🔴 bloqué | Migration refusée par le classifieur auto-mode (volume de migrations). La boutique publique (lookup société par slug) reste cassée pour visiteurs anonymes. |
 | T13 | RLS : ~35 tables "fonctionnalité jamais construite" restantes sur les 91 initiales | 🔍 en attente d'arbitrage | Recommandation : ne pas créer de policy tant que la fonctionnalité n'est pas réellement développée (éviter policies spéculatives sur un schéma pas encore figé). |
 | T22 | `/api/wallet-membres` (page "Wallet & Membres") totalement ouvert — aucune vérification | ✅ réglé (12/09/2026) | Découvert en travaillant sur T1 : cette page n'est pas un module client, c'est le tableau de bord interne listant **tous les clients Xyra** (société, forfait, MRR, statut) — et la route ne vérifiait ni session ni identité. N'importe qui, même non connecté, pouvait lire la liste complète des clients et leur chiffre d'affaires, et même changer le forfait ou suspendre n'importe quel client (`upgrade`/`downgrade`/`suspendre`/`reactiver` sans contrôle). Corrigé en ajoutant la même vérification `estOwner()` déjà utilisée sur `/api/deploiement` (compare l'email de la session à `OWNER_EMAIL`) sur GET et POST. Build vérifié. `/api/deploiement` (page "Déploiement Tenant", même famille) avait déjà cette protection sur l'essentiel de ses actions — non retouché. |
+| T23 | Écart base TEST / base PROD découvert en synchronisant la prod (13/09/2026) — voir §6 | ✅ prod corrigée et vérifiée, écart résiduel signalé | Comparaison complète des deux bases avant fusion `test`→`main` : PROD avait 22 colonnes et 41 policies RLS manquantes (dont sur `factures`, `wallet_ibans`, `wallet_transactions`, `conversations`, `tresorerie_lignes_manuelles` — accès déjà refusé par défaut donc pas de fuite active, mais aucun filet de sécurité base si le code avait un bug), une fonction `SECURITY DEFINER` (`appartient_au_tenant`) sans `search_path` fixé (durci) et ouverte en `EXECUTE` à `PUBLIC` (resserré à `authenticated`+`anon`). Tout corrigé sur PROD, script additif, vérifié ligne par ligne. **Écart résiduel dans l'autre sens, non corrigé** : la table `rgpd_demandes` (utilisée réellement par `/api/rgpd/route.ts` pour l'export/suppression RGPD, commit `a47f1ba`) existe sur PROD mais **pas sur TEST** — cette fonctionnalité est donc actuellement impossible à tester sur `test` (table absente), alors qu'elle fonctionne en prod. À ajouter sur test si on veut pouvoir la retester avant de la modifier un jour. Audit complémentaire (13/09/2026, après fusion) : aucune référence de code active aux ~21 autres tables présentes uniquement en prod (ancien cluster marketplace/business jamais nettoyé côté prod, déjà supprimé côté test le 09/09 — T9) ; aucun secret ni clé API en dur trouvé dans le code (recherche par motifs `sk_live_`, `AIza`, `xoxb-`, `AKIA`, et champs `password`/`secret`/`api_key` assignés en dur). |
 
 ## 2. Fiches par module
 
@@ -425,6 +426,55 @@ Stripe (`4242 4242 4242 4242`) → webhook reçu → ligne `modules_actifs`
 créée → module débloqué au rechargement du dashboard. Les deux clés Stripe
 (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) sont configurées sur Vercel
 `xyratest1`.
+
+## 6. Passage en production (13/09/2026) — code + base de données
+
+`main` (production, `xyraio.fr`) n'avait pas bougé depuis le 1er septembre
+pendant que `test` accumulait 41 commits (T1, T22, Formation équipe,
+Investissement IA, corrections de sécurité). Décision explicite de
+l'utilisateur : tout basculer en prod. Vérifié avant de commencer : `main`
+n'avait aucun commit propre depuis le point de divergence — fusion sans
+conflit possible.
+
+**Base de données** — accès PROD accordé temporairement pour cette tâche
+(un seul projet Supabase connecté à la fois ; TEST déconnecté pendant
+l'opération, reconnecté après). Comparaison réelle des deux schémas
+(colonnes, policies RLS, fonctions, buckets) plutôt que rejeu des 55
+migrations historiques de test (beaucoup de policies temporaires
+créées/supprimées pour les uploads vidéo, sans intérêt à rejouer). Résultat
+appliqué sur PROD par étapes (exécuté manuellement par l'utilisateur dans
+Supabase SQL Editor — l'exécution directe a été refusée par le classifieur
+de sécurité du mode Auto de Claude Code, catégorie "Production Deploy",
+malgré l'accord explicite donné en conversation ; confirmé non contournable
+après plusieurs tentatives) :
+- Table `formations_catalogue` créée.
+- 22 colonnes manquantes ajoutées sur 12 tables (`devis`, `factures`,
+  `contrats`, `wallet_ibans`, `tresorerie_lignes_manuelles`,
+  `investissement_recommandations`, etc.).
+- 41 policies RLS manquantes créées (voir T23).
+- Fonction `appartient_au_tenant` durcie (`search_path` fixé, `EXECUTE`
+  resserré à `authenticated`+`anon` au lieu de `PUBLIC`).
+- Garde-fou `rls_auto_enable()` + event trigger `ensure_rls` ajoutés
+  (active automatiquement la RLS sur toute nouvelle table créée à l'avenir
+  — absent de prod jusque-là).
+- Bucket `formations-videos` créé, les 10 vidéos transférées (téléchargées
+  depuis l'URL publique de test, uploadées manuellement par l'utilisateur
+  via l'interface Supabase Storage — même blocage du classifieur pour tout
+  transfert automatisé), catalogue rempli pour le vrai tenant TYMELESS actif
+  (`264153ba-2e0f-404a-9bf9-f3d129a0d56e` — identifié par vraies données
+  présentes, pas par le secteur affiché qui s'est révélé être une étiquette
+  jamais mise à jour ; l'autre compte "TYMELESS" trouvé en base,
+  `6a0ffa1b...`, est vide, probablement un doublon jamais utilisé).
+
+**Code** : fusion `test` → `main` locale (`git merge test`, sans conflit
+comme prévu), poussée par l'utilisateur (`git push`) — commit `5a83eab`.
+Vercel a redéployé automatiquement `xyraio.fr`. Vérifié en direct après
+déploiement : `xyraio.fr/api/investissement` répond (401 attendu sans
+authentification, confirme le nouveau code bien déployé).
+
+**Point de vigilance découvert pendant l'opération, non lié à la
+synchro** : PROD a deux comptes "TYMELESS" alors qu'un seul est réellement
+utilisé (voir ci-dessus) — pas creusé plus loin, juste signalé.
 
 **Point ouvert (T21)** : le reverrouillage n'a lieu qu'à l'annulation
 complète de l'abonnement Stripe côté client, pas au premier paiement échoué
