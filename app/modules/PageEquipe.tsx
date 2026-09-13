@@ -39,11 +39,14 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
   };
   // Chargement des vraies données Supabase
   const[alertes,setAlertes]=useState([]);
+  const[catalogue,setCatalogue]=useState([]);
+  const[loadingEquipe,setLoadingEquipe]=useState(true);
   const loadRealData=async()=>{
     try{
       const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
       const res=await fetch('/api/equipe'+companyParam);
       const data=await res.json();
+      setCatalogue(data.catalogue||[]);
       if(data.membres){
         setEquipe(data.membres.map((m,idx)=>({
           heures:0,conges:25,soldeConges:m.conges_solde??25,perf:m.performance||0,localisation:"—",pointage:"—",
@@ -56,36 +59,34 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
         setAlertes(data.alertes||[]);
       }
     }catch(e){console.log("Mode local");}
+    setLoadingEquipe(false);
   };
   useEffect(()=>{loadRealData();},[activeCompany?.id]);
-  const[equipe,setEquipe]=useState([
-    {id:1,nom:"Thomas Beaumont",prenom:"Thomas",role:"Responsable missions premium",statut:"En mission",localisation:"Airbnb Montmartre",pointage:"09:02",heures:6.5,conges:12,soldeConges:12,salaire:2800,perf:94,contrat:"CDI",email:"thomas@xyra.io",tel:"+33 6 12 34 56 78",embauche:"01/03/2024",nss:"1 85 06 75 056 042 28",rib:"FR76 3000 4000 0100 0012 3456 789",adresse:"12 rue de la Paix, 75001 Paris",dateNaissance:"15/06/1985",couleur:"#4B7BFF",
-    missions:[{date:"15/04",service:"Nettoyage Airbnb Montmartre",client:"Isabelle Moreau",duree:"3h",note:5},{date:"14/04",service:"Nettoyage bureaux La Défense",client:"Marc Dupont",duree:"4h",note:5},{date:"12/04",service:"Rapatriement corps — Lefevre",client:"Pierre Lefevre",duree:"8h",note:5}],
-    evaluations:[{date:"01/04/2026",note:94,points:"Excellence technique, ponctualité parfaite, initiative",axes:"Développer compétences aviation privée",evaluateur:"Curtiss"},{date:"01/01/2026",note:88,points:"Très bonne maîtrise des protocoles premium",axes:"Communication client à perfectionner",evaluateur:"Curtiss"}],
-    formations:[{titre:"Protocole nettoyage jet privé",date:"15/03",statut:"complété",score:98},{titre:"Secourisme SST",date:"10/01",statut:"complété",score:95}],
-    documents:[{nom:"Carte d'identité",type:"ID",expire:"2030",statut:"valide"},{nom:"DPAE embauche",type:"RH",date:"01/03/2024",statut:"archivé"},{nom:"Contrat CDI",type:"Contrat",date:"01/03/2024",statut:"signé"}],
-    arrets:[],objectifs:[{obj:"Atteindre 50 missions/mois",actuel:38,cible:50,color:"#4B7BFF"},{obj:"Score client > 4.8",actuel:4.9,cible:4.8,color:"#2EC9B0"},{obj:"Zéro retard",actuel:0,cible:0,color:"#2EC9B0"}],
-    carriere:[{date:"01/03/2024",poste:"Technicien junior",salaire:2200},{date:"01/09/2024",poste:"Technicien senior",salaire:2500},{date:"01/03/2025",poste:"Responsable missions premium",salaire:2800}]},
+  const[equipe,setEquipe]=useState([]);
 
-    {id:2,nom:"Abou Diallo",prenom:"Abou",role:"Technicien polyvalent",statut:"Disponible",localisation:"Paris 18e",pointage:"08:45",heures:5.2,conges:15,soldeConges:15,salaire:2200,perf:88,contrat:"CDD",email:"abou@xyra.io",tel:"+33 6 98 76 54 32",embauche:"15/06/2024",nss:"1 92 03 75 115 224 55",rib:"FR76 1027 8060 0001 0234 5678 901",adresse:"45 avenue de Clichy, 75017 Paris",dateNaissance:"03/03/1992",couleur:"#9B5FFF",
-    missions:[{date:"15/04",service:"Nettoyage Airbnb Montmartre",client:"Isabelle Moreau",duree:"3h",note:5},{date:"13/04",service:"Entretien yacht",client:"Jet Services",duree:"5h",note:4}],
-    evaluations:[{date:"01/04/2026",note:88,points:"Polyvalence remarquable, bonne attitude",axes:"Améliorer vitesse d'exécution",evaluateur:"Curtiss"}],
-    formations:[{titre:"Nettoyage yacht — produits nacrés",date:"20/03",statut:"à faire",score:null},{titre:"Secourisme SST",date:"10/01",statut:"complété",score:90}],
-    documents:[{nom:"Titre de séjour",type:"ID",expire:"15/11/2026",statut:"valide"},{nom:"Contrat CDD",type:"Contrat",date:"15/06/2024",statut:"signé"}],
-    arrets:[{debut:"05/02/2026",fin:"08/02/2026",jours:3,motif:"Grippe",justif:"Arrêt médical fourni"}],
-    objectifs:[{obj:"30 missions/mois",actuel:22,cible:30,color:"#9B5FFF"},{obj:"Score client > 4.5",actuel:4.6,cible:4.5,color:"#2EC9B0"}],
-    carriere:[{date:"15/06/2024",poste:"Technicien junior",salaire:2000},{date:"01/01/2025",poste:"Technicien polyvalent",salaire:2200}]},
-
-    {id:3,nom:"Fatou Sarr",prenom:"Fatou",role:"Commercial & Relations clients",statut:"En RDV",localisation:"Client VIP 14h",pointage:"09:30",heures:4.8,conges:10,soldeConges:10,salaire:2400,perf:91,contrat:"CDI",email:"fatou@xyra.io",tel:"+33 6 55 44 33 22",embauche:"01/09/2024",nss:"2 94 08 75 102 358 44",rib:"FR76 2004 1000 0101 0050 0678 912",adresse:"8 rue Victor Hugo, 75016 Paris",dateNaissance:"22/08/1994",couleur:"#FF5F9E",
-    missions:[{date:"17/04",service:"RDV client VIP Sofia Al-Rashid",client:"Sofia Al-Rashid",duree:"2h",note:5},{date:"14/04",service:"Prospection syndics 94",client:"—",duree:"4h",note:null}],
-    evaluations:[{date:"01/04/2026",note:91,points:"Excellente relation client, très bonne prospection",axes:"Développer compétences closing B2B",evaluateur:"Curtiss"}],
-    formations:[{titre:"Technique de vente B2B",date:"25/03",statut:"en cours",score:null},{titre:"Accueil client VIP",date:"15/02",statut:"complété",score:92}],
-    documents:[{nom:"Carte d'identité",type:"ID",expire:"2028",statut:"valide"},{nom:"Contrat CDI",type:"Contrat",date:"01/09/2024",statut:"signé"}],
-    arrets:[],
-    objectifs:[{obj:"20 nouveaux prospects/mois",actuel:17,cible:20,color:"#FF5F9E"},{obj:"CA apporté > 8 000€",actuel:6200,cible:8000,color:"#C9A84C"}],
-    carriere:[{date:"01/09/2024",poste:"Chargée de relations clients",salaire:2200},{date:"01/03/2025",poste:"Commercial & Relations clients",salaire:2400}]},
-  ]);
-
+  const[assignerPourId,setAssignerPourId]=useState(null);
+  const[choixCatalogueId,setChoixCatalogueId]=useState("");
+  const majFormationEquipe=async(f,nouveauStatut)=>{
+    try{
+      const score=nouveauStatut==="complété"?Math.floor(80+Math.random()*20):null;
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'maj_formation',id:f.id,statut:nouveauStatut,score})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      showToast(`✅ "${f.titre}" — ${nouveauStatut}`);
+      loadRealData();
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const assignerFormation=async(employeId)=>{
+    if(!choixCatalogueId)return showToast("⚠️ Choisis une vidéo");
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter_formation',employe_id:employeId,catalogue_id:choixCatalogueId,statut:'à faire'})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      showToast("✅ Formation assignée");
+      setAssignerPourId(null);setChoixCatalogueId("");
+      loadRealData();
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const[onglet,setOnglet]=useState("dashboard");
   const[sel,setSel]=useState(null);
   const[showAdd,setShowAdd]=useState(false);
@@ -394,13 +395,13 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
         {Array.from({length:30},(_, i)=>{
           const jour=i+1;
-          const congeThomas=moisCal===5&&jour>=20&&jour<=22;
-          const congeAbou=moisCal===5&&jour===27;
+          const congeThomas=moisCal===5&&jour>=20&&jour<=22&&equipe[0];
+          const congeAbou=moisCal===5&&jour===27&&equipe[1];
           const weekend=(i+3)%7>=5;
           return <div key={i} style={{background:weekend?"#121222":congeThomas?equipe[0].couleur+"33":congeAbou?equipe[1].couleur+"33":"#121222",border:`1px solid ${congeThomas?equipe[0].couleur+"55":congeAbou?equipe[1].couleur+"55":"#1E1E36"}`,borderRadius:4,padding:"6px 4px",textAlign:"center",minHeight:42}}>
             <div style={{fontSize:11,color:weekend?"#1E1E36":"#EAE6DE",fontWeight:600}}>{jour}</div>
-            {congeThomas&&<div style={{fontSize:8,color:equipe[0].couleur,marginTop:2}}>Thomas</div>}
-            {congeAbou&&<div style={{fontSize:8,color:equipe[1].couleur,marginTop:2}}>Abou</div>}
+            {congeThomas&&<div style={{fontSize:8,color:equipe[0].couleur,marginTop:2}}>{equipe[0].prenom}</div>}
+            {congeAbou&&<div style={{fontSize:8,color:equipe[1].couleur,marginTop:2}}>{equipe[1].prenom}</div>}
           </div>;
         })}
       </div>
@@ -538,22 +539,38 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
         {[["Formations complètes",equipe.reduce((a,e)=>a+e.formations.filter(f=>f.statut==="complété").length,0),"#2EC9B0"],["En cours",equipe.reduce((a,e)=>a+e.formations.filter(f=>f.statut==="en cours").length,0),"#4B7BFF"],["À faire",equipe.reduce((a,e)=>a+e.formations.filter(f=>f.statut==="à faire").length,0),"#FF8C3A"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:22,fontWeight:700,color:c}}>{v}</div></div>)}
       </div>
-      {equipe.map((e,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16,marginBottom:10}}>
+      {loadingEquipe?<div style={{fontSize:12,color:"#5A5A7A"}}>Chargement...</div>:
+       equipe.length===0?<div style={{fontSize:12,color:"#5A5A7A"}}>Aucun employé enregistré.</div>:
+      equipe.map((e,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16,marginBottom:10}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
           <div style={{width:32,height:32,borderRadius:"50%",background:e.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:12,fontWeight:700,color:e.couleur}}>{e.nom[0]}</div>
           <div style={{flex:1,fontSize:13,fontWeight:700}}>{e.nom}</div>
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:6}}>
-          {e.formations.map((f,j)=><div key={j} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#121222",borderRadius:7,padding:"8px 12px",border:"1px solid #1E1E36"}}>
-            <div><div style={{fontSize:11,fontWeight:600}}>{f.titre}</div><div style={{fontSize:9,color:"#5A5A7A"}}>{f.date}</div></div>
+          {e.formations.length===0&&<div style={{fontSize:11,color:"#5A5A7A"}}>Aucune formation assignée.</div>}
+          {e.formations.map((f,j)=>{
+            const video=catalogue.find(c=>c.id===f.catalogue_id);
+            return <div key={j} style={{display:"flex",justifyContent:"space-between",alignItems:"center",background:"#121222",borderRadius:7,padding:"8px 12px",border:"1px solid #1E1E36",flexWrap:"wrap",gap:6}}>
+            <div><div style={{fontSize:11,fontWeight:600}}>{f.titre}</div><div style={{fontSize:9,color:"#5A5A7A"}}>{(f.date_completion||f.created_at||"").slice(0,10)}</div></div>
             <div style={{display:"flex",gap:8,alignItems:"center"}}>
               {f.score&&<span style={{fontSize:11,fontWeight:700,color:"#2EC9B0"}}>{f.score}%</span>}
               <span style={{fontSize:10,background:f.statut==="complété"?"#2EC9B022":f.statut==="en cours"?"#4B7BFF22":"#FF8C3A22",color:f.statut==="complété"?"#2EC9B0":f.statut==="en cours"?"#4B7BFF":"#FF8C3A",padding:"2px 8px",borderRadius:10,fontWeight:600}}>{f.statut}</span>
-              <button onClick={()=>showToast(`▶ Formation "${f.titre}" lancée`)} style={{background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:4,padding:"3px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>{f.statut==="complété"?"↺ Refaire":"▶ Lancer"}</button>
+              {video?.video_url&&<a href={video.video_url} target="_blank" rel="noreferrer" style={{fontSize:9,color:"#4B7BFF",textDecoration:"none",border:"1px solid #4B7BFF44",borderRadius:4,padding:"3px 8px"}}>▶ Voir la vidéo</a>}
+              {f.statut==="à faire"&&<button onClick={()=>majFormationEquipe(f,"en cours")} style={{background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:4,padding:"3px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>▶ Démarrer</button>}
+              {f.statut==="en cours"&&<button onClick={()=>majFormationEquipe(f,"complété")} style={{background:"transparent",color:"#2EC9B0",border:"1px solid #2EC9B044",borderRadius:4,padding:"3px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>✅ Terminer</button>}
+              {f.statut==="complété"&&<button onClick={()=>majFormationEquipe(f,"en cours")} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #5A5A7A44",borderRadius:4,padding:"3px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>↺ Refaire</button>}
             </div>
-          </div>)}
+          </div>;})}
         </div>
-        <button onClick={()=>showToast(`✅ Formation ajoutée pour ${e.nom}`)} style={{marginTop:10,background:"transparent",color:"#4B7BFF",border:"1px solid #4B7BFF33",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Assigner une formation</button>
+        {assignerPourId===e.id?<div style={{marginTop:10,display:"flex",gap:6,alignItems:"center",flexWrap:"wrap"}}>
+          <select value={choixCatalogueId} onChange={ev=>setChoixCatalogueId(ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}>
+            <option value="">Choisir une vidéo...</option>
+            {catalogue.map(c=><option key={c.id} value={c.id}>{c.titre}</option>)}
+          </select>
+          <button onClick={()=>assignerFormation(e.id)} style={{background:"#4B7BFF",color:"#fff",border:"none",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Assigner</button>
+          <button onClick={()=>{setAssignerPourId(null);setChoixCatalogueId("");}} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Annuler</button>
+        </div>:
+        <button onClick={()=>setAssignerPourId(e.id)} style={{marginTop:10,background:"transparent",color:"#4B7BFF",border:"1px solid #4B7BFF33",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Assigner une formation</button>}
       </div>)}
     </div>}
 
