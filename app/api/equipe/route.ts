@@ -101,6 +101,7 @@ export async function GET(req: NextRequest) {
   const moisIsoCourant = new Date().toISOString().slice(0, 7);
   const { data: fichesPaie } = await sb.from('fiches_paie').select('*').eq('tenant_id', tenantId).eq('mois', moisIsoCourant);
   const { data: documents } = await sb.from('documents_equipe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
+  const { data: objectifs } = await sb.from('objectifs_equipe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
 
   const enriched = (membres || []).map((m: any) => {
     const mId = m.user_id || m.id;
@@ -114,6 +115,9 @@ export async function GET(req: NextRequest) {
     const mPosition = (positions || []).find((p: any) => p.collaborateur_id === m.id) || null;
     const mFichePaie = (fichesPaie || []).find((f: any) => f.employe_id === m.id) || null;
     const mDocuments = (documents || []).filter((d: any) => d.employe_id === m.id);
+    const mObjectifs = (objectifs || []).filter((o: any) => o.employe_id === m.id).map((o: any) => ({
+      id: o.id, obj: o.titre, actuel: Number(o.actuel), cible: Number(o.cible), color: o.couleur, unite: o.unite,
+    }));
 
     const heuresCeMois = mPointages
       .filter((p: any) => new Date(p.date).getMonth() === new Date().getMonth())
@@ -130,6 +134,7 @@ export async function GET(req: NextRequest) {
       evaluations: mEvals,
       formations: mFormations,
       documents: mDocuments,
+      objectifs: mObjectifs,
       missions: mMissions.slice(0, 20),
       heuresCeMois: Math.round(heuresCeMois * 10) / 10,
       paie,
@@ -303,6 +308,38 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Envoi email échoué : ' + e.message }, { status: 500 });
     }
     return NextResponse.json({ success: true, email: emailDest });
+  }
+
+  if (action === 'ajouter_objectif') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { employe_id, titre, cible, actuel, unite, couleur } = body;
+    if (!employe_id || !titre || !cible) return NextResponse.json({ error: 'Employé, titre et cible requis' }, { status: 400 });
+    const { data: empObj } = await sb.from('equipe').select('id').eq('id', employe_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!empObj) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
+    const { data, error } = await sb.from('objectifs_equipe').insert({
+      tenant_id: tenantId, employe_id, titre, cible: Number(cible), actuel: Number(actuel) || 0,
+      unite: unite || null, couleur: couleur || '#4B7BFF',
+    }).select().single();
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, objectif: data });
+  }
+
+  if (action === 'maj_objectif') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { id, actuel } = body;
+    if (!id || actuel === undefined) return NextResponse.json({ error: 'id et actuel requis' }, { status: 400 });
+    const { error } = await sb.from('objectifs_equipe').update({ actuel: Number(actuel) }).eq('id', id).eq('tenant_id', tenantId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'supprimer_objectif') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { id } = body;
+    if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
+    const { error } = await sb.from('objectifs_equipe').delete().eq('id', id).eq('tenant_id', tenantId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
   }
 
   if (action === 'creer') {

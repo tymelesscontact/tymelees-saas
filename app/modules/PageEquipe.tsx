@@ -245,6 +245,44 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       showToast(`📧 Envoyé à ${employeNom}`);
     }catch(err){showToast("❌ Erreur de connexion");}
   };
+  const[objFormId,setObjFormId]=useState(null);
+  const[objTitre,setObjTitre]=useState("");
+  const[objCible,setObjCible]=useState("");
+  const[objActuel,setObjActuel]=useState("0");
+  const[objUnite,setObjUnite]=useState("");
+  const objCouleurs=["#4B7BFF","#2EC9B0","#C9A84C","#9B5FFF","#FF8C3A"];
+  const ouvrirAjoutObjectif=(id)=>{
+    setObjTitre("");setObjCible("");setObjActuel("0");setObjUnite("");
+    setObjFormId(objFormId===id?null:id);
+  };
+  const ajouterObjectif=async(employeId)=>{
+    if(!objTitre||!objCible)return showToast("⚠️ Titre et cible requis");
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter_objectif',employe_id:employeId,titre:objTitre,cible:Number(objCible),actuel:Number(objActuel)||0,unite:objUnite||null,couleur:objCouleurs[Math.floor(Math.random()*objCouleurs.length)]})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      showToast("✅ Objectif ajouté");
+      setObjFormId(null);
+      loadRealData();
+    }catch(err){showToast("❌ Erreur de connexion");}
+  };
+  const majProgressionObjectif=async(obj,valeur)=>{
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'maj_objectif',id:obj.id,actuel:valeur})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      loadRealData();
+    }catch(err){showToast("❌ Erreur de connexion");}
+  };
+  const supprimerObjectif=async(obj)=>{
+    if(!window.confirm(`Supprimer l'objectif "${obj.obj}" ?`))return;
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'supprimer_objectif',id:obj.id})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      loadRealData();
+    }catch(err){showToast("❌ Erreur de connexion");}
+  };
   const[onglet,setOnglet]=useState("dashboard");
   const[sel,setSel]=useState(null);
   const[showAdd,setShowAdd]=useState(false);
@@ -389,7 +427,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
         </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        {[["🎯 Objectifs atteints","—","#2EC9B0"],["🎓 Formations complètes",`${equipe.reduce((a,e)=>a+e.formations.filter(f=>f.statut==="complété").length,0)}/${equipe.reduce((a,e)=>a+e.formations.length,0)}`,"#4B7BFF"],["📅 Jours de congés pris",equipe.reduce((a,e)=>a+(e.congesDemandes||[]).filter(d=>d.statut==="validé").reduce((s,d)=>s+Number(d.jours||0),0),0),"#C9A84C"]].map(([l,v,c],i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:10,padding:14,textAlign:"center"}}><div style={{fontSize:11,color:"#5A5A7A",marginBottom:4}}>{l}</div><div style={{fontSize:22,fontWeight:700,color:c}}>{v}</div></div>)}
+        {[["🎯 Objectifs atteints",`${equipe.reduce((a,e)=>a+(e.objectifs||[]).filter(o=>o.actuel>=o.cible).length,0)}/${equipe.reduce((a,e)=>a+(e.objectifs||[]).length,0)}`,"#2EC9B0"],["🎓 Formations complètes",`${equipe.reduce((a,e)=>a+e.formations.filter(f=>f.statut==="complété").length,0)}/${equipe.reduce((a,e)=>a+e.formations.length,0)}`,"#4B7BFF"],["📅 Jours de congés pris",equipe.reduce((a,e)=>a+(e.congesDemandes||[]).filter(d=>d.statut==="validé").reduce((s,d)=>s+Number(d.jours||0),0),0),"#C9A84C"]].map(([l,v,c],i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:10,padding:14,textAlign:"center"}}><div style={{fontSize:11,color:"#5A5A7A",marginBottom:4}}>{l}</div><div style={{fontSize:22,fontWeight:700,color:c}}>{v}</div></div>)}
       </div>
     </div>}
 
@@ -458,22 +496,33 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
           <div style={{fontSize:20,fontWeight:700,color:e.perf>=90?"#2EC9B0":"#C9A84C"}}>{e.perf}%</div>
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {e.objectifs.length>0?e.objectifs.map((obj,j)=>{
+          {(e.objectifs||[]).length>0?e.objectifs.map((obj,j)=>{
             const pct=typeof obj.actuel==="number"&&typeof obj.cible==="number"?Math.min(100,Math.round((obj.actuel/obj.cible)*100)):100;
             const atteint=typeof obj.actuel==="number"?obj.actuel>=obj.cible:true;
             return <div key={j} style={{background:"#121222",borderRadius:8,padding:10}}>
               <div style={{display:"flex",justifyContent:"space-between",marginBottom:6}}>
                 <div style={{fontSize:11,fontWeight:600}}>{obj.obj}</div>
-                <div style={{fontSize:11,color:atteint?"#2EC9B0":"#C9A84C",fontWeight:700}}>{atteint?"✅ Atteint":"🎯 En cours"}</div>
+                <div style={{display:"flex",alignItems:"center",gap:8}}>
+                  <div style={{fontSize:11,color:atteint?"#2EC9B0":"#C9A84C",fontWeight:700}}>{atteint?"✅ Atteint":"🎯 En cours"}</div>
+                  <button onClick={()=>supprimerObjectif(obj)} style={{background:"transparent",color:"#5A5A7A",border:"none",cursor:"pointer",fontSize:11}}>🗑</button>
+                </div>
               </div>
               <div style={{display:"flex",alignItems:"center",gap:8}}>
                 <div style={{flex:1,height:6,borderRadius:3,background:"#1E1E36"}}><div style={{height:"100%",width:pct+"%",background:obj.color,borderRadius:3,transition:"width .3s"}}/></div>
-                <div style={{fontSize:10,color:"#5A5A7A",whiteSpace:"nowrap"}}>{typeof obj.actuel==="number"?obj.actuel+" / "+obj.cible:obj.actuel}</div>
+                <input type="number" defaultValue={obj.actuel} onBlur={ev=>{const v=Number(ev.target.value);if(!isNaN(v)&&v!==obj.actuel)majProgressionObjectif(obj,v);}} style={{width:60,background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:4,padding:"2px 6px",color:"#EDEDF5",fontSize:10,fontFamily:"inherit"}}/>
+                <div style={{fontSize:10,color:"#5A5A7A",whiteSpace:"nowrap"}}>/ {obj.cible}{obj.unite?" "+obj.unite:""}</div>
               </div>
             </div>;
           }):<div style={{fontSize:11,color:"#5A5A7A",textAlign:"center",padding:12}}>Aucun objectif défini</div>}
         </div>
-        <button onClick={()=>showToast(`✅ Objectif ajouté pour ${e.nom}`)} style={{marginTop:10,background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Ajouter un objectif</button>
+        {objFormId===e.id?<div style={{marginTop:10,background:"#0A0A16",borderRadius:8,padding:12,display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap"}}>
+          <label style={{fontSize:10,color:"#5A5A7A",flex:1,minWidth:140}}>Objectif<br/><input type="text" value={objTitre} onChange={ev=>setObjTitre(ev.target.value)} placeholder="Ex : CA généré" style={{width:"100%",background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+          <label style={{fontSize:10,color:"#5A5A7A"}}>Actuel<br/><input type="number" value={objActuel} onChange={ev=>setObjActuel(ev.target.value)} style={{width:70,background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+          <label style={{fontSize:10,color:"#5A5A7A"}}>Cible<br/><input type="number" value={objCible} onChange={ev=>setObjCible(ev.target.value)} style={{width:70,background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+          <label style={{fontSize:10,color:"#5A5A7A"}}>Unité<br/><input type="text" value={objUnite} onChange={ev=>setObjUnite(ev.target.value)} placeholder="€, missions..." style={{width:90,background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+          <button onClick={()=>ajouterObjectif(e.id)} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:6,padding:"7px 14px",cursor:"pointer",fontWeight:600,fontSize:11,fontFamily:"inherit"}}>Ajouter</button>
+          <button onClick={()=>setObjFormId(null)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:6,padding:"7px 14px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Annuler</button>
+        </div>:<button onClick={()=>ouvrirAjoutObjectif(e.id)} style={{marginTop:10,background:"transparent",color:"#C9A84C",border:"1px solid #C9A84C44",borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Ajouter un objectif</button>}
       </div>)}
     </div>}
 
