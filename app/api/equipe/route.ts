@@ -140,6 +140,7 @@ export async function GET(req: NextRequest) {
   const { data: documents } = await sb.from('documents_equipe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   const { data: objectifs } = await sb.from('objectifs_equipe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   const { data: carriere } = await sb.from('carriere_equipe').select('*').eq('tenant_id', tenantId).order('date', { ascending: true });
+  const { data: onboarding } = await sb.from('onboarding_equipe').select('*').eq('tenant_id', tenantId);
 
   const enriched = (membres || []).map((m: any) => {
     const mId = m.user_id || m.id;
@@ -159,6 +160,18 @@ export async function GET(req: NextRequest) {
     const mCarriere = (carriere || []).filter((c: any) => c.employe_id === m.id).map((c: any) => ({
       id: c.id, poste: c.poste, salaire: Number(c.salaire), date: c.date,
     }));
+    const mOnboardingManuel = (onboarding || []).filter((o: any) => o.employe_id === m.id);
+    const etapeManuelle = (cle: string) => !!mOnboardingManuel.find((o: any) => o.etape === cle)?.fait;
+    const mOnboarding = [
+      { cle: 'dpae', etape: 'Déclaration préalable à l\'embauche (DPAE)', fait: etapeManuelle('dpae'), auto: false },
+      { cle: 'contrat_signe', etape: 'Contrat de travail signé', fait: mDocuments.some((d: any) => d.type === 'Contrat signé'), auto: true },
+      { cle: 'piece_identite', etape: 'Pièce d\'identité reçue', fait: mDocuments.some((d: any) => d.type === 'Carte d\'identité'), auto: true },
+      { cle: 'rib', etape: 'RIB renseigné', fait: !!m.rib, auto: true },
+      { cle: 'visite_medicale', etape: 'Visite médicale planifiée', fait: !!m.visite_medicale_echeance, auto: true },
+      { cle: 'acces_espace', etape: 'Accès espace collaborateur créé', fait: !!m.user_id, auto: true },
+      { cle: 'materiel', etape: 'Matériel et accès terrain remis', fait: etapeManuelle('materiel'), auto: false },
+      { cle: 'briefing', etape: 'Briefing équipe effectué', fait: etapeManuelle('briefing'), auto: false },
+    ];
 
     const heuresCeMois = mPointages
       .filter((p: any) => new Date(p.date).getMonth() === new Date().getMonth())
@@ -177,6 +190,7 @@ export async function GET(req: NextRequest) {
       documents: mDocuments,
       objectifs: mObjectifs,
       carriere: mCarriere,
+      onboarding: mOnboarding,
       missions: mMissions.slice(0, 20),
       heuresCeMois: Math.round(heuresCeMois * 10) / 10,
       paie,
@@ -453,6 +467,17 @@ export async function POST(req: NextRequest) {
       ${corpsDuer}
     </div>`;
     return NextResponse.json({ success: true, html });
+  }
+
+  if (action === 'toggle_onboarding') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { employe_id, etape, fait } = body;
+    if (!employe_id || !etape) return NextResponse.json({ error: 'employe_id et etape requis' }, { status: 400 });
+    const { error } = await sb.from('onboarding_equipe').upsert({
+      tenant_id: tenantId, employe_id, etape, fait: !!fait, fait_le: fait ? new Date().toISOString() : null,
+    }, { onConflict: 'employe_id,etape' });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
   }
 
   if (action === 'ajouter_promotion') {

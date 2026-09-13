@@ -416,6 +416,12 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     }catch(err){showToast("❌ Erreur de connexion");}
     setGenDuerEnCours(false);
   };
+  const toggleOnboarding=async(employeId,cle,fait)=>{
+    try{
+      await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'toggle_onboarding',employe_id:employeId,etape:cle,fait})});
+      loadRealData();
+    }catch(err){}
+  };
   const[onglet,setOnglet]=useState("dashboard");
   const[sel,setSel]=useState(null);
   const[showAdd,setShowAdd]=useState(false);
@@ -426,6 +432,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
   const tabs=[
     {id:"dashboard",label:"📊 Tableau de bord"},
     {id:"equipe",label:"👥 Équipe"},
+    {id:"onboarding",label:"🚀 Onboarding"},
     {id:"objectifs",label:"🎯 Objectifs & KPIs"},
     {id:"pointage",label:"⏰ Pointage GPS"},
     {id:"conges",label:"🏖 Congés"},
@@ -621,6 +628,32 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     </div>}
 
     {/* ─── OBJECTIFS & KPIs ──────────────────────────────────── */}
+    {/* ─── ONBOARDING ────────────────────────────────────────── */}
+    {onglet==="onboarding"&&<div>
+      <div style={{fontSize:10,color:"#5A5A7A",marginBottom:14}}>Certaines étapes sont détectées automatiquement (contrat signé, RIB, visite médicale, accès créé), d'autres se cochent manuellement.</div>
+      {loadingEquipe?<div style={{fontSize:12,color:"#5A5A7A"}}>Chargement...</div>:equipe.length===0?<div style={{fontSize:12,color:"#5A5A7A"}}>Aucun employé.</div>:
+      equipe.map((e,i)=>{
+        const etapes=e.onboarding||[];
+        const faites=etapes.filter(o=>o.fait).length;
+        const pct=etapes.length>0?Math.round(faites/etapes.length*100):0;
+        return <div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18,marginBottom:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+            <div style={{width:36,height:36,borderRadius:"50%",background:e.couleur+"22",border:`2px solid ${e.couleur}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:e.couleur}}>{e.nom[0]}</div>
+            <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{e.nom}</div><div style={{fontSize:10,color:"#5A5A7A"}}>Depuis {e.embauche}</div></div>
+            <div style={{fontSize:16,fontWeight:700,color:pct===100?"#2EC9B0":"#C9A84C"}}>{pct}%</div>
+          </div>
+          <div style={{height:6,borderRadius:3,background:"#1E1E36",marginBottom:12}}><div style={{height:"100%",width:pct+"%",background:pct===100?"#2EC9B0":"#C9A84C",borderRadius:3,transition:"width .3s"}}/></div>
+          <div style={{display:"flex",flexDirection:"column",gap:6}}>
+            {etapes.map((o,j)=><div key={j} style={{display:"flex",alignItems:"center",gap:8,fontSize:12}}>
+              <input type="checkbox" checked={o.fait} disabled={o.auto} onChange={ev=>toggleOnboarding(e.id,o.cle,ev.target.checked)} style={{cursor:o.auto?"default":"pointer"}}/>
+              <span style={{color:o.fait?"#EAE6DE":"#5A5A7A",textDecoration:o.fait?"line-through":"none"}}>{o.etape}</span>
+              {o.auto&&<span style={{fontSize:9,color:"#4B7BFF",background:"#4B7BFF11",padding:"1px 6px",borderRadius:8}}>auto</span>}
+            </div>)}
+          </div>
+        </div>;
+      })}
+    </div>}
+
     {onglet==="objectifs"&&<div>
       {equipe.map((e,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18,marginBottom:12}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:14}}>
