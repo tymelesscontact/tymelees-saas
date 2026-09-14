@@ -66,6 +66,17 @@ export async function middleware(req: NextRequest) {
     }
   }
 
+  // Recrutement : la page carrieres publique et la candidature en ligne
+  // n'ont pas de session (candidat externe). Les autres actions (creation
+  // d'offre, pipeline...) restent protegees par l'authentification normale
+  // + leur propre verification RH/owner cote serveur.
+  if (path === '/api/recrutement' && req.method === 'GET' && req.nextUrl.searchParams.get('action') === 'public_offres') {
+    return NextResponse.next()
+  }
+  if (path === '/api/recrutement' && req.method === 'POST' && (req.headers.get('content-type') || '').includes('multipart/form-data')) {
+    return NextResponse.next()
+  }
+
   if (isApi && API_OUVERTES.some(p => path === p || path.startsWith(p + '/'))) {
     return NextResponse.next()
   }
