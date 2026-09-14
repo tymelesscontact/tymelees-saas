@@ -13,6 +13,35 @@ async function askClaude(prompt: string, maxTokens = 300) {
   return data.content?.[0]?.text || '';
 }
 
+function calculerCoutTotal(salaireBrut: number) {
+  return salaireBrut + Math.round(salaireBrut * 0.42);
+}
+
+async function calculerEmployesEnMargeNegative(tenantId: string) {
+  const moisCourant = new Date().toISOString().slice(0, 7);
+  const [{ data: membres }, { data: missions }, { data: devis }, { data: factures }] = await Promise.all([
+    sb.from('equipe').select('id,nom,prenom,salaire,salaire_brut').eq('tenant_id', tenantId),
+    sb.from('missions').select('id,employe_id,montant,statut,date_mission,devis_id').eq('tenant_id', tenantId).eq('statut', 'termine'),
+    sb.from('devis').select('id,montant').eq('tenant_id', tenantId),
+    sb.from('factures').select('devis_id,montant_ttc,statut').eq('tenant_id', tenantId).not('devis_id', 'is', null),
+  ]);
+  const enNegatif: { nom: string; marge: number }[] = [];
+  for (const m of membres || []) {
+    const mesMissions = (missions || []).filter((ms: any) => ms.employe_id === m.id && String(ms.date_mission || '').slice(0, 7) === moisCourant);
+    if (mesMissions.length === 0) continue;
+    let caEncaisse = 0;
+    for (const ms of mesMissions) {
+      if (!ms.devis_id) continue;
+      const facturesLiees = (factures || []).filter((f: any) => f.devis_id === ms.devis_id && f.statut === 'payée');
+      caEncaisse += facturesLiees.reduce((a: number, f: any) => a + Number(f.montant_ttc || 0), 0);
+    }
+    const coutTotal = calculerCoutTotal(Number(m.salaire_brut || m.salaire || 0));
+    const marge = caEncaisse - coutTotal;
+    if (marge < 0) enNegatif.push({ nom: `${m.prenom || ''} ${m.nom}`.trim(), marge: Math.round(marge) });
+  }
+  return enNegatif;
+}
+
 async function collecterSignaux(tenantId: string) {
   const dans3j = new Date(Date.now() + 3 * 24 * 60 * 60 * 1000).toISOString();
   const dans7j = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
@@ -42,6 +71,7 @@ async function collecterSignaux(tenantId: string) {
     sb.from('charges').select('montant,frequence').eq('tenant_id', tenantId),
     sb.from('crm_leads').select('id').eq('tenant_id', tenantId).eq('etape', 'Nouveau'),
   ]);
+  const employesMargeNegative = await calculerEmployesEnMargeNegative(tenantId);
 
   const stockBas = (stockArticles || []).filter((a: any) => {
     const seuil = Number(a.seuil_min ?? a.min ?? 0);
@@ -67,6 +97,7 @@ async function collecterSignaux(tenantId: string) {
     devisExpirent: devisExpirent || [], facturesRetard: facturesRetard || [], stockBas,
     signalements: signalements || [], contratsEnAttente: contratsEnAttente || [], evenementsAVenir: evenementsAVenir || [],
     caMois, caMoisDernier, marge, leads: (leads || []).length,
+    employesMargeNegative,
   };
 }
 
@@ -79,6 +110,7 @@ function construireAlertes(s: Awaited<ReturnType<typeof collecterSignaux>>) {
   if (s.contratsEnAttente.length > 0) alertes.push({ icone: '✦', texte: `${s.contratsEnAttente.length} contrat${s.contratsEnAttente.length > 1 ? 's' : ''} en attente de signature`, page: 'signatures' });
   if (s.leads > 0) alertes.push({ icone: '🔵', texte: `${s.leads} lead${s.leads > 1 ? 's' : ''} CRM à traiter`, page: 'crm' });
   if (s.evenementsAVenir.length > 0) alertes.push({ icone: '📅', texte: `${s.evenementsAVenir.length} événement${s.evenementsAVenir.length > 1 ? 's' : ''} sous 7 jours`, page: 'evenements' });
+  if (s.employesMargeNegative.length > 0) alertes.push({ icone: '💸', texte: `${s.employesMargeNegative.length} collaborateur${s.employesMargeNegative.length > 1 ? 's' : ''} en marge négative ce mois-ci`, page: 'equipe' });
   return alertes;
 }
 
@@ -110,6 +142,7 @@ export async function POST(req: NextRequest) {
       signaux.signalements.length > 0 ? `${signaux.signalements.length} signalement(s) d'équipe non traité(s)` : null,
       signaux.contratsEnAttente.length > 0 ? `${signaux.contratsEnAttente.length} contrat(s) en attente de signature` : null,
       signaux.evenementsAVenir.length > 0 ? `${signaux.evenementsAVenir.length} événement(s) sous 7 jours` : null,
+      signaux.employesMargeNegative.length > 0 ? `${signaux.employesMargeNegative.length} collaborateur(s) en marge négative ce mois-ci : ${signaux.employesMargeNegative.map((e: any) => `${e.nom} (${e.marge}€)`).join(', ')}` : null,
     ].filter(Boolean).join('\n- ');
 
     const prompt = `Tu es l'assistant business d'un patron d'entreprise de services premium. Voici sa vraie situation ce matin :

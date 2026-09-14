@@ -121,27 +121,45 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // Rentabilite reelle par employe : CA genere (missions terminees, montant
-  // reel) vs cout reel (Paie) -- aucune estimation, uniquement des vraies
-  // donnees deja en base.
+  // Rentabilite reelle par employe : CA encaisse (factures reellement payees,
+  // reliees via le devis de la mission) vs cout reel (Paie). Le CA "missions"
+  // (montant attribue, pas forcement facture/paye) reste affiche a cote pour
+  // la transparence -- jamais fusionne silencieusement avec l'argent reel.
   if (action === 'rentabilite') {
     if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const moisR = searchParams.get('mois') || new Date().toISOString().slice(0, 7);
     const { data: membresR } = await sb.from('equipe').select('id,nom,prenom,salaire,salaire_brut').eq('tenant_id', tenantId);
-    const { data: missionsR } = await sb.from('missions').select('employe_id,montant,statut,date_mission,service').eq('tenant_id', tenantId).eq('statut', 'termine');
+    const { data: missionsR } = await sb.from('missions').select('id,employe_id,montant,statut,date_mission,service,devis_id').eq('tenant_id', tenantId).eq('statut', 'termine');
+    const { data: devisR } = await sb.from('devis').select('id,montant').eq('tenant_id', tenantId);
+    const { data: facturesR } = await sb.from('factures').select('devis_id,montant_ttc,statut').eq('tenant_id', tenantId).not('devis_id', 'is', null);
 
+    const alertesDevis: any[] = [];
     const lignes = (membresR || []).map((m: any) => {
       const mesMissions = (missionsR || []).filter((ms: any) => ms.employe_id === m.id && String(ms.date_mission || '').slice(0, 7) === moisR);
-      const caGenere = mesMissions.reduce((a: number, ms: any) => a + Number(ms.montant || 0), 0);
+      const caMissions = mesMissions.reduce((a: number, ms: any) => a + Number(ms.montant || 0), 0);
+
+      let caEncaisse = 0;
+      let missionsFacturees = 0;
+      for (const ms of mesMissions) {
+        if (!ms.devis_id) continue;
+        const devis = (devisR || []).find((d: any) => d.id === ms.devis_id);
+        if (devis && Math.abs(Number(devis.montant || 0) - Number(ms.montant || 0)) > 1) {
+          alertesDevis.push({ mission_id: ms.id, employe: `${m.prenom || ''} ${m.nom}`.trim(), montantMission: Number(ms.montant || 0), montantDevis: Number(devis.montant || 0) });
+        }
+        const facturesLiees = (facturesR || []).filter((f: any) => f.devis_id === ms.devis_id && f.statut === 'payée');
+        if (facturesLiees.length > 0) { caEncaisse += facturesLiees.reduce((a: number, f: any) => a + Number(f.montant_ttc || 0), 0); missionsFacturees++; }
+      }
+
       const paie = calculerPaie(Number(m.salaire_brut || m.salaire || 0));
-      const marge = caGenere - paie.coutTotal;
+      const marge = caEncaisse - paie.coutTotal;
       return {
         employe_id: m.id, nom: `${m.prenom || ''} ${m.nom}`.trim(),
-        nbMissions: mesMissions.length, caGenere, coutTotal: paie.coutTotal, marge,
+        nbMissions: mesMissions.length, missionsFacturees, caMissions, caEncaisse,
+        coutTotal: paie.coutTotal, marge,
         margePct: paie.coutTotal > 0 ? Math.round((marge / paie.coutTotal) * 1000) / 10 : null,
       };
     });
-    return NextResponse.json({ mois: moisR, lignes });
+    return NextResponse.json({ mois: moisR, lignes, alertesDevis });
   }
 
   let membresQuery = sb.from('equipe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });

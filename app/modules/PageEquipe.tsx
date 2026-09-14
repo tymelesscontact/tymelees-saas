@@ -735,26 +735,34 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
 
     {/* ─── RENTABILITÉ ───────────────────────────────────────── */}
     {onglet==="rentabilite"&&<div>
-      <div style={{fontSize:10,color:"#5A5A7A",marginBottom:14}}>Ce que chaque collaborateur rapporte réellement (missions terminées, montant réel facturé) comparé à ce qu'il coûte réellement (salaire + charges, calcul de l'onglet Paie) — ce mois-ci.</div>
+      <div style={{fontSize:10,color:"#5A5A7A",marginBottom:14}}>"CA encaissé" = uniquement l'argent des factures réellement payées, reliées via le devis de la mission. "CA missions" = montant attribué à la mission, pas forcément encore facturé. La marge se calcule sur l'encaissé, jamais sur du théorique.</div>
       {rentabiliteChargement?<div style={{fontSize:12,color:"#5A5A7A"}}>Chargement...</div>:!rentabiliteData?<div style={{fontSize:12,color:"#5A5A7A"}}>Erreur de chargement.</div>:(()=>{
-        const totalCa=rentabiliteData.lignes.reduce((a,l)=>a+l.caGenere,0);
+        const totalCaEncaisse=rentabiliteData.lignes.reduce((a,l)=>a+l.caEncaisse,0);
+        const totalCaMissions=rentabiliteData.lignes.reduce((a,l)=>a+l.caMissions,0);
         const totalCout=rentabiliteData.lignes.reduce((a,l)=>a+l.coutTotal,0);
-        const totalMarge=totalCa-totalCout;
+        const totalMarge=totalCaEncaisse-totalCout;
         return <>
-        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
-          <div style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>CA généré (équipe, ce mois)</div><div style={{fontSize:20,fontWeight:700,color:"#2EC9B0"}}>€{totalCa.toLocaleString("fr")}</div></div>
-          <div style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>Coût réel (équipe, ce mois)</div><div style={{fontSize:20,fontWeight:700,color:"#FF5252"}}>€{totalCout.toLocaleString("fr")}</div></div>
+        {rentabiliteData.alertesDevis&&rentabiliteData.alertesDevis.length>0&&<div style={{background:"#FF8C3A11",border:"1px solid #FF8C3A33",borderRadius:10,padding:14,marginBottom:14}}>
+          <div style={{fontSize:10,color:"#FF8C3A",fontWeight:600,marginBottom:8}}>⚠️ Écarts mission / devis détectés</div>
+          {rentabiliteData.alertesDevis.map((al,i)=><div key={i} style={{fontSize:11,color:"#EAE6DE",padding:"4px 0"}}>{al.employe} — mission facturée {al.montantMission}€ alors que le devis d'origine était de {al.montantDevis}€</div>)}
+        </div>}
+        <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
+          <div style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>CA encaissé (équipe)</div><div style={{fontSize:20,fontWeight:700,color:"#2EC9B0"}}>€{totalCaEncaisse.toLocaleString("fr")}</div></div>
+          <div style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>CA missions (attribué)</div><div style={{fontSize:20,fontWeight:700,color:"#4B7BFF"}}>€{totalCaMissions.toLocaleString("fr")}</div></div>
+          <div style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>Coût réel (équipe)</div><div style={{fontSize:20,fontWeight:700,color:"#FF5252"}}>€{totalCout.toLocaleString("fr")}</div></div>
           <div style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>Marge nette réelle</div><div style={{fontSize:20,fontWeight:700,color:totalMarge>=0?"#2EC9B0":"#FF8C3A"}}>{totalMarge>=0?"+":""}€{totalMarge.toLocaleString("fr")}</div></div>
         </div>
         <div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18}}>
           <table style={{width:"100%",borderCollapse:"collapse"}}>
-            <thead><tr>{["Collaborateur","Missions réalisées","CA généré","Coût réel","Marge","Marge %"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
-            <tbody>{rentabiliteData.lignes.length===0?<tr><td colSpan={6} style={{padding:"14px 10px",fontSize:12,color:"#5A5A7A"}}>Aucun employé.</td></tr>:rentabiliteData.lignes.map((l,i)=><tr key={i}>
+            <thead><tr>{["Collaborateur","Missions","Facturées","CA encaissé","CA missions","Coût réel","Marge","%"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
+            <tbody>{rentabiliteData.lignes.length===0?<tr><td colSpan={8} style={{padding:"14px 10px",fontSize:12,color:"#5A5A7A"}}>Aucun employé.</td></tr>:rentabiliteData.lignes.map((l,i)=><tr key={i}>
               <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:600}}>{l.nom}</td>
               <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#5A5A7A"}}>{l.nbMissions}</td>
-              <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#2EC9B0",fontWeight:700}}>{l.nbMissions>0?`€${l.caGenere.toLocaleString("fr")}`:"—"}</td>
+              <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#5A5A7A"}}>{l.missionsFacturees}/{l.nbMissions}</td>
+              <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#2EC9B0",fontWeight:700}}>{l.caEncaisse>0?`€${l.caEncaisse.toLocaleString("fr")}`:"—"}</td>
+              <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#4B7BFF"}}>{l.caMissions>0?`€${l.caMissions.toLocaleString("fr")}`:"—"}</td>
               <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#FF5252"}}>€{l.coutTotal.toLocaleString("fr")}</td>
-              <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:700,color:l.nbMissions===0?"#5A5A7A":l.marge>=0?"#2EC9B0":"#FF8C3A"}}>{l.nbMissions===0?"Pas de mission ce mois":`${l.marge>=0?"+":""}€${l.marge.toLocaleString("fr")}`}</td>
+              <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:700,color:l.nbMissions===0?"#5A5A7A":l.marge>=0?"#2EC9B0":"#FF8C3A"}}>{l.nbMissions===0?"—":`${l.marge>=0?"+":""}€${l.marge.toLocaleString("fr")}`}</td>
               <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:l.margePct==null?"#5A5A7A":l.margePct>=0?"#2EC9B0":"#FF8C3A"}}>{l.margePct==null||l.nbMissions===0?"—":`${l.margePct>0?"+":""}${l.margePct}%`}</td>
             </tr>)}</tbody>
           </table>
