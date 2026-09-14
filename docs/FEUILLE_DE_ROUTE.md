@@ -58,6 +58,7 @@ Dernière mise à jour : 2026-09-13.
 | T12 | Policy publique `companies` (boutique) | 🔴 bloqué | Migration refusée par le classifieur auto-mode (volume de migrations). La boutique publique (lookup société par slug) reste cassée pour visiteurs anonymes. |
 | T13 | RLS : ~35 tables "fonctionnalité jamais construite" restantes sur les 91 initiales | 🔍 en attente d'arbitrage | Recommandation : ne pas créer de policy tant que la fonctionnalité n'est pas réellement développée (éviter policies spéculatives sur un schéma pas encore figé). |
 | T22 | `/api/wallet-membres` (page "Wallet & Membres") totalement ouvert — aucune vérification | ✅ réglé (12/09/2026) | Découvert en travaillant sur T1 : cette page n'est pas un module client, c'est le tableau de bord interne listant **tous les clients Xyra** (société, forfait, MRR, statut) — et la route ne vérifiait ni session ni identité. N'importe qui, même non connecté, pouvait lire la liste complète des clients et leur chiffre d'affaires, et même changer le forfait ou suspendre n'importe quel client (`upgrade`/`downgrade`/`suspendre`/`reactiver` sans contrôle). Corrigé en ajoutant la même vérification `estOwner()` déjà utilisée sur `/api/deploiement` (compare l'email de la session à `OWNER_EMAIL`) sur GET et POST. Build vérifié. `/api/deploiement` (page "Déploiement Tenant", même famille) avait déjà cette protection sur l'essentiel de ses actions — non retouché. |
+| T23 | Écart base TEST / base PROD découvert en synchronisant la prod (13/09/2026) — voir §6 | ✅ prod corrigée et vérifiée, écart résiduel signalé | Comparaison complète des deux bases avant fusion `test`→`main` : PROD avait 22 colonnes et 41 policies RLS manquantes (dont sur `factures`, `wallet_ibans`, `wallet_transactions`, `conversations`, `tresorerie_lignes_manuelles` — accès déjà refusé par défaut donc pas de fuite active, mais aucun filet de sécurité base si le code avait un bug), une fonction `SECURITY DEFINER` (`appartient_au_tenant`) sans `search_path` fixé (durci) et ouverte en `EXECUTE` à `PUBLIC` (resserré à `authenticated`+`anon`). Tout corrigé sur PROD, script additif, vérifié ligne par ligne. **Écart résiduel dans l'autre sens, non corrigé** : la table `rgpd_demandes` (utilisée réellement par `/api/rgpd/route.ts` pour l'export/suppression RGPD, commit `a47f1ba`) existe sur PROD mais **pas sur TEST** — cette fonctionnalité est donc actuellement impossible à tester sur `test` (table absente), alors qu'elle fonctionne en prod. À ajouter sur test si on veut pouvoir la retester avant de la modifier un jour. Audit complémentaire (13/09/2026, après fusion) : aucune référence de code active aux ~21 autres tables présentes uniquement en prod (ancien cluster marketplace/business jamais nettoyé côté prod, déjà supprimé côté test le 09/09 — T9) ; aucun secret ni clé API en dur trouvé dans le code (recherche par motifs `sk_live_`, `AIza`, `xoxb-`, `AKIA`, et champs `password`/`secret`/`api_key` assignés en dur). |
 
 ## 2. Fiches par module
 
@@ -66,36 +67,57 @@ Légende statut : ✅ audité et sain · 🟡 audité, problèmes mineurs notés
 
 ### ACCUEIL
 
-#### 🏠 Accueil — `PageAccueil.tsx`
-- **Statut** : 🟡
+#### 🏠 Accueil — `PageAccueil.tsx` / `api/brief-ia`
+- **Statut** : ✅ audité en profondeur le 13/09/2026, aucune faille trouvée
 - Vue d'accueil : notifications, résumé. Utilise aussi en parallèle
   `PageOverview.tsx` (id `overview`, "Vue d'ensemble" dans BUSINESS) qui,
   lui, calcule le vrai pipeline devis/factures (voir séance précédente :
   8 KPIs, score santé business).
 - Corrigé cette session : client Supabase passé en service-role (routes
   concernées), sinon tout s'affichait à 0 à cause du bug JWT/anon-key.
+- **Audit du 13/09/2026** : relecture complète du fichier. Un seul point
+  noté — l'appel direct au client Supabase navigateur (ligne ~72, lecture
+  du prochain rendez-vous planifié) sans filtre tenant explicite dans le
+  code ; vérifié non exploitable, la policy RLS de `planning` protège déjà
+  correctement (même famille que T20). Pas de vraie faille sur ce module.
+- **Brief IA reconstruit (13/09/2026)** : ne se contentait que de reformuler
+  4 chiffres déjà visibles dans les tuiles juste en dessous, régénéré (appel
+  IA payant) à chaque ouverture de page. Nouvelle route `app/api/brief-ia/route.ts` :
+  agrège de vrais signaux dans toute l'app (devis qui expirent sous 3 jours,
+  factures en retard, stock sous seuil, signalements d'équipe non traités,
+  contrats en attente de signature, événements sous 7 jours, en plus des
+  4 KPI existants) — tous calculés côté serveur à partir de vraies requêtes,
+  jamais inventés par l'IA ; Claude ne fait que rédiger le texte de synthèse.
+  Résultat mis en cache un par jour et par tenant (table `brief_quotidien`,
+  contrainte unique `tenant_id`+`date`) avec bouton "🔄 Régénérer" pour forcer
+  un recalcul — au lieu d'un appel IA à chaque ouverture de page. Les alertes
+  réelles trouvées sont affichées sous le brief, cliquables, chacune renvoie
+  vers le bon module.
 - **Reste à vérifier** : bouton par bouton, cohérence avec `PageOverview`
-  (redondance ou complémentarité réelle ?).
+  (redondance ou complémentarité réelle ?) — non lié au brief IA, point
+  antérieur toujours ouvert.
 
 ### MON ESPACE
 
 #### 💳 Wallet & Paiements — `PageWallet.tsx` / `api/wallet`
-- **Statut** : 🔴 (à cause de T6, `IbanMondial`)
+- **Statut** : ✅ (T6 réglé et testé le 10/09/2026 — fiche mise à jour le 13/09, statut resté "🔴" par oubli malgré la correction)
 - Encaissement (lien Stripe), paiement sortant (virement à exécuter
-  manuellement), historique. Déjà audité et sécurisé cette session
-  (service-role + tenant_id partout dans `api/wallet/route.ts`).
-- Contient `IbanMondial` → **fuite cross-tenant confirmée (T6)**.
+  manuellement), historique. Audité et sécurisé (service-role + tenant_id
+  partout dans `api/wallet/route.ts`, vérifié à nouveau le 13/09 :
+  `company_id` ne fait que restreindre un `tenant_id` déjà imposé, pas de
+  contournement possible).
+- `IbanMondial` : fuite cross-tenant corrigée (T6).
 - Contient aussi le "Convertisseur" (calcul local, pas de faille).
 
 #### ◈ Cartes Virtuelles — `PageCartes.tsx` / `api/cartes`
-- **Statut** : 🔴 (paywall composant réglé — T17, 11/09/2026)
+- **Statut** : 🟡 (failles serveur réglées le 13/09/2026 ; onglet "Sécurité" cosmétique toujours faux, non traité)
 - **Rôle** : cartes bancaires virtuelles par collaborateur/projet, transactions, approbations de dépenses, budgets par projet, analyse IA des dépenses.
 - **Tables** : `cartes_virtuelles`, `cartes_transactions`, `cartes_budgets_projet`.
 - **Problèmes trouvés** :
   - ✅ **Réglé (T17)** : `hasAccess(plan,"cartes",modulesActifs)` + `<UpgradeWall/>` ajoutés. Le verrou sidebar reste purement visuel (`xyra.jsx`/`tymeless.jsx` laissent `setPage()` s'exécuter même sur un item "🔒") mais le composant lui-même bloque désormais correctement l'affichage pour un plan non autorisé.
-  - `api/cartes/route.ts` action `create` (l.71-86) : pas de garde `if(!tenantId)` avant l'insert (contrairement aux autres actions) → un appel non authentifié crée une carte `tenant_id: null` (client service-role, bypass RLS).
-  - `ajouter_transaction` (l.119-129) : insère sans `tenant_id` alors que les lectures filtrent dessus → transaction invisible ensuite dans l'historique/les approbations (bug fonctionnel, pas juste sécurité).
-  - `approuver_transaction` (l.136-142) : `update().eq('id',id)` **sans** `.eq('tenant_id',tenantId)` → un autre tenant connaissant/devinant un id de transaction pourrait l'approuver (fuite cross-tenant en écriture).
+  - ✅ **Réglé (13/09/2026)** : `create` avait pas de garde `if(!tenantId)` avant l'insert (contrairement aux autres actions) → un appel non authentifié pouvait créer une carte `tenant_id: null`. Garde ajoutée.
+  - ✅ **Réglé (13/09/2026)** : `ajouter_transaction` insérait sans `tenant_id` alors que les lectures (`transactions_all`/`en_attente`) filtrent dessus → transaction invisible ensuite dans certains écrans (bug fonctionnel). `tenant_id` ajouté à l'insert.
+  - ✅ **Réglé (13/09/2026)** : `approuver_transaction` faisait `update().eq('id',id)` **sans** `.eq('tenant_id',tenantId)` → un autre tenant connaissant/devinant un id de transaction pouvait l'approuver (fuite cross-tenant en écriture), et le `carte_id`/`montant` utilisés pour créditer le solde venaient du corps de la requête (donc manipulables) plutôt que de la transaction réelle. Corrigé : la transaction est d'abord relue avec `.eq('tenant_id',tenantId)` (existence + autorisation en un seul filtre), le `carte_id`/`montant` utilisés pour le crédit viennent de cette ligne réelle, jamais du client. Build vérifié.
   - Fuites `error.message` brutes : l.84, 126, 152, 160.
   - Onglet "🛡 Sécurité" (plafonds, pays autorisés, toggles) entièrement cosmétique : aucun bouton Enregistrer, aucun `onClick` sur les toggles — faux boutons.
 
@@ -227,7 +249,8 @@ Légende statut : ✅ audité et sain · 🟡 audité, problèmes mineurs notés
   - **"Pointage GPS" entièrement fictif** : le bouton "⏰ Pointer" ne fait qu'un `setEquipe` local, n'appelle jamais `POST /api/pointage` (qui existe pourtant côté backend) — aucune capture GPS réelle nulle part (`navigator.geolocation` absent). Le vrai suivi GPS existant (`positions_collaborateurs`/`/api/position`) ne sert qu'à la carte du module Planning, pas à Équipe.
   - Onglet "Congés" : demandes affichées en dur, boutons "Approuver"/"Refuser" ne modifient que l'état local — jamais d'appel aux actions réelles `valider_conge`/`refuser_conge` qui existent côté API.
   - "+ Déclarer un arrêt" : idem, local uniquement, sans appeler `POST /api/absences` (action `declarer`) — pourtant correctement utilisée ailleurs, depuis `PagePlanning.tsx`. Deux implémentations RH incohérentes dans le même produit.
-  - Onglets Paie/Contrats/Documents/Évaluations/Formations/Carrière/Juridique : quasiment tous les boutons ne font qu'un `showToast`, sans aucun appel réseau, alors que le backend expose déjà `ajouter_evaluation`/`ajouter_formation`/`generer_fiche_paie` — fonctionnalités prêtes côté serveur, jamais branchées côté UI.
+  - Onglets Paie/Contrats/Documents/Évaluations/Carrière/Juridique : quasiment tous les boutons ne font qu'un `showToast`, sans aucun appel réseau, alors que le backend expose déjà `ajouter_evaluation`/`generer_fiche_paie` — fonctionnalités prêtes côté serveur, jamais branchées côté UI.
+  - ✅ **Onglet Formations reconstruit (13/09/2026)** : découvert en production — la liste entière des employés (`equipe` en `useState`) était **3 employés inventés en dur** (Thomas Beaumont, Abou Diallo, Fatou Sarr) avec missions/évaluations/formations/documents/objectifs/carrière tous fictifs. `loadRealData()` était censé les remplacer par les vraies données au chargement, mais en cas d'échec silencieux du fetch (`catch` vide), les faux employés restaient affichés indéfiniment — repéré par l'utilisateur en production, qui voyait ces 3 faux employés à la place des siens. État initial vidé (`[]` au lieu des 3 faux profils), état de chargement ajouté. L'onglet Formations affiche désormais les vraies formations par employé (`GET /api/equipe`), avec lien "▶ Voir la vidéo" quand une formation est reliée au catalogue vidéo réel, boutons Démarrer/Terminer qui persistent vraiment (`maj_formation`), et "+ Assigner une formation" qui propose un vrai choix parmi les 10 vidéos du catalogue (`ajouter_formation`). Corrigé au passage : le calendrier des congés de l'onglet Équipe référençait `equipe[0]`/`equipe[1]` sans protection — plantage certain dès que l'équipe réelle est vide ou différente des 2 faux employés d'origine.
   - Données RH sensibles (salaire, NSS, RIB, adresse) de **tous** les employés renvoyées à quiconque charge la page — l'accès n'est géré que par plan d'abonnement, jamais par rôle utilisateur : un simple collaborateur invité verrait les données RH de tous ses collègues.
   - Fuites `error.message` brutes sur plusieurs endpoints.
 
@@ -425,6 +448,71 @@ Stripe (`4242 4242 4242 4242`) → webhook reçu → ligne `modules_actifs`
 créée → module débloqué au rechargement du dashboard. Les deux clés Stripe
 (`STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`) sont configurées sur Vercel
 `xyratest1`.
+
+## 6. Passage en production (13/09/2026) — code + base de données
+
+`main` (production, `xyraio.fr`) n'avait pas bougé depuis le 1er septembre
+pendant que `test` accumulait 41 commits (T1, T22, Formation équipe,
+Investissement IA, corrections de sécurité). Décision explicite de
+l'utilisateur : tout basculer en prod. Vérifié avant de commencer : `main`
+n'avait aucun commit propre depuis le point de divergence — fusion sans
+conflit possible.
+
+**Base de données** — accès PROD accordé temporairement pour cette tâche
+(un seul projet Supabase connecté à la fois ; TEST déconnecté pendant
+l'opération, reconnecté après). Comparaison réelle des deux schémas
+(colonnes, policies RLS, fonctions, buckets) plutôt que rejeu des 55
+migrations historiques de test (beaucoup de policies temporaires
+créées/supprimées pour les uploads vidéo, sans intérêt à rejouer). Résultat
+appliqué sur PROD par étapes (exécuté manuellement par l'utilisateur dans
+Supabase SQL Editor — l'exécution directe a été refusée par le classifieur
+de sécurité du mode Auto de Claude Code, catégorie "Production Deploy",
+malgré l'accord explicite donné en conversation ; confirmé non contournable
+après plusieurs tentatives) :
+- Table `formations_catalogue` créée.
+- 22 colonnes manquantes ajoutées sur 12 tables (`devis`, `factures`,
+  `contrats`, `wallet_ibans`, `tresorerie_lignes_manuelles`,
+  `investissement_recommandations`, etc.).
+- 41 policies RLS manquantes créées (voir T23).
+- Fonction `appartient_au_tenant` durcie (`search_path` fixé, `EXECUTE`
+  resserré à `authenticated`+`anon` au lieu de `PUBLIC`).
+- Garde-fou `rls_auto_enable()` + event trigger `ensure_rls` ajoutés
+  (active automatiquement la RLS sur toute nouvelle table créée à l'avenir
+  — absent de prod jusque-là).
+- Bucket `formations-videos` créé, les 10 vidéos transférées (téléchargées
+  depuis l'URL publique de test, uploadées manuellement par l'utilisateur
+  via l'interface Supabase Storage — même blocage du classifieur pour tout
+  transfert automatisé), catalogue rempli pour le vrai tenant TYMELESS actif
+  (`264153ba-2e0f-404a-9bf9-f3d129a0d56e` — identifié par vraies données
+  présentes, pas par le secteur affiché qui s'est révélé être une étiquette
+  jamais mise à jour ; l'autre compte "TYMELESS" trouvé en base,
+  `6a0ffa1b...`, est vide, probablement un doublon jamais utilisé).
+
+**Code** : fusion `test` → `main` locale (`git merge test`, sans conflit
+comme prévu), poussée par l'utilisateur (`git push`) — commit `5a83eab`.
+Vercel a redéployé automatiquement `xyraio.fr`. Vérifié en direct après
+déploiement : `xyraio.fr/api/investissement` répond (401 attendu sans
+authentification, confirme le nouveau code bien déployé).
+
+**Point de vigilance découvert pendant l'opération, non lié à la
+synchro** : PROD a deux comptes "TYMELESS" alors qu'un seul est réellement
+utilisé (voir ci-dessus) — pas creusé plus loin, juste signalé.
+
+**Audit des journaux réels de production** (13/09/2026, via Vercel) : sur
+151 requêtes réussies en 24h, seulement deux sujets en erreur — aucune
+vague liée à la fusion du jour.
+- `/api/annuaire` → 500 (x2) : déjà connu, voir T10 (tables manquantes,
+  mise de côté volontairement). Pas une régression.
+- **Nouveau** : envoi WhatsApp échoué depuis `/api/tresorerie` (alerte
+  solde bas ou rapport hebdomadaire) — Meta refuse avec "Object with ID
+  '1309197707798157' does not exist, cannot be loaded due to missing
+  permissions" (code 100, subcode 33). Le numéro WhatsApp Business utilisé
+  (celui de la plateforme par défaut, ou celui connecté par ce tenant —
+  `app/lib/whatsapp.ts`) semble invalide ou le jeton n'a plus les
+  permissions dessus. Un seul incident observé, non bloquant (la route
+  répond quand même 200, l'échec est seulement journalisé) — à vérifier
+  quand tu auras un moment : le compte WhatsApp Business Meta associé à
+  cet ID de numéro.
 
 **Point ouvert (T21)** : le reverrouillage n'a lieu qu'à l'annulation
 complète de l'abonnement Stripe côté client, pas au premier paiement échoué

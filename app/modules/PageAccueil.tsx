@@ -19,6 +19,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
   const[ca7j,setCa7j]=useState([]);
   const[aiMsg,setAiMsg]=useState("");
   const[aiLoading,setAiLoading]=useState(false);
+  const[alertes,setAlertes]=useState([]);
   const[scoreBusiness,setScoreBusiness]=useState(0);
   const[tendance,setTendance]=useState("stable");
   const[totalCharges,setTotalCharges]=useState(0);
@@ -94,17 +95,22 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
     load();
   },[]);
 
-  const genererAnalyseIA=async()=>{
+  const genererBrief=async()=>{
     setAiLoading(true);
     try{
-      const res=await fetch("/api/ia",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({max_tokens:200,prompt:`Données réelles dashboard : CA ce mois ${fmt(caReel)}, CA mois dernier ${fmt(caMoisDernier)}, tendance ${tendance}, marge ${margeNette}%, commissions à virer ${fmt(commissionsAVirer)}, leads CRM ${leadsEnAttente}, charges ${fmt(totalCharges)}, score ${scoreBusiness}/100. Brief morning 2-3 phrases max, français, actionnable, priorité n°1 en premier.`})});
+      const res=await fetch("/api/brief-ia",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"generer"})});
       const data=await res.json();
-      if(data.text)setAiMsg(data.text);
-      else setAiMsg("Enregistre tes premières transactions pour activer l'analyse IA.");
+      if(data.texte){setAiMsg(data.texte);setAlertes(data.alertes||[]);}
+      else setAiMsg("Analyse indisponible pour le moment.");
     }catch(e){setAiMsg("Analyse IA indisponible.");}
     setAiLoading(false);
   };
-  useEffect(()=>{if(!loading)genererAnalyseIA();},[loading]);
+  useEffect(()=>{
+    fetch("/api/brief-ia").then(r=>r.json()).then(d=>{
+      if(d.texte){setAiMsg(d.texte);setAlertes(d.alertes||[]);}
+      else genererBrief();
+    }).catch(()=>genererBrief());
+  },[]);
 
   const priorites=[];
   if(commissionsAVirer>0)priorites.push({icon:"🟠",txt:`${fmt(commissionsAVirer)} de commissions partenaires à virer`,act:"wallet"});
@@ -129,8 +135,14 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
         <span style={{background:`${meteo.color}22`,color:meteo.color,border:`1px solid ${meteo.color}44`,borderRadius:20,padding:"2px 10px",fontSize:10,fontWeight:600}}>{meteo.icon} {meteo.txt}</span>
       </div>
       <div style={{background:`${C.purple}11`,border:`1px solid ${C.purple}33`,borderRadius:10,padding:12,marginBottom:16,minHeight:52}}>
-        <div style={{fontSize:10,color:C.purple,fontWeight:600,marginBottom:4}}>🤖 Brief IA du matin — Claude · données réelles</div>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:4}}>
+          <div style={{fontSize:10,color:C.purple,fontWeight:600}}>🤖 Brief IA du matin — Claude · connecté à tous les modules</div>
+          <div onClick={()=>!aiLoading&&genererBrief()} style={{fontSize:10,color:C.muted,cursor:aiLoading?"default":"pointer",opacity:aiLoading?0.5:1}}>🔄 Régénérer</div>
+        </div>
         {aiLoading?<div style={{fontSize:11,color:C.muted}}>⏳ Analyse en cours...</div>:<div style={{fontSize:12,color:C.text,lineHeight:1.7}}>{aiMsg||"—"}</div>}
+        {!aiLoading&&alertes.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:10}}>
+          {alertes.map((a,i)=><div key={i} onClick={()=>setPage(a.page)} style={{fontSize:10,background:C.card2,border:`1px solid ${C.border}`,borderRadius:20,padding:"4px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:4}}><span>{a.icone}</span><span>{a.texte}</span></div>)}
+        </div>}
       </div>
       <div style={{display:"flex",gap:20,flexWrap:"wrap"}}>
         <div style={{borderLeft:`2px solid ${C.gold}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Score business</div><div style={{fontSize:16,fontWeight:700,color:C.gold}}>{loading?"—":scoreBusiness+"/100"}</div></div>

@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
   const { action } = body;
 
   if (action === 'create') {
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { nom, limite, devise, couleur, type, collaborateur, projet, ephemere } = body;
     const suffix = String(Math.floor(1000 + Math.random() * 9000));
     const prefixes = ['4532', '5261', '4111'];
@@ -126,7 +127,7 @@ export async function POST(req: NextRequest) {
     const { data: carteVerif } = await sb.from('cartes_virtuelles').select('id').eq('id', carte_id).eq('tenant_id', tenantId).maybeSingle();
     if (!carteVerif) return NextResponse.json({ error: 'Carte introuvable' }, { status: 404 });
     const statut = approbation_requise ? 'en_attente' : 'approuvé';
-    const { data, error } = await sb.from('cartes_transactions').insert({ carte_id, libelle, montant: Number(montant), sens: sens || 'debit', categorie: categorie || 'Autres', statut }).select().single();
+    const { data, error } = await sb.from('cartes_transactions').insert({ carte_id, libelle, montant: Number(montant), sens: sens || 'debit', categorie: categorie || 'Autres', statut, tenant_id: tenantId }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     if (statut === 'approuvé') {
       await sb.from('cartes_virtuelles').update({ solde: Number(montant), updated_at: new Date().toISOString() }).eq('id', carte_id).eq('tenant_id', tenantId);
@@ -139,10 +140,12 @@ export async function POST(req: NextRequest) {
 
   if (action === 'approuver_transaction') {
     if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
-    const { id, carte_id, montant } = body;
-    await sb.from('cartes_transactions').update({ statut: 'approuvé', approuve_par: 'Owner', updated_at: new Date().toISOString() }).eq('id', id);
-    const { data: carte } = await sb.from('cartes_virtuelles').select('solde').eq('id', carte_id).eq('tenant_id', tenantId).maybeSingle();
-    if (carte) await sb.from('cartes_virtuelles').update({ solde: Number(carte.solde) + Number(montant) }).eq('id', carte_id).eq('tenant_id', tenantId);
+    const { id } = body;
+    const { data: transaction } = await sb.from('cartes_transactions').select('id,carte_id,montant').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!transaction) return NextResponse.json({ error: 'Transaction introuvable' }, { status: 404 });
+    await sb.from('cartes_transactions').update({ statut: 'approuvé', approuve_par: 'Owner', updated_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
+    const { data: carte } = await sb.from('cartes_virtuelles').select('solde').eq('id', transaction.carte_id).eq('tenant_id', tenantId).maybeSingle();
+    if (carte) await sb.from('cartes_virtuelles').update({ solde: Number(carte.solde) + Number(transaction.montant) }).eq('id', transaction.carte_id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true });
   }
 

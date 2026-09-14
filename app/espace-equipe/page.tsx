@@ -8,12 +8,42 @@ const C = {
   blue:"#4B7BFF", purple:"#9B5FFF", orange:"#FF8C3A",
 };
 
-const TYPE_ABSENCE_LABELS: Record<string, string> = {
-  conge_paye: "Congé payé", conge_sans_solde: "Congé sans solde",
-  arret_maladie: "Arrêt maladie", accident_travail: "Accident du travail",
-  evenement_familial: "Événement familial", enfant_malade: "Enfant malade",
-  absence_injustifiee: "Absence injustifiée", retard: "Retard",
-};
+const CATEGORIES_ABSENCE: { groupe: string; types: [string, string][] }[] = [
+  { groupe: "Congés annuels et temps de repos", types: [
+    ["conge_paye", "Congé payé"],
+    ["conge_sans_solde", "Congé sans solde"],
+  ]},
+  { groupe: "Famille et parentalité", types: [
+    ["maternite_paternite", "Maternité / Paternité et accueil de l'enfant"],
+    ["adoption", "Congé d'adoption"],
+    ["conge_parental", "Congé parental d'éducation"],
+    ["evenement_familial", "Événement familial (mariage, PACS, naissance, décès)"],
+  ]},
+  { groupe: "Santé, dépendance et solidarité", types: [
+    ["arret_maladie", "Arrêt maladie"],
+    ["enfant_malade", "Enfant malade / présence parentale"],
+    ["proche_aidant", "Proche aidant / solidarité familiale"],
+    ["accident_travail", "Accident du travail"],
+  ]},
+  { groupe: "Projets personnels ou professionnels", types: [
+    ["conge_sabbatique", "Congé sabbatique"],
+    ["creation_entreprise", "Création ou reprise d'entreprise"],
+    ["conge_formation", "Congé de formation (CPF de transition)"],
+    ["conge_examen", "Congé d'examen"],
+  ]},
+  { groupe: "Civique et engagement", types: [
+    ["reserve_militaire", "Réserve militaire ou civile"],
+    ["mandat_politique", "Mandat politique local / associatif"],
+  ]},
+  { groupe: "Autre", types: [
+    ["absence_injustifiee", "Absence injustifiée"],
+    ["retard", "Retard"],
+  ]},
+];
+
+const TYPE_ABSENCE_LABELS: Record<string, string> = Object.fromEntries(
+  CATEGORIES_ABSENCE.flatMap(g => g.types)
+);
 
 const TYPE_SIGNALEMENT_LABELS: Record<string, string> = {
   degat: "Dégât constaté", acces_impossible: "Accès impossible",
@@ -31,6 +61,12 @@ export default function EspaceEquipe() {
   const [convSelectionnee, setConvSelectionnee] = useState<any>(null);
   const [texteMessage, setTexteMessage] = useState("");
   const [monPointage, setMonPointage] = useState<any>(null);
+  const [mesFormations, setMesFormations] = useState<any[]>([]);
+  const [catalogueFormations, setCatalogueFormations] = useState<any[]>([]);
+  const [mesValidations, setMesValidations] = useState<any[]>([]);
+  const [pulseEtat, setPulseEtat] = useState<{ dejaRepondu: boolean; entree: any } | null>(null);
+  const [pulseCommentaire, setPulseCommentaire] = useState("");
+  const [envoiPulse, setEnvoiPulse] = useState(false);
   const finMessagesRef = useRef<HTMLDivElement>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -62,6 +98,9 @@ export default function EspaceEquipe() {
       if (sig.signalements) setSignalements(sig.signalements);
       if (msgs.conversations) setConversations(msgs.conversations);
       fetch("/api/pointage").then(r => r.json()).then(d => setMonPointage(d.pointage)).catch(() => {});
+      fetch("/api/equipe?action=mes_formations").then(r => r.json()).then(d => { setMesFormations(d.formations || []); setCatalogueFormations(d.catalogue || []); }).catch(() => {});
+      fetch("/api/absences?vue=mes_validations").then(r => r.json()).then(d => setMesValidations(d.absences || [])).catch(() => {});
+      fetch("/api/pulse-bienetre?action=moi").then(r => r.json()).then(d => setPulseEtat(d)).catch(() => {});
       setMembre({ email: who.email, employe_id: who.employeId, ...(who.profil || {}) });
     } catch (e: any) {
       setErreur("connexion");
@@ -116,6 +155,38 @@ export default function EspaceEquipe() {
       (err) => showToast("⚠️ Localisation refusee ou indisponible: " + err.message),
       { enableHighAccuracy: false, timeout: 8000 }
     );
+  };
+
+  const envoyerPulse = async (score: number) => {
+    setEnvoiPulse(true);
+    try {
+      const r = await fetch("/api/pulse-bienetre", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "repondre", score, commentaire: pulseCommentaire || null }) });
+      const d = await r.json();
+      if (!r.ok || d.error) { showToast("❌ " + (d.error || "Erreur")); setEnvoiPulse(false); return; }
+      showToast("✅ Merci pour ton retour");
+      setPulseCommentaire("");
+      fetch("/api/pulse-bienetre?action=moi").then(res => res.json()).then(dd => setPulseEtat(dd)).catch(() => {});
+    } catch { showToast("❌ Erreur de connexion"); }
+    setEnvoiPulse(false);
+  };
+
+  const validerCommeResponsable = async (id: string) => {
+    try {
+      const r = await fetch("/api/absences", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "valider_responsable", id }) });
+      const d = await r.json();
+      if (!r.ok || d.error) { showToast("❌ " + (d.error || "Erreur")); return; }
+      showToast("✅ Avis transmis au RH pour validation finale");
+      charger();
+    } catch { showToast("❌ Erreur de connexion"); }
+  };
+  const refuserCommeResponsable = async (id: string) => {
+    try {
+      const r = await fetch("/api/absences", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "valider", id, statut: "refusee" }) });
+      const d = await r.json();
+      if (!r.ok || d.error) { showToast("❌ " + (d.error || "Erreur")); return; }
+      showToast("❌ Demande refusée");
+      charger();
+    } catch { showToast("❌ Erreur de connexion"); }
   };
 
   useEffect(() => {
@@ -210,6 +281,7 @@ export default function EspaceEquipe() {
     { id: "pointage", icon: "⏰", label: "Pointage" },
     { id: "missions", icon: "✅", label: "Mes missions" },
     { id: "absences", icon: "🏖", label: "Congés & Absences" },
+    { id: "formations", icon: "🎓", label: "Mes formations" },
     { id: "messages", icon: "💬", label: "Messages" },
     { id: "profil", icon: "👤", label: "Mon profil" },
   ];
@@ -275,6 +347,25 @@ export default function EspaceEquipe() {
             <div style={{ fontSize: 24, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 4 }}>Bonjour 👋</div>
             <div style={{ fontSize: 11, color: C.muted }}>{new Date().toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</div>
           </div>
+
+          {pulseEtat && !pulseEtat.dejaRepondu && (
+            <Card style={{ marginBottom: 16, borderColor: `${C.purple}44` }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 4 }}>🙂 Comment te sens-tu au travail ce mois-ci ?</div>
+              <div style={{ fontSize: 10, color: C.muted, marginBottom: 12 }}>Anonyme pour tes collègues — seule la direction voit qui répond quoi.</div>
+              <div style={{ display: "flex", justifyContent: "space-between", marginBottom: 10 }}>
+                {[["😞", 1], ["😐", 2], ["🙂", 3], ["😊", 4], ["🤩", 5]].map(([emoji, score]) => (
+                  <button key={score as number} onClick={() => envoyerPulse(score as number)} disabled={envoiPulse} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 10, padding: "10px 14px", fontSize: 22, cursor: "pointer" }}>{emoji}</button>
+                ))}
+              </div>
+              <textarea value={pulseCommentaire} onChange={(e) => setPulseCommentaire(e.target.value)} placeholder="Un commentaire (facultatif)..." rows={2} style={{ width: "100%", background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: 10, color: C.text, fontSize: 12, fontFamily: "inherit", resize: "vertical" as any, boxSizing: "border-box" as any }} />
+            </Card>
+          )}
+          {pulseEtat?.dejaRepondu && pulseEtat.entree?.reponse_rh && (
+            <Card style={{ marginBottom: 16, borderColor: `${C.purple}44` }}>
+              <div style={{ fontSize: 11, color: C.purple, fontWeight: 700, marginBottom: 6 }}>💬 Réponse de la direction à ton retour de ce mois-ci</div>
+              <div style={{ fontSize: 12, color: C.text }}>{pulseEtat.entree.reponse_rh}</div>
+            </Card>
+          )}
 
           <Card>
             <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>✅ Missions du jour</div>
@@ -375,6 +466,22 @@ export default function EspaceEquipe() {
             <Btn onClick={() => setShowAbsenceForm(s => !s)}>+ Déclarer une absence</Btn>
           </div>
 
+          {mesValidations.length > 0 && (
+            <Card style={{ marginBottom: 16, borderColor: `${C.orange}44` }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10, color: C.orange }}>✅ Demandes de mon équipe à valider</div>
+              {mesValidations.map((v: any) => (
+                <div key={v.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "8px 0", borderBottom: `1px solid ${C.border}`, fontSize: 12 }}>
+                  <div><span style={{ fontWeight: 600 }}>{v.nom_employe}</span> — {v.debut}{v.fin && v.fin !== v.debut ? ` au ${v.fin}` : ""} ({v.jours}j · {TYPE_ABSENCE_LABELS[v.type] || v.type})</div>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button onClick={() => validerCommeResponsable(v.id)} style={{ background: C.green, color: "#000", border: "none", borderRadius: 5, padding: "4px 10px", cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>Avis favorable</button>
+                    <button onClick={() => refuserCommeResponsable(v.id)} style={{ background: "transparent", color: C.red, border: `1px solid ${C.red}33`, borderRadius: 5, padding: "4px 10px", cursor: "pointer", fontSize: 10, fontFamily: "inherit" }}>Refuser</button>
+                  </div>
+                </div>
+              ))}
+              <div style={{ fontSize: 9, color: C.muted, marginTop: 8 }}>Un avis favorable transmet la demande à la direction pour validation finale. Un refus est définitif.</div>
+            </Card>
+          )}
+
           {showAbsenceForm && (
             <Card style={{ marginBottom: 16, borderColor: `${C.gold}44` }}>
               <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12 }}>Nouvelle déclaration</div>
@@ -382,7 +489,11 @@ export default function EspaceEquipe() {
                 <div>
                   <label style={{ fontSize: 11, color: C.muted, display: "block", marginBottom: 4 }}>Type</label>
                   <select value={absenceForm.type} onChange={e => setAbsenceForm(f => ({ ...f, type: e.target.value }))} style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "8px 10px", color: C.text, fontSize: 12, fontFamily: "inherit", width: "100%" }}>
-                    {Object.entries(TYPE_ABSENCE_LABELS).map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                    {CATEGORIES_ABSENCE.map(g => (
+                      <optgroup key={g.groupe} label={g.groupe}>
+                        {g.types.map(([k, l]) => <option key={k} value={k}>{l}</option>)}
+                      </optgroup>
+                    ))}
                   </select>
                 </div>
                 <div>
@@ -426,6 +537,35 @@ export default function EspaceEquipe() {
           </Card>
         </div>}
 
+        {page === "formations" && <div>
+          <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>🎓 Mes formations</div>
+          {mesFormations.length === 0 ? (
+            <Card style={{ textAlign: "center", padding: 30 }}>
+              <div style={{ fontSize: 12, color: C.muted }}>Aucune formation assignée pour le moment.</div>
+            </Card>
+          ) : mesFormations.map((f, i) => {
+            const video = catalogueFormations.find((c: any) => c.id === f.catalogue_id);
+            const coul = f.statut === "complété" ? C.green : f.statut === "en cours" ? C.blue : C.orange;
+            return (
+              <Card key={i} style={{ marginBottom: 10 }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: video?.video_url ? 10 : 0 }}>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700 }}>{f.titre}</div>
+                    {video?.description && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{video.description}</div>}
+                  </div>
+                  <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                    {f.score && <span style={{ fontSize: 12, fontWeight: 700, color: C.green }}>{f.score}%</span>}
+                    <Pill color={coul}>{f.statut}</Pill>
+                  </div>
+                </div>
+                {video?.video_url && (
+                  <video controls src={video.video_url} style={{ width: "100%", borderRadius: 8, background: "#000" }} />
+                )}
+              </Card>
+            );
+          })}
+        </div>}
+
         {page === "messages" && <div style={{ height: "calc(100vh - 120px)", display: "flex", flexDirection: "column" }}>
           {!convSelectionnee ? (
             <div style={{ overflowY: "auto" }}>
@@ -467,7 +607,7 @@ export default function EspaceEquipe() {
               <div style={{ fontSize: 16, fontWeight: 700 }}>{membre?.prenom ? `${membre.prenom} ${membre.nom}` : membre?.nom || "—"}</div>
               <div style={{ fontSize: 12, color: C.muted }}>{membre?.role || "Collaborateur"}</div>
             </div>
-            {[["📧 Email", membre?.email], ["📱 Téléphone", membre?.tel], ["🏠 Adresse", membre?.adresse], ["📋 Contrat", membre?.contrat], ["📅 Depuis le", membre?.date_embauche]].map(([label, valeur], i) => (
+            {[["📧 Email", membre?.email], ["📱 Téléphone", membre?.tel], ["🏠 Adresse", membre?.adresse], ["📋 Contrat", membre?.contrat], ["⏱ Heures/semaine", membre?.heures_semaine ? `${membre.heures_semaine}h` : "35h"], ["📅 Depuis le", membre?.date_embauche]].map(([label, valeur], i) => (
               <div key={i} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}22`, fontSize: 12 }}>
                 <span style={{ color: C.muted }}>{label}</span>
                 <span>{valeur || "—"}</span>

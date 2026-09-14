@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { C, fmt, Card, CT, Btn, BtnGhost, KPI, STitle, Pill, Inp, Sel, SM, inits } from "../lib/ui";
+import { C, fmt, Card, CT, Btn, BtnGhost, KPI, STitle, Pill, Inp, Sel, SM, inits, TH, Td } from "../lib/ui";
 import { PARTENAIRES } from "../lib/seedData";
 import { hasAccess } from "../lib/plans";
 import { ouvrirChat } from "../lib/ouvrirChat";
@@ -27,7 +27,20 @@ const PageClients=({plan, modulesActifs,showToast,profil,setPage,UpgradeWall,act
 
   const enriched=clients;
 
-  const tabs=[{id:"liste",label:"👥 Clients"},{id:"solvabilite",label:"🎯 Solvabilité"},{id:"tunnel",label:"📈 Tunnel de vente"},{id:"upsell",label:"⚡ Upsell auto"},{id:"stats",label:"📊 Stats"}];
+  const tabs=[{id:"liste",label:"👥 Clients"},{id:"solvabilite",label:"🎯 Solvabilité"},{id:"tunnel",label:"📈 Tunnel de vente"},{id:"upsell",label:"⚡ Upsell auto"},{id:"stats",label:"📊 Stats"},{id:"rentabilite",label:"💰 Rentabilité"}];
+  const[rentabiliteClients,setRentabiliteClients]=useState(null);
+  const[chargementRentabiliteClients,setChargementRentabiliteClients]=useState(false);
+  const chargerRentabiliteClients=async()=>{
+    setChargementRentabiliteClients(true);
+    try{
+      const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
+      const res=await fetch('/api/clients?vue=rentabilite'+companyParam);
+      const data=await res.json();
+      setRentabiliteClients(data);
+    }catch(e){}
+    setChargementRentabiliteClients(false);
+  };
+  useEffect(()=>{if(onglet==="rentabilite")chargerRentabiliteClients();},[onglet]);
   const scoreColor=(s)=>s>=80?C.green:s>=60?C.gold:s>=40?C.orange:C.red;
   const scoreLabel=(s)=>s>=80?"Excellent":s>=60?"Bon":s>=40?"Moyen":"Risqué";
 
@@ -246,6 +259,36 @@ const PageClients=({plan, modulesActifs,showToast,profil,setPage,UpgradeWall,act
         <STitle>🎯 Scores de solvabilité</STitle>
         {[...enriched].sort((a,b)=>b.score-a.score).map((c,i)=><div key={c.id} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span style={{fontWeight:600}}>{c.nom}</span><span style={{color:scoreColor(c.score),fontWeight:700}}>{c.score}/100</span></div><SM val={c.score} max={100} color={scoreColor(c.score)}/></div>)}
       </Card>
+    </div>}
+
+    {/* ─── RENTABILITÉ PAR CLIENT ────────────────────────────── */}
+    {onglet==="rentabilite"&&<div>
+      <div style={{fontSize:10,color:C.muted,marginBottom:14}}>Ce que chaque client rapporte réellement (factures payées) comparé au coût réel engagé (part des salaires des employés ayant travaillé pour lui, répartie à parts égales entre leurs missions du mois) — ce mois-ci.</div>
+      {chargementRentabiliteClients?<div style={{fontSize:12,color:C.muted}}>Chargement...</div>:!rentabiliteClients?<div style={{fontSize:12,color:C.muted}}>Erreur de chargement.</div>:(()=>{
+        const totalCa=rentabiliteClients.lignes.reduce((a,l)=>a+l.caEncaisse,0);
+        const totalCout=rentabiliteClients.lignes.reduce((a,l)=>a+l.coutEngage,0);
+        const totalMarge=totalCa-totalCout;
+        return <>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:12,marginBottom:14}}>
+          <KPI label="CA encaissé (tous clients)" val={fmt(totalCa)} color={C.green}/>
+          <KPI label="Coût réel engagé" val={fmt(totalCout)} color={C.red}/>
+          <KPI label="Marge nette réelle" val={`${totalMarge>=0?"+":""}${fmt(totalMarge)}`} color={totalMarge>=0?C.green:C.orange}/>
+        </div>
+        <Card>
+          {rentabiliteClients.lignes.length===0?<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>Aucune activité facturée ce mois-ci.</div>:
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead><tr>{["Client","Missions","CA encaissé","Coût engagé","Marge","%"].map(h=><TH key={h}>{h}</TH>)}</tr></thead>
+            <tbody>{[...rentabiliteClients.lignes].sort((a,b)=>b.marge-a.marge).map((l,i)=><tr key={i}>
+              <Td style={{fontWeight:600}}>{l.nom}</Td>
+              <Td style={{color:C.muted}}>{l.nbMissions}</Td>
+              <Td style={{color:C.green,fontWeight:700}}>{fmt(l.caEncaisse)}</Td>
+              <Td style={{color:C.red}}>{fmt(l.coutEngage)}</Td>
+              <Td style={{fontWeight:700,color:l.marge>=0?C.green:C.orange}}>{l.marge>=0?"+":""}{fmt(l.marge)}</Td>
+              <Td style={{color:l.margePct==null?C.muted:l.margePct>=0?C.green:C.orange}}>{l.margePct==null?"—":`${l.margePct>0?"+":""}${l.margePct}%`}</Td>
+            </tr>)}</tbody>
+          </table>}
+        </Card>
+        </>;})()}
     </div>}
   </div>;
 };

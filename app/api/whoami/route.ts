@@ -33,7 +33,7 @@ export async function GET(req: NextRequest) {
   let profilCollaborateur = null
   if (isCollaborateur && employeId) {
     const { data: monProfil } = await sb.from('equipe')
-      .select('nom,prenom,role,tel,adresse,contrat,date_embauche')
+      .select('nom,prenom,role,tel,adresse,contrat,date_embauche,heures_semaine')
       .eq('id', employeId).maybeSingle()
     profilCollaborateur = monProfil
   }

@@ -24,6 +24,33 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
   const tvaMontant=newFact.montant_ht?Math.round(Number(newFact.montant_ht)*Number(newFact.taux_tva))/100:0;
   const ttc=newFact.montant_ht?Number(newFact.montant_ht)+tvaMontant:0;
 
+  const[categoriesCatalogue,setCategoriesCatalogue]=useState([]);
+  const[margesCibles,setMargesCibles]=useState([]);
+  const[rentabiliteClientsAssist,setRentabiliteClientsAssist]=useState([]);
+  const[categorieAssist,setCategorieAssist]=useState("");
+  const[coutAssist,setCoutAssist]=useState("");
+  const[margeCatEnEdition,setMargeCatEnEdition]=useState(null);
+  const[margeCatValeur,setMargeCatValeur]=useState("30");
+  useEffect(()=>{
+    fetch('/api/services-catalogue').then(r=>r.json()).then(d=>{
+      const cats=[...new Set((d.services||[]).map(s=>s.categorie).filter(Boolean))];
+      setCategoriesCatalogue(cats);
+    }).catch(()=>{});
+    fetch('/api/marges-cibles').then(r=>r.json()).then(d=>setMargesCibles(d.marges||[])).catch(()=>{});
+    fetch('/api/clients?vue=rentabilite').then(r=>r.json()).then(d=>setRentabiliteClientsAssist(d.lignes||[])).catch(()=>{});
+  },[]);
+  const clientTrouve=newFact.client_nom?rentabiliteClientsAssist.find(l=>l.nom.toLowerCase().trim()===newFact.client_nom.toLowerCase().trim()):null;
+  const margeCibleActuelle=categorieAssist?(margesCibles.find(m=>m.categorie===categorieAssist)?.marge_cible_pct??30):30;
+  const montantSuggere=coutAssist?Math.round(Number(coutAssist)*(1+margeCibleActuelle/100)):null;
+  const definirMargeCategorie=async(categorie,valeur)=>{
+    try{
+      await fetch('/api/marges-cibles',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'definir',categorie,marge_cible_pct:Number(valeur)})});
+      const d=await(await fetch('/api/marges-cibles')).json();
+      setMargesCibles(d.marges||[]);
+      setMargeCatEnEdition(null);
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
   const tabs=[
     {id:"dashboard",label:"📊 Tableau de bord"},
     {id:"creer",label:"➕ Créer une facture"},
@@ -184,6 +211,39 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
         </div>
       </Card>
       <div style={{display:"flex",flexDirection:"column",gap:10}}>
+        <Card style={{background:`${C.purple}08`,borderColor:`${C.purple}33`}}>
+          <STitle>🤖 Assistant de facturation</STitle>
+          {clientTrouve?<div style={{fontSize:11,color:C.text,marginBottom:10,padding:8,background:`${C.purple}11`,borderRadius:6}}>
+            <b>{clientTrouve.nom}</b> ce mois-ci : {clientTrouve.nbMissions} mission(s), €{clientTrouve.caEncaisse.toLocaleString("fr")} déjà encaissés, €{clientTrouve.coutEngage.toLocaleString("fr")} de coût réel engagé — marge actuelle {clientTrouve.margePct==null?"—":`${clientTrouve.margePct}%`}.
+          </div>:newFact.client_nom?<div style={{fontSize:11,color:C.muted,marginBottom:10}}>Aucun historique ce mois-ci pour "{newFact.client_nom}" — première facture, pas de suggestion possible.</div>:<div style={{fontSize:11,color:C.muted,marginBottom:10}}>Renseigne le nom du client pour voir son historique réel.</div>}
+
+          <div style={{fontSize:10,color:C.muted,marginBottom:4}}>Catégorie de la prestation</div>
+          <select value={categorieAssist} onChange={e=>setCategorieAssist(e.target.value)} style={{background:C.card2,border:`1px solid ${C.border}`,borderRadius:7,padding:"7px 10px",color:C.text,fontSize:12,fontFamily:"inherit",width:"100%",marginBottom:8}}>
+            <option value="">— Choisir —</option>
+            {categoriesCatalogue.map(c=><option key={c} value={c}>{c}</option>)}
+          </select>
+          {categorieAssist&&<div style={{display:"flex",alignItems:"center",gap:6,marginBottom:8,fontSize:10,color:C.muted}}>
+            Marge cible pour "{categorieAssist}" :
+            {margeCatEnEdition===categorieAssist?<>
+              <input type="number" value={margeCatValeur} onChange={e=>setMargeCatValeur(e.target.value)} style={{width:50,background:C.card2,border:`1px solid ${C.border}`,borderRadius:4,padding:"2px 4px",color:C.text,fontSize:10}}/>%
+              <button onClick={()=>definirMargeCategorie(categorieAssist,margeCatValeur)} style={{background:C.purple,color:"#fff",border:"none",borderRadius:4,padding:"2px 8px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>OK</button>
+            </>:<>
+              <b style={{color:C.purple}}>{margeCibleActuelle}%</b>
+              <button onClick={()=>{setMargeCatEnEdition(categorieAssist);setMargeCatValeur(String(margeCibleActuelle));}} style={{background:"transparent",color:C.muted,border:`1px solid ${C.border}`,borderRadius:4,padding:"2px 6px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>modifier</button>
+            </>}
+          </div>}
+
+          <div style={{fontSize:10,color:C.muted,marginBottom:4}}>Coût réel engagé pour cette prestation (€)</div>
+          <Inp value={coutAssist} onChange={e=>setCoutAssist(e.target.value)} placeholder={clientTrouve?String(clientTrouve.coutEngage):"0.00"}/>
+
+          {montantSuggere!=null&&<div style={{marginTop:10,padding:10,background:`${C.gold}11`,border:`1px solid ${C.gold}33`,borderRadius:8}}>
+            <div style={{fontSize:10,color:C.muted}}>Coût {coutAssist}€ × (1 + {margeCibleActuelle}% de marge) =</div>
+            <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginTop:4}}>
+              <div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(montantSuggere)}</div>
+              <button onClick={()=>{setNewFact(f=>({...f,montant_ht:String(montantSuggere)}));showToast("✅ Montant appliqué au formulaire — modifiable avant envoi");}} style={{background:C.gold,color:"#000",border:"none",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontWeight:600,fontSize:11,fontFamily:"inherit"}}>Utiliser ce montant</button>
+            </div>
+          </div>}
+        </Card>
         <Card style={{background:`${C.blue}08`,borderColor:`${C.blue}33`}}>
           <STitle>📋 Mentions obligatoires</STitle>
           {[["Numéro de facture séquentiel","✅ Auto-généré",C.green],["Date d'émission","✅ Auto",C.green],["Montant HT/TVA/TTC","✅ Calculé auto",C.green],["Format du document","PDF simple — Factur-X prévu Phase 6",C.orange]].map(([m,s,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}><span>{m}</span><span style={{color:c,fontWeight:600}}>{s}</span></div>)}
