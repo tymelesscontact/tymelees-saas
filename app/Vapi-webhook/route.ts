@@ -2,9 +2,13 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 
 function getSb() {
+  // Vapi appelle ce webhook sans session (pas d'utilisateur connecte) -- la
+  // cle anon ne peut donc satisfaire aucune policy RLS `appartient_au_tenant`.
+  // Cle service-role obligatoire ici, comme partout ou un appel serveur-a-
+  // serveur doit ecrire en base sans contexte utilisateur.
   return createClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+    process.env.SUPABASE_SERVICE_ROLE_KEY!
   );
 }
 
