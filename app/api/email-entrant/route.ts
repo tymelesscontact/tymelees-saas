@@ -61,6 +61,78 @@ function verifierSignatureSvix(id: string, timestamp: string, corps: string, ent
   });
 }
 
+function extraireNomEmail(from: string): { nom: string; email: string } {
+  // Formats courants Resend : "Jean Dupont <jean@mail.com>" ou juste "jean@mail.com"
+  const m = /^(.*)<(.+)>$/.exec(from || '');
+  if (m) return { nom: m[1].trim().replace(/^"|"$/g, '') || m[2].trim(), email: m[2].trim() };
+  return { nom: (from || '').trim(), email: (from || '').trim() };
+}
+
+async function traiterCandidatureEntrante(offreId: string, event: any) {
+  const { data: offre } = await sb.from('offres_emploi').select('id,tenant_id,statut,titre').eq('id', offreId).maybeSingle();
+  if (!offre) {
+    console.error('email-entrant: offre introuvable pour candidature', offreId);
+    return NextResponse.json({ success: true, ignore: true });
+  }
+  if (offre.statut !== 'ouverte') {
+    console.error('email-entrant: offre fermee, candidature ignoree', offreId);
+    return NextResponse.json({ success: true, ignore: true });
+  }
+
+  const { nom, email } = extraireNomEmail(event?.data?.from || '');
+  let message = '';
+  let cvChemin: string | null = null;
+  const emailId = event?.data?.email_id;
+  const cleReception = process.env.RESEND_API_KEY_RECEPTION;
+  if (emailId && cleReception) {
+    try {
+      const res = await fetch(`https://api.resend.com/emails/receiving/${emailId}`, {
+        headers: { Authorization: `Bearer ${cleReception}` },
+      });
+      if (res.ok) {
+        const detail = await res.json();
+        message = nettoyerReponseEmail((detail.text || '').trim());
+        const pieceJointe = (detail.attachments || []).find((a: any) =>
+          (a.content_type || '').includes('pdf') || (a.filename || '').toLowerCase().endsWith('.pdf')
+        ) || (detail.attachments || [])[0];
+        if (pieceJointe?.content) {
+          const extension = (pieceJointe.filename || 'cv.pdf').split('.').pop() || 'pdf';
+          cvChemin = `${offre.tenant_id}/${offreId}/${Date.now()}-email.${extension}`;
+          const bytes = Buffer.from(pieceJointe.content, 'base64');
+          const { error: errUpload } = await sb.storage.from('candidatures-cv').upload(cvChemin, bytes, {
+            contentType: pieceJointe.content_type || 'application/pdf',
+          });
+          if (errUpload) { console.error('email-entrant: upload CV echoue', errUpload.message); cvChemin = null; }
+        }
+      } else {
+        console.error('email-entrant candidature: Resend a repondu', res.status, await res.text());
+      }
+    } catch (e: any) {
+      console.error('email-entrant candidature: recuperation du corps', e.message);
+    }
+  }
+
+  const { data: candidature, error } = await sb.from('candidatures').insert({
+    tenant_id: offre.tenant_id, offre_id: offreId,
+    nom: nom || email || 'Candidat (email)', email: email || null,
+    message: message || null, cv_chemin: cvChemin, source: 'email',
+  }).select().single();
+  if (error) {
+    console.error('email-entrant: insertion candidature', error.message);
+    return NextResponse.json({ error: error.message }, { status: 500 });
+  }
+
+  try {
+    await sb.from('notifications').insert({
+      tenant_id: offre.tenant_id, type: 'recrutement', icon: '🧲', urgence: 'normale',
+      titre: `Nouvelle candidature : ${offre.titre}`, message: `${nom || email} a postulé par email`,
+      action_type: 'candidature', action_id: candidature.id, lu: false, traite: false,
+    });
+  } catch (e) { /* non bloquant */ }
+
+  return NextResponse.json({ success: true, candidature });
+}
+
 export async function POST(req: NextRequest) {
   const secret = process.env.RESEND_WEBHOOK_SECRET;
   const svixId = req.headers.get('svix-id');
@@ -91,6 +163,21 @@ export async function POST(req: NextRequest) {
   }
 
   const destinataires: string[] = event?.data?.to || [];
+
+  // Candidature par email (pont vers LinkedIn/Indeed/etc.) : chaque offre a
+  // une adresse dediee candidature-<offre_id>@reply.xyraio.fr, collee par
+  // l'employeur comme contact "postuler par email" sur les plateformes
+  // externes -- reutilise le meme domaine entrant deja configure pour le
+  // Chat, pas de nouvelle configuration DNS/Resend necessaire.
+  let offreId: string | null = null;
+  for (const dest of destinataires) {
+    const m = /candidature-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})@reply\.xyraio\.fr/i.exec(dest);
+    if (m) { offreId = m[1]; break; }
+  }
+  if (offreId) {
+    return traiterCandidatureEntrante(offreId, event);
+  }
+
   let conversationId: string | null = null;
   for (const dest of destinataires) {
     const m = /conv-([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})@reply\.xyraio\.fr/i.exec(dest);

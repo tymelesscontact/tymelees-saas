@@ -850,7 +850,10 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
             <button onClick={ev=>{ev.stopPropagation();toggleOffre(o);}} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>{o.statut==="ouverte"?"Fermer":"Rouvrir"}</button>
           </div>
         </div>
-        {offreDeployee===o.id&&<div style={{marginTop:14,display:"flex",gap:8,overflowX:"auto",paddingBottom:4}}>
+        {offreDeployee===o.id&&<div style={{marginTop:14,marginBottom:10,fontSize:10,color:"#5A5A7A",background:"#121222",borderRadius:6,padding:8}}>
+          📧 Adresse de candidature (à coller sur LinkedIn/Indeed comme "postuler par email") : <span style={{color:"#4B7BFF",userSelect:"all"}}>candidature-{o.id}@reply.xyraio.fr</span>
+        </div>}
+        {offreDeployee===o.id&&<div style={{display:"flex",gap:8,overflowX:"auto",paddingBottom:4}}>
           {ETAPES_PIPELINE.map(([cle,label])=><div key={cle} style={{minWidth:150,flex:1}}>
             <div style={{fontSize:9,color:"#5A5A7A",fontWeight:600,marginBottom:6,textTransform:"uppercase"}}>{label} ({(o.candidatures||[]).filter(c=>c.etape===cle).length})</div>
             <div style={{display:"flex",flexDirection:"column",gap:6}}>
