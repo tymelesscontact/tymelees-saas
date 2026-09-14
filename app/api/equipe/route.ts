@@ -75,6 +75,11 @@ export async function GET(req: NextRequest) {
   if (!tenantId) return NextResponse.json({ membres: [], alertes: [] });
 
   // Lien temporaire vers un document employe (bucket prive) -- reserve RH/owner.
+  if (action === 'info_entreprise') {
+    const { data: tenantInfo } = await sb.from('tenants').select('societe,forme_juridique,siret,adresse,ville,code_postal').eq('id', tenantId).maybeSingle();
+    return NextResponse.json({ entreprise: tenantInfo || null });
+  }
+
   if (action === 'document_url') {
     if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const idDoc = searchParams.get('id');

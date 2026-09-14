@@ -311,6 +311,61 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       loadRealData();
     }catch(err){}
   };
+  const[contratsSignature,setContratsSignature]=useState([]);
+  const[modelesContrats,setModelesContrats]=useState([]);
+  const[infoEntreprise,setInfoEntreprise]=useState(null);
+  const chargerContratsSignature=async()=>{
+    try{
+      const [rC,rM,rE]=await Promise.all([
+        fetch('/api/contrats?action=contrats'),
+        fetch('/api/contrats?action=modeles'),
+        fetch('/api/equipe?action=info_entreprise'),
+      ]);
+      const [dC,dM,dE]=await Promise.all([rC.json(),rM.json(),rE.json()]);
+      setContratsSignature((dC.contrats||[]).filter(c=>c.source_type==='equipe'));
+      setModelesContrats(dM.modeles||[]);
+      setInfoEntreprise(dE.entreprise||null);
+    }catch(e){}
+  };
+  useEffect(()=>{if(onglet==="contrats")chargerContratsSignature();},[onglet]);
+  const dernierContratDe=(employeId)=>contratsSignature.filter(c=>c.source_id===employeId).sort((a,b)=>new Date(b.created_at).getTime()-new Date(a.created_at).getTime())[0]||null;
+
+  const[signatureFormId,setSignatureFormId]=useState(null);
+  const[signatureForm,setSignatureForm]=useState({qualification:"",duree_periode_essai:"1 mois",convention_collective:"",motif_recours:"",lieu_travail:""});
+  const[envoiSignatureEnCours,setEnvoiSignatureEnCours]=useState(false);
+  const ouvrirEnvoiSignature=(e)=>{
+    setSignatureForm({qualification:e.role||"",duree_periode_essai:"1 mois",convention_collective:"",motif_recours:"",lieu_travail:infoEntreprise?.adresse?`${infoEntreprise.adresse}, ${infoEntreprise.ville||''}`:""});
+    setSignatureFormId(signatureFormId===e.id?null:e.id);
+  };
+  const envoyerPourSignature=async(e)=>{
+    if(!e.email)return showToast("⚠️ Aucun email pour cet employé");
+    const modele=modelesContrats.find(m=>m.type===(e.contrat==="CDD"?"cdd":"cdi"));
+    if(!modele)return showToast(`❌ Aucun modèle de contrat ${e.contrat} disponible`);
+    if(!infoEntreprise?.societe||!infoEntreprise?.siret)return showToast("⚠️ Renseigne d'abord société/SIRET dans les infos entreprise");
+    setEnvoiSignatureEnCours(true);
+    try{
+      const variables={
+        nom_employeur:infoEntreprise.societe,forme_juridique:infoEntreprise.forme_juridique||"",siret:infoEntreprise.siret,
+        adresse_employeur:`${infoEntreprise.adresse||''}, ${infoEntreprise.code_postal||''} ${infoEntreprise.ville||''}`,
+        nom_salarie:e.nom,adresse_salarie:e.adresse||"",poste:e.role||"",qualification:signatureForm.qualification,
+        date_embauche:e.embauche,date_debut:e.embauche,date_fin:e.date_fin_contrat||"",
+        lieu_travail:signatureForm.lieu_travail,duree_hebdo:String(e.heures_semaine||35),
+        salaire_brut:String(e.paie?.salaireBrut||e.salaire||0),duree_periode_essai:signatureForm.duree_periode_essai,
+        convention_collective:signatureForm.convention_collective,motif_recours:signatureForm.motif_recours,
+        ville:infoEntreprise.ville||"",date:new Date().toLocaleDateString("fr-FR"),
+      };
+      const resGen=await fetch('/api/contrats',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'generer',modele_id:modele.id,titre:`${modele.nom} — ${e.nom}`,source_type:'equipe',source_id:e.id,variables,signataire_nom:e.nom,signataire_email:e.email,signataire_role:e.role})});
+      const dataGen=await resGen.json();
+      if(!resGen.ok||!dataGen.success){showToast(`❌ ${dataGen.error||"Erreur génération"}`);setEnvoiSignatureEnCours(false);return;}
+      const resEnv=await fetch('/api/contrats',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer',id:dataGen.contrat.id})});
+      const dataEnv=await resEnv.json();
+      if(!resEnv.ok||!dataEnv.success){showToast(`❌ ${dataEnv.error||"Erreur envoi"}`);setEnvoiSignatureEnCours(false);return;}
+      showToast(`✅ Contrat envoyé pour signature électronique à ${e.email}`);
+      setSignatureFormId(null);
+      chargerContratsSignature();
+    }catch(err){showToast("❌ Erreur de connexion");}
+    setEnvoiSignatureEnCours(false);
+  };
   const[envoiContratsGroupeEnCours,setEnvoiContratsGroupeEnCours]=useState(false);
   const genererEtEnvoyerTousLesContrats=async()=>{
     const eligibles=equipe.filter(e=>e.email);
@@ -1054,23 +1109,49 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       </div>
       <table style={{width:"100%",borderCollapse:"collapse"}}>
         <thead><tr>{["Collaborateur","Type","Embauche","Fin prévue","Poste","Salaire","Statut","Actions"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
-        <tbody>{equipe.map((e,i)=>{const contratSigne=(e.documents||[]).some(d=>d.type==="Contrat signé");return <tr key={i}>
+        <tbody>{equipe.map((e,i)=>{
+          const dernierContrat=dernierContratDe(e.id);
+          const statutSignature=dernierContrat?.statut;
+          return <Fragment key={i}><tr>
           <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:600}}>{e.nom}</td>
           <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}><span style={{background:(e.contrat==="CDI"?"#2EC9B0":"#4B7BFF")+"22",color:e.contrat==="CDI"?"#2EC9B0":"#4B7BFF",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>{e.contrat}</span></td>
           <td style={{padding:"10px",fontSize:10,borderBottom:"1px solid #1E1E3622",color:"#5A5A7A"}}>{e.embauche}</td>
           <td style={{padding:"10px",fontSize:10,borderBottom:"1px solid #1E1E3622",color:e.contrat==="CDD"?"#FF8C3A":"#5A5A7A"}}>{e.contrat==="CDD"?<input type="date" defaultValue={e.date_fin_contrat||""} onBlur={ev=>majDateFinContrat(e.id,ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:4,padding:"2px 4px",color:"#FF8C3A",fontSize:10,fontFamily:"inherit"}}/>:"Indéterminée"}</td>
           <td style={{padding:"10px",fontSize:11,borderBottom:"1px solid #1E1E3622",color:"#5A5A7A"}}>{e.role}</td>
           <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#C9A84C",fontWeight:700}}>{e.salaire.toLocaleString("fr")} €</td>
-          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}>{contratSigne?<span style={{background:"#2EC9B022",color:"#2EC9B0",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>✓ Signé</span>:<span style={{background:"#5A5A7A22",color:"#5A5A7A",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>○ En attente</span>}</td>
           <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}>
-            <div style={{display:"flex",gap:4}}>
+            {statutSignature==="signe"?<span style={{background:"#2EC9B022",color:"#2EC9B0",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>✓ Signé</span>
+            :statutSignature==="envoye"?<span style={{background:"#4B7BFF22",color:"#4B7BFF",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>✉ Envoyé, en attente</span>
+            :<span style={{background:"#5A5A7A22",color:"#5A5A7A",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>○ Non envoyé</span>}
+          </td>
+          <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622"}}>
+            <div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
+              {statutSignature==="signe"?
+                <button onClick={()=>window.open(`/api/contrats?action=pdf&id=${dernierContrat.id}`,'_blank')} style={{background:"#2EC9B0",color:"#000",border:"none",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>📄 Voir signé</button>
+              :<button onClick={()=>ouvrirEnvoiSignature(e)} style={{background:"#9B5FFF",color:"#fff",border:"none",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>✍️ Signature</button>}
               <button onClick={()=>genererContrat(e,true)} disabled={genContratEnCours===e.id} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>{genContratEnCours===e.id?"...":"📄 Aperçu IA"}</button>
               <button onClick={()=>envoyerContratWhatsApp(e)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>WA</button>
             </div>
           </td>
-        </tr>;})}</tbody>
+        </tr>
+        {signatureFormId===e.id&&<tr>
+          <td colSpan={8} style={{padding:"10px 10px 14px",borderBottom:"1px solid #1E1E3622",background:"#0A0A16"}}>
+            <div style={{fontSize:10,color:"#5A5A7A",marginBottom:8}}>Envoi du vrai {e.contrat} pour signature électronique à {e.email||"(aucun email)"} — modèle légal réel, code de vérification par email, certificat de signature.</div>
+            <div style={{display:"flex",gap:8,alignItems:"flex-end",flexWrap:"wrap"}}>
+              <label style={{fontSize:10,color:"#5A5A7A"}}>Qualification / catégorie<br/><input type="text" value={signatureForm.qualification} onChange={ev=>setSignatureForm(f=>({...f,qualification:ev.target.value}))} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+              <label style={{fontSize:10,color:"#5A5A7A"}}>Période d'essai<br/><input type="text" value={signatureForm.duree_periode_essai} onChange={ev=>setSignatureForm(f=>({...f,duree_periode_essai:ev.target.value}))} style={{width:100,background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+              <label style={{fontSize:10,color:"#5A5A7A"}}>Convention collective<br/><input type="text" value={signatureForm.convention_collective} onChange={ev=>setSignatureForm(f=>({...f,convention_collective:ev.target.value}))} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+              {e.contrat==="CDD"&&<label style={{fontSize:10,color:"#5A5A7A"}}>Motif de recours (CDD)<br/><input type="text" value={signatureForm.motif_recours} onChange={ev=>setSignatureForm(f=>({...f,motif_recours:ev.target.value}))} placeholder="Ex : accroissement d'activité" style={{width:180,background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>}
+              <label style={{fontSize:10,color:"#5A5A7A",flex:1,minWidth:160}}>Lieu de travail<br/><input type="text" value={signatureForm.lieu_travail} onChange={ev=>setSignatureForm(f=>({...f,lieu_travail:ev.target.value}))} style={{width:"100%",background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+            </div>
+            <div style={{display:"flex",gap:8,marginTop:8}}>
+              <button onClick={()=>envoyerPourSignature(e)} disabled={envoiSignatureEnCours} style={{background:"#9B5FFF",color:"#fff",border:"none",borderRadius:6,padding:"7px 14px",cursor:"pointer",fontWeight:600,fontSize:11,fontFamily:"inherit"}}>{envoiSignatureEnCours?"Envoi...":"✍️ Envoyer pour signature électronique"}</button>
+              <button onClick={()=>setSignatureFormId(null)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:6,padding:"7px 14px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Annuler</button>
+            </div>
+          </td>
+        </tr>}</Fragment>;})}</tbody>
       </table>
-      <div style={{fontSize:9,color:"#5A5A7A",marginTop:10}}>Le statut "Signé" reflète un document de type "Contrat signé" déposé dans l'onglet Documents. L'aperçu IA est un projet de contrat à faire relire avant signature.</div>
+      <div style={{fontSize:9,color:"#5A5A7A",marginTop:10}}>"Signature" envoie un vrai contrat légal (modèle CDI/CDD réel) pour signature électronique — code de vérification, certificat, PDF signé. "Aperçu IA" reste un brouillon informel imprimable, pas une signature.</div>
     </div>}
 
     {/* ─── DOCUMENTS RH ──────────────────────────────────────── */}
