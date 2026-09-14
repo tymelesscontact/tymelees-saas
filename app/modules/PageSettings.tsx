@@ -858,7 +858,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
       </div>
       <STitle style={{marginBottom:10}}>🔌 Vos outils personnels</STitle>
       <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10,marginBottom:16}}>
-        {["Stripe","Google Calendar","Zapier"].map(nomSuggere=>{
+        {["Stripe","Google Calendar","Zapier","Apollo.io","Instantly.ai"].map(nomSuggere=>{
           const dejaAjoute=integrationsPerso.find(x=>x.nom===nomSuggere);
           return <Card key={nomSuggere}>
             <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>

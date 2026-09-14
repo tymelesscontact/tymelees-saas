@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { dechiffrer } from '../../lib/anthropicKey';
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -11,6 +12,86 @@ function getAdminClient() {
 export async function POST(req: NextRequest) {
   try {
     const { action, ...params } = await req.json()
+
+    if (action === 'enrichir_lead') {
+      const tenantId = await getTenantIdFromRequest(req)
+      if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 })
+      const sb = getAdminClient()
+
+      const { data: lead } = await sb.from('crm_leads').select('*').eq('id', params.lead_id).eq('tenant_id', tenantId).maybeSingle()
+      if (!lead) return NextResponse.json({ error: 'Lead introuvable' }, { status: 404 })
+
+      const { data: integ } = await sb.from('integrations_personnalisees').select('cle_api').eq('tenant_id', tenantId).eq('nom', 'Apollo.io').maybeSingle()
+      if (!integ?.cle_api) {
+        return NextResponse.json({ error: 'apollo_non_connecte' }, { status: 400 })
+      }
+
+      let apolloKey = ''
+      try { apolloKey = dechiffrer(integ.cle_api) } catch { return NextResponse.json({ error: 'Cle Apollo illisible, reconnecte-la dans Parametres' }, { status: 500 }) }
+
+      const contact = (lead.contact || '').trim()
+      const [prenom, ...resteNom] = contact.split(' ')
+      const nomFamille = resteNom.join(' ')
+
+      const apolloRes = await fetch('https://api.apollo.io/api/v1/people/match', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-api-key': apolloKey },
+        body: JSON.stringify({
+          first_name: prenom || undefined,
+          last_name: nomFamille || undefined,
+          organization_name: lead.nom || undefined,
+        }),
+      })
+      if (!apolloRes.ok) {
+        return NextResponse.json({ error: `Erreur Apollo (${apolloRes.status})` }, { status: 502 })
+      }
+      const apolloData = await apolloRes.json()
+      const person = apolloData.person
+
+      if (!person) {
+        return NextResponse.json({ success: true, trouve: false })
+      }
+
+      const updates: any = { updated_at: new Date().toISOString() }
+      if (person.email) updates.email = person.email
+      const notesLinkedIn = person.linkedin_url ? `LinkedIn : ${person.linkedin_url}` : ''
+      if (notesLinkedIn && !(lead.notes || '').includes(notesLinkedIn)) {
+        updates.notes = [lead.notes, notesLinkedIn].filter(Boolean).join(' · ')
+      }
+      await sb.from('crm_leads').update(updates).eq('id', lead.id).eq('tenant_id', tenantId)
+
+      return NextResponse.json({
+        success: true,
+        trouve: true,
+        email: person.email || null,
+        email_status: person.email_status || null,
+        linkedin_url: person.linkedin_url || null,
+      })
+    }
+
+    if (action === 'signal_ajouter_crm') {
+      const tenantId = await getTenantIdFromRequest(req)
+      if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 })
+      const sb = getAdminClient()
+      const { data: signal } = await sb.from('signaux_prospection').select('*').eq('id', params.signal_id).eq('tenant_id', tenantId).maybeSingle()
+      if (!signal) return NextResponse.json({ error: 'Signal introuvable' }, { status: 404 })
+      const { error } = await sb.from('crm_leads').insert({
+        nom: signal.nom_entreprise, contact: signal.dirigeant || '', source: 'Signal quotidien Xyra',
+        notes: signal.raison, etape: 'Nouveau', score: 60, tenant_id: tenantId,
+      })
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      await sb.from('signaux_prospection').update({ vu: true }).eq('id', signal.id).eq('tenant_id', tenantId)
+      return NextResponse.json({ success: true })
+    }
+
+    if (action === 'signal_ignorer') {
+      const tenantId = await getTenantIdFromRequest(req)
+      if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 })
+      const sb = getAdminClient()
+      const { error } = await sb.from('signaux_prospection').update({ vu: true }).eq('id', params.signal_id).eq('tenant_id', tenantId)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ success: true })
+    }
 
     if (action === 'call') {
       const response = await fetch('https://api.vapi.ai/call/phone', {
@@ -51,6 +132,14 @@ export async function POST(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url)
   const action = searchParams.get('action')
+
+  if (action === 'signaux') {
+    const tenantId = await getTenantIdFromRequest(req)
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 })
+    const sb = getAdminClient()
+    const { data } = await sb.from('signaux_prospection').select('*').eq('tenant_id', tenantId).eq('vu', false).order('cree_le', { ascending: false })
+    return NextResponse.json({ success: true, signaux: data || [] })
+  }
 
   if (action === 'calls' || action === 'assistants') {
     try {

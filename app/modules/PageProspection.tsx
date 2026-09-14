@@ -280,6 +280,79 @@ const PageProspection=({plan, modulesActifs,showToast,profil=null,UpgradeWall,ac
   const[query,setQuery]=useState("");
   const[leadsReal,setLeadsReal]=useState([]);
   const[loadingLeads,setLoadingLeads]=useState(true);
+  const[searchQ,setSearchQ]=useState("");
+  const[searchCP,setSearchCP]=useState("");
+  const[searchResults,setSearchResults]=useState(null);
+  const[searchLoading,setSearchLoading]=useState(false);
+  const[searchError,setSearchError]=useState("");
+  const[ajoutEnCours,setAjoutEnCours]=useState(null);
+  const chercherEntreprises=async()=>{
+    setSearchLoading(true);setSearchError("");
+    try{
+      const params=new URLSearchParams();
+      if(searchQ)params.set('q',searchQ);
+      if(searchCP)params.set('code_postal',searchCP);
+      const res=await fetch('/api/entreprises-recherche?'+params.toString());
+      const d=await res.json();
+      if(d.error)setSearchError(d.error);
+      else setSearchResults(d.resultats||[]);
+    }catch(e){setSearchError("Erreur de connexion");}
+    setSearchLoading(false);
+  };
+  const ajouterEntrepriseAuCRM=async(r)=>{
+    const dirigeant=r.dirigeants?.[0]?.nom;
+    setAjoutEnCours(r.siren);
+    try{
+      const res=await fetch('/api/crm',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer',nom:r.nom,contact:dirigeant&&dirigeant!=='—'?dirigeant:'',source:'Recherche entreprises (data.gouv.fr)',notes:`SIRET ${r.siret||'—'} · ${r.adresse||''}`})});
+      const d=await res.json();
+      if(d.success){showToast(`✅ ${r.nom} ajouté au CRM`);loadLeads();}
+      else showToast("❌ "+(d.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setAjoutEnCours(null);
+  };
+  const[signaux,setSignaux]=useState([]);
+  const[loadingSignaux,setLoadingSignaux]=useState(true);
+  const[signalEnCours,setSignalEnCours]=useState(null);
+  const chargerSignaux=async()=>{
+    try{
+      const res=await fetch('/api/prospection?action=signaux');
+      const d=await res.json();
+      if(d.signaux)setSignaux(d.signaux);
+    }catch(e){console.error("Signaux:",e);}
+    setLoadingSignaux(false);
+  };
+  useEffect(()=>{chargerSignaux();},[]);
+  const traiterSignal=async(signal,action)=>{
+    setSignalEnCours(signal.id);
+    try{
+      const res=await fetch('/api/prospection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action,signal_id:signal.id})});
+      const d=await res.json();
+      if(d.success){
+        setSignaux(s=>s.filter(x=>x.id!==signal.id));
+        if(action==='signal_ajouter_crm'){showToast(`✅ ${signal.nom_entreprise} ajouté au CRM`);loadLeads();}
+      }else showToast("❌ "+(d.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setSignalEnCours(null);
+  };
+  const[enrichirEnCours,setEnrichirEnCours]=useState(null);
+  const enrichirLead=async(l)=>{
+    setEnrichirEnCours(l.id);
+    try{
+      const res=await fetch('/api/prospection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'enrichir_lead',lead_id:l.id})});
+      const d=await res.json();
+      if(d.error==='apollo_non_connecte'){
+        showToast("⚠️ Connecte ton compte Apollo.io (gratuit) dans Paramètres → Intégrations");
+      }else if(d.error){
+        showToast("❌ "+d.error);
+      }else if(d.trouve===false){
+        showToast("Aucun résultat trouvé sur Apollo pour ce contact");
+      }else{
+        showToast(`✅ Enrichi : ${d.email||'pas d\'email trouvé'}${d.linkedin_url?' · LinkedIn trouvé':''}`);
+        loadLeads();
+      }
+    }catch(e){showToast("❌ Erreur de connexion");}
+    setEnrichirEnCours(null);
+  };
   const loadLeads=async()=>{
     try{
       const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
@@ -312,6 +385,42 @@ const PageProspection=({plan, modulesActifs,showToast,profil=null,UpgradeWall,ac
     <div style={{fontSize:11,color:C.muted,marginBottom:16}}>SIRENE · Bot vocal · Bot WhatsApp · LinkedIn · 59 fonctionnalités</div>
     <div style={{marginBottom:16}}><Tabs tabs={tabs} active={onglet} onChange={setOnglet}/></div>
     {onglet==="sirene"&&<>
+      {!loadingSignaux&&signaux.length>0&&<Card style={{marginBottom:16,borderColor:`${C.gold}44`}}>
+        <STitle>🔔 Signaux du jour ({signaux.length}) — trouvés automatiquement</STitle>
+        <div style={{display:"flex",flexDirection:"column",gap:8}}>
+          {signaux.map(s=><div key={s.id} style={{background:C.card2,borderRadius:8,padding:12,display:"flex",justifyContent:"space-between",alignItems:"center",gap:10,flexWrap:"wrap"}}>
+            <div>
+              <div style={{fontSize:12,fontWeight:700}}>{s.nom_entreprise}{s.dirigeant?` — ${s.dirigeant}`:''}</div>
+              <div style={{fontSize:10,color:C.muted}}>{s.raison}</div>
+            </div>
+            <div style={{display:"flex",gap:6,flexShrink:0}}>
+              <Btn onClick={()=>traiterSignal(s,'signal_ajouter_crm')} style={{fontSize:10,padding:"5px 10px"}} disabled={signalEnCours===s.id}>+ Ajouter au CRM</Btn>
+              <BtnGhost onClick={()=>traiterSignal(s,'signal_ignorer')} style={{fontSize:10,padding:"5px 10px"}} disabled={signalEnCours===s.id}>Ignorer</BtnGhost>
+            </div>
+          </div>)}
+        </div>
+      </Card>}
+      <Card style={{marginBottom:16}}>
+        <STitle>🔎 Rechercher de nouvelles entreprises (données officielles, dirigeants réels)</STitle>
+        <div style={{display:"flex",gap:8,marginBottom:10,flexWrap:"wrap"}}>
+          <Inp value={searchQ} onChange={e=>setSearchQ(e.target.value)} placeholder="Secteur/activité (ex: nettoyage, restauration...)" style={{flex:2,minWidth:200}}/>
+          <Inp value={searchCP} onChange={e=>setSearchCP(e.target.value)} placeholder="Code postal (ex: 75001)" style={{flex:1,minWidth:120}}/>
+          <Btn onClick={chercherEntreprises} style={{flexShrink:0}} disabled={searchLoading}>{searchLoading?"⏳ Recherche...":"🔍 Rechercher"}</Btn>
+        </div>
+        <div style={{fontSize:10,color:C.muted,marginBottom:10}}>Source : recherche-entreprises.api.gouv.fr (RNE/INPI/INSEE) — vide = utilise ton secteur/ville renseignés dans Paramètres.</div>
+        {searchError&&<div style={{color:C.red,fontSize:12,marginBottom:10}}>❌ {searchError}</div>}
+        {searchResults&&searchResults.length===0&&!searchLoading&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:16}}>Aucune entreprise trouvée pour cette recherche.</div>}
+        {searchResults&&searchResults.length>0&&<table style={{width:"100%",borderCollapse:"collapse"}}>
+          <thead><tr><TH>Entreprise</TH><TH>Dirigeant</TH><TH>Ville</TH><TH>Créée le</TH><TH>Action</TH></tr></thead>
+          <tbody>{searchResults.map((r,i)=><tr key={r.siren||i}>
+            <Td style={{fontWeight:700}}>{r.nom}</Td>
+            <Td style={{color:C.muted}}>{r.dirigeants?.[0]?.nom||'—'}{r.dirigeants?.[0]?.qualite?<span style={{fontSize:9}}> ({r.dirigeants[0].qualite})</span>:null}</Td>
+            <Td style={{color:C.muted}}>{r.ville||'—'}</Td>
+            <Td style={{color:C.muted,fontSize:11}}>{r.date_creation||'—'}</Td>
+            <Td><Btn onClick={()=>ajouterEntrepriseAuCRM(r)} style={{padding:"4px 10px",fontSize:10}} disabled={ajoutEnCours===r.siren}>{ajoutEnCours===r.siren?"...":"+ Ajouter au CRM"}</Btn></Td>
+          </tr>)}</tbody>
+        </table>}
+      </Card>
       <div style={{display:"flex",gap:10,marginBottom:16}}>
         <Inp value={query} onChange={e=>setQuery(e.target.value)} placeholder="🔍 Filtrer par nom ou secteur" style={{flex:1}}/>
       </div>
@@ -323,16 +432,23 @@ const PageProspection=({plan, modulesActifs,showToast,profil=null,UpgradeWall,ac
         {loadingLeads?<div style={{textAlign:"center",padding:20,color:C.muted}}>Chargement...</div>:leads.length===0?<div style={{textAlign:"center",padding:20,color:C.muted,fontSize:12}}>Aucun nouveau lead a prospecter — ajoutez-en un depuis le CRM.</div>:
         <table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead><tr><TH>Entreprise</TH><TH>Secteur</TH><TH>Contact</TH><TH>Score</TH><TH>Actions</TH></tr></thead>
-          <tbody>{leads.map((l,i)=><tr key={i}>
+          <tbody>{leads.map((l,i)=>{
+            const linkedinMatch=(l.notes||'').match(/LinkedIn ?:? ?(https?:\/\/\S+)/i);
+            return <tr key={i}>
             <Td style={{fontWeight:700}}>{l.nom}</Td>
             <Td><Pill color={C.blue}>{l.metier||'—'}</Pill></Td>
-            <Td style={{color:C.muted}}>{l.contact||l.source||'—'}</Td>
+            <Td style={{color:C.muted}}>
+              {l.contact||l.source||'—'}
+              {l.email&&<div style={{fontSize:9,color:C.green}}>{l.email}</div>}
+              {linkedinMatch&&<a href={linkedinMatch[1]} target="_blank" rel="noreferrer" style={{fontSize:9,color:C.blue}}>💼 LinkedIn</a>}
+            </Td>
             <Td><div style={{display:"flex",alignItems:"center",gap:6}}><SM val={l.score||0} max={100} color={(l.score||0)>=80?C.green:C.gold}/><span style={{color:(l.score||0)>=80?C.green:C.gold,fontWeight:700}}>{l.score||0}</span></div></Td>
-            <Td><div style={{display:"flex",gap:4}}>
+            <Td><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
               <Btn onClick={()=>envoyerWhatsapp(l)} style={{padding:"4px 8px",fontSize:10}}>WA</Btn>
               <BtnGhost onClick={()=>envoyerEmailLead(l)} style={{padding:"4px 8px",fontSize:10}}>✉️</BtnGhost>
+              <BtnGhost onClick={()=>enrichirLead(l)} style={{padding:"4px 8px",fontSize:10}} disabled={enrichirEnCours===l.id}>{enrichirEnCours===l.id?"⏳":"🔍 Enrichir"}</BtnGhost>
             </div></Td>
-          </tr>)}</tbody>
+          </tr>;})}</tbody>
         </table>}
       </Card>
     </>}

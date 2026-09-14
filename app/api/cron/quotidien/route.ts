@@ -156,5 +156,70 @@ export async function GET(req: NextRequest) {
     resultats.abonnementsFlutterwave = { error: e.message };
   }
 
+  // 6 - Signaux de prospection : nouvelles entreprises creees recemment dans
+  // le secteur/ville du tenant (API officielle recherche-entreprises.api.gouv.fr,
+  // gratuite, sans cle). Plafonne a 5 signaux/tenant/jour pour eviter le bruit.
+  try {
+    const { data: tenantsActifs } = await sb.from('tenants')
+      .select('id,secteur,code_postal')
+      .eq('statut', 'actif')
+      .not('secteur', 'is', null)
+      .not('code_postal', 'is', null);
+
+    const septJoursAvant = new Date(Date.now() - 7 * 86400000);
+    let tenantsTraites = 0;
+    let signauxCrees = 0;
+
+    for (const t of (tenantsActifs || [])) {
+      try {
+        const url = new URL('https://recherche-entreprises.api.gouv.fr/search');
+        url.searchParams.set('q', t.secteur);
+        url.searchParams.set('code_postal', t.code_postal);
+        url.searchParams.set('per_page', '25');
+        url.searchParams.set('etat_administratif', 'A');
+
+        const res = await fetch(url.toString());
+        if (!res.ok) continue;
+        const data = await res.json();
+
+        const recentes = (data.results || []).filter((r: any) => {
+          if (!r.date_creation) return false;
+          return new Date(r.date_creation) >= septJoursAvant;
+        }).slice(0, 5);
+
+        for (const r of recentes) {
+          const siret = r.siege?.siret || null;
+          if (siret) {
+            const { data: existant } = await sb.from('signaux_prospection')
+              .select('id').eq('tenant_id', t.id).eq('siret', siret).maybeSingle();
+            if (existant) continue;
+          }
+          const dirigeantBrut = (r.dirigeants || [])[0];
+          const dirigeant = dirigeantBrut
+            ? (dirigeantBrut.type_dirigeant === 'personne morale'
+                ? dirigeantBrut.denomination
+                : [dirigeantBrut.prenoms, dirigeantBrut.nom].filter(Boolean).join(' '))
+            : null;
+
+          await sb.from('signaux_prospection').insert({
+            tenant_id: t.id,
+            type: 'nouvelle_entreprise',
+            nom_entreprise: r.nom_complet || r.nom_raison_sociale,
+            siret,
+            dirigeant,
+            raison: `Entreprise creee le ${r.date_creation} dans le secteur "${t.secteur}" -- personne ne l'a encore contactee.`,
+          });
+          signauxCrees++;
+        }
+        tenantsTraites++;
+      } catch (e: any) {
+        console.error('Signal prospection tenant', t.id, e.message);
+      }
+    }
+    resultats.signauxProspection = { tenants_traites: tenantsTraites, signaux_crees: signauxCrees };
+  } catch (e: any) {
+    resultats.signauxProspection = { error: e.message };
+  }
+
   return NextResponse.json({ success: true, resultats, executee_le: new Date().toISOString() });
 }
