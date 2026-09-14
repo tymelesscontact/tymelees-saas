@@ -218,6 +218,12 @@ export async function GET(req: NextRequest) {
       { cle: 'materiel', etape: 'Matériel et accès terrain remis', fait: etapeManuelle('materiel'), auto: false },
       { cle: 'briefing', etape: 'Briefing équipe effectué', fait: etapeManuelle('briefing'), auto: false },
     ];
+    const mOffboarding = [
+      { cle: 'entretien_depart', etape: 'Entretien de départ effectué', fait: etapeManuelle('entretien_depart'), auto: false },
+      { cle: 'materiel_restitue', etape: 'Matériel et accès terrain restitués', fait: etapeManuelle('materiel_restitue'), auto: false },
+      { cle: 'documents_finaux', etape: 'Documents finaux transmis (solde de tout compte, attestations)', fait: etapeManuelle('documents_finaux'), auto: false },
+      { cle: 'acces_revoque', etape: 'Accès espace collaborateur révoqué', fait: !m.user_id, auto: true },
+    ];
 
     const heuresCeMois = mPointages
       .filter((p: any) => new Date(p.date).getMonth() === new Date().getMonth())
@@ -237,6 +243,7 @@ export async function GET(req: NextRequest) {
       objectifs: mObjectifs,
       carriere: mCarriere,
       onboarding: mOnboarding,
+      offboarding: mOffboarding,
       missions: mMissions.slice(0, 20),
       heuresCeMois: Math.round(heuresCeMois * 10) / 10,
       paie,
@@ -734,6 +741,19 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
       try { await sbAdmin.auth.admin.deleteUser(m.user_id); } catch { /* non bloquant */ }
     }
     const { error } = await sb.from('equipe').delete().eq('id', id).eq('tenant_id', tenantId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
+  if (action === 'revoquer_acces') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { id } = body;
+    const { data: m } = await sb.from('equipe').select('user_id').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!m) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
+    if (m.user_id) {
+      try { await sbAdmin.auth.admin.deleteUser(m.user_id); } catch { /* non bloquant */ }
+    }
+    const { error } = await sb.from('equipe').update({ user_id: null }).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }

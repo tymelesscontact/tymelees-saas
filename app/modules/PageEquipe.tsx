@@ -477,6 +477,31 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       loadRealData();
     }catch(err){}
   };
+  const initierDepart=async(id)=>{
+    if(!window.confirm("Initier la procédure de départ pour ce collaborateur ?"))return;
+    try{
+      await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'modifier',id,depart_initie_le:new Date().toISOString().slice(0,10)})});
+      showToast("✅ Procédure de départ initiée");
+      loadRealData();
+    }catch(err){showToast("❌ Erreur de connexion");}
+  };
+  const annulerDepart=async(id)=>{
+    try{
+      await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'modifier',id,depart_initie_le:null})});
+      showToast("✅ Départ annulé");
+      loadRealData();
+    }catch(err){showToast("❌ Erreur de connexion");}
+  };
+  const revoquerAcces=async(e)=>{
+    if(!window.confirm(`Révoquer l'accès espace collaborateur de ${e.nom} ? Il ne pourra plus se connecter.`))return;
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'revoquer_acces',id:e.id})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      showToast(`✅ Accès révoqué pour ${e.nom}`);
+      loadRealData();
+    }catch(err){showToast("❌ Erreur de connexion");}
+  };
   const[qvtData,setQvtData]=useState(null);
   const[qvtChargement,setQvtChargement]=useState(false);
   const[qvtReponseId,setQvtReponseId]=useState(null);
@@ -525,6 +550,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     {id:"dashboard",label:"📊 Tableau de bord"},
     {id:"equipe",label:"👥 Équipe"},
     {id:"onboarding",label:"🚀 Onboarding"},
+    {id:"offboarding",label:"📤 Offboarding"},
     {id:"qvt",label:"🙂 QVT & Bien-être"},
     {id:"rentabilite",label:"💰 Rentabilité"},
     {id:"objectifs",label:"🎯 Objectifs & KPIs"},
@@ -746,6 +772,49 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
           </div>
         </div>;
       })}
+    </div>}
+
+    {/* ─── OFFBOARDING ────────────────────────────────────────── */}
+    {onglet==="offboarding"&&<div>
+      <div style={{fontSize:10,color:"#5A5A7A",marginBottom:14}}>Départs en cours — checklist réelle avant de finaliser (révoquer l'accès, puis supprimer depuis l'onglet Équipe une fois tout coché).</div>
+      {loadingEquipe?<div style={{fontSize:12,color:"#5A5A7A"}}>Chargement...</div>:(()=>{
+        const enDepart=equipe.filter(e=>e.depart_initie_le);
+        const disponibles=equipe.filter(e=>!e.depart_initie_le);
+        return <>
+        <div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:14,marginBottom:14,display:"flex",gap:8,alignItems:"center"}}>
+          <div style={{fontSize:11,color:"#5A5A7A"}}>Initier un départ :</div>
+          <select onChange={ev=>{if(ev.target.value){initierDepart(ev.target.value);ev.target.value="";}}} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}>
+            <option value="">— Choisir un collaborateur —</option>
+            {disponibles.map(e=><option key={e.id} value={e.id}>{e.nom}</option>)}
+          </select>
+        </div>
+        {enDepart.length===0?<div style={{fontSize:12,color:"#5A5A7A"}}>Aucun départ en cours.</div>:
+        enDepart.map((e,i)=>{
+          const etapes=e.offboarding||[];
+          const faites=etapes.filter(o=>o.fait).length;
+          const pct=etapes.length>0?Math.round(faites/etapes.length*100):0;
+          return <div key={i} style={{background:"#0C0C1A",border:"1px solid #FF525244",borderRadius:12,padding:18,marginBottom:12}}>
+            <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
+              <div style={{width:36,height:36,borderRadius:"50%",background:e.couleur+"22",border:`2px solid ${e.couleur}55`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:e.couleur}}>{e.nom[0]}</div>
+              <div style={{flex:1}}><div style={{fontSize:13,fontWeight:700}}>{e.nom}</div><div style={{fontSize:10,color:"#FF5252"}}>Départ initié le {new Date(e.depart_initie_le).toLocaleDateString("fr-FR")}</div></div>
+              <div style={{fontSize:16,fontWeight:700,color:pct===100?"#2EC9B0":"#FF8C3A"}}>{pct}%</div>
+            </div>
+            <div style={{height:6,borderRadius:3,background:"#1E1E36",marginBottom:12}}><div style={{height:"100%",width:pct+"%",background:pct===100?"#2EC9B0":"#FF8C3A",borderRadius:3,transition:"width .3s"}}/></div>
+            <div style={{display:"flex",flexDirection:"column",gap:6,marginBottom:12}}>
+              {etapes.map((o,j)=><div key={j} style={{display:"flex",alignItems:"center",gap:8,fontSize:12}}>
+                <input type="checkbox" checked={o.fait} disabled={o.auto} onChange={ev=>toggleOnboarding(e.id,o.cle,ev.target.checked)} style={{cursor:o.auto?"default":"pointer"}}/>
+                <span style={{color:o.fait?"#EAE6DE":"#5A5A7A",textDecoration:o.fait?"line-through":"none"}}>{o.etape}</span>
+                {o.auto&&<span style={{fontSize:9,color:"#4B7BFF",background:"#4B7BFF11",padding:"1px 6px",borderRadius:8}}>auto</span>}
+              </div>)}
+            </div>
+            <div style={{display:"flex",gap:6,flexWrap:"wrap"}}>
+              {e.user_id&&<button onClick={()=>revoquerAcces(e)} style={{background:"#FF5252",color:"#fff",border:"none",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>🔒 Révoquer l'accès</button>}
+              <button onClick={()=>annulerDepart(e.id)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Annuler le départ</button>
+              <button onClick={()=>setOnglet("equipe")} style={{background:"transparent",color:"#FF8C3A",border:"1px solid #FF8C3A44",borderRadius:5,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>→ Finaliser (supprimer depuis Équipe)</button>
+            </div>
+          </div>;
+        })}
+        </>;})()}
     </div>}
 
     {/* ─── QVT & BIEN-ÊTRE ───────────────────────────────────── */}
