@@ -19,6 +19,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       }
     }catch(e){showToast("❌ Erreur de connexion");}
   };
+  const[onglet,setOnglet]=useState("dashboard");
   const[showMsgGroupe,setShowMsgGroupe]=useState(false);
   const[msgGroupeTexte,setMsgGroupeTexte]=useState("");
   const[envoiMsgGroupe,setEnvoiMsgGroupe]=useState(false);
@@ -584,7 +585,6 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     showToast("📋 Formulaire pré-rempli avec les infos du candidat");
   };
   const ETAPES_PIPELINE=[["recu","📥 Reçu"],["preselection","🔍 Présélection"],["entretien","💬 Entretien"],["offre","📝 Offre"],["embauche","✅ Embauché"],["refuse","❌ Refusé"]];
-  const[onglet,setOnglet]=useState("dashboard");
   useEffect(()=>{if(onglet==="qvt")chargerQvt();},[onglet]);
   const[rentabiliteData,setRentabiliteData]=useState(null);
   const[rentabiliteChargement,setRentabiliteChargement]=useState(false);
