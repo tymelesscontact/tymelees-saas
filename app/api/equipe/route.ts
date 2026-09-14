@@ -121,6 +121,29 @@ export async function GET(req: NextRequest) {
     });
   }
 
+  // Rentabilite reelle par employe : CA genere (missions terminees, montant
+  // reel) vs cout reel (Paie) -- aucune estimation, uniquement des vraies
+  // donnees deja en base.
+  if (action === 'rentabilite') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const moisR = searchParams.get('mois') || new Date().toISOString().slice(0, 7);
+    const { data: membresR } = await sb.from('equipe').select('id,nom,prenom,salaire,salaire_brut').eq('tenant_id', tenantId);
+    const { data: missionsR } = await sb.from('missions').select('employe_id,montant,statut,date_mission,service').eq('tenant_id', tenantId).eq('statut', 'termine');
+
+    const lignes = (membresR || []).map((m: any) => {
+      const mesMissions = (missionsR || []).filter((ms: any) => ms.employe_id === m.id && String(ms.date_mission || '').slice(0, 7) === moisR);
+      const caGenere = mesMissions.reduce((a: number, ms: any) => a + Number(ms.montant || 0), 0);
+      const paie = calculerPaie(Number(m.salaire_brut || m.salaire || 0));
+      const marge = caGenere - paie.coutTotal;
+      return {
+        employe_id: m.id, nom: `${m.prenom || ''} ${m.nom}`.trim(),
+        nbMissions: mesMissions.length, caGenere, coutTotal: paie.coutTotal, marge,
+        margePct: paie.coutTotal > 0 ? Math.round((marge / paie.coutTotal) * 1000) / 10 : null,
+      };
+    });
+    return NextResponse.json({ mois: moisR, lignes });
+  }
+
   let membresQuery = sb.from('equipe').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
   if (companyId && UUID_RE.test(companyId)) membresQuery = membresQuery.eq('company_id', companyId);
   const { data: membres, error } = await membresQuery;

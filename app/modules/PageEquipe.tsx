@@ -448,6 +448,18 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
   };
   const[onglet,setOnglet]=useState("dashboard");
   useEffect(()=>{if(onglet==="qvt")chargerQvt();},[onglet]);
+  const[rentabiliteData,setRentabiliteData]=useState(null);
+  const[rentabiliteChargement,setRentabiliteChargement]=useState(false);
+  const chargerRentabilite=async()=>{
+    setRentabiliteChargement(true);
+    try{
+      const res=await fetch('/api/equipe?action=rentabilite');
+      const data=await res.json();
+      setRentabiliteData(data);
+    }catch(e){}
+    setRentabiliteChargement(false);
+  };
+  useEffect(()=>{if(onglet==="rentabilite")chargerRentabilite();},[onglet]);
   const[sel,setSel]=useState(null);
   const[showAdd,setShowAdd]=useState(false);
   const[debugErreur,setDebugErreur]=useState(null);
@@ -459,6 +471,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     {id:"equipe",label:"👥 Équipe"},
     {id:"onboarding",label:"🚀 Onboarding"},
     {id:"qvt",label:"🙂 QVT & Bien-être"},
+    {id:"rentabilite",label:"💰 Rentabilité"},
     {id:"objectifs",label:"🎯 Objectifs & KPIs"},
     {id:"pointage",label:"⏰ Pointage GPS"},
     {id:"conges",label:"🏖 Congés"},
@@ -717,6 +730,35 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
             </div>:<button onClick={()=>{setQvtReponseId(d.id);setQvtReponseTexte("");}} style={{background:"transparent",color:"#9B5FFF",border:"1px solid #9B5FFF44",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>💬 Répondre en privé</button>}
           </div>)}
         </div>:<div style={{fontSize:11,color:"#5A5A7A"}}>Le détail nominatif des réponses est réservé au propriétaire du compte.</div>}
+        </>;})()}
+    </div>}
+
+    {/* ─── RENTABILITÉ ───────────────────────────────────────── */}
+    {onglet==="rentabilite"&&<div>
+      <div style={{fontSize:10,color:"#5A5A7A",marginBottom:14}}>Ce que chaque collaborateur rapporte réellement (missions terminées, montant réel facturé) comparé à ce qu'il coûte réellement (salaire + charges, calcul de l'onglet Paie) — ce mois-ci.</div>
+      {rentabiliteChargement?<div style={{fontSize:12,color:"#5A5A7A"}}>Chargement...</div>:!rentabiliteData?<div style={{fontSize:12,color:"#5A5A7A"}}>Erreur de chargement.</div>:(()=>{
+        const totalCa=rentabiliteData.lignes.reduce((a,l)=>a+l.caGenere,0);
+        const totalCout=rentabiliteData.lignes.reduce((a,l)=>a+l.coutTotal,0);
+        const totalMarge=totalCa-totalCout;
+        return <>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10,marginBottom:14}}>
+          <div style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>CA généré (équipe, ce mois)</div><div style={{fontSize:20,fontWeight:700,color:"#2EC9B0"}}>€{totalCa.toLocaleString("fr")}</div></div>
+          <div style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>Coût réel (équipe, ce mois)</div><div style={{fontSize:20,fontWeight:700,color:"#FF5252"}}>€{totalCout.toLocaleString("fr")}</div></div>
+          <div style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>Marge nette réelle</div><div style={{fontSize:20,fontWeight:700,color:totalMarge>=0?"#2EC9B0":"#FF8C3A"}}>{totalMarge>=0?"+":""}€{totalMarge.toLocaleString("fr")}</div></div>
+        </div>
+        <div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18}}>
+          <table style={{width:"100%",borderCollapse:"collapse"}}>
+            <thead><tr>{["Collaborateur","Missions réalisées","CA généré","Coût réel","Marge","Marge %"].map(h=><th key={h} style={{textAlign:"left",padding:"8px 10px",fontSize:10,color:"#5A5A7A",fontWeight:600,textTransform:"uppercase",letterSpacing:"0.1em",borderBottom:"1px solid #1E1E36"}}>{h}</th>)}</tr></thead>
+            <tbody>{rentabiliteData.lignes.length===0?<tr><td colSpan={6} style={{padding:"14px 10px",fontSize:12,color:"#5A5A7A"}}>Aucun employé.</td></tr>:rentabiliteData.lignes.map((l,i)=><tr key={i}>
+              <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:600}}>{l.nom}</td>
+              <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#5A5A7A"}}>{l.nbMissions}</td>
+              <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#2EC9B0",fontWeight:700}}>{l.nbMissions>0?`€${l.caGenere.toLocaleString("fr")}`:"—"}</td>
+              <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:"#FF5252"}}>€{l.coutTotal.toLocaleString("fr")}</td>
+              <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",fontWeight:700,color:l.nbMissions===0?"#5A5A7A":l.marge>=0?"#2EC9B0":"#FF8C3A"}}>{l.nbMissions===0?"Pas de mission ce mois":`${l.marge>=0?"+":""}€${l.marge.toLocaleString("fr")}`}</td>
+              <td style={{padding:"10px",fontSize:12,borderBottom:"1px solid #1E1E3622",color:l.margePct==null?"#5A5A7A":l.margePct>=0?"#2EC9B0":"#FF8C3A"}}>{l.margePct==null||l.nbMissions===0?"—":`${l.margePct>0?"+":""}${l.margePct}%`}</td>
+            </tr>)}</tbody>
+          </table>
+        </div>
         </>;})()}
     </div>}
 
