@@ -526,6 +526,64 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       chargerQvt();
     }catch(e){showToast("❌ Erreur de connexion");}
   };
+  const[offresEmploi,setOffresEmploi]=useState([]);
+  const[slugCarrieres,setSlugCarrieres]=useState(null);
+  const[chargementRecrutement,setChargementRecrutement]=useState(false);
+  const[candidatureEnConversion,setCandidatureEnConversion]=useState(null);
+  const[showAddOffre,setShowAddOffre]=useState(false);
+  const[addOffre,setAddOffre]=useState({titre:"",description:"",type_contrat:"CDI",lieu:"",salaire_min:"",salaire_max:""});
+  const[offreDeployee,setOffreDeployee]=useState(null);
+  const chargerRecrutement=async()=>{
+    setChargementRecrutement(true);
+    try{
+      const res=await fetch('/api/recrutement');
+      const data=await res.json();
+      setOffresEmploi(data.offres||[]);
+      setSlugCarrieres(data.slug||null);
+    }catch(e){}
+    setChargementRecrutement(false);
+  };
+  useEffect(()=>{if(onglet==="recrutement")chargerRecrutement();},[onglet]);
+  const creerOffre=async()=>{
+    if(!addOffre.titre)return showToast("⚠️ Titre requis");
+    try{
+      const res=await fetch('/api/recrutement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer_offre',...addOffre})});
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Erreur"}`);return;}
+      showToast("✅ Offre publiée");
+      setShowAddOffre(false);
+      setAddOffre({titre:"",description:"",type_contrat:"CDI",lieu:"",salaire_min:"",salaire_max:""});
+      chargerRecrutement();
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const toggleOffre=async(o)=>{
+    try{
+      await fetch('/api/recrutement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:o.statut==="ouverte"?"fermer_offre":"rouvrir_offre",id:o.id})});
+      chargerRecrutement();
+    }catch(e){}
+  };
+  const deplacerEtape=async(candidatureId,etape)=>{
+    try{
+      await fetch('/api/recrutement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'deplacer_etape',id:candidatureId,etape})});
+      chargerRecrutement();
+    }catch(e){}
+  };
+  const voirCv=async(candidatureId)=>{
+    try{
+      const res=await fetch(`/api/recrutement?action=cv_url&id=${candidatureId}`);
+      const data=await res.json();
+      if(!res.ok||data.error){showToast(`❌ ${data.error||"Aucun CV"}`);return;}
+      window.open(data.url,'_blank');
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const convertirEnEmploye=(candidature)=>{
+    setAddForm(f=>({...f,nom:candidature.nom,email:candidature.email||"",tel:candidature.tel||""}));
+    setCandidatureEnConversion(candidature.id);
+    setOnglet("equipe");
+    setShowAdd(true);
+    showToast("📋 Formulaire pré-rempli avec les infos du candidat");
+  };
+  const ETAPES_PIPELINE=[["recu","📥 Reçu"],["preselection","🔍 Présélection"],["entretien","💬 Entretien"],["offre","📝 Offre"],["embauche","✅ Embauché"],["refuse","❌ Refusé"]];
   const[onglet,setOnglet]=useState("dashboard");
   useEffect(()=>{if(onglet==="qvt")chargerQvt();},[onglet]);
   const[rentabiliteData,setRentabiliteData]=useState(null);
@@ -549,6 +607,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
   const tabs=[
     {id:"dashboard",label:"📊 Tableau de bord"},
     {id:"equipe",label:"👥 Équipe"},
+    {id:"recrutement",label:"🧲 Recrutement"},
     {id:"onboarding",label:"🚀 Onboarding"},
     {id:"offboarding",label:"📤 Offboarding"},
     {id:"qvt",label:"🙂 QVT & Bien-être"},
@@ -636,6 +695,11 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
               }]);setShowAdd(false);
               setAddForm({nom:"",role:"",salaire:"",contrat:"CDI",email:"",tel:"",adresse:"",dateNaissance:""});
               showToast(data.accesCree?`✅ ${addForm.nom} ajouté, email d'invitation envoyé !`:`⚠️ ${addForm.nom} ajouté MAIS pas de compte : ${data.erreurDiagnostic||"raison inconnue"}`);
+              if(candidatureEnConversion){
+                fetch('/api/recrutement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'lier_employe',candidature_id:candidatureEnConversion,employe_id:data.membre.id})}).catch(()=>{});
+                setCandidatureEnConversion(null);
+                chargerRecrutement();
+              }
             }else{
               showToast("❌ "+(data.error||"Erreur"));
             }
@@ -749,6 +813,64 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
 
     {/* ─── OBJECTIFS & KPIs ──────────────────────────────────── */}
     {/* ─── ONBOARDING ────────────────────────────────────────── */}
+    {/* ─── RECRUTEMENT ───────────────────────────────────────── */}
+    {onglet==="recrutement"&&<div>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
+        <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",fontWeight:600}}>🧲 Offres & candidatures</div>
+        <button onClick={()=>setShowAddOffre(s=>!s)} style={{background:"#9B5FFF",color:"#fff",border:"none",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Publier une offre</button>
+      </div>
+      {slugCarrieres&&<div style={{fontSize:10,color:"#5A5A7A",marginBottom:14,background:"#121222",borderRadius:8,padding:10}}>
+        Page carrières publique : <a href={`/carrieres/${slugCarrieres}`} target="_blank" style={{color:"#9B5FFF"}}>xyraio.fr/carrieres/{slugCarrieres}</a> — partage ce lien sur LinkedIn, Indeed ou ton site.
+      </div>}
+      {showAddOffre&&<div style={{background:"#0C0C1A",border:"1px solid #9B5FFF44",borderRadius:12,padding:16,marginBottom:14}}>
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8,marginBottom:8}}>
+          <input value={addOffre.titre} onChange={ev=>setAddOffre(f=>({...f,titre:ev.target.value}))} placeholder="Titre du poste *" style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:"8px 12px",color:"#EAE6DE",fontSize:13,fontFamily:"inherit"}}/>
+          <select value={addOffre.type_contrat} onChange={ev=>setAddOffre(f=>({...f,type_contrat:ev.target.value}))} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 12px",color:"#EAE6DE",fontSize:12,fontFamily:"inherit"}}><option>CDI</option><option>CDD</option><option>Stage</option><option>Alternance</option><option>Intérim</option></select>
+          <input value={addOffre.lieu} onChange={ev=>setAddOffre(f=>({...f,lieu:ev.target.value}))} placeholder="Lieu" style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:"8px 12px",color:"#EAE6DE",fontSize:13,fontFamily:"inherit"}}/>
+          <div style={{display:"flex",gap:8}}>
+            <input value={addOffre.salaire_min} onChange={ev=>setAddOffre(f=>({...f,salaire_min:ev.target.value}))} placeholder="Salaire min €" style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:"8px 12px",color:"#EAE6DE",fontSize:13,fontFamily:"inherit",width:"50%"}}/>
+            <input value={addOffre.salaire_max} onChange={ev=>setAddOffre(f=>({...f,salaire_max:ev.target.value}))} placeholder="Salaire max €" style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:"8px 12px",color:"#EAE6DE",fontSize:13,fontFamily:"inherit",width:"50%"}}/>
+          </div>
+        </div>
+        <textarea value={addOffre.description} onChange={ev=>setAddOffre(f=>({...f,description:ev.target.value}))} placeholder="Description du poste, missions, profil recherché..." rows={4} style={{width:"100%",background:"#121222",border:"1px solid #1E1E36",borderRadius:7,padding:10,color:"#EAE6DE",fontSize:13,fontFamily:"inherit",resize:"vertical",marginBottom:8,boxSizing:"border-box"}}/>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={creerOffre} style={{background:"#9B5FFF",color:"#fff",border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13,fontFamily:"inherit"}}>✅ Publier</button>
+          <button onClick={()=>setShowAddOffre(false)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>Annuler</button>
+        </div>
+      </div>}
+      {chargementRecrutement?<div style={{fontSize:12,color:"#5A5A7A"}}>Chargement...</div>:offresEmploi.length===0?<div style={{fontSize:12,color:"#5A5A7A"}}>Aucune offre publiée.</div>:
+      offresEmploi.map((o,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16,marginBottom:10}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}} onClick={()=>setOffreDeployee(offreDeployee===o.id?null:o.id)}>
+          <div>
+            <div style={{fontSize:13,fontWeight:700}}>{o.titre} <span style={{fontSize:10,color:"#5A5A7A"}}>· {o.type_contrat}{o.lieu?" · "+o.lieu:""}</span></div>
+            <div style={{fontSize:10,color:"#5A5A7A"}}>{(o.candidatures||[]).length} candidature(s)</div>
+          </div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <span style={{background:(o.statut==="ouverte"?"#2EC9B0":"#5A5A7A")+"22",color:o.statut==="ouverte"?"#2EC9B0":"#5A5A7A",padding:"2px 8px",borderRadius:10,fontSize:10,fontWeight:600}}>{o.statut==="ouverte"?"● Ouverte":"○ Fermée"}</span>
+            <button onClick={ev=>{ev.stopPropagation();toggleOffre(o);}} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 8px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>{o.statut==="ouverte"?"Fermer":"Rouvrir"}</button>
+          </div>
+        </div>
+        {offreDeployee===o.id&&<div style={{marginTop:14,display:"flex",gap:8,overflowX:"auto",paddingBottom:4}}>
+          {ETAPES_PIPELINE.map(([cle,label])=><div key={cle} style={{minWidth:150,flex:1}}>
+            <div style={{fontSize:9,color:"#5A5A7A",fontWeight:600,marginBottom:6,textTransform:"uppercase"}}>{label} ({(o.candidatures||[]).filter(c=>c.etape===cle).length})</div>
+            <div style={{display:"flex",flexDirection:"column",gap:6}}>
+              {(o.candidatures||[]).filter(c=>c.etape===cle).map((c,j)=><div key={j} style={{background:"#121222",borderRadius:8,padding:8,border:"1px solid #1E1E36"}}>
+                <div style={{fontSize:11,fontWeight:600}}>{c.nom}</div>
+                {c.email&&<div style={{fontSize:9,color:"#5A5A7A"}}>{c.email}</div>}
+                <div style={{display:"flex",gap:4,marginTop:6,flexWrap:"wrap"}}>
+                  {c.cv_chemin&&<button onClick={()=>voirCv(c.id)} style={{background:"transparent",color:"#4B7BFF",border:"1px solid #4B7BFF44",borderRadius:4,padding:"2px 6px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>📄 CV</button>}
+                  {cle!=="embauche"&&cle!=="refuse"&&<select value={cle} onChange={ev=>deplacerEtape(c.id,ev.target.value)} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:4,padding:"2px 4px",color:"#EDEDF5",fontSize:9,fontFamily:"inherit"}}>
+                    {ETAPES_PIPELINE.map(([k,l])=><option key={k} value={k}>{l}</option>)}
+                  </select>}
+                  {cle==="offre"&&<button onClick={()=>convertirEnEmploye(c)} style={{background:"#2EC9B0",color:"#000",border:"none",borderRadius:4,padding:"2px 6px",cursor:"pointer",fontSize:9,fontFamily:"inherit"}}>✅ Embaucher</button>}
+                </div>
+              </div>)}
+            </div>
+          </div>)}
+        </div>}
+      </div>)}
+    </div>}
+
     {onglet==="onboarding"&&<div>
       <div style={{fontSize:10,color:"#5A5A7A",marginBottom:14}}>Certaines étapes sont détectées automatiquement (contrat signé, RIB, visite médicale, accès créé), d'autres se cochent manuellement.</div>
       {loadingEquipe?<div style={{fontSize:12,color:"#5A5A7A"}}>Chargement...</div>:equipe.length===0?<div style={{fontSize:12,color:"#5A5A7A"}}>Aucun employé.</div>:
