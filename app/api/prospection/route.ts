@@ -35,6 +35,10 @@ export async function POST(req: NextRequest) {
       const [prenom, ...resteNom] = contact.split(' ')
       const nomFamille = resteNom.join(' ')
 
+      if (!prenom || !nomFamille) {
+        return NextResponse.json({ error: 'Ce lead n\'a pas de nom de contact renseigne -- impossible de chercher un email sans au moins un prenom et un nom' }, { status: 400 })
+      }
+
       // Hunter.io en priorite -- seul a offrir un vrai acces API sur son plan
       // gratuit (Apollo bloque l'API meme avec une master key en plan gratuit,
       // verifie en direct ce soir). Hunter accepte une recherche par NOM
