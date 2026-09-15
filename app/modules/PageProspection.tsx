@@ -345,7 +345,7 @@ const PageProspection=({plan, modulesActifs,showToast,profil=null,UpgradeWall,ac
       }else if(d.error){
         showToast("❌ "+d.error);
       }else if(d.trouve===false){
-        showToast("Aucun résultat trouvé sur Apollo pour ce contact");
+        showToast("Aucun email trouvé pour ce contact — l'outil n'a pas pu deviner l'adresse (souvent parce que le site web de l'entreprise n'est pas connu)");
       }else{
         showToast(`✅ Enrichi : ${d.email||'pas d\'email trouvé'}${d.linkedin_url?' · LinkedIn trouvé':''}`);
         loadLeads();
