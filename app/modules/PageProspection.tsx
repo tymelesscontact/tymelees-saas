@@ -340,8 +340,8 @@ const PageProspection=({plan, modulesActifs,showToast,profil=null,UpgradeWall,ac
     try{
       const res=await fetch('/api/prospection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'enrichir_lead',lead_id:l.id})});
       const d=await res.json();
-      if(d.error==='apollo_non_connecte'){
-        showToast("⚠️ Connecte ton compte Apollo.io (gratuit) dans Paramètres → Intégrations");
+      if(d.error==='enrichissement_non_connecte'){
+        showToast("⚠️ Connecte Hunter.io (gratuit, 50/mois) dans Paramètres → Intégrations pour trouver les emails");
       }else if(d.error){
         showToast("❌ "+d.error);
       }else if(d.trouve===false){

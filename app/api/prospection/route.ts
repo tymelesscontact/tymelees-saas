@@ -21,17 +21,52 @@ export async function POST(req: NextRequest) {
       const { data: lead } = await sb.from('crm_leads').select('*').eq('id', params.lead_id).eq('tenant_id', tenantId).maybeSingle()
       if (!lead) return NextResponse.json({ error: 'Lead introuvable' }, { status: 404 })
 
-      const { data: integ } = await sb.from('integrations_personnalisees').select('cle_api').eq('tenant_id', tenantId).eq('nom', 'Apollo.io').maybeSingle()
-      if (!integ?.cle_api) {
-        return NextResponse.json({ error: 'apollo_non_connecte' }, { status: 400 })
-      }
+      const { data: integrations } = await sb.from('integrations_personnalisees').select('nom, cle_api').eq('tenant_id', tenantId).in('nom', ['Hunter.io', 'Apollo.io'])
+      const hunterIntg = integrations?.find(i => i.nom === 'Hunter.io')
+      const apolloIntg = integrations?.find(i => i.nom === 'Apollo.io')
 
-      let apolloKey = ''
-      try { apolloKey = dechiffrer(integ.cle_api) } catch { return NextResponse.json({ error: 'Cle Apollo illisible, reconnecte-la dans Parametres' }, { status: 500 }) }
+      if (!hunterIntg?.cle_api && !apolloIntg?.cle_api) {
+        return NextResponse.json({ error: 'enrichissement_non_connecte' }, { status: 400 })
+      }
 
       const contact = (lead.contact || '').trim()
       const [prenom, ...resteNom] = contact.split(' ')
       const nomFamille = resteNom.join(' ')
+
+      // Hunter.io en priorite -- seul a offrir un vrai acces API sur son plan
+      // gratuit (Apollo bloque l'API meme avec une master key en plan gratuit,
+      // verifie en direct ce soir). Hunter accepte une recherche par NOM
+      // d'entreprise (pas besoin de connaitre son site web).
+      if (hunterIntg?.cle_api) {
+        let hunterKey = ''
+        try { hunterKey = dechiffrer(hunterIntg.cle_api) } catch { return NextResponse.json({ error: 'Cle Hunter.io illisible, reconnecte-la dans Parametres' }, { status: 500 }) }
+
+        const url = new URL('https://api.hunter.io/v2/email-finder')
+        url.searchParams.set('api_key', hunterKey)
+        url.searchParams.set('company', lead.nom || '')
+        if (prenom) url.searchParams.set('first_name', prenom)
+        if (nomFamille) url.searchParams.set('last_name', nomFamille)
+
+        const hunterRes = await fetch(url.toString())
+        const hunterData = await hunterRes.json()
+        if (!hunterRes.ok) {
+          return NextResponse.json({ error: hunterData?.errors?.[0]?.details || `Erreur Hunter.io (${hunterRes.status})` }, { status: 502 })
+        }
+        const trouve = hunterData.data?.email
+        if (!trouve) return NextResponse.json({ success: true, trouve: false })
+
+        await sb.from('crm_leads').update({ email: trouve, updated_at: new Date().toISOString() }).eq('id', lead.id).eq('tenant_id', tenantId)
+        return NextResponse.json({
+          success: true, trouve: true,
+          email: trouve,
+          email_status: hunterData.data?.verification?.status || null,
+          linkedin_url: null,
+        })
+      }
+
+      // Apollo.io -- fonctionne seulement si le tenant est sur un plan Apollo payant.
+      let apolloKey = ''
+      try { apolloKey = dechiffrer(apolloIntg!.cle_api) } catch { return NextResponse.json({ error: 'Cle Apollo illisible, reconnecte-la dans Parametres' }, { status: 500 }) }
 
       const apolloRes = await fetch('https://api.apollo.io/api/v1/people/match', {
         method: 'POST',
@@ -43,7 +78,7 @@ export async function POST(req: NextRequest) {
         }),
       })
       if (!apolloRes.ok) {
-        return NextResponse.json({ error: `Erreur Apollo (${apolloRes.status})` }, { status: 502 })
+        return NextResponse.json({ error: `Erreur Apollo (${apolloRes.status}) -- l'acces API Apollo requiert un plan payant, meme avec une master key` }, { status: 502 })
       }
       const apolloData = await apolloRes.json()
       const person = apolloData.person
