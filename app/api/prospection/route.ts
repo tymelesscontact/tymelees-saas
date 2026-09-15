@@ -3,6 +3,8 @@ import { createClient } from "@supabase/supabase-js"
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { dechiffrer } from '../../lib/anthropicKey';
 
+export const maxDuration = 30
+
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -47,8 +49,19 @@ export async function POST(req: NextRequest) {
         if (prenom) url.searchParams.set('first_name', prenom)
         if (nomFamille) url.searchParams.set('last_name', nomFamille)
 
-        const hunterRes = await fetch(url.toString())
-        const hunterData = await hunterRes.json()
+        let hunterRes: Response
+        let hunterRawText = ''
+        try {
+          hunterRes = await fetch(url.toString(), { signal: AbortSignal.timeout(15000) })
+          hunterRawText = await hunterRes.text()
+        } catch (e: any) {
+          return NextResponse.json({ error: e.name === 'TimeoutError' ? "Hunter.io met trop de temps a repondre, reessaie" : `Erreur reseau Hunter.io : ${e.message}` }, { status: 502 })
+        }
+
+        let hunterData: any = null
+        try { hunterData = JSON.parse(hunterRawText) } catch {
+          return NextResponse.json({ error: `Reponse inattendue de Hunter.io (statut ${hunterRes.status}) -- probablement un blocage cote Hunter, pas un bug Xyra` }, { status: 502 })
+        }
         if (!hunterRes.ok) {
           return NextResponse.json({ error: hunterData?.errors?.[0]?.details || `Erreur Hunter.io (${hunterRes.status})` }, { status: 502 })
         }
