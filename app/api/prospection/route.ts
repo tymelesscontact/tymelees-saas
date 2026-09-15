@@ -30,34 +30,12 @@ export async function POST(req: NextRequest) {
       let emailTrouve: string | null = null
       let source = ''
 
-      // 1) Hunter.io d'abord, si le tenant l'a connecte (BYOK, garde tel quel
-      // a sa demande) -- rapide et peu couteux en credits quand ca marche.
-      const { data: hunterIntg } = await sb.from('integrations_personnalisees').select('cle_api').eq('tenant_id', tenantId).eq('nom', 'Hunter.io').maybeSingle()
-      if (hunterIntg?.cle_api && prenom && nomFamille) {
-        try {
-          const hunterKey = dechiffrer(hunterIntg.cle_api)
-          let domaine = (params.domaine || '').trim().toLowerCase().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, '').replace(/\s+/g, '')
-          if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(domaine)) domaine = ''
-
-          const hUrl = new URL('https://api.hunter.io/v2/email-finder')
-          hUrl.searchParams.set('api_key', hunterKey)
-          if (domaine) hUrl.searchParams.set('domain', domaine)
-          else hUrl.searchParams.set('company', lead.nom || '')
-          hUrl.searchParams.set('first_name', prenom)
-          hUrl.searchParams.set('last_name', nomFamille)
-
-          const hRes = await fetch(hUrl.toString(), { signal: AbortSignal.timeout(12000) })
-          const hText = await hRes.text()
-          const hData = JSON.parse(hText)
-          if (hRes.ok && hData.data?.email) { emailTrouve = hData.data.email; source = 'Hunter.io' }
-        } catch { /* on retombe sur la recherche web ci-dessous */ }
-      }
-
-      // 2) Si Hunter n'a rien trouve (ou n'est pas connecte), recherche web
-      // automatique via Claude (outil web_search natif de l'API Anthropic,
-      // disponible depuis avril 2026) -- reutilise la cle deja configuree
-      // pour l'app (tenant ou plateforme), aucun nouveau compte a creer.
-      if (!emailTrouve) {
+      // 1) Recherche web automatique via Claude d'abord (outil web_search
+      // natif de l'API Anthropic, disponible depuis avril 2026) -- reutilise
+      // la cle deja configuree pour l'app (tenant ou plateforme), aucun
+      // nouveau compte a creer. Priorite demandee : Hunter n'a pas ete fiable
+      // en test ce soir (comptes/domaines), Claude passe devant.
+      {
         const cleAnthropic = await getAnthropicKey(tenantId)
         const prompt = `Tu dois trouver une information de contact professionnelle reelle en cherchant sur le web. N'invente jamais un email.
 
@@ -88,7 +66,32 @@ INTROUVABLE`
             const matchEmail = texteFinal.match(/EMAIL_TROUVE:\s*([^\s]+@[^\s]+\.[^\s]+)/i)
             if (matchEmail) { emailTrouve = matchEmail[1].replace(/[.,;]+$/, ''); source = 'Recherche web (Claude)' }
           }
-        } catch { /* rien trouve, on repond trouve:false plus bas */ }
+        } catch { /* rien trouve, on tente Hunter ci-dessous */ }
+      }
+
+      // 2) Si Claude n'a rien trouve, Hunter.io en repli si le tenant l'a
+      // connecte (BYOK, garde a sa demande).
+      if (!emailTrouve && prenom && nomFamille) {
+        const { data: hunterIntg } = await sb.from('integrations_personnalisees').select('cle_api').eq('tenant_id', tenantId).eq('nom', 'Hunter.io').maybeSingle()
+        if (hunterIntg?.cle_api) {
+          try {
+            const hunterKey = dechiffrer(hunterIntg.cle_api)
+            let domaine = (params.domaine || '').trim().toLowerCase().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, '').replace(/\s+/g, '')
+            if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(domaine)) domaine = ''
+
+            const hUrl = new URL('https://api.hunter.io/v2/email-finder')
+            hUrl.searchParams.set('api_key', hunterKey)
+            if (domaine) hUrl.searchParams.set('domain', domaine)
+            else hUrl.searchParams.set('company', lead.nom || '')
+            hUrl.searchParams.set('first_name', prenom)
+            hUrl.searchParams.set('last_name', nomFamille)
+
+            const hRes = await fetch(hUrl.toString(), { signal: AbortSignal.timeout(12000) })
+            const hText = await hRes.text()
+            const hData = JSON.parse(hText)
+            if (hRes.ok && hData.data?.email) { emailTrouve = hData.data.email; source = 'Hunter.io' }
+          } catch { /* rien trouve, on repond trouve:false plus bas */ }
+        }
       }
 
       if (!emailTrouve) {
