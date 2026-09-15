@@ -336,16 +336,18 @@ const PageProspection=({plan, modulesActifs,showToast,profil=null,UpgradeWall,ac
   };
   const[enrichirEnCours,setEnrichirEnCours]=useState(null);
   const enrichirLead=async(l)=>{
+    const domaine=window.prompt(`Site web de ${l.nom} (optionnel, mais donne un résultat bien plus fiable — ex: exemple.fr) :\nLaisse vide pour tenter sans.`,"");
+    if(domaine===null)return; // annulé
     setEnrichirEnCours(l.id);
     try{
-      const res=await fetch('/api/prospection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'enrichir_lead',lead_id:l.id})});
+      const res=await fetch('/api/prospection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'enrichir_lead',lead_id:l.id,domaine})});
       const d=await res.json();
       if(d.error==='enrichissement_non_connecte'){
         showToast("⚠️ Connecte Hunter.io (gratuit, 50/mois) dans Paramètres → Intégrations pour trouver les emails");
       }else if(d.error){
         showToast("❌ "+d.error);
       }else if(d.trouve===false){
-        showToast("Aucun email trouvé pour ce contact — l'outil n'a pas pu deviner l'adresse (souvent parce que le site web de l'entreprise n'est pas connu)");
+        showToast(domaine?"Aucun email trouvé sur ce domaine pour ce contact":"Aucun email trouvé pour ce contact — colle le site web de l'entreprise la prochaine fois pour un résultat plus fiable");
       }else{
         showToast(`✅ Enrichi : ${d.email||'pas d\'email trouvé'}${d.linkedin_url?' · LinkedIn trouvé':''}`);
         loadLeads();

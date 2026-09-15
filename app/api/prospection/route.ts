@@ -47,9 +47,15 @@ export async function POST(req: NextRequest) {
         let hunterKey = ''
         try { hunterKey = dechiffrer(hunterIntg.cle_api) } catch { return NextResponse.json({ error: 'Cle Hunter.io illisible, reconnecte-la dans Parametres' }, { status: 500 }) }
 
+        const domaine = (params.domaine || '').trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, '')
+
         const url = new URL('https://api.hunter.io/v2/email-finder')
         url.searchParams.set('api_key', hunterKey)
-        url.searchParams.set('company', lead.nom || '')
+        // Le domaine (site web) donne des resultats bien plus fiables que le
+        // nom de l'entreprise seul -- Hunter cherche alors dans les vraies
+        // adresses connues de ce domaine au lieu de deviner un pattern.
+        if (domaine) url.searchParams.set('domain', domaine)
+        else url.searchParams.set('company', lead.nom || '')
         if (prenom) url.searchParams.set('first_name', prenom)
         if (nomFamille) url.searchParams.set('last_name', nomFamille)
 
