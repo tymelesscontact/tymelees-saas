@@ -23,107 +23,109 @@ export async function POST(req: NextRequest) {
       const { data: lead } = await sb.from('crm_leads').select('*').eq('id', params.lead_id).eq('tenant_id', tenantId).maybeSingle()
       if (!lead) return NextResponse.json({ error: 'Lead introuvable' }, { status: 404 })
 
-      const { data: integrations } = await sb.from('integrations_personnalisees').select('nom, cle_api').eq('tenant_id', tenantId).in('nom', ['Hunter.io', 'Apollo.io'])
-      const hunterIntg = integrations?.find(i => i.nom === 'Hunter.io')
-      const apolloIntg = integrations?.find(i => i.nom === 'Apollo.io')
-
-      if (!hunterIntg?.cle_api && !apolloIntg?.cle_api) {
-        return NextResponse.json({ error: 'enrichissement_non_connecte' }, { status: 400 })
-      }
-
       const contact = (lead.contact || '').trim()
       const [prenom, ...resteNom] = contact.split(' ')
       const nomFamille = resteNom.join(' ')
 
-      if (!prenom || !nomFamille) {
-        return NextResponse.json({ error: 'Ce lead n\'a pas de nom de contact renseigne -- impossible de chercher un email sans au moins un prenom et un nom' }, { status: 400 })
-      }
+      let emailTrouve: string | null = null
+      let source = ''
 
-      // Hunter.io en priorite -- seul a offrir un vrai acces API sur son plan
-      // gratuit (Apollo bloque l'API meme avec une master key en plan gratuit,
-      // verifie en direct ce soir). Hunter accepte une recherche par NOM
-      // d'entreprise (pas besoin de connaitre son site web).
-      if (hunterIntg?.cle_api) {
-        let hunterKey = ''
-        try { hunterKey = dechiffrer(hunterIntg.cle_api) } catch { return NextResponse.json({ error: 'Cle Hunter.io illisible, reconnecte-la dans Parametres' }, { status: 500 }) }
-
-        const domaine = (params.domaine || '').trim().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, '')
-
-        const url = new URL('https://api.hunter.io/v2/email-finder')
-        url.searchParams.set('api_key', hunterKey)
-        // Le domaine (site web) donne des resultats bien plus fiables que le
-        // nom de l'entreprise seul -- Hunter cherche alors dans les vraies
-        // adresses connues de ce domaine au lieu de deviner un pattern.
-        if (domaine) url.searchParams.set('domain', domaine)
-        else url.searchParams.set('company', lead.nom || '')
-        if (prenom) url.searchParams.set('first_name', prenom)
-        if (nomFamille) url.searchParams.set('last_name', nomFamille)
-
-        let hunterRes: Response
-        let hunterRawText = ''
+      // 1) Hunter.io d'abord, si le tenant l'a connecte (BYOK, garde tel quel
+      // a sa demande) -- rapide et peu couteux en credits quand ca marche.
+      const { data: hunterIntg } = await sb.from('integrations_personnalisees').select('cle_api').eq('tenant_id', tenantId).eq('nom', 'Hunter.io').maybeSingle()
+      if (hunterIntg?.cle_api && prenom && nomFamille) {
         try {
-          hunterRes = await fetch(url.toString(), { signal: AbortSignal.timeout(15000) })
-          hunterRawText = await hunterRes.text()
-        } catch (e: any) {
-          return NextResponse.json({ error: e.name === 'TimeoutError' ? "Hunter.io met trop de temps a repondre, reessaie" : `Erreur reseau Hunter.io : ${e.message}` }, { status: 502 })
-        }
+          const hunterKey = dechiffrer(hunterIntg.cle_api)
+          let domaine = (params.domaine || '').trim().toLowerCase().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, '').replace(/\s+/g, '')
+          if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(domaine)) domaine = ''
 
-        let hunterData: any = null
-        try { hunterData = JSON.parse(hunterRawText) } catch {
-          return NextResponse.json({ error: `Reponse inattendue de Hunter.io (statut ${hunterRes.status}) -- probablement un blocage cote Hunter, pas un bug Xyra` }, { status: 502 })
-        }
-        if (!hunterRes.ok) {
-          return NextResponse.json({ error: hunterData?.errors?.[0]?.details || `Erreur Hunter.io (${hunterRes.status})` }, { status: 502 })
-        }
-        const trouve = hunterData.data?.email
-        if (!trouve) return NextResponse.json({ success: true, trouve: false })
+          const hUrl = new URL('https://api.hunter.io/v2/email-finder')
+          hUrl.searchParams.set('api_key', hunterKey)
+          if (domaine) hUrl.searchParams.set('domain', domaine)
+          else hUrl.searchParams.set('company', lead.nom || '')
+          hUrl.searchParams.set('first_name', prenom)
+          hUrl.searchParams.set('last_name', nomFamille)
 
-        await sb.from('crm_leads').update({ email: trouve, updated_at: new Date().toISOString() }).eq('id', lead.id).eq('tenant_id', tenantId)
-        return NextResponse.json({
-          success: true, trouve: true,
-          email: trouve,
-          email_status: hunterData.data?.verification?.status || null,
-          linkedin_url: null,
-        })
+          const hRes = await fetch(hUrl.toString(), { signal: AbortSignal.timeout(12000) })
+          const hText = await hRes.text()
+          const hData = JSON.parse(hText)
+          if (hRes.ok && hData.data?.email) { emailTrouve = hData.data.email; source = 'Hunter.io' }
+        } catch { /* on retombe sur la recherche web ci-dessous */ }
       }
 
-      // Apollo.io -- fonctionne seulement si le tenant est sur un plan Apollo payant.
-      let apolloKey = ''
-      try { apolloKey = dechiffrer(apolloIntg!.cle_api) } catch { return NextResponse.json({ error: 'Cle Apollo illisible, reconnecte-la dans Parametres' }, { status: 500 }) }
+      // 2) Si Hunter n'a rien trouve (ou n'est pas connecte), recherche web
+      // automatique via Claude (outil web_search natif de l'API Anthropic,
+      // disponible depuis avril 2026) -- reutilise la cle deja configuree
+      // pour l'app (tenant ou plateforme), aucun nouveau compte a creer.
+      if (!emailTrouve) {
+        const cleAnthropic = await getAnthropicKey(tenantId)
+        const prompt = `Tu dois trouver une information de contact professionnelle reelle en cherchant sur le web. N'invente jamais un email.
 
-      const apolloRes = await fetch('https://api.apollo.io/api/v1/people/match', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': apolloKey },
-        body: JSON.stringify({
-          first_name: prenom || undefined,
-          last_name: nomFamille || undefined,
-          organization_name: lead.nom || undefined,
-        }),
-      })
-      if (!apolloRes.ok) {
-        return NextResponse.json({ error: `Erreur Apollo (${apolloRes.status}) -- l'acces API Apollo requiert un plan payant, meme avec une master key` }, { status: 502 })
+Entreprise : ${lead.nom || 'inconnue'}
+Contact recherche : ${contact || '(nom du dirigeant inconnu, cherche un contact general de l\'entreprise : email de type contact@ ou info@)'}
+${lead.notes ? `Infos complementaires : ${lead.notes}` : ''}
+
+Cherche le site web officiel de cette entreprise, puis son email de contact professionnel reel (page "Contact", mentions legales, ou email du dirigeant s'il est publie). Reponds STRICTEMENT dans un de ces deux formats, rien d'autre :
+EMAIL_TROUVE: adresse@exemple.fr
+ou
+INTROUVABLE`
+
+        try {
+          const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': cleAnthropic, 'anthropic-version': '2023-06-01' },
+            body: JSON.stringify({
+              model: 'claude-sonnet-4-6',
+              max_tokens: 500,
+              tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
+              messages: [{ role: 'user', content: prompt }],
+            }),
+            signal: AbortSignal.timeout(28000),
+          })
+          const claudeData = await claudeRes.json()
+          if (claudeRes.ok) {
+            const texteFinal = (claudeData.content || []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join(' ').trim()
+            const matchEmail = texteFinal.match(/EMAIL_TROUVE:\s*([^\s]+@[^\s]+\.[^\s]+)/i)
+            if (matchEmail) { emailTrouve = matchEmail[1].replace(/[.,;]+$/, ''); source = 'Recherche web (Claude)' }
+          }
+        } catch { /* rien trouve, on repond trouve:false plus bas */ }
       }
-      const apolloData = await apolloRes.json()
-      const person = apolloData.person
 
-      if (!person) {
+      if (!emailTrouve) {
         return NextResponse.json({ success: true, trouve: false })
       }
 
-      const updates: any = { updated_at: new Date().toISOString() }
-      if (person.email) updates.email = person.email
-      const notesLinkedIn = person.linkedin_url ? `LinkedIn : ${person.linkedin_url}` : ''
-      if (notesLinkedIn && !(lead.notes || '').includes(notesLinkedIn)) {
-        updates.notes = [lead.notes, notesLinkedIn].filter(Boolean).join(' · ')
+      await sb.from('crm_leads').update({
+        email: emailTrouve,
+        source: lead.source || source,
+        updated_at: new Date().toISOString(),
+      }).eq('id', lead.id).eq('tenant_id', tenantId)
+
+      // Envoi automatique du premier message de prospection, comme demande --
+      // meme mecanique/expediteur que le bouton email existant (api/crm
+      // action envoyer_email), pour rester coherent avec ce qui est deja reel.
+      let emailEnvoye = false
+      try {
+        const { Resend } = await import('resend')
+        const resend = new Resend(process.env.RESEND_API_KEY)
+        await resend.emails.send({
+          from: 'Xyra <notifications@xyraio.fr>',
+          to: emailTrouve,
+          subject: `Prise de contact — ${lead.nom || ''}`,
+          html: `<div style="font-family:sans-serif;padding:24px;white-space:pre-line;">Bonjour, je me permets de vous contacter au sujet de nos services.</div>`,
+        })
+        emailEnvoye = true
+      } catch (e: any) {
+        console.error('Envoi auto prospection:', e.message)
       }
-      await sb.from('crm_leads').update(updates).eq('id', lead.id).eq('tenant_id', tenantId)
 
       return NextResponse.json({
         success: true,
         trouve: true,
-        email: person.email || null,
-        email_status: person.email_status || null,
-        linkedin_url: person.linkedin_url || null,
+        email: emailTrouve,
+        source,
+        email_envoye: emailEnvoye,
+        linkedin_url: null,
       })
     }
 

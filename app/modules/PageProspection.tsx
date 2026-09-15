@@ -342,14 +342,12 @@ const PageProspection=({plan, modulesActifs,showToast,profil=null,UpgradeWall,ac
     try{
       const res=await fetch('/api/prospection',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'enrichir_lead',lead_id:l.id,domaine})});
       const d=await res.json();
-      if(d.error==='enrichissement_non_connecte'){
-        showToast("⚠️ Connecte Hunter.io (gratuit, 50/mois) dans Paramètres → Intégrations pour trouver les emails");
-      }else if(d.error){
+      if(d.error){
         showToast("❌ "+d.error);
       }else if(d.trouve===false){
-        showToast(domaine?"Aucun email trouvé sur ce domaine pour ce contact":"Aucun email trouvé pour ce contact — colle le site web de l'entreprise la prochaine fois pour un résultat plus fiable");
+        showToast("Aucun email trouvé pour ce contact, ni via Hunter ni via la recherche web");
       }else{
-        showToast(`✅ Enrichi : ${d.email||'pas d\'email trouvé'}${d.linkedin_url?' · LinkedIn trouvé':''}`);
+        showToast(`✅ Email trouvé (${d.source}) : ${d.email}${d.email_envoye?' — message de prise de contact envoyé automatiquement':' — trouvé mais l\'envoi automatique a échoué'}`);
         loadLeads();
       }
     }catch(e){showToast("❌ Erreur de connexion");}
