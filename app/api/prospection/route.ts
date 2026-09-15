@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
-import { dechiffrer } from '../../lib/anthropicKey';
+import { dechiffrer, getAnthropicKey } from '../../lib/anthropicKey';
 
 export const maxDuration = 30
 
