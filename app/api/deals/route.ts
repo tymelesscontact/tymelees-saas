@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -181,7 +182,7 @@ Message court, naturel, non commercial, en français. 3-4 phrases max. Objectif 
 
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+        headers: { 'Content-Type': 'application/json', 'x-api-key': await getAnthropicKey(tenantId), 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 300, messages: [{ role: 'user', content: prompt }] }),
       });
       const data = await res.json();

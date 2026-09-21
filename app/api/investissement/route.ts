@@ -1,12 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient, getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 
 const sb = getAdminClient();
 
-async function askClaude(prompt: string, maxTokens = 900) {
+async function askClaude(prompt: string, maxTokens = 900, tenantId: string | null = null) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': await getAnthropicKey(tenantId), 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
@@ -84,7 +85,7 @@ Voici sa situation financière réelle :
 Propose 3 à 4 recommandations d'investissement réalistes et chiffrées, adaptées à cette situation précise (si le CA est faible ou nul, propose des investissements modestes et prudents ; si la marge est bonne, tu peux proposer plus ambitieux). Réponds UNIQUEMENT avec un tableau JSON valide, sans texte autour, format exact :
 [{"titre":"...","type_investissement":"...","description":"2-3 phrases expliquant pourquoi, en français","budget_estime":1234,"roi_estime_pct":150,"delai_estime":"3 mois","risque":"Faible|Moyen|Élevé","priorite":"haute|moyenne|basse"}]`;
 
-      const reponse = await askClaude(prompt, 1200);
+      const reponse = await askClaude(prompt, 1200, tenantId);
       let recos: any[];
       try {
         const jsonMatch = reponse.match(/\[[\s\S]*\]/);

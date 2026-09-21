@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js';
 import PDFDocument from 'pdfkit';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 import { urlRetourInvitation } from '../../lib/invitation';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 const UUID_RE =/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Client normal (lectures/écritures courantes)
@@ -324,7 +325,7 @@ Rédige une analyse courte et concrète (4-6 phrases) en français, avec une rec
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'x-api-key': process.env.ANTHROPIC_API_KEY!,
+          'x-api-key': await getAnthropicKey(tenantId),
           'anthropic-version': '2023-06-01',
         },
         body: JSON.stringify({

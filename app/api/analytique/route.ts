@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -29,10 +30,10 @@ function getSourceFromLibelle(libelle: string) {
   return 'Autres';
 }
 
-async function askClaude(prompt: string) {
+async function askClaude(prompt: string, tenantId: string | null = null) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': await getAnthropicKey(tenantId), 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
@@ -185,7 +186,7 @@ Donne une analyse en 4-5 phrases max, en français, avec :
 3. Une recommandation concrète et chiffrée pour le mois prochain
 Sois direct et précis.`;
 
-      const analyse = await askClaude(prompt);
+      const analyse = await askClaude(prompt, tenantId);
       return NextResponse.json({ success: true, analyse });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -202,7 +203,7 @@ CA total : ${caTotal}€ | CA ce mois : ${caMoisActuel}€ | Évolution : ${evol
 Marge nette : ${tauxMarge}% | Top client : ${topClients?.[0]?.nom} (${topClients?.[0]?.pct}%)
 Prévision 90j réaliste : ${prevision?.realiste}€
 Commence par "Rapport CA Xyra —" et inclus 1 point fort et 1 priorité ce mois.`;
-      const message = await askClaude(prompt);
+      const message = await askClaude(prompt, tenantId);
       await envoyerWhatsApp(ownerTel, message, tenantId);
       return NextResponse.json({ success: true });
     } catch (e: any) {
