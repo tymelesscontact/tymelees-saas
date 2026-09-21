@@ -111,8 +111,12 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
       if(res.status===429){setAiInfo("Patientez une minute avant de régénérer.");setAiLoading(false);return;}
       const data=await res.json();
       if(data.texte){setAiMsg(data.texte);setAlertes(data.alertes||[]);}
-      else setAiMsg("Analyse indisponible pour le moment.");
-    }catch(e){setAiMsg("Analyse IA indisponible.");}
+      else{
+        // Les alertes sont calculees sans l'IA : elles restent affichees meme quand l'assistant est en panne.
+        setAiMsg("L'assistant IA est momentanément indisponible.");
+        if(data.alertes)setAlertes(data.alertes);
+      }
+    }catch(e){setAiMsg("L'assistant IA est momentanément indisponible.");}
     setAiLoading(false);
   };
   useEffect(()=>{
