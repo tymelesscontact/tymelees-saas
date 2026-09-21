@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -9,10 +10,10 @@ const sb = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-async function askClaude(prompt: string) {
+async function askClaude(prompt: string, tenantId: string | null = null) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': await getAnthropicKey(tenantId), 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 300, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
@@ -121,7 +122,7 @@ export async function POST(req: NextRequest) {
   if (action === 'expliquer_erreur') {
     const { code, endpoint, message } = body;
     try {
-      const explication = await askClaude(`Tu es expert API. Explique cette erreur en langage simple (2-3 phrases, français, pour un non-développeur) : Code ${code} sur ${endpoint} — "${message}". Donne aussi 1 solution concrète.`);
+      const explication = await askClaude(`Tu es expert API. Explique cette erreur en langage simple (2-3 phrases, français, pour un non-développeur) : Code ${code} sur ${endpoint} — "${message}". Donne aussi 1 solution concrète.`, tenantId);
       return NextResponse.json({ success: true, explication });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });

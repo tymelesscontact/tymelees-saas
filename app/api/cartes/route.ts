@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -10,10 +11,10 @@ const sb = createClient(
 );
 
 
-async function askClaude(prompt: string) {
+async function askClaude(prompt: string, tenantId: string | null = null) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': await getAnthropicKey(tenantId), 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 300, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
@@ -153,7 +154,7 @@ export async function POST(req: NextRequest) {
     const { cartes } = body;
     try {
       const resume = (cartes || []).map((c: any) => `${c.nom}: ${c.solde}/${c.limite} ${c.devise} (${Math.round(c.solde/c.limite*100)}%)`).join(', ');
-      const analyse = await askClaude(`Analyse ces dépenses par carte virtuelle et identifie anomalies ou points d'attention (3 phrases max, français) : ${resume}. Donne 1 point fort et 1 recommandation.`);
+      const analyse = await askClaude(`Analyse ces dépenses par carte virtuelle et identifie anomalies ou points d'attention (3 phrases max, français) : ${resume}. Donne 1 point fort et 1 recommandation.`, tenantId);
       return NextResponse.json({ success: true, analyse });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });

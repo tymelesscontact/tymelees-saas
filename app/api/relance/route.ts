@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,10 +10,10 @@ const sb = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
-async function askClaude(prompt: string) {
+async function askClaude(prompt: string, tenantId: string | null = null) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': await getAnthropicKey(tenantId), 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
@@ -62,7 +63,7 @@ Le contenu_html doit etre un email court, professionnel, en francais, avec des b
 
     let genere;
     try {
-      const texte = await askClaude(prompt);
+      const texte = await askClaude(prompt, tenantId);
       const nettoye = texte.replace(/```json|```/g, '').trim();
       genere = JSON.parse(nettoye);
     } catch (e: any) {

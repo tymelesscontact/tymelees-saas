@@ -4,6 +4,7 @@ import { estProprietaireDuTenant } from '../../lib/permissions';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 import { urlRetourInvitation } from '../../lib/invitation';
 import { createClient } from '@supabase/supabase-js';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -462,7 +463,7 @@ export async function POST(req: NextRequest) {
       const prompt = `Pour une entreprise française du secteur "${tenantObl?.secteur || tenantObl?.metier || 'services'}" avec ${effectif || 0} salarié(s), liste 5 à 8 obligations légales RH concrètes et actuellement d'actualité (affichage obligatoire, registre du personnel, DUER, mutuelle/prévoyance, visites médicales, formations sécurité, etc.), adaptées à cette taille d'effectif. Réponds UNIQUEMENT en JSON strict : un tableau d'objets {"libelle": string}. Pas de texte autour.`;
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+        headers: { 'Content-Type': 'application/json', 'x-api-key': await getAnthropicKey(tenantId), 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 600, messages: [{ role: 'user', content: prompt }] }),
       });
       const data = await res.json();
@@ -506,7 +507,7 @@ export async function POST(req: NextRequest) {
       const prompt = `Rédige un brouillon de Document Unique d'Évaluation des Risques (DUER) pour une entreprise française du secteur "${tenantDuer?.secteur || tenantDuer?.metier || 'services'}" avec ${effectifDuer || 0} salarié(s). Liste 5 à 7 risques professionnels plausibles pour ce secteur, chacun avec : nature du risque, niveau (faible/modéré/élevé), mesures de prévention. Format concis, professionnel. Réponds en HTML simple (juste des <h4>, <p>, <ul><li>), sans <html>/<body>.`;
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+        headers: { 'Content-Type': 'application/json', 'x-api-key': await getAnthropicKey(tenantId), 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 1200, messages: [{ role: 'user', content: prompt }] }),
       });
       const data = await res.json();
@@ -604,7 +605,7 @@ ${dateFin ? `Terme prévu : ${dateFin}` : ''}
 Ne rédige que les clauses, sans en-tête ni signature.`;
         const res = await fetch('https://api.anthropic.com/v1/messages', {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+          headers: { 'Content-Type': 'application/json', 'x-api-key': await getAnthropicKey(tenantId), 'anthropic-version': '2023-06-01' },
           body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 500, messages: [{ role: 'user', content: prompt }] }),
         });
         const data = await res.json();
@@ -855,7 +856,7 @@ Rédige une analyse RH courte (4-5 phrases) avec une recommandation concrète su
 
       const res = await fetch('https://api.anthropic.com/v1/messages', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+        headers: { 'Content-Type': 'application/json', 'x-api-key': await getAnthropicKey(tenantId), 'anthropic-version': '2023-06-01' },
         body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: 400, messages: [{ role: 'user', content: prompt }] }),
       });
       const data = await res.json();

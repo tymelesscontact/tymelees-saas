@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Service role : le tenant_id est deja verifie et impose dans chaque requete
@@ -22,10 +23,10 @@ function startOfWeek(d: Date) {
   return date;
 }
 
-async function askClaude(prompt: string, maxTokens = 400) {
+async function askClaude(prompt: string, maxTokens = 400, tenantId: string | null = null) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': await getAnthropicKey(tenantId), 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
@@ -273,7 +274,7 @@ Donne une analyse en 4-5 phrases max, en français, avec :
 3. Une recommandation concrète et chiffrée
 Sois direct et précis.`;
 
-      const analyse = await askClaude(prompt, 400);
+      const analyse = await askClaude(prompt, 400, tenantId);
       return NextResponse.json({ success: true, analyse });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -295,7 +296,7 @@ Clients en retard : ${(clientsEnRetard || []).map((c: any) => c.client + ' (' + 
 
 Explique POURQUOI le solde va baisser et donne 2 actions concrètes pour l'éviter. Sois précis et chiffré.`;
 
-      const alerte = await askClaude(prompt, 250);
+      const alerte = await askClaude(prompt, 250, tenantId);
       return NextResponse.json({ success: true, alerte });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -317,7 +318,7 @@ Solde : ${soldeActuel}€ | Score santé : ${scoreFinancier}/100 | Point mort se
 Commissions dues : ${commissionsDues}€ | Clients en retard : ${(clientsEnRetard || []).length}
 Inclus : 1 chiffre clé, 1 risque, 1 priorité cette semaine. Commence par "Bonjour${tenantRow?.prenom ? ' ' + tenantRow.prenom : ''}"`;
 
-      const message = await askClaude(prompt, 300);
+      const message = await askClaude(prompt, 300, tenantId);
       await envoyerWhatsApp(destTel, message, tenantId);
       return NextResponse.json({ success: true });
     } catch (e: any) {
@@ -353,7 +354,7 @@ Point mort hebdomadaire : ${pointMort}€ | BFR : ${bfr}€
 Commissions dues : ${commissionsDues}€ | Factures emises en attente : ${facturesEnAttente}€ | Devis signés non facturés : ${devisSignesNonFactures || 0}€
 Clients en retard : ${(clientsEnRetard || []).length}
 Structure : un résumé de la situation, le point le plus urgent, une recommandation.`;
-      const contenu = await askClaude(prompt, 500);
+      const contenu = await askClaude(prompt, 500, tenantId);
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
         headers: { Authorization: `Bearer ${process.env.RESEND_API_KEY}`, 'Content-Type': 'application/json' },
@@ -380,7 +381,7 @@ Structure : un résumé de la situation, le point le plus urgent, une recommanda
 ${JSON.stringify(facturesList.slice(0, 10))}
 Format : [{"client": "nom", "risque": "élevé|moyen|faible", "raison": "courte explication"}]`;
 
-      const res = await askClaude(prompt, 400);
+      const res = await askClaude(prompt, 400, tenantId);
       const clean = res.replace(/```json|```/g, '').trim();
       const predictions = JSON.parse(clean);
       return NextResponse.json({ success: true, predictions });

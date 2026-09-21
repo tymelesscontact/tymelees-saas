@@ -1,21 +1,23 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getAdminClient, getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 
 const sb = getAdminClient();
 
 // Delai minimum entre deux generations du brief pour un meme tenant : chaque
-// appel a l'IA coute de l'argent avec la cle Anthropic de Xyra.
+// appel a l'IA coute de l'argent (cle du client s'il en a mis une, sinon cle de Xyra).
 const DELAI_MIN_MS = 60_000;
 // Ancien texte enregistre par erreur quand l'IA echouait : ignore a la lecture.
 const TEXTE_ECHEC = 'Analyse indisponible pour le moment.';
 
 // Renvoie le texte genere, ou un texte vide accompagne de la raison exacte de l'echec
 // (statut, type et message d'Anthropic -- jamais la cle).
-async function askClaude(prompt: string, maxTokens = 300): Promise<{ texte: string; erreur: string | null }> {
+async function askClaude(prompt: string, maxTokens = 300, tenantId: string | null = null): Promise<{ texte: string; erreur: string | null }> {
   try {
     const res = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+      // Cle IA du client si elle est renseignee dans ses Parametres, sinon cle de Xyra (repli).
+      headers: { 'Content-Type': 'application/json', 'x-api-key': await getAnthropicKey(tenantId), 'anthropic-version': '2023-06-01' },
       body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }),
     });
     const data = await res.json().catch(() => ({} as any));
@@ -194,7 +196,7 @@ export async function POST(req: NextRequest) {
 
 Rédige un brief matinal (3-4 phrases max, français, direct et actionnable). Commence par le sujet le plus urgent/important parmi ces faits (pas forcément le CA). Si rien n'est urgent, dis simplement que tout est sous contrôle et donne un point positif réel parmi les chiffres. N'invente aucun chiffre en dehors de ceux donnés ci-dessus.`;
 
-    const { texte, erreur } = await askClaude(prompt);
+    const { texte, erreur } = await askClaude(prompt, undefined, tenantId);
     // Un echec de l'IA n'est pas enregistre dans le brief (le prochain chargement reessaiera), mais il est
     // signale a Xyra, et les alertes -- calculees sans l'IA -- sont quand meme renvoyees.
     if (!texte) {

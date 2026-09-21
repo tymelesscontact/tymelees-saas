@@ -2,16 +2,17 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { getAnthropicKey } from '../../lib/anthropicKey';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 );
 
-async function askClaude(prompt: string, maxTokens = 400) {
+async function askClaude(prompt: string, maxTokens = 400, tenantId: string | null = null) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
+    headers: { 'Content-Type': 'application/json', 'x-api-key': await getAnthropicKey(tenantId), 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }),
   });
   const data = await res.json();
@@ -127,7 +128,7 @@ Client : ${client_nom} | Note : ${note}/5 | Service : ${service} | Avis : "${com
 ${Number(note) <= 2 ? "C'est un avis négatif : sois empathique, excuse-toi sincèrement, propose une solution concrète et invite à te recontacter en privé." : Number(note) === 3 ? "C'est un avis mitigé : remercie, reconnais les axes d'amélioration, montre ton engagement." : "C'est un avis positif : remercie sincèrement, personnalise la réponse au service mentionné, invite à revenir."}
 Commence par "Bonjour ${client_nom},"`;
 
-      const reponse = await askClaude(prompt, 300);
+      const reponse = await askClaude(prompt, 300, tenantId);
       await sb.from('avis').update({ reponse_ia: reponse, statut: 'répondu' }).eq('id', avis_id).eq('tenant_id', tenantId);
       return NextResponse.json({ success: true, reponse });
     } catch (e: any) {
@@ -165,7 +166,7 @@ Commence par "Bonjour ${client_nom},"`;
   if (action === 'analyse_concurrentielle') {
     const { secteur, note_actuelle, nb_avis } = body;
     try {
-      const analyse = await askClaude(`Tu es expert en réputation d'entreprise. Pour une entreprise de ${secteur} avec ${note_actuelle}/5 (${nb_avis} avis), donne une analyse concurrentielle rapide (3 phrases, français) : position sur le marché, benchmark sectoriel, 1 action prioritaire pour améliorer la réputation.`, 250);
+      const analyse = await askClaude(`Tu es expert en réputation d'entreprise. Pour une entreprise de ${secteur} avec ${note_actuelle}/5 (${nb_avis} avis), donne une analyse concurrentielle rapide (3 phrases, français) : position sur le marché, benchmark sectoriel, 1 action prioritaire pour améliorer la réputation.`, 250, tenantId);
       return NextResponse.json({ success: true, analyse });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -180,7 +181,7 @@ Commence par "Bonjour ${client_nom},"`;
       const prompt = `Génère un rapport réputation WhatsApp (5 lignes max, français, emojis) :
 Score réputation : ${scoreReputation}/100 | Note Google : ${noteGoogle}/5 | NPS : ${npsScore} | CSAT : ${csatScore}% | Avis total : ${totalAvis} | Taux réponse : ${tauxReponse}%
 Commence par "Rapport Réputation Xyra —" et donne 1 point fort et 1 priorité.`;
-      const message = await askClaude(prompt, 200);
+      const message = await askClaude(prompt, 200, tenantId);
       await envoyerWhatsApp(ownerTel, message, tenantId);
       return NextResponse.json({ success: true });
     } catch (e: any) {
