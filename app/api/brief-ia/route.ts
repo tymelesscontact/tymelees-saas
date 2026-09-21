@@ -3,13 +3,24 @@ import { getAdminClient, getTenantIdFromRequest } from '../../lib/supabaseServer
 
 const sb = getAdminClient();
 
+// Delai minimum entre deux generations du brief pour un meme tenant : chaque
+// appel a l'IA coute de l'argent avec la cle Anthropic de Xyra.
+const DELAI_MIN_MS = 60_000;
+// Ancien texte enregistre par erreur quand l'IA echouait : ignore a la lecture.
+const TEXTE_ECHEC = 'Analyse indisponible pour le moment.';
+
 async function askClaude(prompt: string, maxTokens = 300) {
   const res = await fetch('https://api.anthropic.com/v1/messages', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', 'x-api-key': process.env.ANTHROPIC_API_KEY!, 'anthropic-version': '2023-06-01' },
     body: JSON.stringify({ model: 'claude-sonnet-4-6', max_tokens: maxTokens, messages: [{ role: 'user', content: prompt }] }),
   });
-  const data = await res.json();
+  const data = await res.json().catch(() => ({} as any));
+  if (!res.ok) {
+    // On garde la vraie raison de l'echec dans les journaux (jamais la cle).
+    console.error('brief-ia : Anthropic a refuse la demande', res.status, data?.error?.type, data?.error?.message);
+    return '';
+  }
   return data.content?.[0]?.text || '';
 }
 
@@ -118,8 +129,9 @@ export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ texte: null, alertes: [] });
   const aujourdhui = new Date().toISOString().slice(0, 10);
-  const { data } = await sb.from('brief_quotidien').select('texte,alertes,created_at').eq('tenant_id', tenantId).eq('date', aujourdhui).maybeSingle();
-  return NextResponse.json({ texte: data?.texte || null, alertes: data?.alertes || [] });
+  const { data } = await sb.from('brief_quotidien').select('texte,alertes').eq('tenant_id', tenantId).eq('date', aujourdhui).maybeSingle();
+  const texte = data?.texte && data.texte !== TEXTE_ECHEC ? data.texte : null;
+  return NextResponse.json({ texte, alertes: texte ? (data?.alertes || []) : [] });
 }
 
 export async function POST(req: NextRequest) {
@@ -127,6 +139,12 @@ export async function POST(req: NextRequest) {
   if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
   const body = await req.json();
   if (body.action !== 'generer') return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });
+
+  const aujourdhui = new Date().toISOString().slice(0, 10);
+  const { data: existant } = await sb.from('brief_quotidien').select('created_at').eq('tenant_id', tenantId).eq('date', aujourdhui).maybeSingle();
+  if (existant?.created_at && Date.now() - new Date(existant.created_at).getTime() < DELAI_MIN_MS) {
+    return NextResponse.json({ error: 'trop_rapide' }, { status: 429 });
+  }
 
   try {
     const signaux = await collecterSignaux(tenantId);
@@ -142,7 +160,9 @@ export async function POST(req: NextRequest) {
       signaux.signalements.length > 0 ? `${signaux.signalements.length} signalement(s) d'équipe non traité(s)` : null,
       signaux.contratsEnAttente.length > 0 ? `${signaux.contratsEnAttente.length} contrat(s) en attente de signature` : null,
       signaux.evenementsAVenir.length > 0 ? `${signaux.evenementsAVenir.length} événement(s) sous 7 jours` : null,
-      signaux.employesMargeNegative.length > 0 ? `${signaux.employesMargeNegative.length} collaborateur(s) en marge négative ce mois-ci : ${signaux.employesMargeNegative.map((e: any) => `${e.nom} (${e.marge}€)`).join(', ')}` : null,
+      // Seul le nombre est donne a l'IA : le texte du brief est lu par tous les membres du tenant,
+      // il ne doit donc jamais contenir le nom ni la marge (deduite du salaire) d'un collaborateur.
+      signaux.employesMargeNegative.length > 0 ? `${signaux.employesMargeNegative.length} collaborateur(s) en marge négative ce mois-ci` : null,
     ].filter(Boolean).join('\n- ');
 
     const prompt = `Tu es l'assistant business d'un patron d'entreprise de services premium. Voici sa vraie situation ce matin :
@@ -151,10 +171,11 @@ export async function POST(req: NextRequest) {
 Rédige un brief matinal (3-4 phrases max, français, direct et actionnable). Commence par le sujet le plus urgent/important parmi ces faits (pas forcément le CA). Si rien n'est urgent, dis simplement que tout est sous contrôle et donne un point positif réel parmi les chiffres. N'invente aucun chiffre en dehors de ceux donnés ci-dessus.`;
 
     const texte = await askClaude(prompt);
+    // Un echec de l'IA n'est plus enregistre : le prochain chargement reessaiera.
+    if (!texte) return NextResponse.json({ error: 'ia_indisponible' }, { status: 502 });
 
-    const aujourdhui = new Date().toISOString().slice(0, 10);
     const { error } = await sb.from('brief_quotidien').upsert(
-      { tenant_id: tenantId, date: aujourdhui, texte: texte || 'Analyse indisponible pour le moment.', alertes },
+      { tenant_id: tenantId, date: aujourdhui, texte, alertes, created_at: new Date().toISOString() },
       { onConflict: 'tenant_id,date' }
     );
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
