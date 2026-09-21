@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
+import { verifierJeton2FA } from './app/lib/deuxFa'
 
 const API_OUVERTES = [
   '/api/profil-entreprise',
@@ -123,8 +124,9 @@ export async function middleware(req: NextRequest) {
     if (membre?.tenant_id) {
       const { data: tenantInfo } = await sbService.from('tenants').select('deux_fa_actif').eq('id', membre.tenant_id).maybeSingle()
       if (tenantInfo?.deux_fa_actif) {
-        const verifie2FA = req.cookies.get('deux_fa_verified')?.value
-        if (verifie2FA !== '1') {
+        // Le cookie doit etre un jeton signe par le serveur, lie a CET utilisateur (plus la valeur fixe "1").
+        const jeton2FA = req.cookies.get('deux_fa_verified')?.value
+        if (!(await verifierJeton2FA(jeton2FA, data.user.id))) {
           return refus(loginUrl)
         }
       }
