@@ -252,7 +252,8 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
         <KPI label="Remboursements" val={fmt(histo.filter(h=>h.type==="remboursement"&&h.statut==="à_virer").reduce((a,h)=>a+h.montant,0))} color={C.red}/>
         <KPI label="Fournisseurs" val={fmt(histo.filter(h=>h.type==="fournisseur"&&h.statut==="à_virer").reduce((a,h)=>a+h.montant,0))} color={C.purple}/>
       </div>
-      <div style={{background:solde<alerteSeuil?`${C.red}11`:`${C.green}08`,border:`1px solid ${solde<alerteSeuil?C.red:C.green}33`,borderRadius:10,padding:12,fontSize:12,color:solde<alerteSeuil?C.red:C.green}}>{solde<alerteSeuil?`⚠️ Alerte : solde < seuil (${fmt(alerteSeuil)})`:`✅ Solde en bonne santé (seuil: ${fmt(alerteSeuil)})`}</div>
+      {/* Pas d'alerte tant qu'il n'y a aucune transaction : un nouveau client ne doit pas voir une fausse alarme. */}
+      {histo.length>0&&<div style={{background:solde<alerteSeuil?`${C.red}11`:`${C.green}08`,border:`1px solid ${solde<alerteSeuil?C.red:C.green}33`,borderRadius:10,padding:12,fontSize:12,color:solde<alerteSeuil?C.red:C.green}}>{solde<alerteSeuil?`⚠️ Alerte : solde < seuil (${fmt(alerteSeuil)})`:`✅ Solde en bonne santé (seuil: ${fmt(alerteSeuil)})`}</div>}
     </>}
     {onglet==="historique"&&<Card><STitle>📋 Historique des transactions</STitle>
       {loadingWallet&&<div style={{fontSize:11,color:C.muted,marginBottom:8}}>Chargement...</div>}
@@ -344,7 +345,7 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
     </Card>}
     {onglet==="alertes"&&<Card><STitle>🔔 Configuration Alertes</STitle>
       <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
-        <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>Seuil d'alerte solde bas</div><div style={{fontSize:10,color:C.muted}}>Notification quand solde {'<'} seuil</div></div>
+        <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>Seuil d'alerte solde bas</div><div style={{fontSize:10,color:C.muted}}>Affiche un avertissement dans l'onglet Solde quand le solde passe sous le seuil. Ce seuil n'est pas enregistré : il revient à 500 € au rechargement de la page, et aucune notification n'est envoyée.</div></div>
         <Inp value={alerteSeuil} onChange={e=>setAlerteSeuil(Number(e.target.value))} style={{width:120}}/>
       </div>
       <div style={{marginTop:12,fontSize:11,color:C.muted}}>Seuil actuel : {fmt(alerteSeuil)} · Solde actuel : {fmt(solde)} · Statut : {solde>=alerteSeuil?"✅ OK":"⚠️ Alerte active"}</div>

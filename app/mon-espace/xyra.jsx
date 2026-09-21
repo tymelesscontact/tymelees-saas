@@ -69,7 +69,7 @@ const IbanMondial=({showToast})=>{
       setForm({pays:"",iban:"",banque:"",bic:"",pour:""});
       setShowForm(false);
       showToast&&showToast("✅ IBAN ajouté et sauvegardé !");
-    }catch(e){showToast&&showToast("❌ Erreur lors de l'ajout de l'IBAN");}
+    }catch(e){showToast&&showToast("❌ "+(e.message&&e.message!=="Erreur"?e.message:"Erreur lors de l'ajout de l'IBAN"));}
   };
 
   const handleDelete=async(id)=>{
@@ -79,7 +79,7 @@ const IbanMondial=({showToast})=>{
       if(!data.success)throw new Error(data.error||"Erreur");
       setIbans(ib=>ib.filter(x=>x.id!==id));
       showToast&&showToast("✅ IBAN supprimé");
-    }catch(e){showToast&&showToast("❌ Erreur lors de la suppression");}
+    }catch(e){showToast&&showToast("❌ "+(e.message&&e.message!=="Erreur"?e.message:"Erreur lors de la suppression"));}
   };
 
   return <CT>
