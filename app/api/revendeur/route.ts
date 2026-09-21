@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { urlRetourInvitation } from '../../lib/invitation';
 import { WHITE_LABEL_PAR_CLIENT, WHITE_LABEL_MAX_CLIENTS, PLAN_PRIX } from '../../lib/plans';
 
 export const dynamic = 'force-dynamic';
@@ -100,7 +101,7 @@ export async function POST(req: NextRequest) {
     // Le compte d'acces du client
     let userId = null;
     try {
-      const { data: invite } = await sb.auth.admin.generateLink({ type: 'invite', email: email.trim() });
+      const { data: invite } = await sb.auth.admin.generateLink({ type: 'invite', email: email.trim(), options: { redirectTo: urlRetourInvitation(req.nextUrl.origin) } });
       userId = invite?.user?.id || null;
     } catch (e: any) {
       console.error('Compte client revendeur:', e.message);

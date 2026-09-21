@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { estProprietaireDuTenant } from '../../lib/permissions';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { urlRetourInvitation } from '../../lib/invitation';
 import { createClient } from '@supabase/supabase-js';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -20,9 +21,9 @@ async function sendEmail(to: string, subject: string, html: string) {
   return resend.emails.send({ from: 'Xyra <notifications@xyraio.fr>', to, subject, html });
 }
 
-async function inviterCompte(email: string) {
+async function inviterCompte(email: string, origine?: string) {
   try {
-    const { data, error } = await sbAdmin.auth.admin.generateLink({ type: 'invite', email });
+    const { data, error } = await sbAdmin.auth.admin.generateLink({ type: 'invite', email, options: { redirectTo: urlRetourInvitation(origine) } });
     if (error) { return { userId: null, inviteLink: null, erreurDiagnostic: error.message }; }
     if (!data?.user) { return { userId: null, inviteLink: null, erreurDiagnostic: 'pas d utilisateur retourne' }; }
     return { userId: data.user.id, inviteLink: (data as any)?.properties?.action_link || null, erreurDiagnostic: null };
@@ -660,7 +661,7 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
 
     if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const tenantIdCreation = tenantId;
-    const { userId, inviteLink, erreurDiagnostic } = await inviterCompte(email);
+    const { userId, inviteLink, erreurDiagnostic } = await inviterCompte(email, req.nextUrl.origin);
     const salaireNet = Math.round(Number(salaire_brut || 0) * 0.78);
 
     const { data, error } = await sb.from('equipe').insert({
@@ -707,7 +708,7 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
     if (!m.email) return NextResponse.json({ error: 'Email manquant' }, { status: 400 });
     if (m.user_id) return NextResponse.json({ error: 'Cet employé a déjà un accès' }, { status: 400 });
 
-    const { userId, inviteLink } = await inviterCompte(m.email);
+    const { userId, inviteLink } = await inviterCompte(m.email, req.nextUrl.origin);
     if (!userId) return NextResponse.json({ error: 'Échec création compte' }, { status: 500 });
 
     await sb.from('equipe').update({ user_id: userId }).eq('id', id).eq('tenant_id', tenantId);

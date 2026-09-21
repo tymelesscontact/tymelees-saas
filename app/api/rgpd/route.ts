@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { estProprietaireDuTenant } from '../../lib/permissions';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -44,6 +45,14 @@ export async function POST(req: NextRequest) {
   if (!tenantId) return NextResponse.json({ success: false, error: 'Session invalide' }, { status: 401 });
   const body = await req.json();
   const { action } = body;
+
+  // Exporter/supprimer l'integralite de l'entreprise engage le contrat avec
+  // Xyra -- reserve au proprietaire du compte, pas a n'importe quel membre.
+  if (action === 'exporter' || action === 'supprimer_compte') {
+    if (!(await estProprietaireDuTenant(req, tenantId))) {
+      return NextResponse.json({ success: false, error: 'Reserve au proprietaire du compte' }, { status: 403 });
+    }
+  }
 
   if (action === 'exporter') {
     const { data: tenantInfo } = await sb.from('tenants').select('*').eq('id', tenantId).single();

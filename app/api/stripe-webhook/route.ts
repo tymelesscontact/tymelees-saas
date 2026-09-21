@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PLAN_PRIX, PLAN_LABELS, MODULE_PRICES } from '../../lib/plans';
+import { urlRetourInvitation } from '../../lib/invitation';
 
 export const dynamic = 'force-dynamic';
 
@@ -149,6 +150,7 @@ export async function POST(req: NextRequest) {
           try {
             const { data: invite } = await sb.auth.admin.generateLink({
               type: 'invite', email: membre.email,
+              options: { redirectTo: urlRetourInvitation(req.nextUrl.origin) },
             });
             if (invite?.user) {
               lienActivation = (invite as any)?.properties?.action_link || null;

@@ -3,7 +3,8 @@ import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseS
 import { createClient } from '@supabase/supabase-js';
 import PDFDocument from 'pdfkit';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
-const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+import { urlRetourInvitation } from '../../lib/invitation';
+const UUID_RE =/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Client normal (lectures/écritures courantes)
 const sb = createClient(
@@ -27,9 +28,9 @@ async function sendEmail(to: string, subject: string, html: string) {
 
 // Tente de créer un vrai compte de connexion (espace partenaire) pour cet email.
 // Retourne l'id utilisateur + le lien d'activation, ou null si ça échoue (non bloquant).
-async function creerAccesPortail(email: string): Promise<{ userId: string | null; inviteLink: string | null }> {
+async function creerAccesPortail(email: string, origine?: string): Promise<{ userId: string | null; inviteLink: string | null }> {
   try {
-    const { data, error } = await sbAdmin.auth.admin.generateLink({ type: 'invite', email });
+    const { data, error } = await sbAdmin.auth.admin.generateLink({ type: 'invite', email, options: { redirectTo: urlRetourInvitation(origine) } });
     if (error || !data?.user) return { userId: null, inviteLink: null };
     return { userId: data.user.id, inviteLink: (data as any)?.properties?.action_link || null };
   } catch (e) {
@@ -137,7 +138,7 @@ export async function POST(req: NextRequest) {
     const { nom, role, comm, email, tel, adresse, rib } = body;
     if (!nom || !email) return NextResponse.json({ error: 'Nom et email requis' }, { status: 400 });
 
-    const { userId, inviteLink } = await creerAccesPortail(email);
+    const { userId, inviteLink } = await creerAccesPortail(email, req.nextUrl.origin);
 
     const insertPayload: any = {
       nom, role: role || "Apporteur d'affaires", commission: Number(comm) || 15, email, tel, adresse, rib,
@@ -169,7 +170,7 @@ export async function POST(req: NextRequest) {
     if (p.user_id) return NextResponse.json({ error: 'Ce partenaire a déjà un accès portail' }, { status: 400 });
     if (!p.email) return NextResponse.json({ error: 'Email manquant pour ce partenaire' }, { status: 400 });
 
-    const { userId, inviteLink } = await creerAccesPortail(p.email);
+    const { userId, inviteLink } = await creerAccesPortail(p.email, req.nextUrl.origin);
     if (!userId) return NextResponse.json({ error: 'Échec de la création du compte (vérifie SUPABASE_SERVICE_ROLE_KEY)' }, { status: 500 });
 
     await sb.from('partenaires').update({ user_id: userId }).eq('id', id).eq('tenant_id', tenantId);

@@ -22,7 +22,8 @@ export async function GET(req: NextRequest) {
   const dateDebut = searchParams.get('date_debut');
   const dateFin = searchParams.get('date_fin');
 
-  let q = sb.from('missions').select('*, missions_collaborateurs(collaborateur_id, role, statut_presence)')
+  // equipe(nom, prenom) : uniquement le nom d'affichage du collaborateur (jamais le salaire), pour le tableau de bord.
+  let q = sb.from('missions').select('*, missions_collaborateurs(collaborateur_id, role, statut_presence, equipe(nom, prenom))')
     .eq('tenant_id', tenantId).order('date_mission');
   if (dateDebut) q = q.gte('date_mission', dateDebut);
   if (dateFin) q = q.lte('date_mission', dateFin);

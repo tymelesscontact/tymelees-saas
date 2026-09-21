@@ -15,10 +15,11 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
   const[margeNette,setMargeNette]=useState(0);
   const[commissionsAVirer,setCommissionsAVirer]=useState(0);
   const[leadsEnAttente,setLeadsEnAttente]=useState(0);
-  const[prochainRdv,setProchainRdv]=useState(null);
+  const[prochainRdv,setProchainRdv]=useState<any>(null);
   const[ca7j,setCa7j]=useState([]);
   const[aiMsg,setAiMsg]=useState("");
   const[aiLoading,setAiLoading]=useState(false);
+  const[aiInfo,setAiInfo]=useState("");
   const[alertes,setAlertes]=useState([]);
   const[scoreBusiness,setScoreBusiness]=useState(0);
   const[tendance,setTendance]=useState("stable");
@@ -33,8 +34,10 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
     const load=async()=>{
       try{
         const cid=(!vueGlobale&&activeCompany?.id)?`&company_id=${activeCompany.id}`:"";
+        // Le CA du mois et du mois dernier doit couvrir toutes les transactions de la periode (pas seulement les 100 dernieres).
+        const dm=new Date();const depuis=new Date(dm.getFullYear(),dm.getMonth()-1,1).toISOString().slice(0,10);
         const[wRes,fRes,chRes]=await Promise.all([
-          fetch(`/api/wallet?action=list${cid}`).then(r=>r.json()).catch(()=>({})),
+          fetch(`/api/wallet?action=list&depuis=${depuis}${cid}`).then(r=>r.json()).catch(()=>({})),
           fetch(`/api/factures?action=list${cid}`).then(r=>r.json()).catch(()=>({})),
           fetch(`/api/charges${cid?"?"+cid.slice(1):""}`).then(r=>r.json()).catch(()=>({})),
         ]);
@@ -70,10 +73,16 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
           setLeadsEnAttente((crmRes.leads||[]).filter(l=>l.etape==="Nouveau").length);
         }catch(e){}
         try{
-          const{createClient}=await import('@supabase/supabase-js');
-          const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-          const{data:pl}=await sb.from('planning').select('date_mission,heure_debut,client_nom,service,collaborateur').gte('date_mission',now.toISOString().slice(0,10)).order('date_mission',{ascending:true}).limit(1);
-          if(pl&&pl[0])setProchainRdv(pl[0]);
+          // Les vraies missions du Planning sont dans la table `missions`, lue par l'API (filtree par tenant).
+          const auj=now.toISOString().slice(0,10);
+          const mRes=await fetch(`/api/planning-missions?date_debut=${auj}`).then(r=>r.json()).catch(()=>({}));
+          const prochaine=(mRes.missions||[])
+            .filter((m:any)=>!["termine","annule","refusee"].includes(m.statut))
+            .filter((m:any)=>vueGlobale||!activeCompany?.id||m.company_id===activeCompany.id)
+            .sort((a:any,b:any)=>String(a.date_mission).localeCompare(String(b.date_mission))||String(a.heure||"").localeCompare(String(b.heure||"")))[0];
+          // Le collaborateur est relie via missions_collaborateurs (collaborateur_nom n'est pas rempli a la creation).
+          const nomsCollab=(prochaine?.missions_collaborateurs||[]).map((c:any)=>[c.equipe?.prenom,c.equipe?.nom].filter(Boolean).join(" ")).filter(Boolean).join(", ");
+          setProchainRdv(prochaine?{date_mission:prochaine.date_mission,heure_debut:prochaine.heure,client_nom:prochaine.client_nom,service:prochaine.service,collaborateur:prochaine.collaborateur_nom||nomsCollab}:null);
         }catch(e){}
         const derniers7j=[];
         for(let i=6;i>=0;i--){
@@ -93,16 +102,21 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
       setLoading(false);
     };
     load();
-  },[]);
+  },[vueGlobale,activeCompany?.id]);
 
   const genererBrief=async()=>{
-    setAiLoading(true);
+    setAiLoading(true);setAiInfo("");
     try{
       const res=await fetch("/api/brief-ia",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"generer"})});
+      if(res.status===429){setAiInfo("Patientez une minute avant de régénérer.");setAiLoading(false);return;}
       const data=await res.json();
       if(data.texte){setAiMsg(data.texte);setAlertes(data.alertes||[]);}
-      else setAiMsg("Analyse indisponible pour le moment.");
-    }catch(e){setAiMsg("Analyse IA indisponible.");}
+      else{
+        // Les alertes sont calculees sans l'IA : elles restent affichees meme quand l'assistant est en panne.
+        setAiMsg("L'assistant IA est momentanément indisponible.");
+        if(data.alertes)setAlertes(data.alertes);
+      }
+    }catch(e){setAiMsg("L'assistant IA est momentanément indisponible.");}
     setAiLoading(false);
   };
   useEffect(()=>{
@@ -140,6 +154,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
           <div onClick={()=>!aiLoading&&genererBrief()} style={{fontSize:10,color:C.muted,cursor:aiLoading?"default":"pointer",opacity:aiLoading?0.5:1}}>🔄 Régénérer</div>
         </div>
         {aiLoading?<div style={{fontSize:11,color:C.muted}}>⏳ Analyse en cours...</div>:<div style={{fontSize:12,color:C.text,lineHeight:1.7}}>{aiMsg||"—"}</div>}
+        {!aiLoading&&aiInfo&&<div style={{fontSize:10,color:C.muted,marginTop:6}}>{aiInfo}</div>}
         {!aiLoading&&alertes.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:10}}>
           {alertes.map((a,i)=><div key={i} onClick={()=>setPage(a.page)} style={{fontSize:10,background:C.card2,border:`1px solid ${C.border}`,borderRadius:20,padding:"4px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:4}}><span>{a.icone}</span><span>{a.texte}</span></div>)}
         </div>}
@@ -156,7 +171,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
       <Card>
         <STitle>🔥 Priorités du jour (calculées)</STitle>
         {priorites.map((p,i)=><div key={i} onClick={()=>p.act&&setPage(p.act)} style={{display:"flex",gap:8,padding:"7px 8px",borderRadius:6,marginBottom:5,cursor:p.act?"pointer":"default",background:C.card2,border:`1px solid ${C.border}`}}><span>{p.icon}</span><span style={{fontSize:11,flex:1}}>{p.txt}</span>{p.act&&<span style={{fontSize:10,color:C.gold,fontWeight:600}}>→</span>}</div>)}
-        {prochainRdv&&<div style={{marginTop:8,background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:8,padding:"8px 10px",fontSize:11}}><div style={{color:C.blue,fontWeight:600,marginBottom:2}}>📅 Prochain RDV</div><div style={{color:C.text}}>{prochainRdv.client_nom} — {prochainRdv.service}</div><div style={{color:C.muted,fontSize:10}}>{prochainRdv.date_mission} à {prochainRdv.heure_debut} · {prochainRdv.collaborateur}</div></div>}
+        {prochainRdv&&<div style={{marginTop:8,background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:8,padding:"8px 10px",fontSize:11}}><div style={{color:C.blue,fontWeight:600,marginBottom:2}}>📅 Prochain RDV</div><div style={{color:C.text}}>{prochainRdv.client_nom}{prochainRdv.service?` — ${prochainRdv.service}`:""}</div><div style={{color:C.muted,fontSize:10}}>{prochainRdv.date_mission}{prochainRdv.heure_debut?` à ${prochainRdv.heure_debut}`:""}{prochainRdv.collaborateur?` · ${prochainRdv.collaborateur}`:""}</div></div>}
       </Card>
       <Card>
         <STitle>📊 Métriques clés (réelles)</STitle>
