@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { urlRetourInvitation } from '../../lib/invitation';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -28,9 +29,9 @@ async function sendEmail(to: string, subject: string, html: string) {
   return resend.emails.send({ from: 'Xyra <notifications@xyraio.fr>', to, subject, html });
 }
 
-async function inviterCompte(email: string): Promise<{ userId: string | null; inviteLink: string | null }> {
+async function inviterCompte(email: string, origine?: string): Promise<{ userId: string | null; inviteLink: string | null }> {
   try {
-    const { data, error } = await sbAdmin.auth.admin.generateLink({ type: 'invite', email });
+    const { data, error } = await sbAdmin.auth.admin.generateLink({ type: 'invite', email, options: { redirectTo: urlRetourInvitation(origine) } });
     if (error || !data?.user) return { userId: null, inviteLink: null };
     return { userId: data.user.id, inviteLink: (data as any)?.properties?.action_link || null };
   } catch { return { userId: null, inviteLink: null }; }
@@ -91,7 +92,7 @@ export async function POST(req: NextRequest) {
     const { societe, email, nom, plan, siren } = body;
     if (!societe || !email) return NextResponse.json({ error: 'Société et email requis' }, { status: 400 });
 
-    const { userId, inviteLink } = await inviterCompte(email);
+    const { userId, inviteLink } = await inviterCompte(email, req.nextUrl.origin);
 
     const { data, error } = await sb.from('tenants').insert({
       societe, email, nom_contact: nom, plan: plan || 'starter', statut: 'trial',
