@@ -209,7 +209,7 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead><tr><TH>Heure</TH><TH>Client</TH><TH>Collaborateurs</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
           <tbody>{missionsAujourdhui.map((m) => <tr key={m.id}>
-            <Td style={{ color: C.gold, fontWeight: 700 }}>{m.heure_debut}</Td>
+            <Td style={{ color: C.gold, fontWeight: 700 }}>{m.heure}</Td>
             <Td style={{ fontWeight: 600 }}>{m.client_nom || "—"}</Td>
             <Td style={{ fontSize: 11 }}>{(m.missions_collaborateurs || []).map((mc: any) => collaborateurs.find((c) => c.id === mc.collaborateur_id)?.nom).filter(Boolean).join(", ") || "—"}</Td>
             <Td><Pill color={m.statut === "termine" ? C.green : m.statut === "annule" ? C.red : C.blue}>{m.statut}</Pill></Td>
@@ -292,7 +292,7 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
           <thead><tr><TH>Date</TH><TH>Heure</TH><TH>Client</TH><TH>Statut</TH></tr></thead>
           <tbody>{missions.map((m) => <tr key={m.id}>
             <Td style={{ color: C.gold }}>{m.date_mission}</Td>
-            <Td>{m.heure_debut}</Td>
+            <Td>{m.heure}</Td>
             <Td style={{ fontWeight: 600 }}>{m.client_nom || "—"}</Td>
             <Td><Pill color={m.statut === "termine" ? C.green : m.statut === "annule" ? C.red : C.blue}>{m.statut}</Pill></Td>
           </tr>)}</tbody>

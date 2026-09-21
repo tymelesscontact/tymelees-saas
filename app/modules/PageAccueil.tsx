@@ -15,7 +15,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
   const[margeNette,setMargeNette]=useState(0);
   const[commissionsAVirer,setCommissionsAVirer]=useState(0);
   const[leadsEnAttente,setLeadsEnAttente]=useState(0);
-  const[prochainRdv,setProchainRdv]=useState(null);
+  const[prochainRdv,setProchainRdv]=useState<any>(null);
   const[ca7j,setCa7j]=useState([]);
   const[aiMsg,setAiMsg]=useState("");
   const[aiLoading,setAiLoading]=useState(false);
@@ -80,7 +80,9 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
             .filter((m:any)=>!["termine","annule","refusee"].includes(m.statut))
             .filter((m:any)=>vueGlobale||!activeCompany?.id||m.company_id===activeCompany.id)
             .sort((a:any,b:any)=>String(a.date_mission).localeCompare(String(b.date_mission))||String(a.heure||"").localeCompare(String(b.heure||"")))[0];
-          setProchainRdv(prochaine?{date_mission:prochaine.date_mission,heure_debut:prochaine.heure,client_nom:prochaine.client_nom,service:prochaine.service,collaborateur:prochaine.collaborateur_nom}:null);
+          // Le collaborateur est relie via missions_collaborateurs (collaborateur_nom n'est pas rempli a la creation).
+          const nomsCollab=(prochaine?.missions_collaborateurs||[]).map((c:any)=>[c.equipe?.prenom,c.equipe?.nom].filter(Boolean).join(" ")).filter(Boolean).join(", ");
+          setProchainRdv(prochaine?{date_mission:prochaine.date_mission,heure_debut:prochaine.heure,client_nom:prochaine.client_nom,service:prochaine.service,collaborateur:prochaine.collaborateur_nom||nomsCollab}:null);
         }catch(e){}
         const derniers7j=[];
         for(let i=6;i>=0;i--){
@@ -165,7 +167,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
       <Card>
         <STitle>🔥 Priorités du jour (calculées)</STitle>
         {priorites.map((p,i)=><div key={i} onClick={()=>p.act&&setPage(p.act)} style={{display:"flex",gap:8,padding:"7px 8px",borderRadius:6,marginBottom:5,cursor:p.act?"pointer":"default",background:C.card2,border:`1px solid ${C.border}`}}><span>{p.icon}</span><span style={{fontSize:11,flex:1}}>{p.txt}</span>{p.act&&<span style={{fontSize:10,color:C.gold,fontWeight:600}}>→</span>}</div>)}
-        {prochainRdv&&<div style={{marginTop:8,background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:8,padding:"8px 10px",fontSize:11}}><div style={{color:C.blue,fontWeight:600,marginBottom:2}}>📅 Prochain RDV</div><div style={{color:C.text}}>{prochainRdv.client_nom} — {prochainRdv.service}</div><div style={{color:C.muted,fontSize:10}}>{prochainRdv.date_mission} à {prochainRdv.heure_debut} · {prochainRdv.collaborateur}</div></div>}
+        {prochainRdv&&<div style={{marginTop:8,background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:8,padding:"8px 10px",fontSize:11}}><div style={{color:C.blue,fontWeight:600,marginBottom:2}}>📅 Prochain RDV</div><div style={{color:C.text}}>{prochainRdv.client_nom}{prochainRdv.service?` — ${prochainRdv.service}`:""}</div><div style={{color:C.muted,fontSize:10}}>{prochainRdv.date_mission}{prochainRdv.heure_debut?` à ${prochainRdv.heure_debut}`:""}{prochainRdv.collaborateur?` · ${prochainRdv.collaborateur}`:""}</div></div>}
       </Card>
       <Card>
         <STitle>📊 Métriques clés (réelles)</STitle>
