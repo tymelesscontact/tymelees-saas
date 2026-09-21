@@ -23,7 +23,13 @@ export async function GET(req: NextRequest) {
     const tenantId = await getTenantIdFromRequest(req);
     if (!tenantId) return NextResponse.json({ transactions: [], solde: 0 });
     const companyId = searchParams.get('company_id');
-    let query = sb.from('wallet_transactions').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(100);
+    // Parametre optionnel `depuis` (AAAA-MM-JJ) : sert aux chiffres du tableau de bord (CA du mois),
+    // qui ne doivent pas etre limites aux 100 dernieres transactions. Sans lui, comportement inchange.
+    // Attention : avec `depuis`, `solde` ne porte que sur cette periode.
+    const depuis = searchParams.get('depuis');
+    const depuisValide = depuis && /^\d{4}-\d{2}-\d{2}$/.test(depuis) ? depuis : null;
+    let query = sb.from('wallet_transactions').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(depuisValide ? 1000 : 100);
+    if (depuisValide) query = query.gte('created_at', depuisValide);
     if (companyId && UUID_RE.test(companyId)) query = query.eq('company_id', companyId);
     const { data, error } = await query;
 
