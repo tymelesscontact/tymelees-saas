@@ -650,7 +650,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
         <div style={{fontSize:11,color:"#5A5A7A"}}>Gestion complète des ressources humaines · {equipe.length} collaborateur</div>
       </div>
       <div style={{display:"flex",gap:8}}>
-        <button onClick={()=>setShowAdd(s=>!s)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>+ Ajouter</button>
+        <button onClick={()=>setShowAdd(s=>!s)} style={{background:"#C9A84C22",color:"#C9A84C",border:"1px solid #C9A84C88",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit"}}>+ Ajouter</button>
         <button onClick={()=>setShowMsgGroupe(s=>!s)} style={{background:"transparent",color:"#4B7BFF",border:"1px solid #4B7BFF44",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>📢 Message groupe</button>
         <button onClick={()=>showToast("📧 Rapport RH mensuel envoyé !")} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13,fontFamily:"inherit"}}>📊 Rapport RH</button>
       </div>
