@@ -19,6 +19,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
   const[ca7j,setCa7j]=useState([]);
   const[aiMsg,setAiMsg]=useState("");
   const[aiLoading,setAiLoading]=useState(false);
+  const[aiInfo,setAiInfo]=useState("");
   const[alertes,setAlertes]=useState([]);
   const[scoreBusiness,setScoreBusiness]=useState(0);
   const[tendance,setTendance]=useState("stable");
@@ -33,8 +34,10 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
     const load=async()=>{
       try{
         const cid=(!vueGlobale&&activeCompany?.id)?`&company_id=${activeCompany.id}`:"";
+        // Le CA du mois et du mois dernier doit couvrir toutes les transactions de la periode (pas seulement les 100 dernieres).
+        const dm=new Date();const depuis=new Date(dm.getFullYear(),dm.getMonth()-1,1).toISOString().slice(0,10);
         const[wRes,fRes,chRes]=await Promise.all([
-          fetch(`/api/wallet?action=list${cid}`).then(r=>r.json()).catch(()=>({})),
+          fetch(`/api/wallet?action=list&depuis=${depuis}${cid}`).then(r=>r.json()).catch(()=>({})),
           fetch(`/api/factures?action=list${cid}`).then(r=>r.json()).catch(()=>({})),
           fetch(`/api/charges${cid?"?"+cid.slice(1):""}`).then(r=>r.json()).catch(()=>({})),
         ]);
@@ -70,10 +73,14 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
           setLeadsEnAttente((crmRes.leads||[]).filter(l=>l.etape==="Nouveau").length);
         }catch(e){}
         try{
-          const{createClient}=await import('@supabase/supabase-js');
-          const sb=createClient(process.env.NEXT_PUBLIC_SUPABASE_URL,process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
-          const{data:pl}=await sb.from('planning').select('date_mission,heure_debut,client_nom,service,collaborateur').gte('date_mission',now.toISOString().slice(0,10)).order('date_mission',{ascending:true}).limit(1);
-          if(pl&&pl[0])setProchainRdv(pl[0]);
+          // Les vraies missions du Planning sont dans la table `missions`, lue par l'API (filtree par tenant).
+          const auj=now.toISOString().slice(0,10);
+          const mRes=await fetch(`/api/planning-missions?date_debut=${auj}`).then(r=>r.json()).catch(()=>({}));
+          const prochaine=(mRes.missions||[])
+            .filter((m:any)=>!["termine","annule","refusee"].includes(m.statut))
+            .filter((m:any)=>vueGlobale||!activeCompany?.id||m.company_id===activeCompany.id)
+            .sort((a:any,b:any)=>String(a.date_mission).localeCompare(String(b.date_mission))||String(a.heure||"").localeCompare(String(b.heure||"")))[0];
+          setProchainRdv(prochaine?{date_mission:prochaine.date_mission,heure_debut:prochaine.heure,client_nom:prochaine.client_nom,service:prochaine.service,collaborateur:prochaine.collaborateur_nom}:null);
         }catch(e){}
         const derniers7j=[];
         for(let i=6;i>=0;i--){
@@ -93,12 +100,13 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
       setLoading(false);
     };
     load();
-  },[]);
+  },[vueGlobale,activeCompany?.id]);
 
   const genererBrief=async()=>{
-    setAiLoading(true);
+    setAiLoading(true);setAiInfo("");
     try{
       const res=await fetch("/api/brief-ia",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"generer"})});
+      if(res.status===429){setAiInfo("Patientez une minute avant de régénérer.");setAiLoading(false);return;}
       const data=await res.json();
       if(data.texte){setAiMsg(data.texte);setAlertes(data.alertes||[]);}
       else setAiMsg("Analyse indisponible pour le moment.");
@@ -140,6 +148,7 @@ const PageAccueil=({notifs,setNotifs,profil,setPage,activeCompany,vueGlobale})=>
           <div onClick={()=>!aiLoading&&genererBrief()} style={{fontSize:10,color:C.muted,cursor:aiLoading?"default":"pointer",opacity:aiLoading?0.5:1}}>🔄 Régénérer</div>
         </div>
         {aiLoading?<div style={{fontSize:11,color:C.muted}}>⏳ Analyse en cours...</div>:<div style={{fontSize:12,color:C.text,lineHeight:1.7}}>{aiMsg||"—"}</div>}
+        {!aiLoading&&aiInfo&&<div style={{fontSize:10,color:C.muted,marginTop:6}}>{aiInfo}</div>}
         {!aiLoading&&alertes.length>0&&<div style={{display:"flex",flexWrap:"wrap",gap:6,marginTop:10}}>
           {alertes.map((a,i)=><div key={i} onClick={()=>setPage(a.page)} style={{fontSize:10,background:C.card2,border:`1px solid ${C.border}`,borderRadius:20,padding:"4px 10px",cursor:"pointer",display:"flex",alignItems:"center",gap:4}}><span>{a.icone}</span><span>{a.texte}</span></div>)}
         </div>}
