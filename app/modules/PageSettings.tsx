@@ -221,10 +221,12 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
   };
   const[exportEnCours,setExportEnCours]=useState(false);
   const[rgpdHistorique,setRgpdHistorique]=useState([]);
+  const[estProprietaireCompte,setEstProprietaireCompte]=useState(false);
   useEffect(()=>{
     fetch('/api/rgpd?action=historique').then(r=>r.json()).then(d=>{
       setRgpdHistorique(d.historique||[]);
     }).catch(()=>{});
+    fetch('/api/whoami').then(r=>r.json()).then(d=>{ setEstProprietaireCompte(!!d.isOwner||!!d.isProprietaireTenant); }).catch(()=>{});
   },[]);
   const exporterDonnees=async()=>{
     setExportEnCours(true);
@@ -1157,13 +1159,13 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
         <Card>
           <STitle>✅ Droits RGPD</STitle>
           <div style={{display:"flex",flexDirection:"column",gap:8}}>
-            <Btn onClick={exporterDonnees} disabled={exportEnCours} style={{background:C.blue}}>{exportEnCours?"⏳ Export en cours...":"📦 Exporter toutes mes données"}</Btn>
+            {estProprietaireCompte&&<Btn onClick={exporterDonnees} disabled={exportEnCours} style={{background:C.blue}}>{exportEnCours?"⏳ Export en cours...":"📦 Exporter toutes mes données"}</Btn>}
             <BtnGhost onClick={()=>{setOnglet("profil");showToast("✏️ Corrigez vos informations directement ici");}}>✏️ Corriger mes informations</BtnGhost>
             <BtnGhost onClick={()=>window.location.href="mailto:xyra.solution@gmail.com?subject=Demande RGPD"} style={{color:C.orange,borderColor:`${C.orange}44`}}>📧 Autre demande (réponse sous 1 mois)</BtnGhost>
-            <div style={{background:`${C.red}11`,border:`1px solid ${C.red}33`,borderRadius:8,padding:10}}>
+            {estProprietaireCompte?<div style={{background:`${C.red}11`,border:`1px solid ${C.red}33`,borderRadius:8,padding:10}}>
               <div style={{fontSize:10,color:C.red,fontWeight:600,marginBottom:4}}>⚠️ Zone dangereuse</div>
               <BtnGhost onClick={()=>setModaleSuppressionOuverte(true)} style={{width:"100%",color:C.red,borderColor:`${C.red}44`,fontSize:11}}>🗑 Supprimer mon compte</BtnGhost>
-            </div>
+            </div>:<div style={{fontSize:11,color:C.muted,lineHeight:1.5}}>🔒 L'export complet des données et la suppression du compte sont réservés au propriétaire du compte.</div>}
           </div>
         </Card>
       </div>
