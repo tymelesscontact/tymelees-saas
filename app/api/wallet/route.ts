@@ -17,7 +17,7 @@ async function calculerSolde(sbClient: any, tenantId: string, companyId: string 
   const TAILLE = 1000;
   let solde = 0;
   for (let page = 0; page < 200; page++) {
-    let q = sbClient.from('wallet_transactions').select('type,montant')
+    let q = sbClient.from('wallet_transactions').select('type,montant,commission')
       .eq('tenant_id', tenantId).in('statut', ['confirmé', 'viré'])
       .order('created_at', { ascending: true }).order('id', { ascending: true })
       .range(page * TAILLE, page * TAILLE + TAILLE - 1);
@@ -243,6 +243,19 @@ export async function POST(req: NextRequest) {
       if (!UUID_RE.test(String(company_id))) return NextResponse.json({ error: 'Societe invalide' }, { status: 400 });
       const { data: societe } = await sb.from('companies').select('id').eq('id', company_id).eq('tenant_id', tenantIdPost).maybeSingle();
       if (!societe) return NextResponse.json({ error: 'Societe invalide' }, { status: 400 });
+    }
+
+    // Garde-fou : un paiement sortant ne peut jamais depasser le solde reellement disponible
+    // (qui exclut deja la commission Xyra). Sans ce controle, rien n'empechait de virer par erreur
+    // une somme qui incluait la part de Xyra.
+    let soldeDisponible: number;
+    try {
+      soldeDisponible = await calculerSolde(sb, tenantIdPost, company_id && UUID_RE.test(String(company_id)) ? company_id : null);
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 500 });
+    }
+    if (montant > soldeDisponible) {
+      return NextResponse.json({ error: `Solde insuffisant : ${soldeDisponible.toFixed(2)} disponible(s), commission Xyra deja exclue` }, { status: 400 });
     }
 
     const { data: row, error } = await sb
