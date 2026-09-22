@@ -11,14 +11,17 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 
 // Regles de validation (devises, types de paiement sortant, montant, email, telephone) : voir walletValidation.ts.
 
-// Solde reel : somme de TOUTES les transactions confirmees ou virees (par pages de 1000),
-// et non des 100 dernieres affichees dans la liste.
+// Solde reel : somme de TOUTES les transactions (par pages de 1000), pas seulement des 100 dernieres
+// affichees dans la liste. Un encaissement ne compte qu'une fois confirme par Stripe ; un paiement
+// sortant compte des sa creation ("a_virer"), pas seulement une fois "Marque vire" -- creer un paiement
+// reserve deja la somme, pour qu'un second paiement ne puisse pas venir la redemander en double avant
+// que le premier soit reellement execute a la banque.
 async function calculerSolde(sbClient: any, tenantId: string, companyId: string | null): Promise<number> {
   const TAILLE = 1000;
   let solde = 0;
   for (let page = 0; page < 200; page++) {
     let q = sbClient.from('wallet_transactions').select('type,montant,commission')
-      .eq('tenant_id', tenantId).in('statut', ['confirmé', 'viré'])
+      .eq('tenant_id', tenantId).in('statut', ['confirmé', 'viré', 'à_virer'])
       .order('created_at', { ascending: true }).order('id', { ascending: true })
       .range(page * TAILLE, page * TAILLE + TAILLE - 1);
     if (companyId) q = q.eq('company_id', companyId);
