@@ -81,10 +81,17 @@ const PagePartenaires=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,
     const aPayer=parts.filter(p=>p.dues>0);
     if(aPayer.length===0)return showToast("✅ Aucune commission due");
     showToast(`⏳ Enregistrement de ${aPayer.length} virement(s)...`);
+    let ok=0;let premiereErreur="";
     for(const p of aPayer){
-      try{await fetch('/api/partenaires',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'payer_commission',id:p.id})});}catch(e){}
+      try{
+        const res=await fetch('/api/partenaires',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'payer_commission',id:p.id})});
+        const data=await res.json();
+        if(data.success)ok++;else if(!premiereErreur)premiereErreur=data.error||"Erreur";
+      }catch(e){if(!premiereErreur)premiereErreur="Erreur de connexion";}
     }
-    showToast(`✅ Commissions enregistrées à virer — voir le Wallet`);
+    if(ok===aPayer.length)showToast(`✅ ${ok} commission(s) enregistrée(s) à virer — voir le Wallet`);
+    else if(ok===0)showToast(`❌ Aucun virement enregistré — ${premiereErreur}`);
+    else showToast(`⚠️ ${ok}/${aPayer.length} enregistré(s) — le reste a échoué : ${premiereErreur}`);
     loadAll();
   };
 

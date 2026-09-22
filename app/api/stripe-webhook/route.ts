@@ -82,6 +82,32 @@ export async function POST(req: NextRequest) {
           .eq('id', session.metadata.facture_id)
           .select()
           .single();
+
+        // Rend l'encaissement visible dans le Wallet/Tresorerie -- avant ce correctif, payer une
+        // facture ne faisait que changer son statut, sans jamais apparaitre comme une vraie entree
+        // d'argent. Pas de commission Xyra ici : contrairement au Wallet ("Encaisser"), une facture
+        // n'est pas un encaissement pour compte de tiers, c'est le propre CA du tenant.
+        if (facture?.tenant_id) {
+          try {
+            const { data: dejaEnregistre } = await sb.from('wallet_transactions')
+              .select('id').eq('stripe_session_id', session.id).maybeSingle();
+            if (!dejaEnregistre) {
+              await sb.from('wallet_transactions').insert({
+                type: 'entree',
+                libelle: `Facture ${facture.numero || ''}${facture.client_nom ? ' — ' + facture.client_nom : ''}`.trim(),
+                montant: facture.montant_ttc,
+                devise: 'EUR',
+                methode: 'stripe',
+                statut: 'confirmé',
+                ref: facture.numero || session.id,
+                tenant_id: facture.tenant_id,
+                company_id: facture.company_id || null,
+                stripe_session_id: session.id,
+              });
+            }
+          } catch (e) { console.error('Wallet (facture payee) error:', e); }
+        }
+
         try {
           const { Resend } = await import('resend');
           const resend = new Resend(process.env.RESEND_API_KEY);
@@ -108,9 +134,46 @@ export async function POST(req: NextRequest) {
       }
 
       if (session.metadata?.type === 'club_deal') {
-        await sb.from('club_deals')
+        const { data: deal } = await sb.from('club_deals')
           .update({ statut: 'paye', paye_le: new Date().toISOString(), reference_paiement: session.id })
-          .eq('id', session.metadata.deal_id);
+          .eq('id', session.metadata.deal_id)
+          .select()
+          .single();
+
+        // Visibilite dans le Wallet, en plus (pas a la place) du paiement direct Stripe Connect deja
+        // recu par le prestataire (voir app/api/club-deals/route.ts, action "payer") : l'argent est
+        // deja chez lui, statut "confirme" -- rien a virer manuellement. Uniquement si son compte Club
+        // est relie a un compte Xyra (best-effort, jamais bloquant pour le paiement lui-meme).
+        if (deal?.membre_prestataire) {
+          try {
+            const { data: prest } = await sb.from('club_membres').select('id,tenant_id,user_id').eq('id', deal.membre_prestataire).maybeSingle();
+            let tenantId = prest?.tenant_id || null;
+            if (!tenantId && prest?.user_id) {
+              const { data: tm } = await sb.from('tenant_membres').select('tenant_id').eq('user_id', prest.user_id).limit(1).maybeSingle();
+              if (tm?.tenant_id) {
+                tenantId = tm.tenant_id;
+                await sb.from('club_membres').update({ tenant_id: tenantId }).eq('id', prest.id);
+              }
+            }
+            if (tenantId) {
+              const { data: dejaEnregistre } = await sb.from('wallet_transactions')
+                .select('id').eq('stripe_session_id', session.id).maybeSingle();
+              if (!dejaEnregistre) {
+                await sb.from('wallet_transactions').insert({
+                  type: 'entree',
+                  libelle: `Club Deal ${deal.reference || ''} — ${deal.titre || ''}`.trim(),
+                  montant: Number(deal.montant) - Number(deal.commission_xyra_montant || 0),
+                  devise: (deal.devise || 'EUR').toUpperCase(),
+                  methode: 'stripe',
+                  statut: 'confirmé',
+                  ref: deal.reference || session.id,
+                  tenant_id: tenantId,
+                  stripe_session_id: session.id,
+                });
+              }
+            }
+          } catch (e) { console.error('Wallet (club deal paye) error:', e); }
+        }
         return NextResponse.json({ received: true });
       }
       if (session.metadata?.type === 'club_adhesion') {

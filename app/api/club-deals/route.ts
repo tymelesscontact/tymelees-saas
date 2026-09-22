@@ -166,8 +166,21 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Le deal doit etre accepte avant paiement' }, { status: 400 });
     }
 
+    // Le prestataire doit avoir son propre compte de paiement Stripe connecte et valide : l'argent
+    // du client lui est envoye directement (transfer_data.destination), Xyra ne recoit que sa
+    // commission (application_fee_amount) -- jamais la somme totale. Voir app/api/club-connect/route.ts.
+    const { data: prestataire } = await sb.from('club_membres').select('stripe_account_id').eq('id', deal.membre_prestataire).maybeSingle();
+    if (!prestataire?.stripe_account_id) {
+      return NextResponse.json({ error: "Le prestataire n'a pas encore configure son compte de paiement" }, { status: 400 });
+    }
+
     const { default: Stripe } = await import('stripe');
     const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-05-27.dahlia' });
+
+    const compte = await stripe.accounts.retrieve(prestataire.stripe_account_id);
+    if (!compte.charges_enabled) {
+      return NextResponse.json({ error: "Le compte de paiement du prestataire n'est pas encore valide par Stripe" }, { status: 400 });
+    }
 
     const session = await stripe.checkout.sessions.create({
       mode: 'payment',
@@ -180,6 +193,10 @@ export async function POST(req: NextRequest) {
         },
         quantity: 1,
       }],
+      payment_intent_data: {
+        application_fee_amount: Math.round(Number(deal.commission_xyra_montant) * 100),
+        transfer_data: { destination: prestataire.stripe_account_id },
+      },
       metadata: { type: 'club_deal', deal_id: String(deal.id) },
       success_url: 'https://xyraio.fr/club/espace?deal=paye',
       cancel_url: 'https://xyraio.fr/club/espace',

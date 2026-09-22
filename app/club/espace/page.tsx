@@ -828,6 +828,26 @@ export default function EspaceMembre() {
 
         {onglet === "deals" && (
           <div>
+            {moi && moi.stripe_statut !== "actif" && (
+              <Carte style={{ marginBottom: 20, border: `0.5px solid ${OR}66` }}>
+                <div style={{ fontSize: 11, color: OR, letterSpacing: "0.1em", marginBottom: 6 }}>COMPTE DE PAIEMENT</div>
+                <div style={{ fontSize: 12, color: GRIS_CLAIR, marginBottom: 14, lineHeight: 1.6 }}>
+                  {moi.stripe_statut === "en_attente"
+                    ? "Votre compte de paiement est en cours de validation par Stripe."
+                    : "Pour recevoir l'argent d'un Deal directement (sans passer par Xyra), configurez votre compte de paiement Stripe."}
+                </div>
+                <button
+                  onClick={async () => {
+                    const r = await fetch("/api/club-connect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "connecter" }) });
+                    const d = await r.json();
+                    if (d.url) window.location.href = d.url;
+                  }}
+                  style={{ background: OR, color: NOIR, border: "none", padding: "9px 18px", fontSize: 12, cursor: "pointer", fontFamily: "inherit" }}
+                >
+                  {moi.stripe_statut === "en_attente" ? "Reprendre la configuration" : "Connecter mon compte de paiement"}
+                </button>
+              </Carte>
+            )}
             <Carte style={{ marginBottom: 20 }}>
               <div style={{ fontSize: 11, color: "#b9a3f5", letterSpacing: "0.1em", marginBottom: 6 }}>PROPOSER UN DEAL</div>
               <div style={{ fontSize: 11, color: "#7a72a0", marginBottom: 16, lineHeight: 1.6 }}>
@@ -848,6 +868,7 @@ export default function EspaceMembre() {
                   const r = await fetch("/api/club-deals", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: act, deal_id: d.id }) });
                   const dd = await r.json();
                   if (dd.url) { window.location.href = dd.url; return; }
+                  if (!dd.success) { alert(dd.error || "Une erreur est survenue"); return; }
                   charger();
                 };
                 return (
