@@ -4,6 +4,8 @@ import { createClient } from '@supabase/supabase-js';
 import PDFDocument from 'pdfkit';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 import { urlRetourInvitation } from '../../lib/invitation';
+import { estAutoriseGererEquipe } from '../../lib/permissions';
+import { calculerSolde } from '../../lib/walletSolde';
 const UUID_RE =/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Client normal (lectures/écritures courantes)
@@ -101,7 +103,10 @@ export async function GET(req: NextRequest) {
     const pLeads = (leads || []).filter((l: any) => l.partenaire_id === p.id || (p.user_id && l.partenaire_id === p.user_id));
     const pDocs = (docs || []).filter((d: any) => d.partenaire_id === p.id);
     const pMsgs = (msgs || []).filter((m: any) => m.partenaire_id === p.id);
-    const pTx = (commTx || []).filter((t: any) => t.destinataire_nom === p.nom);
+    // Rattachement par ID reel (partenaire_id), pas par nom : un nom corrige plus tard (faute de
+    // frappe, changement de raison sociale) ne doit jamais faire perdre le lien avec ce qui a deja
+    // ete paye. Repli sur le nom uniquement pour d'anciennes lignes jamais rattachees (avant migration).
+    const pTx = (commTx || []).filter((t: any) => t.partenaire_id ? t.partenaire_id === p.id : t.destinataire_nom === p.nom);
 
     const leadsMapped = pLeads.map((l: any) => ({
       id: l.id, nom: l.nom, statut: l.statut, ca: Number(l.ca_estime || 0),
@@ -206,7 +211,9 @@ export async function POST(req: NextRequest) {
     const caNum = Number(ca) || 0;
     const commission = Math.round(caNum * (Number(p?.commission) || 0) / 100);
     const { data, error } = await sb.from('leads_partenaires').insert({
-      partenaire_id, nom_partenaire: p?.nom || '', nom, statut: statut || 'en cours', ca_estime: caNum, commission,
+      // nom_entreprise : colonne obligatoire (heritee d'un ancien schema), jamais remplie ici avant ce
+      // correctif -- chaque tentative d'ajout de lead echouait silencieusement (500) depuis toujours.
+      partenaire_id, nom_partenaire: p?.nom || '', nom, nom_entreprise: nom, statut: statut || 'en cours', ca_estime: caNum, commission,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, lead: data });
@@ -234,13 +241,22 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'payer_commission') {
+    // Comme app/api/wallet/route.ts (action "payer") : payer une commission cree une vraie sortie
+    // d'argent qui reduit tout de suite le solde affiche -- reserve au proprietaire/Admin, jamais a
+    // n'importe quel salarie ayant simplement acces a l'ecran Partenaires.
+    if (!(await estAutoriseGererEquipe(req, tenantId))) {
+      return NextResponse.json({ error: 'Reserve au proprietaire ou a un Admin' }, { status: 403 });
+    }
+
     const { id } = body;
     const { data: p, error: errP } = await sb.from('partenaires').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
     if (errP || !p) return NextResponse.json({ error: 'Partenaire introuvable' }, { status: 404 });
 
     const { data: leads } = await sb.from('leads_partenaires').select('*');
     const pLeads = (leads || []).filter((l: any) => l.partenaire_id === p.id || (p.user_id && l.partenaire_id === p.user_id));
-    const { data: commTx } = await sb.from('wallet_transactions').select('*').eq('type', 'commission').eq('destinataire_nom', p.nom).eq('tenant_id', tenantId);
+    // Rattachement par ID reel : voir le meme choix dans le GET ci-dessus.
+    const { data: commTx } = await sb.from('wallet_transactions').select('*').eq('type', 'commission').eq('tenant_id', tenantId)
+      .or(`partenaire_id.eq.${p.id},and(partenaire_id.is.null,destinataire_nom.eq.${p.nom})`);
 
     const ca = pLeads.filter((l: any) => l.statut === 'gagné').reduce((a: number, l: any) => a + Number(l.ca_estime || 0), 0);
     const commissionTheorique = Math.round(ca * (Number(p.commission) || 0) / 100);
@@ -248,6 +264,12 @@ export async function POST(req: NextRequest) {
     const dues = Math.max(0, commissionTheorique - commissionEnregistree);
 
     if (dues <= 0) return NextResponse.json({ error: 'Aucune commission due pour ce partenaire' }, { status: 400 });
+
+    // Meme garde-fou que le Wallet : jamais payer plus que ce qui est reellement disponible.
+    const soldeDisponible = await calculerSolde(sb, tenantId, null);
+    if (dues > soldeDisponible) {
+      return NextResponse.json({ error: `Solde insuffisant : ${soldeDisponible.toFixed(2)} disponible(s) pour ${dues.toFixed(2)} de commission due` }, { status: 400 });
+    }
 
     const { data: tx, error: errTx } = await sb.from('wallet_transactions').insert({
       type: 'commission',
@@ -262,6 +284,7 @@ export async function POST(req: NextRequest) {
       destinataire_email: p.email || null,
       destinataire_tel: p.tel || null,
       tenant_id: tenantId,
+      partenaire_id: p.id,
     }).select().single();
 
     if (errTx) return NextResponse.json({ error: errTx.message }, { status: 500 });
