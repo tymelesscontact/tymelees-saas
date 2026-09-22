@@ -211,7 +211,9 @@ export async function POST(req: NextRequest) {
     const caNum = Number(ca) || 0;
     const commission = Math.round(caNum * (Number(p?.commission) || 0) / 100);
     const { data, error } = await sb.from('leads_partenaires').insert({
-      partenaire_id, nom_partenaire: p?.nom || '', nom, statut: statut || 'en cours', ca_estime: caNum, commission,
+      // nom_entreprise : colonne obligatoire (heritee d'un ancien schema), jamais remplie ici avant ce
+      // correctif -- chaque tentative d'ajout de lead echouait silencieusement (500) depuis toujours.
+      partenaire_id, nom_partenaire: p?.nom || '', nom, nom_entreprise: nom, statut: statut || 'en cours', ca_estime: caNum, commission,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, lead: data });
