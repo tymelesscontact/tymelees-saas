@@ -253,7 +253,8 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
           <div style={{fontSize:44,fontWeight:700,color:C.text,fontFamily:"Georgia,serif"}}>{fmt(soldeConv,devise)}</div>
           <Sel value={devise} onChange={e=>setDevise(e.target.value)} style={{marginBottom:6}}>{DEVISES.map(d=><option key={d.code} value={d.code}>{d.flag} {d.code}</option>)}</Sel>
         </div>
-        {devise!=="EUR"&&<div style={{fontSize:11,color:C.muted,marginBottom:12}}>{fmt(solde,"EUR")} · Taux de référence</div>}
+        {devise!=="EUR"&&<div style={{fontSize:11,color:C.muted,marginBottom:4}}>{fmt(solde,"EUR")} · Taux de référence</div>}
+        <div style={{fontSize:11,color:C.muted,marginBottom:12}}>Solde net — la commission Xyra (5% sur vos encaissements) est déjà retirée et n'est jamais disponible pour un virement.</div>
         <div style={{display:"flex",gap:20,flexWrap:"wrap",marginBottom:16}}>
           <div style={{borderLeft:`2px solid ${C.green}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Encaissé ce mois</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>{fmt(conv(histo.filter(h=>h.type==="entree"&&h.statut==="confirmé"&&new Date(h.rawDate).getMonth()===new Date().getMonth()&&new Date(h.rawDate).getFullYear()===new Date().getFullYear()).reduce((a,h)=>a+h.montant,0),"EUR",devise),devise)}</div></div>
           <div style={{borderLeft:`2px solid ${C.red}`,paddingLeft:12}}><div style={{fontSize:9,color:C.muted}}>Décaissé ce mois</div><div style={{fontSize:18,fontWeight:700,color:C.red}}>{fmt(conv(histo.filter(h=>h.type!=="entree"&&h.statut==="viré"&&new Date(h.rawDate).getMonth()===new Date().getMonth()&&new Date(h.rawDate).getFullYear()===new Date().getFullYear()).reduce((a,h)=>a+h.montant,0),"EUR",devise),devise)}</div></div>
@@ -375,7 +376,7 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
       <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
         <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Total encaissé</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>{fmt(histo.filter(h=>h.type==="entree"&&h.statut==="confirmé").reduce((a,h)=>a+h.montant,0))}</div></CT>
         <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Total décaissé</div><div style={{fontSize:18,fontWeight:700,color:C.red}}>{fmt(histo.filter(h=>h.type!=="entree"&&h.statut==="viré").reduce((a,h)=>a+h.montant,0))}</div></CT>
-        <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Commissions perçues (5%)</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(histo.filter(h=>h.type==="entree"&&h.statut==="confirmé").reduce((a,h)=>a+h.com,0))}</div></CT>
+        <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Commission Xyra retenue (5%)</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(histo.filter(h=>h.type==="entree"&&h.statut==="confirmé").reduce((a,h)=>a+h.com,0))}</div></CT>
         <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Transactions</div><div style={{fontSize:18,fontWeight:700,color:C.blue}}>{histo.length}</div></CT>
       </div>
     </Card>}
