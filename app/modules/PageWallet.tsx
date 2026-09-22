@@ -179,7 +179,8 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
         if(data.paymentUrl){
           showToast("✅ Lien de paiement créé et envoyé !");
         }else{
-          showToast("✅ Encaissement enregistré (lien Stripe indisponible)");
+          // La vraie raison de l'echec Stripe est maintenant renvoyee (avant : toujours le meme message vague).
+          showToast("⚠️ Encaissement enregistré, mais lien Stripe impossible : "+(data.erreurStripe||"raison inconnue"));
         }
         loadWallet();
       }else{showToast("❌ "+(data.error||"Erreur"));}

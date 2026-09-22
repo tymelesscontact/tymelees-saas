@@ -151,10 +151,12 @@ export async function POST(req: NextRequest) {
     if (insertErr) return NextResponse.json({ error: insertErr.message }, { status: 500 });
 
     let paymentUrl: string | null = null;
+    let erreurStripe: string | null = null;
 
     try {
+      if (!process.env.STRIPE_SECRET_KEY) throw new Error('STRIPE_SECRET_KEY absente de cet environnement');
       const { default: Stripe } = await import('stripe');
-      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, { apiVersion: '2026-05-27.dahlia' });
+      const stripe = new Stripe(process.env.STRIPE_SECRET_KEY, { apiVersion: '2026-05-27.dahlia' });
 
       const session = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
@@ -181,7 +183,19 @@ export async function POST(req: NextRequest) {
         stripe_payment_url: session.url,
       }).eq('id', row.id);
     } catch (e: any) {
-      console.error('Stripe error:', e);
+      // Avant, cette erreur etait avalee : l'ecran affichait toujours "lien Stripe indisponible"
+      // sans jamais dire pourquoi (cle absente, cle invalide, devise refusee...).
+      erreurStripe = `${e?.type || e?.name || 'Erreur'} : ${e?.message || 'raison inconnue'}`;
+      console.error('Stripe error:', erreurStripe);
+      try {
+        const message = `Creation du lien de paiement impossible : ${erreurStripe}`.slice(0, 500);
+        const { data: deja } = await sb.from('erreurs_systeme').select('id')
+          .eq('route', '/api/wallet').eq('resolu', false).eq('message', message).limit(1);
+        if (!deja || deja.length === 0) {
+          const { data: tenant } = await sb.from('tenants').select('email').eq('id', tenantIdPost).maybeSingle();
+          await sb.from('erreurs_systeme').insert({ route: '/api/wallet', message, tenant_email: tenant?.email || null, gravite: 'erreur' });
+        }
+      } catch (e2: any) { console.error('wallet : impossible de signaler la panne Stripe', e2?.message); }
     }
 
     // Envoi du lien au client
@@ -203,7 +217,7 @@ export async function POST(req: NextRequest) {
       } catch (e) { console.error('WhatsApp error:', e); }
     }
 
-    return NextResponse.json({ success: true, transaction: row, paymentUrl });
+    return NextResponse.json({ success: true, transaction: row, paymentUrl, erreurStripe });
   }
 
   // ── PAYER : enregistre un virement à exécuter manuellement ──
