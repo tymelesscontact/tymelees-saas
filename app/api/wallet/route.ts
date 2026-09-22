@@ -5,33 +5,13 @@ import { envoyerWhatsApp } from '../../lib/whatsapp';
 import { estAutoriseGererEquipe } from '../../lib/permissions';
 import {
   DEVISES_AUTORISEES, TYPES_SORTIE_AUTORISES, MAX_ENCAISSEMENTS_PAR_HEURE, EMAIL_RE, TEL_RE,
-  echapHtml, montantValide, sommeSolde, bicValide,
+  echapHtml, montantValide, bicValide,
 } from '../../lib/walletValidation';
+import { calculerSolde } from '../../lib/walletSolde';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Regles de validation (devises, types de paiement sortant, montant, email, telephone) : voir walletValidation.ts.
-
-// Solde reel : somme de TOUTES les transactions (par pages de 1000), pas seulement des 100 dernieres
-// affichees dans la liste. Un encaissement ne compte qu'une fois confirme par Stripe ; un paiement
-// sortant compte des sa creation ("a_virer"), pas seulement une fois "Marque vire" -- creer un paiement
-// reserve deja la somme, pour qu'un second paiement ne puisse pas venir la redemander en double avant
-// que le premier soit reellement execute a la banque.
-async function calculerSolde(sbClient: any, tenantId: string, companyId: string | null): Promise<number> {
-  const TAILLE = 1000;
-  let solde = 0;
-  for (let page = 0; page < 200; page++) {
-    let q = sbClient.from('wallet_transactions').select('type,montant,commission')
-      .eq('tenant_id', tenantId).in('statut', ['confirmé', 'viré', 'à_virer'])
-      .order('created_at', { ascending: true }).order('id', { ascending: true })
-      .range(page * TAILLE, page * TAILLE + TAILLE - 1);
-    if (companyId) q = q.eq('company_id', companyId);
-    const { data, error } = await q;
-    if (error) throw new Error(error.message);
-    solde += sommeSolde(data || []);
-    if (!data || data.length < TAILLE) break;
-  }
-  return solde;
-}
+// Calcul du solde reel (calculerSolde) : voir walletSolde.ts -- partage avec app/api/partenaires/route.ts.
 
 // Service role : le tenant_id est deja verifie et impose dans chaque requete
 // (.eq('tenant_id', tenantId)) -- la clé anonyme ne marchait pas ici car ce

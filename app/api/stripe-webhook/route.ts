@@ -82,6 +82,32 @@ export async function POST(req: NextRequest) {
           .eq('id', session.metadata.facture_id)
           .select()
           .single();
+
+        // Rend l'encaissement visible dans le Wallet/Tresorerie -- avant ce correctif, payer une
+        // facture ne faisait que changer son statut, sans jamais apparaitre comme une vraie entree
+        // d'argent. Pas de commission Xyra ici : contrairement au Wallet ("Encaisser"), une facture
+        // n'est pas un encaissement pour compte de tiers, c'est le propre CA du tenant.
+        if (facture?.tenant_id) {
+          try {
+            const { data: dejaEnregistre } = await sb.from('wallet_transactions')
+              .select('id').eq('stripe_session_id', session.id).maybeSingle();
+            if (!dejaEnregistre) {
+              await sb.from('wallet_transactions').insert({
+                type: 'entree',
+                libelle: `Facture ${facture.numero || ''}${facture.client_nom ? ' — ' + facture.client_nom : ''}`.trim(),
+                montant: facture.montant_ttc,
+                devise: 'EUR',
+                methode: 'stripe',
+                statut: 'confirmé',
+                ref: facture.numero || session.id,
+                tenant_id: facture.tenant_id,
+                company_id: facture.company_id || null,
+                stripe_session_id: session.id,
+              });
+            }
+          } catch (e) { console.error('Wallet (facture payee) error:', e); }
+        }
+
         try {
           const { Resend } = await import('resend');
           const resend = new Resend(process.env.RESEND_API_KEY);
