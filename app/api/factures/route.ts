@@ -194,7 +194,9 @@ export async function POST(req: NextRequest) {
         line_items: [{
           price_data: {
             currency: 'eur',
-            product_data: { name: `Facture ${facture.numero}`, description: facture.description || '' },
+            // Stripe refuse une chaine vide pour "description" (meme bug corrige dans le Wallet) : une
+            // facture sans description faisait toujours echouer la creation du lien de paiement.
+            product_data: facture.description ? { name: `Facture ${facture.numero}`, description: facture.description } : { name: `Facture ${facture.numero}` },
             unit_amount: Math.round(Number(facture.montant_ttc) * 100),
           },
           quantity: 1,

@@ -166,7 +166,10 @@ export async function POST(req: NextRequest) {
         line_items: [{
           price_data: {
             currency: (devise || 'EUR').toLowerCase(),
-            product_data: { name: `Paiement ${nom}`, description: ref || '' },
+            // Stripe refuse une chaine vide pour "description" (distincte de l'absence du champ) : la
+            // "Reference devis" etant facultative a l'ecran, ce cas etait systematique quand elle n'etait
+            // pas remplie -- l'encaissement echouait toujours dans ce cas, sans que l'ecran le dise avant.
+            product_data: ref ? { name: `Paiement ${nom}`, description: ref } : { name: `Paiement ${nom}` },
             unit_amount: Math.round(montant * 100),
           },
           quantity: 1,
