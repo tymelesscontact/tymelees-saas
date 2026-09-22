@@ -5,7 +5,7 @@ import { C, fmt, Card, CT, Btn, BtnGhost, TH, Td, KPI, STitle, Pill, Inp, Sel, S
 const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseur,IbanMondial})=>{
   const[onglet,setOnglet]=useState("solde");
   const[devise,setDevise]=useState("EUR");
-  const[histo,setHisto]=useState([]);
+  const[histo,setHisto]=useState<any[]>([]);
   const[showPay,setShowPay]=useState(false);
   const[showEnc,setShowEnc]=useState(false);
   const[payForm,setPayForm]=useState({nom:"",montant:"",devise:"EUR",methode:"carte",ref:""});
@@ -40,7 +40,7 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
     {id:"fournisseur",label:"🏭 Facture fournisseur",color:C.purple,desc:"Payer un fournisseur"},
     {id:"sortie",label:"🏦 Virement libre",color:C.blue,desc:"Virement à un membre de l'équipe"},
   ];
-  const[equipeContacts,setEquipeContacts]=useState([]);
+  const[equipeContacts,setEquipeContacts]=useState<any[]>([]);
   const EQUIPE_CONTACTS=equipeContacts;
 
   const loadEquipe=async()=>{
@@ -85,7 +85,8 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
     }catch(e){showToast("❌ Erreur de connexion");}
   };
   const[alerteSeuil,setAlerteSeuil]=useState(500);
-  const[walletProjet,setWalletProjet]=useState([{nom:"Projet Expansion",solde:4200,cible:10000,couleur:C.green},{nom:"Fonds de réserve",solde:8000,cible:8000,couleur:C.blue},{nom:"Investissement Q2",solde:1200,cible:5000,couleur:C.purple}]);
+  // Aucun wallet projet n'est encore enregistre en base : la liste commence vide (plus de projets fictifs).
+  const[walletProjet,setWalletProjet]=useState<any[]>([]);
   const solde=soldeReel;
   const soldeConv=conv(solde,"EUR",devise);
   const dvSel=DEVISES.find(d=>d.code===devise);
@@ -167,8 +168,12 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
 
   const marquerVire=async(id)=>{
     try{
-      await fetch('/api/wallet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'marquer_vire',id})});
-      showToast("✅ Marqué comme viré");
+      const res=await fetch('/api/wallet',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'marquer_vire',id})});
+      const data=await res.json();
+      // On n'affiche "marque comme vire" que si le serveur l'a vraiment fait (il refuse aux non-proprietaires et aux lignes deja traitees).
+      if(data.success){showToast("✅ Marqué comme viré");}
+      else if(res.status===403){showToast("❌ Réservé au propriétaire du compte ou à un administrateur");}
+      else{showToast("❌ "+(data.error||"Erreur"));}
       loadWallet();
     }catch(e){showToast("❌ Erreur");}
   };
@@ -247,7 +252,8 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
         <KPI label="Remboursements" val={fmt(histo.filter(h=>h.type==="remboursement"&&h.statut==="à_virer").reduce((a,h)=>a+h.montant,0))} color={C.red}/>
         <KPI label="Fournisseurs" val={fmt(histo.filter(h=>h.type==="fournisseur"&&h.statut==="à_virer").reduce((a,h)=>a+h.montant,0))} color={C.purple}/>
       </div>
-      <div style={{background:solde<alerteSeuil?`${C.red}11`:`${C.green}08`,border:`1px solid ${solde<alerteSeuil?C.red:C.green}33`,borderRadius:10,padding:12,fontSize:12,color:solde<alerteSeuil?C.red:C.green}}>{solde<alerteSeuil?`⚠️ Alerte : solde < seuil (${fmt(alerteSeuil)})`:`✅ Solde en bonne santé (seuil: ${fmt(alerteSeuil)})`}</div>
+      {/* Pas d'alerte tant qu'il n'y a aucune transaction : un nouveau client ne doit pas voir une fausse alarme. */}
+      {histo.length>0&&<div style={{background:solde<alerteSeuil?`${C.red}11`:`${C.green}08`,border:`1px solid ${solde<alerteSeuil?C.red:C.green}33`,borderRadius:10,padding:12,fontSize:12,color:solde<alerteSeuil?C.red:C.green}}>{solde<alerteSeuil?`⚠️ Alerte : solde < seuil (${fmt(alerteSeuil)})`:`✅ Solde en bonne santé (seuil: ${fmt(alerteSeuil)})`}</div>}
     </>}
     {onglet==="historique"&&<Card><STitle>📋 Historique des transactions</STitle>
       {loadingWallet&&<div style={{fontSize:11,color:C.muted,marginBottom:8}}>Chargement...</div>}
@@ -331,27 +337,24 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
         <div style={{fontSize:20,fontWeight:700,color:w.couleur,marginBottom:6}}>{fmt(w.solde)}<span style={{fontSize:11,color:C.muted}}> / {fmt(w.cible)}</span></div>
         <SM val={w.solde} max={w.cible} color={w.couleur}/>
       </div>)}
+      {walletProjet.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:"24px 0"}}>Aucun wallet projet pour l'instant.</div>}
     </Card>}
     {onglet==="sante"&&<Card><STitle>❤ Score Santé Financière</STitle>
-      <div style={{textAlign:"center",padding:"20px 0"}}><div style={{fontSize:64,fontWeight:700,color:C.gold,fontFamily:"Georgia,serif"}}>76</div><div style={{fontSize:14,color:C.muted}}>/ 100 — Bonne santé</div></div>
-      <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        <CT style={{textAlign:"center"}}><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Liquidité</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>85</div><SM val={85} max={100} color={C.green}/></CT>
-        <CT style={{textAlign:"center"}}><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Rentabilité</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>72</div><SM val={72} max={100} color={C.gold}/></CT>
-        <CT style={{textAlign:"center"}}><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Endettement</div><div style={{fontSize:18,fontWeight:700,color:C.blue}}>68</div><SM val={68} max={100} color={C.blue}/></CT>
-      </div>
+      {/* Les scores 76 / 85 / 72 / 68 etaient ecrits en dur, sans aucun calcul : ils sont retires tant qu'aucune formule reelle n'existe. */}
+      <div style={{textAlign:"center",padding:"30px 0"}}><div style={{fontSize:14,color:C.muted}}>Le score de santé financière n'est pas encore disponible.</div></div>
     </Card>}
     {onglet==="alertes"&&<Card><STitle>🔔 Configuration Alertes</STitle>
       <div style={{display:"flex",alignItems:"center",gap:12,padding:"12px 0",borderBottom:`1px solid ${C.border}`}}>
-        <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>Seuil d'alerte solde bas</div><div style={{fontSize:10,color:C.muted}}>Notification quand solde {'<'} seuil</div></div>
+        <div style={{flex:1}}><div style={{fontSize:12,fontWeight:600}}>Seuil d'alerte solde bas</div><div style={{fontSize:10,color:C.muted}}>Affiche un avertissement dans l'onglet Solde quand le solde passe sous le seuil. Ce seuil n'est pas enregistré : il revient à 500 € au rechargement de la page, et aucune notification n'est envoyée.</div></div>
         <Inp value={alerteSeuil} onChange={e=>setAlerteSeuil(Number(e.target.value))} style={{width:120}}/>
       </div>
       <div style={{marginTop:12,fontSize:11,color:C.muted}}>Seuil actuel : {fmt(alerteSeuil)} · Solde actuel : {fmt(solde)} · Statut : {solde>=alerteSeuil?"✅ OK":"⚠️ Alerte active"}</div>
     </Card>}
     {onglet==="stats"&&<Card><STitle>📊 Statistiques Wallet</STitle>
       <div style={{display:"grid",gridTemplateColumns:"repeat(2,1fr)",gap:10}}>
-        <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Total encaissé</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>{fmt(histo.filter(h=>h.type==="entree").reduce((a,h)=>a+h.montant,0))}</div></CT>
-        <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Total décaissé</div><div style={{fontSize:18,fontWeight:700,color:C.red}}>{fmt(histo.filter(h=>h.type!=="entree").reduce((a,h)=>a+h.montant,0))}</div></CT>
-        <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Commissions perçues (5%)</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(histo.reduce((a,h)=>a+h.com,0))}</div></CT>
+        <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Total encaissé</div><div style={{fontSize:18,fontWeight:700,color:C.green}}>{fmt(histo.filter(h=>h.type==="entree"&&h.statut==="confirmé").reduce((a,h)=>a+h.montant,0))}</div></CT>
+        <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Total décaissé</div><div style={{fontSize:18,fontWeight:700,color:C.red}}>{fmt(histo.filter(h=>h.type!=="entree"&&h.statut==="viré").reduce((a,h)=>a+h.montant,0))}</div></CT>
+        <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Commissions perçues (5%)</div><div style={{fontSize:18,fontWeight:700,color:C.gold}}>{fmt(histo.filter(h=>h.type==="entree"&&h.statut==="confirmé").reduce((a,h)=>a+h.com,0))}</div></CT>
         <CT><div style={{fontSize:10,color:C.muted,marginBottom:4}}>Transactions</div><div style={{fontSize:18,fontWeight:700,color:C.blue}}>{histo.length}</div></CT>
       </div>
     </Card>}

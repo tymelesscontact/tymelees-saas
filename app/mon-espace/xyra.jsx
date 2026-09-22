@@ -69,7 +69,7 @@ const IbanMondial=({showToast})=>{
       setForm({pays:"",iban:"",banque:"",bic:"",pour:""});
       setShowForm(false);
       showToast&&showToast("✅ IBAN ajouté et sauvegardé !");
-    }catch(e){showToast&&showToast("❌ Erreur lors de l'ajout de l'IBAN");}
+    }catch(e){showToast&&showToast("❌ "+(e.message&&e.message!=="Erreur"?e.message:"Erreur lors de l'ajout de l'IBAN"));}
   };
 
   const handleDelete=async(id)=>{
@@ -79,7 +79,7 @@ const IbanMondial=({showToast})=>{
       if(!data.success)throw new Error(data.error||"Erreur");
       setIbans(ib=>ib.filter(x=>x.id!==id));
       showToast&&showToast("✅ IBAN supprimé");
-    }catch(e){showToast&&showToast("❌ Erreur lors de la suppression");}
+    }catch(e){showToast&&showToast("❌ "+(e.message&&e.message!=="Erreur"?e.message:"Erreur lors de la suppression"));}
   };
 
   return <CT>
@@ -312,6 +312,12 @@ export default function Xyra() {
   },[]);
   const[toast,setToast]=useState(null);
   const{companies,setCompanies,activeCompany,setActiveCompany,vueGlobale,setVueGlobale}=useMultiSocietes();
+  // Solde reel du Wallet, affiche dans l'en-tete : il vient de l'API (plus de montant ecrit en dur).
+  const[soldeWallet,setSoldeWallet]=useState(null);
+  useEffect(()=>{
+    const cid=activeCompany?.id?`&company_id=${activeCompany.id}`:"";
+    fetch(`/api/wallet?action=list${cid}`).then(r=>r.json()).then(d=>{setSoldeWallet(typeof d.solde==="number"?d.solde:null);}).catch(()=>{});
+  },[activeCompany?.id,page]);
   const[profil,setProfil]=useState(PROFIL_DEFAUT);
   const[sirApiKey,setSirApiKey]=useState(()=>typeof window!=="undefined"?localStorage.getItem("ty_anthropic")||"":"");
   const[sidebarOpen,setSidebarOpen]=useState(true);
@@ -460,7 +466,7 @@ export default function Xyra() {
           <div style={{flex:1}}/>
           <div style={{background:`${C.teal}11`,border:`1px solid ${C.teal}44`,borderRadius:8,padding:"5px 12px",textAlign:"right"}}>
             <div style={{fontSize:9,color:C.teal}}>💳 Wallet Xyra</div>
-            <div style={{fontSize:16,fontWeight:700,color:C.gold}}>18 420 €</div>
+            <div style={{fontSize:16,fontWeight:700,color:C.gold}}>{soldeWallet===null?"—":fmt(soldeWallet)}</div>
           </div>
           <button onClick={()=>setPage("notifications")} style={{background:"transparent",border:"none",cursor:"pointer",position:"relative",padding:4}}>
             <span style={{fontSize:20}}>🔔</span>
