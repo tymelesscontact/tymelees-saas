@@ -59,10 +59,14 @@ export function bicValide(valeur: unknown): string | null {
   return /^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$/.test(bic) ? bic : null;
 }
 
-// Somme d'un lot de lignes deja filtrees sur les statuts "confirme" et "vire" : une entree credite,
-// tout le reste debite.
-export function sommeSolde(lignes: { type: string; montant: number | string }[]): number {
+// Somme d'un lot de lignes deja filtrees sur les statuts "confirme" et "vire" : une entree credite
+// le montant NET de la commission Xyra (5% -- jamais a la disposition du client), tout le reste debite
+// le montant plein. Sans ce retrait, le solde affiche incluait la commission : rien n'empechait de la
+// virer par erreur au client.
+export function sommeSolde(lignes: { type: string; montant: number | string; commission?: number | string | null }[]): number {
   let solde = 0;
-  for (const t of lignes) solde += t.type === 'entree' ? Number(t.montant) : -Number(t.montant);
+  for (const t of lignes) {
+    solde += t.type === 'entree' ? Number(t.montant) - Number(t.commission || 0) : -Number(t.montant);
+  }
   return solde;
 }

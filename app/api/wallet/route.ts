@@ -5,7 +5,7 @@ import { envoyerWhatsApp } from '../../lib/whatsapp';
 import { estAutoriseGererEquipe } from '../../lib/permissions';
 import {
   DEVISES_AUTORISEES, TYPES_SORTIE_AUTORISES, MAX_ENCAISSEMENTS_PAR_HEURE, EMAIL_RE, TEL_RE,
-  echapHtml, montantValide, sommeSolde,
+  echapHtml, montantValide, sommeSolde, bicValide,
 } from '../../lib/walletValidation';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -17,7 +17,7 @@ async function calculerSolde(sbClient: any, tenantId: string, companyId: string 
   const TAILLE = 1000;
   let solde = 0;
   for (let page = 0; page < 200; page++) {
-    let q = sbClient.from('wallet_transactions').select('type,montant')
+    let q = sbClient.from('wallet_transactions').select('type,montant,commission')
       .eq('tenant_id', tenantId).in('statut', ['confirmé', 'viré'])
       .order('created_at', { ascending: true }).order('id', { ascending: true })
       .range(page * TAILLE, page * TAILLE + TAILLE - 1);
@@ -71,6 +71,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ transactions: data, solde });
   }
 
+  if (action === 'parametres') {
+    const tenantId = await getTenantIdFromRequest(req);
+    if (!tenantId) return NextResponse.json({ seuil_alerte: 500 });
+    const { data } = await sb.from('wallet_parametres').select('seuil_alerte').eq('tenant_id', tenantId).maybeSingle();
+    return NextResponse.json({ seuil_alerte: data ? Number(data.seuil_alerte) : 500 });
+  }
+
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });
 }
 
@@ -78,6 +85,20 @@ export async function POST(req: NextRequest) {
   const tenantIdPost = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;
+
+  // ── DEFINIR LE SEUIL D'ALERTE : reserve au proprietaire ou a un Admin (reglage de l'entreprise) ─────
+  if (action === 'definir_seuil') {
+    if (!tenantIdPost) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    if (!(await estAutoriseGererEquipe(req, tenantIdPost))) {
+      return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    }
+    const seuil = montantValide(body.seuil);
+    if (seuil === null) return NextResponse.json({ error: 'Seuil invalide' }, { status: 400 });
+    const { error } = await sb.from('wallet_parametres')
+      .upsert({ tenant_id: tenantIdPost, seuil_alerte: seuil, updated_at: new Date().toISOString() }, { onConflict: 'tenant_id' });
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true, seuil_alerte: seuil });
+  }
 
   // ── ENCAISSER : génère un vrai lien de paiement Stripe ─────
   if (action === 'encaisser') {
@@ -192,7 +213,7 @@ export async function POST(req: NextRequest) {
     if (!(await estAutoriseGererEquipe(req, tenantIdPost))) {
       return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     }
-    const { nom: nomBrut, montant: montantBrut, devise: deviseBrute, methode: methodeBrute, ref: refBrut, type: typeBrut, destinataire_iban, destinataire_email, destinataire_tel, company_id } = body;
+    const { nom: nomBrut, montant: montantBrut, devise: deviseBrute, methode: methodeBrute, ref: refBrut, type: typeBrut, destinataire_iban, destinataire_bic, destinataire_email, destinataire_tel, company_id } = body;
 
     const montant = montantValide(montantBrut);
     if (montant === null) return NextResponse.json({ error: 'Montant invalide' }, { status: 400 });
@@ -205,6 +226,12 @@ export async function POST(req: NextRequest) {
     if (!DEVISES_AUTORISEES.includes(devise)) return NextResponse.json({ error: 'Devise non prise en charge' }, { status: 400 });
     const iban = destinataire_iban ? String(destinataire_iban).trim() : '';
     if (iban.length > 60 || /[<>]/.test(iban)) return NextResponse.json({ error: 'IBAN invalide' }, { status: 400 });
+    // Le BIC est facultatif (un IBAN suffit pour un virement SEPA), mais s'il est saisi il doit etre valide.
+    let bic: string | null = null;
+    if (destinataire_bic && String(destinataire_bic).trim()) {
+      bic = bicValide(destinataire_bic);
+      if (!bic) return NextResponse.json({ error: 'BIC invalide (8 ou 11 caracteres)' }, { status: 400 });
+    }
     const emailDest = destinataire_email ? String(destinataire_email).trim() : '';
     if (emailDest && (emailDest.length > 254 || !EMAIL_RE.test(emailDest))) return NextResponse.json({ error: 'Email invalide' }, { status: 400 });
     const telDest = destinataire_tel ? String(destinataire_tel).trim() : '';
@@ -216,6 +243,19 @@ export async function POST(req: NextRequest) {
       if (!UUID_RE.test(String(company_id))) return NextResponse.json({ error: 'Societe invalide' }, { status: 400 });
       const { data: societe } = await sb.from('companies').select('id').eq('id', company_id).eq('tenant_id', tenantIdPost).maybeSingle();
       if (!societe) return NextResponse.json({ error: 'Societe invalide' }, { status: 400 });
+    }
+
+    // Garde-fou : un paiement sortant ne peut jamais depasser le solde reellement disponible
+    // (qui exclut deja la commission Xyra). Sans ce controle, rien n'empechait de virer par erreur
+    // une somme qui incluait la part de Xyra.
+    let soldeDisponible: number;
+    try {
+      soldeDisponible = await calculerSolde(sb, tenantIdPost, company_id && UUID_RE.test(String(company_id)) ? company_id : null);
+    } catch (e: any) {
+      return NextResponse.json({ error: e.message }, { status: 500 });
+    }
+    if (montant > soldeDisponible) {
+      return NextResponse.json({ error: `Solde insuffisant : ${soldeDisponible.toFixed(2)} disponible(s), commission Xyra deja exclue` }, { status: 400 });
     }
 
     const { data: row, error } = await sb
@@ -230,6 +270,7 @@ export async function POST(req: NextRequest) {
         ref: ref || `PAY-${Date.now()}`,
         destinataire_nom: nom,
         destinataire_iban: iban || null,
+        destinataire_bic: bic,
         destinataire_email: emailDest || null,
         destinataire_tel: telDest || null,
         tenant_id: tenantIdPost,
