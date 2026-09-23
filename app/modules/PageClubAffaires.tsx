@@ -274,6 +274,17 @@ const PageClubAffaires=({plan, modulesActifs,showToast,UpgradeWall,setPage})=>{
           </div>
         </div>)}
       </Card>
+
+      {tenants.length>0&&<Card>
+        <STitle>🏢 Entreprises sur Xyra</STitle>
+        <div style={{fontSize:10,color:C.muted,marginBottom:10}}>Des sociétés qui utilisent déjà Xyra — pas forcément membres du Club.</div>
+        <div style={{display:"grid",gridTemplateColumns:"repeat(auto-fill,minmax(140px,1fr))",gap:8}}>
+          {tenants.slice(0,12).map((t,i)=><div key={i} style={{background:C.card2,borderRadius:8,padding:10,border:`1px solid ${C.border}`}}>
+            <div style={{fontSize:11,fontWeight:700,color:C.text,marginBottom:2}}>{t.societe||"—"}</div>
+            <div style={{fontSize:9,color:C.muted}}>{t.metier||"Entreprise"} {t.pays?`· ${t.pays}`:""}</div>
+          </div>)}
+        </div>
+      </Card>}
     </div>}
 
     {/* ── MEMBRES ── */}

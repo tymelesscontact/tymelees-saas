@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { getAnthropicKey } from '../../lib/anthropicKey';
+import { estFondateurClub, estMembreClubActif } from '../../lib/permissions';
 import { createClient } from '@supabase/supabase-js';
 
 const sb = createClient(
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
   if (action === 'membres') {
     const [membresRes, tenantsRes] = await Promise.all([
       sb.from('club_membres').select('*').in('statut', ['actif', 'fondateur', 'attente_paiement', 'attente_cotisation']).order('score_reputation', { ascending: false }),
-      sb.from('tenants').select('id,societe,email,metier,pays,plan,plan_price').limit(50),
+      sb.from('tenants').select('societe,metier,pays').limit(50),
     ]);
     return NextResponse.json({ membres: membresRes.data || [], tenants: tenantsRes.data || [] });
   }
@@ -77,6 +78,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'valider_candidature') {
+    if (!(await estFondateurClub(req))) return NextResponse.json({ error: 'Reserve aux fondateurs du Club' }, { status: 403 });
     const { candidature_id } = body;
     const { data: c } = await sb.from('club_candidatures').select('*').eq('id', candidature_id).single();
     if (!c) return NextResponse.json({ error: 'Candidature introuvable' }, { status: 404 });
@@ -152,6 +154,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'rejeter_candidature') {
+    if (!(await estFondateurClub(req))) return NextResponse.json({ error: 'Reserve aux fondateurs du Club' }, { status: 403 });
     await sb.from('club_candidatures').update({
       statut: 'refusé',
       motif_refus: body.motif || null,
@@ -161,6 +164,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'ia_match') {
+    if (!(await estMembreClubActif(req))) return NextResponse.json({ error: 'Reserve aux membres du Club' }, { status: 403 });
     const { membres, profil } = body;
     try {
       const listeMembres = (membres || []).slice(0, 10).map((m: any) => `${m.nom} (${m.metier}, ${m.pays}, services: ${(m.services || []).join(', ')})`).join('\n');
@@ -184,6 +188,7 @@ Réponds en JSON : [{"membre":"nom","raison":"...","ca_estime":5000,"score":87}]
   }
 
   if (action === 'participer_coinvestissement') {
+    if (!(await estMembreClubActif(req))) return NextResponse.json({ error: 'Reserve aux membres du Club' }, { status: 403 });
     const { coinvestissement_id, membre_id, montant } = body;
     const { error } = await sb.from('club_participations').insert({ coinvestissement_id, membre_id, montant: Number(montant) });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -191,6 +196,7 @@ Réponds en JSON : [{"membre":"nom","raison":"...","ca_estime":5000,"score":87}]
   }
 
   if (action === 'creer_coinvestissement') {
+    if (!(await estFondateurClub(req))) return NextResponse.json({ error: 'Reserve aux fondateurs du Club' }, { status: 403 });
     const { titre, description, porteur, montant_total, montant_min_ticket, secteur, rendement_estime, date_cloture } = body;
     const { error } = await sb.from('club_coinvestissements').insert({ titre, description, porteur, montant_total, montant_min_ticket, secteur, rendement_estime, date_cloture });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -198,6 +204,7 @@ Réponds en JSON : [{"membre":"nom","raison":"...","ca_estime":5000,"score":87}]
   }
 
   if (action === 'planifier_meeting') {
+    if (!(await estMembreClubActif(req))) return NextResponse.json({ error: 'Reserve aux membres du Club' }, { status: 403 });
     const { organisateur_id, participant_id, date_heure, duree_minutes, lien_visio } = body;
     const { error } = await sb.from('club_speed_meetings').insert({ organisateur_id, participant_id, date_heure, duree_minutes: duree_minutes || 20, lien_visio: lien_visio || 'https://meet.xyra.io/club' });
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -205,6 +212,7 @@ Réponds en JSON : [{"membre":"nom","raison":"...","ca_estime":5000,"score":87}]
   }
 
   if (action === 'maj_score') {
+    if (!(await estFondateurClub(req))) return NextResponse.json({ error: 'Reserve aux fondateurs du Club' }, { status: 403 });
     const { membre_id, delta } = body;
     const { data: m } = await sb.from('club_membres').select('score_reputation').eq('id', membre_id).single();
     if (m) {
