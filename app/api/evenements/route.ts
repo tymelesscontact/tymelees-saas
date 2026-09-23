@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 import { getAnthropicKey } from '../../lib/anthropicKey';
+import { estFondateurClub } from '../../lib/permissions';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -28,17 +29,6 @@ async function compterInscrits(evenementId: string) {
   const { count } = await sb.from('evenements_inscrits')
     .select('id', { count: 'exact', head: true }).eq('evenement_id', evenementId);
   return count || 0;
-}
-
-// Un fondateur du Club peut creer des evenements de portee club
-async function estFondateurClub(req: NextRequest) {
-  const token = req.cookies.get('sb-access-token')?.value;
-  if (!token) return false;
-  const { data: auth } = await sb.auth.getUser(token);
-  if (!auth?.user) return false;
-  const { data: m } = await sb.from('club_membres')
-    .select('statut').eq('user_id', auth.user.id).maybeSingle();
-  return m?.statut === 'fondateur';
 }
 
 export async function GET(req: NextRequest) {

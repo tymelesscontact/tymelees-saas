@@ -26,6 +26,26 @@ export async function estProprietaireDuTenant(req: NextRequest, tenantId: string
   return membreVerif?.role === 'owner';
 }
 
+// Club d'affaires : n'a pas de tenant_id (les membres ne sont pas forcement des tenants Xyra),
+// donc pas de parametre tenantId ici -- on regarde directement le statut dans club_membres.
+export async function estFondateurClub(req: NextRequest): Promise<boolean> {
+  const tokenVerif = req.cookies.get('sb-access-token')?.value;
+  if (!tokenVerif) return false;
+  const { data: authVerif } = await sbAdmin.auth.getUser(tokenVerif);
+  if (!authVerif?.user) return false;
+  const { data: m } = await sbAdmin.from('club_membres').select('statut').eq('user_id', authVerif.user.id).maybeSingle();
+  return m?.statut === 'fondateur';
+}
+
+export async function estMembreClubActif(req: NextRequest): Promise<boolean> {
+  const tokenVerif = req.cookies.get('sb-access-token')?.value;
+  if (!tokenVerif) return false;
+  const { data: authVerif } = await sbAdmin.auth.getUser(tokenVerif);
+  if (!authVerif?.user) return false;
+  const { data: m } = await sbAdmin.from('club_membres').select('statut').eq('user_id', authVerif.user.id).maybeSingle();
+  return m?.statut === 'actif' || m?.statut === 'fondateur';
+}
+
 export async function estAutoriseSignerDevisManuel(req: NextRequest, tenantId: string): Promise<boolean> {
   if (await estProprietaireDuTenant(req, tenantId)) return true;
   const tokenVerif = req.cookies.get('sb-access-token')?.value;
