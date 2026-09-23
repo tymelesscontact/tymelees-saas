@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { estFondateurClub } from '../../lib/permissions';
+import { finaliserAdhesionClub } from '../../lib/clubAdhesion';
 
 export const dynamic = 'force-dynamic';
 
@@ -13,22 +15,49 @@ function sbAdmin() {
   );
 }
 
+function genererReferenceIban(etape: string): string {
+  return `CLUB-${etape === 'droit_entree' ? 'ENTREE' : 'COTIS'}-${Date.now().toString(36).toUpperCase()}`;
+}
+
 /**
- * Paiement de l'adhesion au Club.
+ * Paiement de l'adhesion au Club (Stripe ou virement IBAN), et confirmation d'un virement recu.
+ * Route publique cote middleware (API_OUVERTES) car destinee a etre appelee juste apres qu'un
+ * fondateur ait valide une candidature -- protegee ici par estFondateurClub, seul un fondateur
+ * peut declencher un envoi de lien/coordonnees de paiement ou confirmer un virement.
  * PAIEMENT UNIQUE, jamais d'abonnement : le renouvellement est manuel.
  * Premiere annee  : droit d'entree 500 EUR + cotisation 2000 EUR
  * Renouvellement  : cotisation 2000 EUR seule
  */
 export async function POST(req: NextRequest) {
   try {
+    if (!(await estFondateurClub(req))) {
+      return NextResponse.json({ error: 'Reserve aux fondateurs du Club' }, { status: 403 });
+    }
+
     const body = await req.json();
-    const { membre_id } = body;
+    const { membre_id, action } = body;
+    const sb = sbAdmin();
+
+    // ── Un fondateur constate qu'un virement IBAN est arrive : active le membre ──
+    if (action === 'confirmer_virement_iban') {
+      if (!membre_id) return NextResponse.json({ error: 'membre_id requis' }, { status: 400 });
+      const { data: membre } = await sb.from('club_membres').select('*').eq('id', membre_id).single();
+      if (!membre) return NextResponse.json({ error: 'Membre introuvable' }, { status: 404 });
+      if (!membre.reference_paiement) {
+        return NextResponse.json({ error: 'Aucune reference de virement IBAN en attente pour ce membre' }, { status: 400 });
+      }
+      const etape = membre.droit_entree_paye ? 'cotisation' : 'droit_entree';
+      const montant = etape === 'droit_entree' ? DROIT_ENTREE : COTISATION;
+      await finaliserAdhesionClub(sb, membre_id, etape, membre.reference_paiement, montant, req.nextUrl.origin);
+      return NextResponse.json({ success: true, etape });
+    }
+
     const etape = body.etape === 'cotisation' ? 'cotisation' : 'droit_entree';
+    const methode = body.methode === 'iban' ? 'iban' : 'stripe';
     if (!membre_id) {
       return NextResponse.json({ error: 'membre_id requis' }, { status: 400 });
     }
 
-    const sb = sbAdmin();
     const { data: membre } = await sb.from('club_membres').select('*').eq('id', membre_id).single();
     if (!membre) {
       return NextResponse.json({ error: 'Membre introuvable' }, { status: 404 });
@@ -61,6 +90,59 @@ export async function POST(req: NextRequest) {
       ? "Xyra Club - droit d'entree"
       : "Xyra Club - cotisation annuelle";
 
+    // ── Option IBAN : pas de session Stripe, juste les coordonnees + une reference a rapprocher a la main ──
+    if (methode === 'iban') {
+      const { CLUB_IBAN_PAYS, CLUB_IBAN, CLUB_IBAN_BANQUE, CLUB_IBAN_BIC } = process.env;
+      if (!CLUB_IBAN_PAYS || !CLUB_IBAN || !CLUB_IBAN_BANQUE || !CLUB_IBAN_BIC) {
+        return NextResponse.json({ error: 'Coordonnees IBAN du Club non configurees (variables CLUB_IBAN_*)' }, { status: 500 });
+      }
+      if (!membre.email) {
+        return NextResponse.json({ error: "Ce membre n'a pas d'adresse email" }, { status: 400 });
+      }
+
+      const reference = genererReferenceIban(etape);
+      await sb.from('club_membres').update({ reference_paiement: reference }).eq('id', membre_id);
+
+      const total = (montant / 100).toFixed(0);
+      let emailEnvoye = false;
+      try {
+        const { Resend } = await import('resend');
+        const resend = new Resend(process.env.RESEND_API_KEY);
+        await resend.emails.send({
+          from: 'Xyra Club <notifications@xyraio.fr>',
+          to: membre.email,
+          subject: etape === 'droit_entree' ? 'Votre candidature au Xyra Club a ete retenue — virement' : 'Xyra Club - reglement de votre cotisation par virement',
+          html: `<div style="font-family:Georgia,serif;background:#0a0a0a;color:#f0ead6;padding:40px 32px;">
+            <div style="font-size:26px;font-style:italic;color:#c9a96e;margin-bottom:24px;">Votre place vous attend</div>
+            <div style="font-family:sans-serif;font-size:14px;line-height:1.8;color:#a39c8e;margin-bottom:28px;">
+              Bonjour ${membre.nom || ''},<br/><br/>
+              Merci de regler ${libelle.toLowerCase()} par virement bancaire, avec les coordonnees ci-dessous.
+            </div>
+            <div style="font-family:sans-serif;font-size:13px;color:#78716a;border-left:1px solid #c9a96e;padding-left:16px;margin-bottom:28px;line-height:1.9;">
+              Pays : ${CLUB_IBAN_PAYS}<br/>
+              Banque : ${CLUB_IBAN_BANQUE}<br/>
+              IBAN : <strong style="color:#c9a96e;">${CLUB_IBAN}</strong><br/>
+              BIC : ${CLUB_IBAN_BIC}<br/>
+              <strong style="color:#c9a96e;">Reference a indiquer obligatoirement : ${reference}</strong><br/>
+              Montant : <strong style="color:#c9a96e;">${total} &euro;</strong>
+            </div>
+            <div style="font-family:sans-serif;font-size:11px;color:#4f4a43;margin-top:32px;line-height:1.7;">
+              Votre acces sera ouvert des reception et constatation du virement par nos equipes.<br/>
+              Xyra Club &mdash; adhesion reservee aux professionnels.
+            </div>
+          </div>`,
+        });
+        emailEnvoye = true;
+      } catch (e) { console.error('Email IBAN club:', e); }
+
+      return NextResponse.json({
+        success: true, methode: 'iban', reference,
+        montant: montant / 100, etape, premiere_adhesion: premiereFois,
+        email_envoye: emailEnvoye, destinataire: membre.email,
+      });
+    }
+
+    // ── Stripe (comportement inchange par defaut) ──
     const lignes: any[] = [{
       price_data: {
         currency: 'eur',
@@ -123,9 +205,9 @@ export async function POST(req: NextRequest) {
       } catch (e) { console.error('Email lien paiement:', e); }
     }
 
-
     return NextResponse.json({
       success: true,
+      methode: 'stripe',
       url: session.url,
       montant: montant / 100,
       etape,
