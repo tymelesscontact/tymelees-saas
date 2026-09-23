@@ -43,6 +43,10 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
   const[catalogue,setCatalogue]=useState([]);
   const[obligationsLegales,setObligationsLegales]=useState([]);
   const[loadingEquipe,setLoadingEquipe]=useState(true);
+  // Un salarie normal (ni proprietaire ni Admin) ne recoit plus salaire/NSS/RIB/carriere de ses
+  // collegues depuis l'API (voir app/api/equipe/route.ts) -- ce drapeau sert a masquer entierement
+  // les vues de comparaison de masse salariale, qui n'auraient plus de sens avec des donnees absentes.
+  const[estRH,setEstRH]=useState(true);
   const loadRealData=async()=>{
     try{
       const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
@@ -50,6 +54,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       const data=await res.json();
       setCatalogue(data.catalogue||[]);
       setObligationsLegales(data.obligationsLegales||[]);
+      setEstRH(data.estRH!==false);
       if(data.membres){
         setEquipe(data.membres.map((m,idx)=>({
           heures:0,soldeConges:m.conges_solde??0,perf:m.performance||0,localisation:"—",pointage:"—",
@@ -710,8 +715,8 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     </div>}
 
     {/* KPIs RAPIDES */}
-    <div style={{display:"grid",gridTemplateColumns:"repeat(5,1fr)",gap:10,marginBottom:14}}>
-      {[["Effectif",equipe.length,"#4B7BFF"],["En mission",equipe.filter(e=>e.statut==="En mission").length,"#C9A84C"],["Masse salariale/mois","€"+totalSalaire.toLocaleString("fr"),"#FF5252"],["Perf. moyenne",perfMoy+"%","#2EC9B0"],["Arrêts ce mois",totalArrets,"#FF8C3A"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",border:`1px solid #1E1E36`,borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:c,fontFamily:"Georgia,serif"}}>{v}</div></div>)}
+    <div style={{display:"grid",gridTemplateColumns:`repeat(${estRH?5:4},1fr)`,gap:10,marginBottom:14}}>
+      {[["Effectif",equipe.length,"#4B7BFF"],["En mission",equipe.filter(e=>e.statut==="En mission").length,"#C9A84C"],...(estRH?[["Masse salariale/mois","€"+totalSalaire.toLocaleString("fr"),"#FF5252"]]:[]),["Perf. moyenne",perfMoy+"%","#2EC9B0"],["Arrêts ce mois",totalArrets,"#FF8C3A"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",border:`1px solid #1E1E36`,borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:c,fontFamily:"Georgia,serif"}}>{v}</div></div>)}
     </div>
 
     {/* TABS */}
@@ -738,11 +743,11 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
           </div>;})}
         </div>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
-          <div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16}}>
+          {estRH&&<div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16}}>
             <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:10,fontWeight:600}}>💸 Répartition masse salariale</div>
             {equipe.map((e,i)=><div key={i} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{e.prenom}</span><span style={{color:e.couleur,fontWeight:700}}>{e.salaire.toLocaleString("fr")}€</span></div><div style={{height:4,borderRadius:2,background:"#1E1E36"}}><div style={{height:"100%",width:(e.salaire/totalSalaire*100)+"%",background:e.couleur,borderRadius:2}}/></div></div>)}
             <div style={{marginTop:8,fontSize:11,color:"#C9A84C",fontWeight:700,textAlign:"right"}}>Total : {totalSalaire.toLocaleString("fr")} € net · {Math.round(totalSalaire*1.43).toLocaleString("fr")} € brut</div>
-          </div>
+          </div>}
           <div style={{background:"#FF525211",border:"1px solid #FF525233",borderRadius:10,padding:14}}>
             <div style={{fontSize:10,color:"#FF5252",fontWeight:600,marginBottom:8}}>🔔 Alertes RH du jour</div>
             {alertes.length===0&&<div style={{fontSize:11,color:"#5A5A7A"}}>Aucune alerte pour le moment.</div>}
@@ -1517,7 +1522,8 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     </div>}
 
     {/* ─── IA RH ─────────────────────────────────────────────── */}
-    {onglet==="ia"&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
+    {onglet==="ia"&&!estRH&&<div style={{textAlign:"center",padding:40,color:"#5A5A7A",fontSize:12}}>Réservé au propriétaire et aux administrateurs.</div>}
+    {onglet==="ia"&&estRH&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
       <div style={{background:"#9B5FFF11",border:"1px solid #9B5FFF33",borderRadius:12,padding:16}}>
         <div style={{fontSize:10,color:"#9B5FFF",fontWeight:600,marginBottom:8}}>🤖 Analyse RH globale — Claude Sonnet</div>
         <div style={{fontSize:12,color:"#EAE6DE",lineHeight:1.8}}>Votre équipe de 3 personnes performe à {perfMoy}% en moyenne. Thomas est votre meilleur élément (94%) et justifie une prime. Le CDD d'Abou expire bientôt — la conversion en CDI est recommandée au vu de sa progression. Fatou excelle en relation client et pourrait évoluer vers un poste de responsable commerciale.</div>

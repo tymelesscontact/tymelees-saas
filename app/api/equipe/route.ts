@@ -271,7 +271,30 @@ export async function GET(req: NextRequest) {
 
   const { data: obligationsLegales } = await sb.from('obligations_legales').select('*').eq('tenant_id', tenantId).order('echeance', { ascending: true, nullsFirst: false });
 
-  return NextResponse.json({ membres: enriched, alertes, catalogue: catalogue || [], obligationsLegales: obligationsLegales || [] });
+  // Donnees RH sensibles (salaire, NSS, RIB, fiche de paie...) : avant ce correctif, cet ecran les
+  // renvoyait pour TOUTE l'equipe a QUICONQUE le chargeait, quel que soit son role -- n'importe quel
+  // salarie pouvait voir le salaire et le NSS de tous ses collegues. On ne les garde que pour le
+  // proprietaire/Admin, ou pour la propre fiche de la personne connectee.
+  const estRH = await estAutoriseGererEquipe(req, tenantId);
+  let mesPropresIds = new Set<string>();
+  if (!estRH) {
+    const tokenMoiRH = req.cookies.get('sb-access-token')?.value;
+    if (tokenMoiRH) {
+      const { data: authMoiRH } = await sbAdmin.auth.getUser(tokenMoiRH);
+      if (authMoiRH?.user) mesPropresIds = new Set([authMoiRH.user.id]);
+    }
+  }
+  const CHAMPS_SENSIBLES = ['salaire', 'salaire_brut', 'nss', 'rib', 'adresse', 'date_naissance', 'paie', 'acomptes', 'fichePaieEnvoyee', 'fichePaieEnvoyeeLe'];
+  const membresFiltres = estRH ? enriched : enriched.map((m: any) => {
+    if (mesPropresIds.has(m.user_id)) return m;
+    const allege = { ...m };
+    for (const champ of CHAMPS_SENSIBLES) delete allege[champ];
+    return allege;
+  });
+
+  // Les alertes (demandes d'acompte avec montant, CDD a renouveler, conges en attente...) sont des
+  // alertes de gestion RH -- meme logique que les champs sensibles ci-dessus, reservees a estRH.
+  return NextResponse.json({ membres: membresFiltres, alertes: estRH ? alertes : [], catalogue: catalogue || [], obligationsLegales: obligationsLegales || [], estRH });
 }
 
 export async function POST(req: NextRequest) {
