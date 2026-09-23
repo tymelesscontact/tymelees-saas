@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { PLAN_PRIX, PLAN_LABELS, MODULE_PRICES } from '../../lib/plans';
 import { urlRetourInvitation } from '../../lib/invitation';
+import { allouerObjectifs } from '../../lib/walletObjectifs';
 
 export const dynamic = 'force-dynamic';
 
@@ -60,9 +61,17 @@ export async function POST(req: NextRequest) {
       }
 
       if (session.metadata?.type === 'wallet_payment') {
-        await sb.from('wallet_transactions')
+        const { data: transactionConfirmee } = await sb.from('wallet_transactions')
           .update({ statut: 'confirmé' })
-          .eq('id', session.metadata.transaction_id);
+          .eq('id', session.metadata.transaction_id)
+          .select()
+          .single();
+        if (transactionConfirmee?.tenant_id) {
+          try {
+            const net = Number(transactionConfirmee.montant) - Number(transactionConfirmee.commission || 0);
+            await allouerObjectifs(sb, transactionConfirmee.tenant_id, transactionConfirmee.id, net);
+          } catch (e) { console.error('Objectifs (wallet payment) error:', e); }
+        }
         try {
           const { Resend } = await import('resend');
           const resend = new Resend(process.env.RESEND_API_KEY);
@@ -92,7 +101,7 @@ export async function POST(req: NextRequest) {
             const { data: dejaEnregistre } = await sb.from('wallet_transactions')
               .select('id').eq('stripe_session_id', session.id).maybeSingle();
             if (!dejaEnregistre) {
-              await sb.from('wallet_transactions').insert({
+              const { data: txFacture } = await sb.from('wallet_transactions').insert({
                 type: 'entree',
                 libelle: `Facture ${facture.numero || ''}${facture.client_nom ? ' — ' + facture.client_nom : ''}`.trim(),
                 montant: facture.montant_ttc,
@@ -103,7 +112,11 @@ export async function POST(req: NextRequest) {
                 tenant_id: facture.tenant_id,
                 company_id: facture.company_id || null,
                 stripe_session_id: session.id,
-              });
+              }).select().single();
+              if (txFacture) {
+                try { await allouerObjectifs(sb, facture.tenant_id, txFacture.id, Number(facture.montant_ttc)); }
+                catch (e) { console.error('Objectifs (facture payee) error:', e); }
+              }
             }
           } catch (e) { console.error('Wallet (facture payee) error:', e); }
         }
@@ -159,17 +172,22 @@ export async function POST(req: NextRequest) {
               const { data: dejaEnregistre } = await sb.from('wallet_transactions')
                 .select('id').eq('stripe_session_id', session.id).maybeSingle();
               if (!dejaEnregistre) {
-                await sb.from('wallet_transactions').insert({
+                const montantNetDeal = Number(deal.montant) - Number(deal.commission_xyra_montant || 0);
+                const { data: txDeal } = await sb.from('wallet_transactions').insert({
                   type: 'entree',
                   libelle: `Club Deal ${deal.reference || ''} — ${deal.titre || ''}`.trim(),
-                  montant: Number(deal.montant) - Number(deal.commission_xyra_montant || 0),
+                  montant: montantNetDeal,
                   devise: (deal.devise || 'EUR').toUpperCase(),
                   methode: 'stripe',
                   statut: 'confirmé',
                   ref: deal.reference || session.id,
                   tenant_id: tenantId,
                   stripe_session_id: session.id,
-                });
+                }).select().single();
+                if (txDeal) {
+                  try { await allouerObjectifs(sb, tenantId, txDeal.id, montantNetDeal); }
+                  catch (e) { console.error('Objectifs (club deal paye) error:', e); }
+                }
               }
             }
           } catch (e) { console.error('Wallet (club deal paye) error:', e); }
