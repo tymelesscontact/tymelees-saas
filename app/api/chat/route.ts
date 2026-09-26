@@ -96,18 +96,65 @@ export async function POST(req: NextRequest) {
     if (!token) return NextResponse.json({ error: 'non_connecte' }, { status: 401 });
     const { data: authData } = await sb.auth.getUser(token);
     if (!authData?.user) return NextResponse.json({ error: 'non_connecte' }, { status: 401 });
-    const { data: moi } = await sb.from('equipe').select('email,tel').eq('user_id', authData.user.id).maybeSingle();
+    const { data: moi } = await sb.from('equipe').select('email,tel,nom,prenom').eq('user_id', authData.user.id).maybeSingle();
     if (!moi) return NextResponse.json({ conversations: [] });
+    // Meme calcul que l'auteur d'un message dans envoyer_message : la page compare les deux.
+    const moiNom = moi.prenom ? (moi.prenom + ' ' + moi.nom) : moi.nom;
+
+    // Canal d'equipe de l'entreprise : reconnu par son jitsi_room propre au tenant, pour ne jamais
+    // confondre avec un groupe cree a la main par RH dans l'espace equipe (xyra-groupe-...).
+    const salleEquipe = `xyra-equipe-${tenantId}`;
+    const chercherCanal = () => sb.from('conversations').select('*')
+      .eq('tenant_id', tenantId).eq('espace', 'equipe').eq('est_groupe', true).eq('jitsi_room', salleEquipe)
+      .order('created_at', { ascending: true }).order('id', { ascending: true });
+    let { data: canaux } = await chercherCanal();
+    let canal = canaux?.[0] || null;
+    if (!canal) {
+      const { data: tenantChat } = await sb.from('tenants').select('societe').eq('id', tenantId).maybeSingle();
+      const titreCanal = tenantChat?.societe ? `Équipe ${tenantChat.societe}` : 'Équipe';
+      const { data: cree } = await sb.from('conversations').insert({
+        espace: 'equipe', est_groupe: true, contact_nom: titreCanal, titre_groupe: titreCanal,
+        jitsi_room: salleEquipe, tenant_id: tenantId,
+      }).select().single();
+      // Deux collaborateurs connectes au meme instant peuvent creer chacun un canal :
+      // on garde le plus ancien et on supprime celui qu'on vient de creer (encore vide).
+      ({ data: canaux } = await chercherCanal());
+      canal = canaux?.[0] || cree || null;
+      if (cree && canal && canal.id !== cree.id) await sb.from('conversations').delete().eq('id', cree.id);
+    }
+    if (canal) {
+      let qPart = sb.from('conversation_participants').select('id').eq('conversation_id', canal.id);
+      qPart = moi.email ? qPart.eq('email', moi.email) : qPart.eq('nom', moiNom);
+      const { data: dejaParticipant } = await qPart.limit(1).maybeSingle();
+      if (!dejaParticipant) {
+        // Sans telephone : les messages du canal restent dans l'app (pas de WhatsApp a chaque message).
+        await sb.from('conversation_participants').insert({
+          conversation_id: canal.id, nom: moiNom, email: moi.email || null, tel: null, type: 'collaborateur',
+        });
+      }
+    }
+
     let q = sb.from('conversations').select('*').eq('tenant_id', tenantId).eq('espace', 'equipe');
     if (moi.email) q = q.eq('contact_email', moi.email);
     else if (moi.tel) q = q.eq('contact_tel', moi.tel);
-    const { data: convs } = await q.order('derniere_activite', { ascending: false });
+    let { data: convs } = await q.order('derniere_activite', { ascending: false });
+    // Pas encore de conversation privee avec RH : on la cree pour que le collaborateur puisse ecrire en premier.
+    // Seulement s'il a un email ou un tel, sinon elle serait introuvable au chargement suivant.
+    if ((!convs || convs.length === 0) && (moi.email || moi.tel)) {
+      const { data: privee } = await sb.from('conversations').insert({
+        espace: 'equipe', contact_nom: moiNom, contact_email: moi.email || null, contact_tel: moi.tel || null,
+        jitsi_room: `xyra-${Date.now().toString(36)}`, tenant_id: tenantId,
+      }).select().single();
+      if (privee) convs = [privee];
+    }
+    const toutes = [...(convs || [])];
+    if (canal && !toutes.some((c) => c.id === canal.id)) toutes.push(canal);
     const avecMessages = [];
-    for (const c of (convs || [])) {
+    for (const c of toutes) {
       const { data: msgs } = await sb.from('chat_messages').select('*').eq('conversation_id', c.id).order('created_at');
       avecMessages.push({ ...c, messages: msgs || [] });
     }
-    return NextResponse.json({ conversations: avecMessages });
+    return NextResponse.json({ conversations: avecMessages, moiNom });
   }
   if (action === 'envoyer_message') {
     const { conversation_id, contenu, type, fichier_url, contact_tel, contact_email } = body;

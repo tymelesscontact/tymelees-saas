@@ -59,6 +59,7 @@ export default function EspaceEquipe() {
   const [signalements, setSignalements] = useState<any[]>([]);
   const [conversations, setConversations] = useState<any[]>([]);
   const [convSelectionnee, setConvSelectionnee] = useState<any>(null);
+  const [moiNom, setMoiNom] = useState("");
   const [texteMessage, setTexteMessage] = useState("");
   const [monPointage, setMonPointage] = useState<any>(null);
   const [mesFormations, setMesFormations] = useState<any[]>([]);
@@ -97,6 +98,7 @@ export default function EspaceEquipe() {
       if (abs.absences) setAbsences(abs.absences);
       if (sig.signalements) setSignalements(sig.signalements);
       if (msgs.conversations) setConversations(msgs.conversations);
+      if (msgs.moiNom) setMoiNom(msgs.moiNom);
       fetch("/api/pointage").then(r => r.json()).then(d => setMonPointage(d.pointage)).catch(() => {});
       fetch("/api/equipe?action=mes_formations").then(r => r.json()).then(d => { setMesFormations(d.formations || []); setCatalogueFormations(d.catalogue || []); }).catch(() => {});
       fetch("/api/absences?vue=mes_validations").then(r => r.json()).then(d => setMesValidations(d.absences || [])).catch(() => {});
@@ -583,12 +585,16 @@ export default function EspaceEquipe() {
                 ← {convSelectionnee.contact_nom || "Xyra"}
               </div>
               <div style={{ flex: 1, overflowY: "auto", padding: "8px 4px" }}>
-                {(convSelectionnee.messages || []).map((m: any, i: number) => (
-                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: m.moi ? "flex-end" : "flex-start", marginBottom: 10 }}>
-                    <div style={{ background: m.moi ? C.gold : C.card2, color: m.moi ? "#000" : C.text, borderRadius: 8, padding: "8px 12px", maxWidth: "80%", fontSize: 14, wordBreak: "break-word" as any }}>{m.contenu}</div>
+                {(convSelectionnee.messages || []).map((m: any, i: number) => {
+                  // Groupe : m.moi ne distingue que RH / pas RH, on compare donc l'auteur au collaborateur connecte.
+                  const estMoi = convSelectionnee.est_groupe ? m.auteur === moiNom : m.moi;
+                  return (
+                  <div key={i} style={{ display: "flex", flexDirection: "column", alignItems: estMoi ? "flex-end" : "flex-start", marginBottom: 10 }}>
+                    <div style={{ background: estMoi ? C.gold : C.card2, color: estMoi ? "#000" : C.text, borderRadius: 8, padding: "8px 12px", maxWidth: "80%", fontSize: 14, wordBreak: "break-word" as any }}>{m.contenu}</div>
                     <div style={{ fontSize: 9, color: C.muted, marginTop: 3 }}>{m.auteur} · {m.created_at ? new Date(m.created_at).toLocaleTimeString("fr", { hour: "2-digit", minute: "2-digit" }) : ""}</div>
                   </div>
-                ))}
+                  );
+                })}
                 <div ref={finMessagesRef} />
               </div>
               <div style={{ display: "flex", gap: 8, padding: "10px 4px", borderTop: `1px solid ${C.border}` }}>
