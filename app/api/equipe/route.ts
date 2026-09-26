@@ -987,6 +987,8 @@ Rédige une analyse RH courte (4-5 phrases) avec une recommandation concrète su
     const paie = calculerPaie(Number(m.salaire_brut || m.salaire || 0));
     const moisIso = new Date().toISOString().slice(0, 7);
     const mois = new Date().toLocaleDateString('fr', { month: 'long', year: 'numeric' });
+    const { data: tenantPaie } = await sb.from('tenants').select('societe,nom_contact').eq('id', tenantId).maybeSingle();
+    const signaturePaie = [tenantPaie?.societe ? echapperHtml(tenantPaie.societe) : '', tenantPaie?.nom_contact ? `Signé ${echapperHtml(tenantPaie.nom_contact)}` : ''].filter(Boolean).join(' · ');
     const html = `<div style="font-family:sans-serif;padding:24px;max-width:600px;">
       <h2 style="color:#C9A84C">Fiche de paie — ${mois}</h2>
       <p><strong>${m.prenom || ''} ${m.nom}</strong> · ${m.role}</p>
@@ -997,7 +999,7 @@ Rédige une analyse RH courte (4-5 phrases) avec une recommandation concrète su
         <tr><td style="padding:8px;color:#888">Charges patronales (42%)</td><td style="padding:8px;text-align:right;color:#888">${paie.chargesPatronales}€</td></tr>
         <tr style="background:#f5f5f5"><td style="padding:8px;color:#888">Coût total employeur</td><td style="padding:8px;text-align:right;color:#888">${paie.coutTotal}€</td></tr>
       </table>
-      <p style="color:#888;font-size:12px;margin-top:16px;">Xyra Services · Signé Curtiss — Fondateur</p>
+      ${signaturePaie ? `<p style="color:#888;font-size:12px;margin-top:16px;">${signaturePaie}</p>` : ''}
     </div>`;
 
     let envoyee = false;

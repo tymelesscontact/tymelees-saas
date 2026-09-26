@@ -653,7 +653,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
   const[showAdd,setShowAdd]=useState(false);
   const[debugErreur,setDebugErreur]=useState(null);
   const[addForm,setAddForm]=useState({nom:"",role:"",salaire:"",contrat:"CDI",email:"",tel:"",adresse:"",dateNaissance:""});
-  const[moisCal,setMoisCal]=useState(4);
+  const[moisCal,setMoisCal]=useState(()=>{const d=new Date();return new Date(d.getFullYear(),d.getMonth(),1);});
 
   const tabs=[
     {id:"dashboard",label:"📊 Tableau de bord"},
@@ -1254,27 +1254,42 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     {/* ─── PLANNING CALENDRIER ───────────────────────────────── */}
     {onglet==="planning_cal"&&<div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:18}}>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
-        <div style={{fontSize:13,fontWeight:700}}>📅 Calendrier des congés — {["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"][moisCal-1]} 2026</div>
+        <div style={{fontSize:13,fontWeight:700}}>📅 Calendrier des congés — {["Janvier","Février","Mars","Avril","Mai","Juin","Juillet","Août","Septembre","Octobre","Novembre","Décembre"][moisCal.getMonth()]} {moisCal.getFullYear()}</div>
         <div style={{display:"flex",gap:8}}>
-          <button onClick={()=>setMoisCal(m=>Math.max(1,m-1))} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontFamily:"inherit"}}>← Préc.</button>
-          <button onClick={()=>setMoisCal(m=>Math.min(12,m+1))} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontFamily:"inherit"}}>Suiv. →</button>
+          <button onClick={()=>setMoisCal(d=>new Date(d.getFullYear(),d.getMonth()-1,1))} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontFamily:"inherit"}}>← Préc.</button>
+          <button onClick={()=>setMoisCal(d=>new Date(d.getFullYear(),d.getMonth()+1,1))} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontFamily:"inherit"}}>Suiv. →</button>
         </div>
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2,marginBottom:8}}>
         {["Lun","Mar","Mer","Jeu","Ven","Sam","Dim"].map(j=><div key={j} style={{textAlign:"center",fontSize:9,color:"#5A5A7A",fontWeight:600,padding:"4px 0"}}>{j}</div>)}
       </div>
       <div style={{display:"grid",gridTemplateColumns:"repeat(7,1fr)",gap:2}}>
-        {Array.from({length:30},(_, i)=>{
-          const jour=i+1;
-          const congeThomas=moisCal===5&&jour>=20&&jour<=22&&equipe[0];
-          const congeAbou=moisCal===5&&jour===27&&equipe[1];
-          const weekend=(i+3)%7>=5;
-          return <div key={i} style={{background:weekend?"#121222":congeThomas?equipe[0].couleur+"33":congeAbou?equipe[1].couleur+"33":"#121222",border:`1px solid ${congeThomas?equipe[0].couleur+"55":congeAbou?equipe[1].couleur+"55":"#1E1E36"}`,borderRadius:4,padding:"6px 4px",textAlign:"center",minHeight:42}}>
-            <div style={{fontSize:11,color:weekend?"#1E1E36":"#EAE6DE",fontWeight:600}}>{jour}</div>
-            {congeThomas&&<div style={{fontSize:8,color:equipe[0].couleur,marginTop:2}}>{equipe[0].prenom}</div>}
-            {congeAbou&&<div style={{fontSize:8,color:equipe[1].couleur,marginTop:2}}>{equipe[1].prenom}</div>}
-          </div>;
-        })}
+        {(()=>{
+          const annee=moisCal.getFullYear();
+          const mois=moisCal.getMonth();
+          const nbJours=new Date(annee,mois+1,0).getDate();
+          const decalage=(new Date(annee,mois,1).getDay()+6)%7;
+          const deuxChiffres=(n)=>String(n).padStart(2,"0");
+          const cases=[];
+          for(let i=0;i<decalage;i++)cases.push(<div key={"vide"+i}/>);
+          for(let jour=1;jour<=nbJours;jour++){
+            const dateJour=`${annee}-${deuxChiffres(mois+1)}-${deuxChiffres(jour)}`;
+            const jourSemaine=new Date(annee,mois,jour).getDay();
+            const weekend=jourSemaine===0||jourSemaine===6;
+            const enConge=equipe.filter(e=>(e.congesDemandes||[]).some(d=>{
+              if(d.statut!=="validee"||!d.debut)return false;
+              const debutConge=String(d.debut).slice(0,10);
+              const finConge=String(d.fin||d.debut).slice(0,10);
+              return debutConge<=dateJour&&dateJour<=finConge;
+            }));
+            const couleur=enConge[0]?.couleur;
+            cases.push(<div key={jour} style={{background:weekend?"#121222":couleur?couleur+"33":"#121222",border:`1px solid ${couleur?couleur+"55":"#1E1E36"}`,borderRadius:4,padding:"6px 4px",textAlign:"center",minHeight:42}}>
+              <div style={{fontSize:11,color:weekend?"#1E1E36":"#EAE6DE",fontWeight:600}}>{jour}</div>
+              {enConge.map(e=><div key={e.id} style={{fontSize:8,color:e.couleur,marginTop:2}}>{e.prenom||e.nom}</div>)}
+            </div>);
+          }
+          return cases;
+        })()}
       </div>
       <div style={{display:"flex",gap:12,marginTop:12,flexWrap:"wrap"}}>
         {equipe.map((e,i)=><div key={i} style={{display:"flex",alignItems:"center",gap:4,fontSize:10,color:"#5A5A7A"}}><div style={{width:10,height:10,borderRadius:2,background:e.couleur}}/>{e.prenom}</div>)}
