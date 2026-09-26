@@ -170,6 +170,52 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       loadRealData();
     }catch(err){showToast("❌ Erreur de connexion");}
   };
+  const[envoiRapportEnCours,setEnvoiRapportEnCours]=useState(false);
+  const envoyerRapportRH=async()=>{
+    const effectif=equipe.length;
+    const masse=equipe.reduce((a,e)=>a+(Number(e.salaire)||0),0);
+    const perf=effectif?Math.round(equipe.reduce((a,e)=>a+(Number(e.perf)||0),0)/effectif):0;
+    setEnvoiRapportEnCours(true);
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'envoyer_rapport_rh',resume:{effectif,masse_salariale:masse,perf_moyenne:perf,alertes:alertes.map(a=>({nom:a.nom,detail:a.detail}))}})});
+      const data=await res.json();
+      if(!res.ok||data.error)showToast(`❌ ${data.error||"Erreur"}`);
+      else showToast(`📧 Rapport RH envoyé à ${data.envoye_a}`);
+    }catch(err){showToast("❌ Erreur de connexion");}
+    setEnvoiRapportEnCours(false);
+  };
+  const[entretienFormOuvert,setEntretienFormOuvert]=useState(false);
+  const[entretienEmployeId,setEntretienEmployeId]=useState("");
+  const[entretienDate,setEntretienDate]=useState("");
+  const[entretienNote,setEntretienNote]=useState("");
+  const[envoiEntretienEnCours,setEnvoiEntretienEnCours]=useState(false);
+  const planifierEntretien=async()=>{
+    if(!entretienEmployeId)return showToast("⚠️ Choisis un employé");
+    if(!entretienDate)return showToast("⚠️ Renseigne une date");
+    setEnvoiEntretienEnCours(true);
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'planifier_entretien',employe_id:entretienEmployeId,date_entretien:new Date(entretienDate).toISOString(),note:entretienNote||null})});
+      const data=await res.json();
+      if(!res.ok||data.error)showToast(`❌ ${data.error||"Erreur"}`);
+      else{
+        showToast(`✅ Entretien planifié — notification envoyée à ${data.envoye_a}`);
+        setEntretienFormOuvert(false);setEntretienEmployeId("");setEntretienDate("");setEntretienNote("");
+      }
+    }catch(err){showToast("❌ Erreur de connexion");}
+    setEnvoiEntretienEnCours(false);
+  };
+  const[analysesIA,setAnalysesIA]=useState({});
+  const[analyseEnCours,setAnalyseEnCours]=useState(null);
+  const analyserEmploye=async(e)=>{
+    setAnalyseEnCours(e.id);
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'analyse_ia',membre:{...e,heuresCeMois:e.heures}})});
+      const data=await res.json();
+      if(!res.ok||data.error)showToast(`❌ ${data.error||"Erreur"}`);
+      else setAnalysesIA(a=>({...a,[e.id]:data.analyse}));
+    }catch(err){showToast("❌ Erreur de connexion");}
+    setAnalyseEnCours(null);
+  };
   const [envoiFicheEnCours,setEnvoiFicheEnCours]=useState(null);
   const voirFichePaie=async(e)=>{
     try{
@@ -657,7 +703,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
       <div style={{display:"flex",gap:8}}>
         <button onClick={()=>setShowAdd(s=>!s)} style={{background:"#C9A84C22",color:"#C9A84C",border:"1px solid #C9A84C88",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontWeight:600,fontFamily:"inherit"}}>+ Ajouter</button>
         <button onClick={()=>setShowMsgGroupe(s=>!s)} style={{background:"transparent",color:"#4B7BFF",border:"1px solid #4B7BFF44",borderRadius:7,padding:"7px 14px",cursor:"pointer",fontSize:12,fontFamily:"inherit"}}>📢 Message groupe</button>
-        <button onClick={()=>showToast("📧 Rapport RH mensuel envoyé !")} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13,fontFamily:"inherit"}}>📊 Rapport RH</button>
+        <button onClick={envoyerRapportRH} disabled={envoiRapportEnCours} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:7,padding:"8px 16px",cursor:"pointer",fontWeight:600,fontSize:13,fontFamily:"inherit"}}>{envoiRapportEnCours?"⏳ Envoi...":"📊 Rapport RH"}</button>
       </div>
     {showMsgGroupe&&<div style={{background:"#0C0C1A",border:"1px solid #4B7BFF44",borderRadius:12,padding:18,marginBottom:14}}>
       <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:10,fontWeight:600}}>Message a toute l'equipe ({equipe.length} membre(s))</div>
@@ -782,7 +828,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
         </div>
         <div style={{height:3,borderRadius:2,background:"#1E1E36",marginBottom:10}}><div style={{height:"100%",width:e.perf+"%",background:e.perf>=90?"#2EC9B0":e.perf>=70?"#C9A84C":"#FF8C3A",borderRadius:2}}/></div>
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr 1fr 1fr 1fr",gap:5}}>
-          {[["💸 Paie",()=>showToast(`✅ Fiche paie ${e.nom} générée`)],["📍 GPS",()=>voirPosition(e)],["💬 Chat",()=>contacterMembreEquipe(e)],["📋 Fiche",()=>setSel(sel?.id===e.id?null:e)],["🗑 Suppr.",async()=>{
+          {[["💸 Paie",()=>voirFichePaie(e)],["📍 GPS",()=>voirPosition(e)],["💬 Chat",()=>contacterMembreEquipe(e)],["📋 Fiche",()=>setSel(sel?.id===e.id?null:e)],["🗑 Suppr.",async()=>{
             if(!window.confirm(`Supprimer ${e.nom} de l'equipe ? Son compte de connexion sera aussi supprime.`))return;
             try{
               const res=await fetch("/api/equipe",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({action:"supprimer",id:e.id})});
@@ -1391,8 +1437,20 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     {onglet==="entretiens"&&<div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",fontWeight:600}}>💼 Entretiens & Évaluations</div>
-        <button onClick={()=>showToast("✅ Entretien planifié et notification envoyée !")} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:6,padding:"7px 14px",cursor:"pointer",fontWeight:600,fontSize:12,fontFamily:"inherit"}}>+ Planifier un entretien</button>
+        <button onClick={()=>setEntretienFormOuvert(o=>!o)} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:6,padding:"7px 14px",cursor:"pointer",fontWeight:600,fontSize:12,fontFamily:"inherit"}}>+ Planifier un entretien</button>
       </div>
+      {entretienFormOuvert&&<div style={{background:"#0A0A16",border:"1px solid #1E1E36",borderRadius:8,padding:12,display:"flex",flexDirection:"column",gap:8,marginBottom:14}}>
+        <label style={{fontSize:10,color:"#5A5A7A"}}>Employé<br/><select value={entretienEmployeId} onChange={ev=>setEntretienEmployeId(ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}>
+          <option value="">— Choisir —</option>
+          {equipe.map(e=><option key={e.id} value={e.id}>{`${e.prenom||""} ${e.nom}`.trim()}{e.email?"":" (pas d'email)"}</option>)}
+        </select></label>
+        <label style={{fontSize:10,color:"#5A5A7A"}}>Date et heure<br/><input type="datetime-local" value={entretienDate} onChange={ev=>setEntretienDate(ev.target.value)} style={{background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"5px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit"}}/></label>
+        <label style={{fontSize:10,color:"#5A5A7A"}}>Note<br/><textarea value={entretienNote} onChange={ev=>setEntretienNote(ev.target.value)} rows={2} placeholder="Objet de l'entretien, lieu…" style={{width:"100%",background:"#121222",border:"1px solid #1E1E36",borderRadius:5,padding:"6px 8px",color:"#EDEDF5",fontSize:11,fontFamily:"inherit",resize:"vertical"}}/></label>
+        <div style={{display:"flex",gap:8}}>
+          <button onClick={planifierEntretien} disabled={envoiEntretienEnCours} style={{background:"#C9A84C",color:"#000",border:"none",borderRadius:6,padding:"6px 14px",cursor:"pointer",fontWeight:600,fontSize:11,fontFamily:"inherit"}}>{envoiEntretienEnCours?"Envoi...":"Planifier et notifier"}</button>
+          <button onClick={()=>setEntretienFormOuvert(false)} style={{background:"transparent",color:"#5A5A7A",border:"1px solid #1E1E36",borderRadius:6,padding:"6px 14px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>Annuler</button>
+        </div>
+      </div>}
       {equipe.map((e,i)=><div key={i} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16,marginBottom:10}}>
         <div style={{display:"flex",alignItems:"center",gap:10,marginBottom:12}}>
           <div style={{width:36,height:36,borderRadius:"50%",background:e.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:e.couleur}}>{e.nom[0]}</div>
@@ -1525,12 +1583,19 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     {onglet==="ia"&&!estRH&&<div style={{textAlign:"center",padding:40,color:"#5A5A7A",fontSize:12}}>Réservé au propriétaire et aux administrateurs.</div>}
     {onglet==="ia"&&estRH&&<div style={{display:"flex",flexDirection:"column",gap:12}}>
       <div style={{background:"#9B5FFF11",border:"1px solid #9B5FFF33",borderRadius:12,padding:16}}>
-        <div style={{fontSize:10,color:"#9B5FFF",fontWeight:600,marginBottom:8}}>🤖 Analyse RH globale — Claude Sonnet</div>
-        <div style={{fontSize:12,color:"#EAE6DE",lineHeight:1.8}}>Votre équipe de 3 personnes performe à {perfMoy}% en moyenne. Thomas est votre meilleur élément (94%) et justifie une prime. Le CDD d'Abou expire bientôt — la conversion en CDI est recommandée au vu de sa progression. Fatou excelle en relation client et pourrait évoluer vers un poste de responsable commerciale.</div>
+        <div style={{fontSize:10,color:"#9B5FFF",fontWeight:600,marginBottom:4}}>🤖 Analyse RH par collaborateur — Claude</div>
+        <div style={{fontSize:11,color:"#5A5A7A"}}>Chaque analyse est générée à partir des données réelles de l&apos;employé (rôle, contrat, salaire, performance, congés, évaluations).</div>
       </div>
-      {[{icon:"📈",titre:"Performance & Rémunération",txt:`Thomas (94%) mérite une augmentation de 200-300€. Abou progresse (+8pts en 3 mois), prévoir une revalorisation à la conversion CDI. Masse salariale actuelle : ${totalSalaire.toLocaleString("fr")}€/mois — raisonnable pour votre CA.`,col:"#2EC9B0"},{icon:"⚖️",titre:"Risques juridiques",txt:"1 risque identifié : CDD Abou Diallo à convertir ou non renouveler sous 2 mois. 1 visite médicale en retard (Thomas). 1 entretien professionnel à planifier (Fatou). Ces 3 points sont prioritaires.",col:"#FF8C3A"},{icon:"🏆",titre:"Recommandation recrutement",txt:"Votre CA +12% justifie un 4ème technicien. Profil idéal : polyvalent, zone Paris Est, 2 000€ net. Retour sur investissement en 3 mois. Publier l'offre sur Indeed + LinkedIn.",col:"#4B7BFF"},{icon:"💡",titre:"Optimisation coûts RH",txt:"Convention collective services à la personne applicable : exonérations URSSAF possibles. Chèques emploi service universels (CESU) pour réduire les charges de 15-20%. À valider avec votre expert-comptable.",col:"#C9A84C"}].map((a,i)=><div key={i} style={{background:`${a.col}11`,border:`1px solid ${a.col}33`,borderRadius:10,padding:14}}>
-        <div style={{fontSize:11,fontWeight:700,color:a.col,marginBottom:6}}>{a.icon} {a.titre}</div>
-        <div style={{fontSize:12,color:"#EAE6DE",lineHeight:1.7}}>{a.txt}</div>
+      {equipe.length===0?<div style={{textAlign:"center",padding:30,color:"#5A5A7A",fontSize:12}}>Aucun employé à analyser.</div>:equipe.map(e=><div key={e.id} style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:14}}>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          <div style={{width:34,height:34,borderRadius:"50%",background:e.couleur+"22",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:e.couleur}}>{(e.prenom||e.nom||"?")[0]}</div>
+          <div style={{flex:1}}>
+            <div style={{fontSize:13,fontWeight:700}}>{`${e.prenom||""} ${e.nom}`.trim()}</div>
+            <div style={{fontSize:10,color:"#5A5A7A"}}>{e.role||"—"} · {e.contrat||"—"} · Perf. {e.perf}%</div>
+          </div>
+          <button onClick={()=>analyserEmploye(e)} disabled={analyseEnCours===e.id} style={{background:"#9B5FFF22",color:"#9B5FFF",border:"1px solid #9B5FFF55",borderRadius:6,padding:"6px 12px",cursor:"pointer",fontSize:11,fontWeight:600,fontFamily:"inherit",whiteSpace:"nowrap"}}>{analyseEnCours===e.id?"⏳ Analyse...":analysesIA[e.id]?"🔄 Régénérer":"🤖 Analyser"}</button>
+        </div>
+        {analysesIA[e.id]&&<div style={{marginTop:10,background:"#9B5FFF11",border:"1px solid #9B5FFF33",borderRadius:8,padding:12,fontSize:12,color:"#EAE6DE",lineHeight:1.7,whiteSpace:"pre-wrap"}}>{analysesIA[e.id]}</div>}
       </div>)}
     </div>}
 

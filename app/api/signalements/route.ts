@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { envoyerPartout } from '../../lib/rappels';
+import { estAutoriseGererEquipe } from '../../lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -92,6 +93,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'resoudre') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { id, resolution, resolu_par } = body;
     if (!resolution?.trim()) return NextResponse.json({ error: 'Resolution requise' }, { status: 400 });
     const { error } = await sb.from('signalements_mission').update({
@@ -103,6 +105,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'marquer_vu') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { id } = body;
     const { error } = await sb.from('signalements_mission').update({ statut: 'vu' }).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -110,6 +113,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'ajouter_destinataire') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { destinataire_id, gravite_min } = body;
     const { data, error } = await sb.from('notifications_signalement').insert({
       tenant_id: tenantId, destinataire_id, gravite_min: gravite_min || 'mineur', actif: true,
