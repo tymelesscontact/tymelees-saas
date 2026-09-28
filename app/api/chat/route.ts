@@ -23,6 +23,28 @@ async function askClaude(prompt: string, maxTokens = 300, tenantId: string | nul
   return data.content?.[0]?.text || '';
 }
 
+// Collaborateur "simple" (role collaborateur dans tenant_membres, pas Admin dans equipe) :
+// il est membre du tenant, mais ne doit acceder qu'a ses propres conversations.
+async function estCollaborateurSimple(req: NextRequest, tenantId: string): Promise<boolean> {
+  const token = req.cookies.get('sb-access-token')?.value;
+  if (!token) return false;
+  const { data: auth } = await sb.auth.getUser(token);
+  if (!auth?.user) return false;
+  const { data: membre } = await sb.from('tenant_membres').select('role').eq('user_id', auth.user.id).eq('tenant_id', tenantId).maybeSingle();
+  if (membre?.role !== 'collaborateur') return false;
+  const { data: fiche } = await sb.from('equipe').select('role').eq('user_id', auth.user.id).eq('tenant_id', tenantId).maybeSingle();
+  return fiche?.role !== 'Admin';
+}
+
+// La conversation existe et appartient bien au tenant de l'appelant (sinon null).
+async function conversationDuTenant(conversationId: string, tenantId: string | null) {
+  if (!conversationId || !tenantId) return null;
+  const { data } = await sb.from('conversations')
+    .select('id,tenant_id,espace,est_groupe,jitsi_room,contact_email,contact_tel')
+    .eq('id', conversationId).maybeSingle();
+  return data && data.tenant_id === tenantId ? data : null;
+}
+
 export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   const { searchParams } = new URL(req.url);
@@ -30,6 +52,8 @@ export async function GET(req: NextRequest) {
   const companyId = searchParams.get('company_id');
 
   if (!tenantId) return NextResponse.json({ conversations: [] });
+  // Un collaborateur passe par mes_conversations : jamais la liste complete du tenant.
+  if (await estCollaborateurSimple(req, tenantId)) return NextResponse.json({ error: 'reserve_rh' }, { status: 403 });
   let query = sb.from('conversations').select('*').eq('tenant_id', tenantId).order('derniere_activite', { ascending: false });
   if (espace) query = query.eq('espace', espace);
   if (companyId && UUID_RE.test(companyId)) query = query.eq('company_id', companyId);
@@ -55,6 +79,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
   const tenantId = await getTenantIdFromRequest(req);
+  const collaborateurSimple = tenantId ? await estCollaborateurSimple(req, tenantId) : false;
+  if (collaborateurSimple && action !== 'mes_conversations' && action !== 'envoyer_message') {
+    return NextResponse.json({ error: 'reserve_rh' }, { status: 403 });
+  }
 
   if (action === 'creer_conversation') {
     const { espace, contact_nom, contact_type, contact_id, contact_tel, contact_email, premier_contact } = body;
@@ -137,7 +165,12 @@ export async function POST(req: NextRequest) {
     let q = sb.from('conversations').select('*').eq('tenant_id', tenantId).eq('espace', 'equipe');
     if (moi.email) q = q.eq('contact_email', moi.email);
     else if (moi.tel) q = q.eq('contact_tel', moi.tel);
-    let { data: convs } = await q.order('derniere_activite', { ascending: false });
+    // Sans email ni tel, la requete n'aurait aucun filtre de contact et renverrait les conversations
+    // privees de tous les collegues : dans ce cas, pas de conversation privee (le canal reste).
+    const { data: convsTrouvees } = (moi.email || moi.tel)
+      ? await q.order('derniere_activite', { ascending: false })
+      : { data: [] };
+    let convs = convsTrouvees;
     // Pas encore de conversation privee avec RH : on la cree pour que le collaborateur puisse ecrire en premier.
     // Seulement s'il a un email ou un tel, sinon elle serait introuvable au chargement suivant.
     if ((!convs || convs.length === 0) && (moi.email || moi.tel)) {
@@ -157,8 +190,41 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ conversations: avecMessages, moiNom });
   }
   if (action === 'envoyer_message') {
-    const { conversation_id, contenu, type, fichier_url, contact_tel, contact_email } = body;
+    const { conversation_id, contenu, type, fichier_url } = body;
+    let { contact_tel, contact_email } = body;
     if (!conversation_id || (!contenu && !fichier_url)) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
+
+    // La conversation doit appartenir au tenant de l'appelant (plus d'ecriture d'un tenant a l'autre).
+    const convCible = await conversationDuTenant(conversation_id, tenantId);
+    if (!convCible) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+
+    if (collaborateurSimple) {
+      // Un collaborateur n'ecrit que dans SES conversations : sa conversation privee avec RH,
+      // le canal d'equipe, ou un groupe dont il est participant (memes criteres que mes_conversations).
+      const tokenCollab = req.cookies.get('sb-access-token')?.value;
+      const { data: authCollab } = tokenCollab ? await sb.auth.getUser(tokenCollab) : { data: null };
+      const { data: fiche } = authCollab?.user
+        ? await sb.from('equipe').select('email,tel,nom,prenom').eq('user_id', authCollab.user.id).eq('tenant_id', tenantId).maybeSingle()
+        : { data: null };
+      if (!fiche) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+      const nomFiche = fiche.prenom ? (fiche.prenom + ' ' + fiche.nom) : fiche.nom;
+      let autorise = false;
+      if (!convCible.est_groupe && convCible.espace === 'equipe') {
+        autorise = fiche.email ? convCible.contact_email === fiche.email : (!!fiche.tel && convCible.contact_tel === fiche.tel);
+      } else if (convCible.est_groupe) {
+        if (convCible.jitsi_room === `xyra-equipe-${tenantId}`) autorise = true;
+        else {
+          let qMembre = sb.from('conversation_participants').select('id').eq('conversation_id', convCible.id);
+          qMembre = fiche.email ? qMembre.eq('email', fiche.email) : qMembre.eq('nom', nomFiche);
+          const { data: participant } = await qMembre.limit(1).maybeSingle();
+          autorise = !!participant;
+        }
+      }
+      if (!autorise) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+      // Le collaborateur ne choisit pas a qui part un WhatsApp/email/SMS.
+      contact_tel = null;
+      contact_email = null;
+    }
 
     let expediteur = 'Moi';
     let moi = true;
@@ -238,6 +304,7 @@ export async function POST(req: NextRequest) {
   if (action === 'recevoir_message') {
     // Pour simuler/logger un message entrant (ex: réponse manuelle d'un client suivie sur WhatsApp directement)
     const { conversation_id, contenu, auteur, type, fichier_url } = body;
+    if (!(await conversationDuTenant(conversation_id, tenantId))) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
     const { data, error } = await sb.from('chat_messages').insert({
       conversation_id, auteur: auteur || 'Contact', contenu, moi: false, type: type || 'texte', fichier_url, lu: false,
     }).select().single();
@@ -293,6 +360,7 @@ export async function POST(req: NextRequest) {
   if (action === 'categoriser') {
     const { conversation_id, messages } = body;
     if (!messages?.length) return NextResponse.json({ error: 'Aucun message' }, { status: 400 });
+    if (!(await conversationDuTenant(conversation_id, tenantId))) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
     try {
       const historique = messages.slice(-10).map((m: any) => `${m.moi ? 'Moi' : m.auteur}: ${m.contenu}`).join('\n');
       const prompt = `Voici une conversation. Classe-la dans UNE seule catégorie parmi : nouveau_lead, suivi, vip, cloture. Réponds uniquement avec le mot de la catégorie, rien d'autre.\n\n${historique}`;
