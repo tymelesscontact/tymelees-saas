@@ -157,7 +157,8 @@ export async function POST(req: NextRequest) {
           type: 'good',
           icon: '📅',
           titre: `RDV fixé par Lea avec ${call.customer?.name || call.customer?.number}`,
-          heure: new Date().toLocaleTimeString('fr', { hour: '2-digit', minute: '2-digit' }),
+          // Heure de Paris : le serveur Vercel tourne en heure universelle (UTC).
+          heure: new Date().toLocaleTimeString('fr', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }),
           lu: false,
           tenant_id: call.metadata?.tenant_id || null,
         });
