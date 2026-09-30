@@ -32,7 +32,10 @@ export async function POST(req: NextRequest) {
       const tenant = await getTenantFromRequest(req);
       if (!tenant) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
 
-      const origin = req.headers.get('origin') || 'https://xyraio.fr';
+      // L'en-tete Origin est controle par le client HTTP : ne jamais le
+      // reflecter dans les URL Stripe, sinon la fin de paiement devient une
+      // redirection vers un domaine arbitraire.
+      const origin = process.env.NEXT_PUBLIC_SITE_URL || 'https://xyraio.fr';
       const sessionModule = await stripe.checkout.sessions.create({
         payment_method_types: ['card'],
         mode: 'subscription',

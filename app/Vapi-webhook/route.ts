@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { createHmac, timingSafeEqual } from 'crypto';
+
+type VapiCall = {
+  id?: string;
+  assistantId?: string;
+  startedAt?: string;
+  endedAt?: string;
+  endedReason?: string;
+  transcript?: string;
+  customer?: { name?: string; number?: string };
+  metadata?: { tenant_id?: string };
+};
 
 function getSb() {
   // Vapi appelle ce webhook sans session (pas d'utilisateur connecte) -- la
@@ -14,14 +26,50 @@ function getSb() {
 
 export async function POST(req: NextRequest) {
   try {
+    // Authentification avant toute lecture du JSON. Une absence de secret est un
+    // echec ferme, pas un mode degrade qui laisserait ce point d'entree public.
+    // Methode documentee par Vapi : credential "Bearer Token" (Authorization: Bearer <secret>,
+    // ou l'ancien en-tete X-Vapi-Secret). HMAC accepte aussi (x-vapi-signature, hex du corps brut).
+    const rawBody = await req.text();
+    const secret = process.env.VAPI_WEBHOOK_SECRET;
+    if (!secret) {
+      return NextResponse.json({ error: 'Webhook non authentifie' }, { status: 401 });
+    }
+    const egalTempsConstant = (a: string, b: string) => {
+      const ba = Buffer.from(a);
+      const bb = Buffer.from(b);
+      return ba.length === bb.length && timingSafeEqual(ba, bb);
+    };
+    const authorization = req.headers.get('authorization') || '';
+    const jetonBearer = authorization.startsWith('Bearer ') ? authorization.slice(7).trim() : '';
+    const jetonLegacy = req.headers.get('x-vapi-secret') || '';
+    const signature = (req.headers.get('x-vapi-signature') || '').replace(/^sha256=/, '');
+    const signatureAttendue = createHmac('sha256', secret).update(rawBody).digest('hex');
+    const authentifie =
+      (!!jetonBearer && egalTempsConstant(jetonBearer, secret)) ||
+      (!!jetonLegacy && egalTempsConstant(jetonLegacy, secret)) ||
+      (!!signature && egalTempsConstant(signature, signatureAttendue));
+    if (!authentifie) {
+      return NextResponse.json({ error: 'Webhook non authentifie' }, { status: 401 });
+    }
+
+    let body: { message?: { type?: string; call?: VapiCall; transcript?: string } };
+    try {
+      body = JSON.parse(rawBody);
+    } catch {
+      return NextResponse.json({ error: 'Corps JSON invalide' }, { status: 400 });
+    }
+
     const sb = getSb();
-    const body = await req.json();
     const { message } = body;
 
     if (!message) return NextResponse.json({ ok: true });
 
     const type = message.type;
     const call = message.call;
+    if (!call?.id) {
+      return NextResponse.json({ error: 'Evenement Vapi incomplet' }, { status: 400 });
+    }
 
     // ── APPEL DÉMARRÉ ─────────────────────────────────────────
     if (type === 'call-started') {
@@ -116,9 +164,9 @@ export async function POST(req: NextRequest) {
     }
 
     return NextResponse.json({ ok: true });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error('Vapi webhook error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ error: 'Erreur interne du webhook' }, { status: 500 });
   }
 }
 

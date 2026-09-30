@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { verifierAccesModule } from '../../lib/supabaseServer';
+import { estAutoriseGererEquipe } from '../../lib/permissions';
 import { dechiffrer, getAnthropicKey } from '../../lib/anthropicKey';
 
 export const maxDuration = 30
@@ -13,11 +14,12 @@ function getAdminClient() {
 
 export async function POST(req: NextRequest) {
   try {
+    const acces = await verifierAccesModule(req, 'prospection');
+    if (!acces.ok) return acces.reponse;
+    const tenantId = acces.tenantId;
     const { action, ...params } = await req.json()
 
     if (action === 'enrichir_lead') {
-      const tenantId = await getTenantIdFromRequest(req)
-      if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 })
       const sb = getAdminClient()
 
       const { data: lead } = await sb.from('crm_leads').select('*').eq('id', params.lead_id).eq('tenant_id', tenantId).maybeSingle()
@@ -104,37 +106,17 @@ INTROUVABLE`
         updated_at: new Date().toISOString(),
       }).eq('id', lead.id).eq('tenant_id', tenantId)
 
-      // Envoi automatique du premier message de prospection, comme demande --
-      // meme mecanique/expediteur que le bouton email existant (api/crm
-      // action envoyer_email), pour rester coherent avec ce qui est deja reel.
-      let emailEnvoye = false
-      try {
-        const { Resend } = await import('resend')
-        const resend = new Resend(process.env.RESEND_API_KEY)
-        await resend.emails.send({
-          from: 'Xyra <notifications@xyraio.fr>',
-          to: emailTrouve,
-          subject: `Prise de contact — ${lead.nom || ''}`,
-          html: `<div style="font-family:sans-serif;padding:24px;white-space:pre-line;">Bonjour, je me permets de vous contacter au sujet de nos services.</div>`,
-        })
-        emailEnvoye = true
-      } catch (e: any) {
-        console.error('Envoi auto prospection:', e.message)
-      }
-
       return NextResponse.json({
         success: true,
         trouve: true,
         email: emailTrouve,
         source,
-        email_envoye: emailEnvoye,
+        email_envoye: false,
         linkedin_url: null,
       })
     }
 
     if (action === 'signal_ajouter_crm') {
-      const tenantId = await getTenantIdFromRequest(req)
-      if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 })
       const sb = getAdminClient()
       const { data: signal } = await sb.from('signaux_prospection').select('*').eq('id', params.signal_id).eq('tenant_id', tenantId).maybeSingle()
       if (!signal) return NextResponse.json({ error: 'Signal introuvable' }, { status: 404 })
@@ -148,8 +130,6 @@ INTROUVABLE`
     }
 
     if (action === 'signal_ignorer') {
-      const tenantId = await getTenantIdFromRequest(req)
-      if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 })
       const sb = getAdminClient()
       const { error } = await sb.from('signaux_prospection').update({ vu: true }).eq('id', params.signal_id).eq('tenant_id', tenantId)
       if (error) return NextResponse.json({ error: error.message }, { status: 500 })
@@ -157,6 +137,16 @@ INTROUVABLE`
     }
 
     if (action === 'call') {
+      // Appel Vapi payant, passe au nom de l'entreprise : proprietaire et Admin uniquement.
+      if (!(await estAutoriseGererEquipe(req, tenantId))) {
+        return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+      }
+      const telephone = typeof params.tel === 'string' ? params.tel.trim() : '';
+      const nom = typeof params.nom === 'string' ? params.nom.trim() : '';
+      if (!/^\+[1-9]\d{7,14}$/.test(telephone) || !nom) {
+        return NextResponse.json({ error: 'Numero international et nom requis' }, { status: 400 });
+      }
+
       const response = await fetch('https://api.vapi.ai/call/phone', {
         method: 'POST',
         headers: {
@@ -164,12 +154,16 @@ INTROUVABLE`
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          phoneNumberId: params.phoneNumberId,
+          // Les identifiants Vapi ne viennent jamais du navigateur : un
+          // utilisateur ne peut donc pas appeler un numero ou un assistant
+          // d'un autre tenant/compte Vapi.
+          phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID || '+12526754837',
           customer: {
-            number: params.tel,
-            name: params.nom,
+            number: telephone,
+            name: nom,
           },
-          assistantId: params.assistantId,
+          assistantId: process.env.VAPI_ASSISTANT_ID || '715e757d-93e7-423a-a6f1-18a77bb19e94',
+          metadata: { tenant_id: tenantId },
           assistantOverrides: {
             variableValues: {
               nom_prospect: params.nom,
@@ -193,34 +187,37 @@ INTROUVABLE`
 }
 
 export async function GET(req: NextRequest) {
+  const acces = await verifierAccesModule(req, 'prospection');
+  if (!acces.ok) return acces.reponse;
+  const tenantId = acces.tenantId;
   const { searchParams } = new URL(req.url)
   const action = searchParams.get('action')
 
   if (action === 'signaux') {
-    const tenantId = await getTenantIdFromRequest(req)
-    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 })
     const sb = getAdminClient()
     const { data } = await sb.from('signaux_prospection').select('*').eq('tenant_id', tenantId).eq('vu', false).order('cree_le', { ascending: false })
     return NextResponse.json({ success: true, signaux: data || [] })
   }
 
-  if (action === 'calls' || action === 'assistants') {
-    try {
-      const response = await fetch(`https://api.vapi.ai/${action === 'calls' ? 'call?limit=50' : 'assistant'}`, {
-        headers: { 'Authorization': `Bearer ${process.env.VAPI_API_KEY}` },
-      })
-      const data = await response.json()
-      return NextResponse.json({ success: true, [action]: data })
-    } catch (error: any) {
-      return NextResponse.json({ error: error.message }, { status: 500 })
-    }
+  if (action === 'calls') {
+    const { data, error } = await getAdminClient()
+      .from('vapi_calls')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('started_at', { ascending: false })
+      .limit(50);
+    if (error) return NextResponse.json({ error: 'Impossible de lire les appels' }, { status: 500 });
+    return NextResponse.json({ success: true, calls: data || [] });
+  }
+
+  if (action === 'assistants') {
+    return NextResponse.json({ error: 'Action non disponible' }, { status: 403 });
   }
 
   const sb = getAdminClient()
 
   const statutConnexion = !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)
 
-  const tenantId = await getTenantIdFromRequest(req)
   let conversations: any[] = []
   let devisGeneres: any[] = []
   if (tenantId) {
