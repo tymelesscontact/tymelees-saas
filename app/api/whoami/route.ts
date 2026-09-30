@@ -53,8 +53,14 @@ export async function GET(req: NextRequest) {
     }
     if (membre?.role === 'owner') { isProprietaireTenant = true; peutSignerDevisManuel = true }
   } else if (employeId) {
-    const { data: monEquipeSignature } = await sb.from('equipe').select('peut_signer_devis').eq('id', employeId).maybeSingle()
+    const { data: monEquipeSignature } = await sb.from('equipe').select('peut_signer_devis,tenant_id').eq('id', employeId).maybeSingle()
     peutSignerDevisManuel = !!monEquipeSignature?.peut_signer_devis
+    // Un employe d'une entreprise en 2FA doit aussi voir l'ecran du code a la connexion
+    // (sinon la page sautait l'etape et le serveur refusait ensuite tout acces).
+    if (monEquipeSignature?.tenant_id) {
+      const { data: t } = await sb.from('tenants').select('deux_fa_actif').eq('id', monEquipeSignature.tenant_id).maybeSingle()
+      deuxFaActif = !!t?.deux_fa_actif
+    }
   }
 
   return NextResponse.json({ isOwner, isCollaborateur, employeId, email: userData.user.email, profil: profilCollaborateur, deuxFaActif, isProprietaireTenant, peutSignerDevisManuel })
