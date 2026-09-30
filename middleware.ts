@@ -5,6 +5,7 @@ import { verifierJeton2FA } from './app/lib/deuxFa'
 
 const API_OUVERTES = [
   '/api/profil-entreprise',
+  '/api/registration-intent',
   '/api/finaliser-inscription',
   '/api/2fa',
   '/api/reservation-publique',
@@ -13,7 +14,6 @@ const API_OUVERTES = [
   '/api/create-checkout',
   '/api/create-checkout-flutterwave',
   '/api/generer-secteur',
-  '/api/send-email',
   '/api/whoami',
   '/api/club',
   '/api/club-espace',
@@ -120,9 +120,16 @@ export async function middleware(req: NextRequest) {
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!
     )
-    const { data: membre } = await sbService.from('tenant_membres').select('tenant_id').eq('user_id', data.user.id).maybeSingle()
-    if (membre?.tenant_id) {
-      const { data: tenantInfo } = await sbService.from('tenants').select('deux_fa_actif').eq('id', membre.tenant_id).maybeSingle()
+    const activeTenantId = req.cookies.get('active_tenant_id')?.value
+    const { data: membres } = await sbService
+      .from('tenant_membres')
+      .select('tenant_id')
+      .eq('user_id', data.user.id)
+    const tenantId = activeTenantId && membres?.some(m => m.tenant_id === activeTenantId)
+      ? activeTenantId
+      : membres?.[0]?.tenant_id
+    if (tenantId) {
+      const { data: tenantInfo } = await sbService.from('tenants').select('deux_fa_actif').eq('id', tenantId).maybeSingle()
       if (tenantInfo?.deux_fa_actif) {
         // Le cookie doit etre un jeton signe par le serveur, lie a CET utilisateur (plus la valeur fixe "1").
         const jeton2FA = req.cookies.get('deux_fa_verified')?.value

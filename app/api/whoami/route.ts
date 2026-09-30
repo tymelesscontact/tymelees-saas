@@ -42,7 +42,11 @@ export async function GET(req: NextRequest) {
   let isProprietaireTenant = false
   let peutSignerDevisManuel = false
   if (!isCollaborateur) {
-    const { data: membre } = await sb.from('tenant_membres').select('tenant_id,role').eq('user_id', userData.user.id).maybeSingle()
+    const activeTenantId = req.cookies.get('active_tenant_id')?.value
+    const { data: membres } = await sb.from('tenant_membres').select('tenant_id,role').eq('user_id', userData.user.id)
+    const membre = activeTenantId && membres?.some(m => m.tenant_id === activeTenantId)
+      ? membres.find(m => m.tenant_id === activeTenantId)
+      : membres?.[0]
     if (membre?.tenant_id) {
       const { data: t } = await sb.from('tenants').select('deux_fa_actif').eq('id', membre.tenant_id).maybeSingle()
       deuxFaActif = !!t?.deux_fa_actif
