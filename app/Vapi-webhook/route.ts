@@ -53,7 +53,16 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Webhook non authentifie' }, { status: 401 });
     }
 
-    let body: { message?: { type?: string; call?: VapiCall; transcript?: string } };
+    let body: {
+      message?: {
+        type?: string;
+        call?: VapiCall;
+        transcript?: string;
+        status?: string;
+        endedReason?: string;
+        artifact?: { transcript?: string };
+      };
+    };
     try {
       body = JSON.parse(rawBody);
     } catch {
@@ -71,21 +80,39 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Evenement Vapi incomplet' }, { status: 400 });
     }
 
+    // Une seule ligne par appel : upsert() sans cle de conflit inserait une nouvelle
+    // ligne a chaque message. On met a jour la ligne existante, sinon on la cree.
+    // creerSeulement : le demarrage ne doit pas ecraser un appel deja termine
+    // (Vapi ne garantit pas l'ordre d'arrivee des messages).
+    const enregistrerAppel = async (champs: Record<string, unknown>, creerSeulement = false) => {
+      const { data: existant } = await sb.from('vapi_calls').select('id').eq('call_id', call.id).limit(1).maybeSingle();
+      if (existant) {
+        if (!creerSeulement) await sb.from('vapi_calls').update(champs).eq('id', existant.id);
+      } else {
+        await sb.from('vapi_calls').insert({ call_id: call.id, ...champs });
+      }
+    };
+
+    // Noms reels des messages Vapi (doc officielle) : "status-update" (status
+    // "in-progress") au demarrage, "end-of-call-report" a la fin. Les anciens
+    // noms "call-started" / "call-ended" n'existent pas chez Vapi ; gardes par securite.
+    const appelDemarre = type === 'call-started' || (type === 'status-update' && message.status === 'in-progress');
+    const appelTermine = type === 'call-ended' || type === 'end-of-call-report';
+
     // ── APPEL DÉMARRÉ ─────────────────────────────────────────
-    if (type === 'call-started') {
-      await sb.from('vapi_calls').upsert({
-        call_id: call.id,
+    if (appelDemarre) {
+      await enregistrerAppel({
         status: 'in-progress',
         prospect_name: call.customer?.name || '—',
         prospect_number: call.customer?.number || '—',
         started_at: new Date().toISOString(),
         assistant_id: call.assistantId,
         tenant_id: call.metadata?.tenant_id || null,
-      });
+      }, true);
     }
 
     // ── APPEL TERMINÉ ─────────────────────────────────────────
-    if (type === 'call-ended') {
+    if (appelTermine) {
       const duration = call.endedAt && call.startedAt
         ? Math.round((new Date(call.endedAt).getTime() - new Date(call.startedAt).getTime()) / 1000)
         : 0;
@@ -98,7 +125,8 @@ export async function POST(req: NextRequest) {
         : 90;
 
       // Résumé IA basé sur transcript
-      const transcript = call.transcript || '';
+      const transcript = message.artifact?.transcript || call.transcript || '';
+      const endedReason = message.endedReason || call.endedReason;
       const rdvDetecte = /rendez-vous|rdv|meeting|appointment|lundi|mardi|mercredi|jeudi|vendredi|semaine/i.test(transcript);
       const interessé = /intéressé|parfait|super|oui|bien sûr|envoyer|d'accord/i.test(transcript);
       const pasInteressé = /pas intéressé|non merci|pas besoin|déjà|occupé/i.test(transcript);
@@ -108,8 +136,7 @@ export async function POST(req: NextRequest) {
         : pasInteressé ? 'pas_intéressé'
         : 'à_relancer';
 
-      await sb.from('vapi_calls').upsert({
-        call_id: call.id,
+      await enregistrerAppel({
         status: 'ended',
         prospect_name: call.customer?.name || '—',
         prospect_number: call.customer?.number || '—',
@@ -137,7 +164,7 @@ export async function POST(req: NextRequest) {
       }
 
       // Relance automatique si pas répondu
-      if (call.endedReason === 'no-answer' || duration < 10) {
+      if (endedReason === 'no-answer' || duration < 10) {
         await sb.from('vapi_relances').insert({
           call_id: call.id,
           prospect_number: call.customer?.number,
@@ -151,12 +178,10 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    // ── TRANSCRIPTION DISPONIBLE ──────────────────────────────
-    if (type === 'transcript') {
-      await sb.from('vapi_calls')
-        .update({ transcript: message.transcript })
-        .eq('call_id', call.id);
-    }
+    // ── TRANSCRIPTION EN DIRECT ───────────────────────────────
+    // Les messages "transcript" ne contiennent qu'un morceau de phrase : les
+    // enregistrer ecrasait la transcription. La transcription complete arrive
+    // dans "end-of-call-report" (artifact.transcript), enregistree ci-dessus.
 
     // ── MESSAGE EN COURS ──────────────────────────────────────
     if (type === 'speech-update') {
