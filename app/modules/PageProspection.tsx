@@ -18,12 +18,18 @@ const PageLea=({showToast,leads,profil})=>{
   const[tel,setTel]=useState("");
   const[societe,setSociete]=useState("");
   const[service,setService]=useState("");
+  const[quotaLea,setQuotaLea]=useState(null);
   const leadsValides=(leads||[]).filter(l=>l&&l.tel);
 
   useEffect(()=>{
     fetch('/api/prospection?action=calls')
       .then(r=>r.json())
       .then(d=>{if(d&&d.calls&&Array.isArray(d.calls))setCalls(d.calls);})
+      .catch(e=>console.error(e));
+    // Minutes Lea consommees ce mois sur le quota du forfait (les appels passent par les comptes Xyra).
+    fetch('/api/prospection?action=quota_lea')
+      .then(r=>r.json())
+      .then(d=>{if(d&&d.success)setQuotaLea(d);})
       .catch(e=>console.error(e));
   },[]);
 
@@ -111,8 +117,9 @@ const PageLea=({showToast,leads,profil})=>{
           <span style={{fontSize:10,background:`${C.gold}22`,color:C.gold,border:`1px solid ${C.gold}44`,borderRadius:20,padding:"2px 8px"}}>🌍 Multilingue auto</span>
         </div>
       </div>
-      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
-        {[[calls.length,"Appels",C.blue],[calls.filter(c=>c.status==="ended").length,"Complétés",C.green]].map(([v,l,c],i)=>(
+      <div style={{display:"grid",gridTemplateColumns:quotaLea?"1fr 1fr 1fr":"1fr 1fr",gap:6}}>
+        {[[calls.length,"Appels",C.blue],[calls.filter(c=>c.status==="ended").length,"Complétés",C.green],
+          ...(quotaLea?[[quotaLea.illimite?"∞":`${Math.round(quotaLea.minutes_utilisees)}/${quotaLea.minutes_incluses}`,"Minutes ce mois",C.gold]]:[])].map(([v,l,c],i)=>(
           <div key={i} style={{background:C.card2,borderRadius:8,padding:"8px 10px",textAlign:"center"}}>
             <div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div>
             <div style={{fontSize:9,color:C.muted}}>{l}</div>
