@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createHmac, timingSafeEqual } from 'crypto';
 import { fuseauDuTenant, heureLocale } from '../lib/fuseauHoraire';
+import { verifierSeuilsApresAppel } from '../lib/leaUsage';
 
 type VapiCall = {
   id?: string;
@@ -12,6 +13,7 @@ type VapiCall = {
   transcript?: string;
   customer?: { name?: string; number?: string };
   metadata?: { tenant_id?: string };
+  cost?: number;
 };
 
 function getSb() {
@@ -62,6 +64,7 @@ export async function POST(req: NextRequest) {
         status?: string;
         endedReason?: string;
         artifact?: { transcript?: string };
+        cost?: number;
       };
     };
     try {
@@ -149,6 +152,8 @@ export async function POST(req: NextRequest) {
         rdv_detecte: rdvDetecte,
         transcript,
         tenant_id: call.metadata?.tenant_id || null,
+        // Cout reel facture par Vapi (en dollars), pour suivre le vrai cout de Lea par client.
+        cout_usd: typeof message.cost === 'number' ? message.cost : (typeof call.cost === 'number' ? call.cost : null),
         updated_at: new Date().toISOString(),
       });
 
@@ -178,6 +183,10 @@ export async function POST(req: NextRequest) {
           tenant_id: call.metadata?.tenant_id || null,
         });
       }
+
+      // Quota du client (alerte a 80 %) et budget global de Lea (alerte au proprietaire).
+      try { await verifierSeuilsApresAppel(call.metadata?.tenant_id || null); }
+      catch (e) { console.error('Seuils Lea non verifies', e); }
     }
 
     // ── TRANSCRIPTION EN DIRECT ───────────────────────────────
