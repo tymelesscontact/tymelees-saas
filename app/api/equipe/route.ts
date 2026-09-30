@@ -4,6 +4,7 @@ import { estProprietaireDuTenant } from '../../lib/permissions';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 import { urlRetourInvitation } from '../../lib/invitation';
 import { getAnthropicKey } from '../../lib/anthropicKey';
+import { fuseauDuTenant } from '../../lib/fuseauHoraire';
 import { createClient } from '@supabase/supabase-js';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -962,7 +963,9 @@ Rédige une analyse RH courte (4-5 phrases) avec une recommandation concrète su
     const { data: m } = await sb.from('equipe').select('nom,prenom,email').eq('id', employe_id).eq('tenant_id', tenantId).maybeSingle();
     if (!m) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
     if (!m.email) return NextResponse.json({ error: 'Aucun email pour cet employé' }, { status: 400 });
-    const dateLisible = dateEntretien.toLocaleString('fr', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' });
+    // Heure du pays de l'entreprise (le serveur tourne en UTC).
+    const fuseauEntretien = await fuseauDuTenant(tenantId);
+    const dateLisible = dateEntretien.toLocaleString('fr', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: fuseauEntretien });
     const organisateur = await nomAppelant(req, tenantId);
     const html = `<div style="font-family:sans-serif;padding:24px;max-width:600px;">
       <h2 style="color:#C9A84C">Entretien planifié</h2>

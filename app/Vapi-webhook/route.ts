@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createHmac, timingSafeEqual } from 'crypto';
+import { fuseauDuTenant, heureLocale } from '../lib/fuseauHoraire';
 
 type VapiCall = {
   id?: string;
@@ -157,8 +158,8 @@ export async function POST(req: NextRequest) {
           type: 'good',
           icon: '📅',
           titre: `RDV fixé par Lea avec ${call.customer?.name || call.customer?.number}`,
-          // Heure de Paris : le serveur Vercel tourne en heure universelle (UTC).
-          heure: new Date().toLocaleTimeString('fr', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Paris' }),
+          // Heure du pays de l'entreprise : le serveur Vercel tourne en heure universelle (UTC).
+          heure: heureLocale(new Date(), await fuseauDuTenant(call.metadata?.tenant_id)),
           lu: false,
           tenant_id: call.metadata?.tenant_id || null,
         });
