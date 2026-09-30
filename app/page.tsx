@@ -1099,7 +1099,7 @@ export default function XyraLanding() {
       </section>
 
       {/* FOOTER */}
-      <footer style={{ borderTop: "1px solid rgba(201,169,110,0.1)", paddiing: "48px 40px", fontFamily: "'DM Sans', sans-serif" }}>
+      <footer style={{ borderTop: "1px solid rgba(201,169,110,0.1)", padding: "48px 40px", fontFamily: "'DM Sans', sans-serif" }}>
         <div className="footer-grid" style={{ maxWidth: 1200, margin: "0 auto", display: "grid", gridTemplateColumns: "2fr 1fr 1fr 1fr", gap: 40, marginBottom: 36 }}>
           <div>
             <div style={{ fontSize: 20, fontWeight: 300, letterSpacing: "0.12em", marginBottom: 12 }}>XYRA</div>
