@@ -2,6 +2,10 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { verifierAccesModule } from '../../lib/supabaseServer';
 import { estAutoriseGererEquipe } from '../../lib/permissions';
+import {
+  quotaMinutes, modulesActifsDuTenant, minutesUtiliseesCeMois, coutPlateformeCeMoisEur,
+  budgetMensuelEur, dureeAutorisee,
+} from '../../lib/leaUsage';
 import { dechiffrer, getAnthropicKey } from '../../lib/anthropicKey';
 
 export const maxDuration = 30
@@ -147,6 +151,32 @@ INTROUVABLE`
         return NextResponse.json({ error: 'Numero international et nom requis' }, { status: 400 });
       }
 
+      // Cout des appels (comptes Vapi/Twilio de Xyra) : quota de minutes du client, plafond
+      // global mensuel, et duree maximale imposee a Vapi (c'est Vapi qui coupe l'appel).
+      const estOwner = acces.plan === 'owner';
+      const quota = quotaMinutes(acces.plan, await modulesActifsDuTenant(tenantId));
+      const minutesUtilisees = await minutesUtiliseesCeMois(tenantId);
+      const autorisation = dureeAutorisee({
+        quota, minutesUtilisees, estOwner,
+        coutPlateformeEur: estOwner ? 0 : await coutPlateformeCeMoisEur(),
+        budgetEur: budgetMensuelEur(),
+      });
+      if ('refus' in autorisation) {
+        const messages = {
+          quota: `Vous avez utilisé vos ${quota} minutes Lea de ce mois.`,
+          budget: 'Lea est momentanément indisponible. Réessayez plus tard ou contactez le support.',
+          sans_acces: 'Lea n\'est pas incluse dans votre forfait.',
+        };
+        return NextResponse.json({ error: messages[autorisation.refus], motif: autorisation.refus }, { status: 403 });
+      }
+
+      // Lea parle au nom de l'entreprise du client : ces informations viennent de la base,
+      // pas du navigateur. Elle annonce etre une IA (AI Act, art. 50).
+      const tenant = acces.tenant;
+      const societeClient = String(tenant?.societe || tenant?.nom || 'notre entreprise');
+      const secteurClient = String(tenant?.secteur || tenant?.metier || '');
+      const service = typeof params.service === 'string' && params.service.trim() ? params.service.trim() : secteurClient;
+
       const response = await fetch('https://api.vapi.ai/call/phone', {
         method: 'POST',
         headers: {
@@ -165,17 +195,30 @@ INTROUVABLE`
           assistantId: process.env.VAPI_ASSISTANT_ID || '715e757d-93e7-423a-a6f1-18a77bb19e94',
           metadata: { tenant_id: tenantId },
           assistantOverrides: {
+            maxDurationSeconds: autorisation.secondes,
+            firstMessage: `Bonjour, je suis Léa, l'assistante virtuelle IA de ${societeClient}. Est-ce que je parle bien à ${nom} ?`,
             variableValues: {
-              nom_prospect: params.nom,
-              societe: params.societe,
-              secteur: params.secteur,
-              service: params.service || '',
-              nom_commercial: params.nom_commercial || 'Xyra',
+              company_name: societeClient,
+              sector: secteurClient,
+              service,
+              prospect_name: nom,
+              prospect_country: String(tenant?.pays || ''),
+              prospect_company: typeof params.societe === 'string' ? params.societe : '',
             }
           }
         }),
       })
-      const data = await response.json()
+      // Vapi peut repondre en texte brut ("unauthorized") : on verifie avant de lire du JSON.
+      const texteVapi = await response.text()
+      let data: unknown = null
+      try { data = JSON.parse(texteVapi) } catch { data = null }
+      if (!response.ok) {
+        console.error('Vapi a refuse l\'appel:', response.status, texteVapi.slice(0, 300))
+        const message = response.status === 401 || response.status === 403
+          ? 'Vapi a refusé l\'accès (clé Vapi invalide).'
+          : 'Vapi n\'a pas pu lancer l\'appel.'
+        return NextResponse.json({ error: message }, { status: 502 })
+      }
       return NextResponse.json({ success: true, call: data })
     }
 
@@ -208,6 +251,12 @@ export async function GET(req: NextRequest) {
       .limit(50);
     if (error) return NextResponse.json({ error: 'Impossible de lire les appels' }, { status: 500 });
     return NextResponse.json({ success: true, calls: data || [] });
+  }
+
+  if (action === 'quota_lea') {
+    const quota = quotaMinutes(acces.plan, await modulesActifsDuTenant(tenantId));
+    const utilisees = await minutesUtiliseesCeMois(tenantId);
+    return NextResponse.json({ success: true, minutes_utilisees: utilisees, minutes_incluses: quota, illimite: quota === null });
   }
 
   if (action === 'assistants') {
