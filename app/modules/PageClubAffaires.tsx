@@ -96,16 +96,28 @@ const PageClubAffaires=({plan, modulesActifs,showToast,UpgradeWall,setPage})=>{
       else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
   };
-  const envoyerLienPaiement=async(membre,etape)=>{
+  const envoyerLienPaiement=async(membre,etape,methode)=>{
     if(!membre.email)return showToast("⚠️ Ce membre n'a pas d'adresse email");
     const libelle=etape==="droit_entree"?"droit d'entree (500 EUR)":"cotisation annuelle (2 000 EUR)";
-    if(!window.confirm(`Envoyer le lien de paiement du ${libelle} a ${membre.nom} ?\n\nDestinataire : ${membre.email}`))return;
+    const via=methode==="iban"?"les coordonnees IBAN du":"le lien Stripe du";
+    if(!window.confirm(`Envoyer ${via} paiement du ${libelle} a ${membre.nom} ?\n\nDestinataire : ${membre.email}`))return;
     try{
-      const res=await fetch('/api/club-paiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({membre_id:membre.id,etape})});
+      const res=await fetch('/api/club-paiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({membre_id:membre.id,etape,methode})});
       const data=await res.json();
-      if(data.success&&data.url){
-        showToast(`✅ Lien de paiement (${data.montant} EUR) envoye a ${data.destinataire||membre.email}`);
+      if(data.success){
+        showToast(methode==="iban"?`✅ Coordonnees IBAN (${data.montant} EUR, réf. ${data.reference}) envoyees a ${data.destinataire||membre.email}`:`✅ Lien de paiement (${data.montant} EUR) envoye a ${data.destinataire||membre.email}`);
+        load();
       }else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const confirmerVirementIban=async(membre)=>{
+    if(!window.confirm(`Confirmer que le virement de ${membre.nom} (réf. ${membre.reference_paiement||"—"}) est bien arrivé ?`))return;
+    try{
+      const res=await fetch('/api/club-paiement',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({membre_id:membre.id,action:'confirmer_virement_iban'})});
+      const data=await res.json();
+      if(data.success){showToast("✅ Virement confirmé, adhésion mise à jour");load();}
+      else showToast("❌ "+(data.error||"Erreur"));
     }catch(e){showToast("❌ Erreur de connexion");}
   };
   const deciderCandidature=async(id,accepter)=>{
@@ -366,8 +378,15 @@ const PageClubAffaires=({plan, modulesActifs,showToast,UpgradeWall,setPage})=>{
               <span style={{fontSize:11,color:m.couleur||C.gold,fontWeight:600}}>★ {m.score_reputation||50}/100</span>
             </div>
             {m.statut==="attente_paiement"&&m.contrat_id&&<Btn onClick={e=>{e.stopPropagation();envoyerReglement(m);}} style={{width:"100%",marginBottom:6,fontSize:10,padding:"6px 4px",background:`${C.purple}33`,color:C.purple,border:`1px solid ${C.purple}55`}}>Envoyer le reglement a signer</Btn>}
-            {m.statut==="attente_paiement"&&<Btn onClick={e=>{e.stopPropagation();envoyerLienPaiement(m,"droit_entree");}} style={{width:"100%",marginBottom:6,fontSize:10,padding:"6px 4px",background:C.gold,color:"#000"}}>1. Lien droit d'entree (500 €)</Btn>}
-            {m.statut==="attente_cotisation"&&<Btn onClick={e=>{e.stopPropagation();envoyerLienPaiement(m,"cotisation");}} style={{width:"100%",marginBottom:6,fontSize:10,padding:"6px 4px",background:C.green,color:"#000"}}>2. Lien cotisation (2 000 €)</Btn>}
+            {m.statut==="attente_paiement"&&<div style={{display:"flex",gap:4,marginBottom:6}}>
+              <Btn onClick={e=>{e.stopPropagation();envoyerLienPaiement(m,"droit_entree","stripe");}} style={{flex:1,fontSize:9,padding:"6px 2px",background:C.gold,color:"#000"}}>1. Lien Stripe (500 €)</Btn>
+              <Btn onClick={e=>{e.stopPropagation();envoyerLienPaiement(m,"droit_entree","iban");}} style={{flex:1,fontSize:9,padding:"6px 2px",background:`${C.gold}33`,color:C.gold,border:`1px solid ${C.gold}55`}}>1. Coord. IBAN</Btn>
+            </div>}
+            {m.statut==="attente_cotisation"&&<div style={{display:"flex",gap:4,marginBottom:6}}>
+              <Btn onClick={e=>{e.stopPropagation();envoyerLienPaiement(m,"cotisation","stripe");}} style={{flex:1,fontSize:9,padding:"6px 2px",background:C.green,color:"#000"}}>2. Lien Stripe (2 000 €)</Btn>
+              <Btn onClick={e=>{e.stopPropagation();envoyerLienPaiement(m,"cotisation","iban");}} style={{flex:1,fontSize:9,padding:"6px 2px",background:`${C.green}33`,color:C.green,border:`1px solid ${C.green}55`}}>2. Coord. IBAN</Btn>
+            </div>}
+            {(m.statut==="attente_paiement"||m.statut==="attente_cotisation")&&m.reference_paiement?.startsWith("CLUB-")&&<Btn onClick={e=>{e.stopPropagation();confirmerVirementIban(m);}} style={{width:"100%",marginBottom:6,fontSize:10,padding:"6px 4px",background:`${C.blue}33`,color:C.blue,border:`1px solid ${C.blue}55`}}>✅ J'ai reçu ce virement ({m.reference_paiement})</Btn>}
             <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:6}}>
               <Btn onClick={e=>{e.stopPropagation();contacterMembre(m);}} style={{fontSize:10,padding:"6px 4px",background:`${C.green}22`,color:C.green,border:`1px solid ${C.green}44`}}>💬 Contact</Btn>
               <BtnGhost onClick={e=>{e.stopPropagation();setSelectedMembre(m);}} style={{fontSize:10,padding:"6px 4px"}}>Profil →</BtnGhost>

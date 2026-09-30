@@ -68,7 +68,10 @@ export async function POST(req: NextRequest) {
 
   if (action === 'creer') {
     if (!tenantId) return NextResponse.json({ success: false, error: 'Session invalide' }, { status: 401 });
-    const { userId } = body;
+    const tokenAcces = req.cookies.get('sb-access-token')?.value;
+    const { data: authData } = tokenAcces ? await sb.auth.getUser(tokenAcces) : { data: null };
+    const userId = authData?.user?.id;
+    if (!userId) return NextResponse.json({ success: false, error: 'Session invalide' }, { status: 401 });
     const userAgent = req.headers.get('user-agent') || '';
     const ip = req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() || 'inconnue';
     const sessionToken = randomUUID();
@@ -81,8 +84,14 @@ export async function POST(req: NextRequest) {
       ip,
     });
 
-    const reponse = NextResponse.json({ success: true, sessionToken });
-    reponse.cookies.set('session_id', sessionToken, { path: '/', maxAge: 60 * 60 * 24 * 7, sameSite: 'lax' });
+    const reponse = NextResponse.json({ success: true });
+    reponse.cookies.set('session_id', sessionToken, {
+      path: '/',
+      maxAge: 60 * 60 * 24 * 7,
+      sameSite: 'lax',
+      httpOnly: true,
+      secure: true,
+    });
     return reponse;
   }
 

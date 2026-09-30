@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
+import { fuseauDuTenant, heureLocale, jourLocal } from '../../lib/fuseauHoraire';
 
 export const dynamic = 'force-dynamic';
 
@@ -22,7 +23,8 @@ export async function GET(req: NextRequest) {
   const moi = await moiConnecte(req);
   if (!moi) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
 
-  const aujourdhui = new Date().toISOString().slice(0, 10);
+  // Jour calendaire dans le pays de l'entreprise (le serveur tourne en UTC).
+  const aujourdhui = jourLocal(new Date(), await fuseauDuTenant(moi.tenant_id));
   const { data: pointage } = await sb.from('pointages')
     .select('*').eq('employe_id', moi.id).eq('date', aujourdhui).maybeSingle();
 
@@ -35,8 +37,12 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { action } = body;
-  const aujourdhui = new Date().toISOString().slice(0, 10);
-  const heure = new Date().toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' });
+  // Jour et heure dans le pays de l'entreprise : en UTC, 9h00 a Paris etait enregistre 7h00
+  // et un pointage apres minuit tombait sur la veille.
+  const maintenant = new Date();
+  const fuseau = await fuseauDuTenant(moi.tenant_id);
+  const aujourdhui = jourLocal(maintenant, fuseau);
+  const heure = heureLocale(maintenant, fuseau);
 
   if (action === 'arrivee') {
     const { data: existant } = await sb.from('pointages')

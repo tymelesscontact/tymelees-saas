@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { verifierAccesModule } from '../../lib/supabaseServer';
+import { estAutoriseGererEquipe } from '../../lib/permissions';
+import { dechiffrer, getAnthropicKey } from '../../lib/anthropicKey';
+
+export const maxDuration = 30
 
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
@@ -8,12 +12,212 @@ function getAdminClient() {
   return createClient(url, key)
 }
 
+export async function POST(req: NextRequest) {
+  try {
+    const acces = await verifierAccesModule(req, 'prospection');
+    if (!acces.ok) return acces.reponse;
+    const tenantId = acces.tenantId;
+    const { action, ...params } = await req.json()
+
+    if (action === 'enrichir_lead') {
+      const sb = getAdminClient()
+
+      const { data: lead } = await sb.from('crm_leads').select('*').eq('id', params.lead_id).eq('tenant_id', tenantId).maybeSingle()
+      if (!lead) return NextResponse.json({ error: 'Lead introuvable' }, { status: 404 })
+
+      const contact = (lead.contact || '').trim()
+      const [prenom, ...resteNom] = contact.split(' ')
+      const nomFamille = resteNom.join(' ')
+
+      let emailTrouve: string | null = null
+      let source = ''
+
+      // 1) Recherche web automatique via Claude d'abord (outil web_search
+      // natif de l'API Anthropic, disponible depuis avril 2026) -- reutilise
+      // la cle deja configuree pour l'app (tenant ou plateforme), aucun
+      // nouveau compte a creer. Priorite demandee : Hunter n'a pas ete fiable
+      // en test ce soir (comptes/domaines), Claude passe devant.
+      {
+        const cleAnthropic = await getAnthropicKey(tenantId)
+        const prompt = `Tu dois trouver une information de contact professionnelle reelle en cherchant sur le web. N'invente jamais un email.
+
+Entreprise : ${lead.nom || 'inconnue'}
+Contact recherche : ${contact || '(nom du dirigeant inconnu, cherche un contact general de l\'entreprise : email de type contact@ ou info@)'}
+${lead.notes ? `Infos complementaires : ${lead.notes}` : ''}
+
+Cherche le site web officiel de cette entreprise, puis son email de contact professionnel reel (page "Contact", mentions legales, ou email du dirigeant s'il est publie). Reponds STRICTEMENT dans un de ces deux formats, rien d'autre :
+EMAIL_TROUVE: adresse@exemple.fr
+ou
+INTROUVABLE`
+
+        try {
+          const claudeRes = await fetch('https://api.anthropic.com/v1/messages', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'x-api-key': cleAnthropic, 'anthropic-version': '2023-06-01' },
+            body: JSON.stringify({
+              model: 'claude-sonnet-4-6',
+              max_tokens: 500,
+              tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 3 }],
+              messages: [{ role: 'user', content: prompt }],
+            }),
+            signal: AbortSignal.timeout(28000),
+          })
+          const claudeData = await claudeRes.json()
+          if (claudeRes.ok) {
+            const texteFinal = (claudeData.content || []).filter((b: any) => b.type === 'text').map((b: any) => b.text).join(' ').trim()
+            const matchEmail = texteFinal.match(/EMAIL_TROUVE:\s*([^\s]+@[^\s]+\.[^\s]+)/i)
+            if (matchEmail) { emailTrouve = matchEmail[1].replace(/[.,;]+$/, ''); source = 'Recherche web (Claude)' }
+          }
+        } catch { /* rien trouve, on tente Hunter ci-dessous */ }
+      }
+
+      // 2) Si Claude n'a rien trouve, Hunter.io en repli si le tenant l'a
+      // connecte (BYOK, garde a sa demande).
+      if (!emailTrouve && prenom && nomFamille) {
+        const { data: hunterIntg } = await sb.from('integrations_personnalisees').select('cle_api').eq('tenant_id', tenantId).eq('nom', 'Hunter.io').maybeSingle()
+        if (hunterIntg?.cle_api) {
+          try {
+            const hunterKey = dechiffrer(hunterIntg.cle_api)
+            let domaine = (params.domaine || '').trim().toLowerCase().replace(/^https?:\/\//i, '').replace(/^www\./i, '').replace(/\/.*$/, '').replace(/\s+/g, '')
+            if (!/^[a-z0-9-]+(\.[a-z0-9-]+)+$/.test(domaine)) domaine = ''
+
+            const hUrl = new URL('https://api.hunter.io/v2/email-finder')
+            hUrl.searchParams.set('api_key', hunterKey)
+            if (domaine) hUrl.searchParams.set('domain', domaine)
+            else hUrl.searchParams.set('company', lead.nom || '')
+            hUrl.searchParams.set('first_name', prenom)
+            hUrl.searchParams.set('last_name', nomFamille)
+
+            const hRes = await fetch(hUrl.toString(), { signal: AbortSignal.timeout(12000) })
+            const hText = await hRes.text()
+            const hData = JSON.parse(hText)
+            if (hRes.ok && hData.data?.email) { emailTrouve = hData.data.email; source = 'Hunter.io' }
+          } catch { /* rien trouve, on repond trouve:false plus bas */ }
+        }
+      }
+
+      if (!emailTrouve) {
+        return NextResponse.json({ success: true, trouve: false })
+      }
+
+      await sb.from('crm_leads').update({
+        email: emailTrouve,
+        source: lead.source || source,
+        updated_at: new Date().toISOString(),
+      }).eq('id', lead.id).eq('tenant_id', tenantId)
+
+      return NextResponse.json({
+        success: true,
+        trouve: true,
+        email: emailTrouve,
+        source,
+        email_envoye: false,
+        linkedin_url: null,
+      })
+    }
+
+    if (action === 'signal_ajouter_crm') {
+      const sb = getAdminClient()
+      const { data: signal } = await sb.from('signaux_prospection').select('*').eq('id', params.signal_id).eq('tenant_id', tenantId).maybeSingle()
+      if (!signal) return NextResponse.json({ error: 'Signal introuvable' }, { status: 404 })
+      const { error } = await sb.from('crm_leads').insert({
+        nom: signal.nom_entreprise, contact: signal.dirigeant || '', source: 'Signal quotidien Xyra',
+        notes: signal.raison, etape: 'Nouveau', score: 60, tenant_id: tenantId,
+      })
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      await sb.from('signaux_prospection').update({ vu: true }).eq('id', signal.id).eq('tenant_id', tenantId)
+      return NextResponse.json({ success: true })
+    }
+
+    if (action === 'signal_ignorer') {
+      const sb = getAdminClient()
+      const { error } = await sb.from('signaux_prospection').update({ vu: true }).eq('id', params.signal_id).eq('tenant_id', tenantId)
+      if (error) return NextResponse.json({ error: error.message }, { status: 500 })
+      return NextResponse.json({ success: true })
+    }
+
+    if (action === 'call') {
+      // Appel Vapi payant, passe au nom de l'entreprise : proprietaire et Admin uniquement.
+      if (!(await estAutoriseGererEquipe(req, tenantId))) {
+        return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+      }
+      const telephone = typeof params.tel === 'string' ? params.tel.trim() : '';
+      const nom = typeof params.nom === 'string' ? params.nom.trim() : '';
+      if (!/^\+[1-9]\d{7,14}$/.test(telephone) || !nom) {
+        return NextResponse.json({ error: 'Numero international et nom requis' }, { status: 400 });
+      }
+
+      const response = await fetch('https://api.vapi.ai/call/phone', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${process.env.VAPI_API_KEY}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          // Les identifiants Vapi ne viennent jamais du navigateur : un
+          // utilisateur ne peut donc pas appeler un numero ou un assistant
+          // d'un autre tenant/compte Vapi.
+          phoneNumberId: process.env.VAPI_PHONE_NUMBER_ID || '+12526754837',
+          customer: {
+            number: telephone,
+            name: nom,
+          },
+          assistantId: process.env.VAPI_ASSISTANT_ID || '715e757d-93e7-423a-a6f1-18a77bb19e94',
+          metadata: { tenant_id: tenantId },
+          assistantOverrides: {
+            variableValues: {
+              nom_prospect: params.nom,
+              societe: params.societe,
+              secteur: params.secteur,
+              service: params.service || '',
+              nom_commercial: params.nom_commercial || 'Xyra',
+            }
+          }
+        }),
+      })
+      const data = await response.json()
+      return NextResponse.json({ success: true, call: data })
+    }
+
+    return NextResponse.json({ error: 'Action inconnue' }, { status: 400 })
+  } catch (error: any) {
+    console.error('Prospection API error:', error)
+    return NextResponse.json({ error: error.message }, { status: 500 })
+  }
+}
+
 export async function GET(req: NextRequest) {
+  const acces = await verifierAccesModule(req, 'prospection');
+  if (!acces.ok) return acces.reponse;
+  const tenantId = acces.tenantId;
+  const { searchParams } = new URL(req.url)
+  const action = searchParams.get('action')
+
+  if (action === 'signaux') {
+    const sb = getAdminClient()
+    const { data } = await sb.from('signaux_prospection').select('*').eq('tenant_id', tenantId).eq('vu', false).order('cree_le', { ascending: false })
+    return NextResponse.json({ success: true, signaux: data || [] })
+  }
+
+  if (action === 'calls') {
+    const { data, error } = await getAdminClient()
+      .from('vapi_calls')
+      .select('*')
+      .eq('tenant_id', tenantId)
+      .order('started_at', { ascending: false })
+      .limit(50);
+    if (error) return NextResponse.json({ error: 'Impossible de lire les appels' }, { status: 500 });
+    return NextResponse.json({ success: true, calls: data || [] });
+  }
+
+  if (action === 'assistants') {
+    return NextResponse.json({ error: 'Action non disponible' }, { status: 403 });
+  }
+
   const sb = getAdminClient()
 
   const statutConnexion = !!(process.env.WHATSAPP_TOKEN && process.env.WHATSAPP_PHONE_NUMBER_ID)
 
-  const tenantId = await getTenantIdFromRequest(req)
   let conversations: any[] = []
   let devisGeneres: any[] = []
   if (tenantId) {
