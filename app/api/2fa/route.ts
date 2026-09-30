@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { randomInt } from 'crypto';
+import { randomInt, createHash, timingSafeEqual } from 'crypto';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { estProprietaireDuTenant } from '../../lib/permissions';
 import { signerJeton2FA, verifierJeton2FA, DUREE_JETON_2FA_SECONDES } from '../../lib/deuxFa';
@@ -24,6 +24,15 @@ const sb = createClient(
 // Codes tires avec le generateur cryptographique du serveur (Math.random est previsible).
 function genererCode() {
   return String(randomInt(100000, 1000000));
+}
+
+const DUREE_CODE_MS = 5 * 60 * 1000;
+const DELAI_RENVOI_MS = 30 * 1000;
+const ESSAIS_MAX = 5;
+
+// Code stocke hache et lie a la personne : illisible en base, inutilisable pour quelqu'un d'autre.
+function hacherCode(userId: string, code: string) {
+  return createHash('sha256').update(`${userId}:${code}`).digest('hex');
 }
 
 const ALPHABET_SECOURS = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
@@ -68,13 +77,25 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Un code par personne (table deux_fa_codes), envoye a SON email de connexion : un employe
+  // gere sa 2FA seul, sans passer par l'email de l'entreprise, et deux connexions simultanees
+  // ne s'ecrasent plus. Le code est stocke hache, jamais en clair.
   if (action === 'envoyer_code') {
-    if (!tenant?.email) return NextResponse.json({ success: false, error: 'Aucun email enregistre' }, { status: 400 });
+    const emailPersonne = authData?.user?.email;
+    if (!emailPersonne) return NextResponse.json({ success: false, error: 'Aucun email enregistre' }, { status: 400 });
+    const { data: precedent } = await sb.from('deux_fa_codes').select('envoye_le').eq('user_id', userId).maybeSingle();
+    if (precedent && Date.now() - new Date(precedent.envoye_le).getTime() < DELAI_RENVOI_MS) {
+      return NextResponse.json({ success: false, error: 'Patientez quelques secondes avant de redemander un code' }, { status: 429 });
+    }
     const code = genererCode();
-    const expire = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-    await sb.from('tenants').update({ deux_fa_code_temp: code, deux_fa_code_expire: expire }).eq('id', tenantId);
+    const { error: errCode } = await sb.from('deux_fa_codes').upsert({
+      user_id: userId, code_hash: hacherCode(userId, code),
+      expire_le: new Date(Date.now() + DUREE_CODE_MS).toISOString(),
+      tentatives: 0, envoye_le: new Date().toISOString(),
+    }, { onConflict: 'user_id' });
+    if (errCode) return NextResponse.json({ success: false, error: 'Impossible de preparer le code' }, { status: 500 });
     try {
-      await envoyerCodeParEmail(tenant.email, code);
+      await envoyerCodeParEmail(emailPersonne, code);
     } catch (e: any) {
       return NextResponse.json({ success: false, error: 'Echec envoi email : ' + e.message }, { status: 500 });
     }
@@ -82,18 +103,33 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'verifier_code') {
-    const { code } = body;
-    const { data: t } = await sb.from('tenants').select('deux_fa_code_temp,deux_fa_code_expire').eq('id', tenantId).single();
-    if (!t?.deux_fa_code_temp) return NextResponse.json({ success: false, error: 'Aucun code en attente' }, { status: 400 });
-    if (new Date(t.deux_fa_code_expire) < new Date()) return NextResponse.json({ success: false, error: 'Code expire, redemandez-en un' }, { status: 400 });
-    if (t.deux_fa_code_temp !== code) return NextResponse.json({ success: false, error: 'Code incorrect' }, { status: 400 });
-    await sb.from('tenants').update({ deux_fa_actif: true, deux_fa_code_temp: null, deux_fa_code_expire: null }).eq('id', tenantId);
+    const code = String(body.code || '').trim();
+    const { data: enCours } = await sb.from('deux_fa_codes').select('code_hash,expire_le,tentatives').eq('user_id', userId).maybeSingle();
+    if (!enCours) return NextResponse.json({ success: false, error: 'Aucun code en attente' }, { status: 400 });
+    if (new Date(enCours.expire_le) < new Date()) return NextResponse.json({ success: false, error: 'Code expire, redemandez-en un' }, { status: 400 });
+    if (enCours.tentatives >= ESSAIS_MAX) return NextResponse.json({ success: false, error: 'Trop d\'essais, redemandez un code' }, { status: 429 });
+    const attendu = Buffer.from(enCours.code_hash);
+    const recu = Buffer.from(hacherCode(userId, code));
+    if (attendu.length !== recu.length || !timingSafeEqual(attendu, recu)) {
+      await sb.from('deux_fa_codes').update({ tentatives: enCours.tentatives + 1 }).eq('user_id', userId);
+      return NextResponse.json({ success: false, error: 'Code incorrect' }, { status: 400 });
+    }
+    await sb.from('deux_fa_codes').delete().eq('user_id', userId);
+    // Activer la 2FA pour toute l'entreprise (ecran Reglages) : proprietaire uniquement.
+    if (!tenant?.deux_fa_actif && (await estProprietaireDuTenant(req, tenantId))) {
+      await sb.from('tenants').update({ deux_fa_actif: true }).eq('id', tenantId);
+    }
     const reponse1 = NextResponse.json({ success: true });
     reponse1.cookies.set('deux_fa_verified', await signerJeton2FA(userId), { path: '/', maxAge: DUREE_JETON_2FA_SECONDES, sameSite: 'lax', httpOnly: true, secure: true });
     return reponse1;
   }
 
   if (action === 'verifier_code_secours') {
+    // Les codes de secours sont ceux du proprietaire (generes dans ses Reglages) :
+    // un employe ne doit pas pouvoir les utiliser (ni les consommer).
+    if (!(await estProprietaireDuTenant(req, tenantId))) {
+      return NextResponse.json({ success: false, error: 'Codes de secours reserves au proprietaire du compte' }, { status: 403 });
+    }
     const { code } = body;
     const { data: t } = await sb.from('tenants').select('codes_secours').eq('id', tenantId).single();
     const codes: string[] = t?.codes_secours || [];

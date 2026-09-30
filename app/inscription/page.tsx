@@ -120,6 +120,16 @@ export default function Inscription() {
 
   const createAccount = async (txRef: string, txId: string) => {
     try {
+      const intentionRes = await fetch('/api/registration-intent', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email: form.email }),
+      });
+      if (!intentionRes.ok) {
+        setError('Impossible de preparer l inscription');
+        return { success: false };
+      }
+
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: form.email,
         password: form.password,
@@ -187,21 +197,6 @@ if (!secteurDetecte) {
         setError(finalisData.error || "Erreur lors de la creation du compte");
         return { success: false };
       }
-
-      await fetch('/api/send-email', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'welcome',
-          email: form.email,
-          societe: form.societe,
-          prenom: form.gerant,
-          plan: form.plan,
-          planPrice: form.planPrice,
-          metier: form.metier,
-          pays: form.pays,
-        }),
-      });
 
       return { success: true, userId };
     } catch (e: any) {

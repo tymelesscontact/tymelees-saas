@@ -175,6 +175,7 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'confirmer_declaration_employeur') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     // Bene confirme avoir fait sa declaration a l'organisme (CPAM/CNPS/CSS/assureur)
     const { id } = body;
     const { error } = await sb.from('absences')

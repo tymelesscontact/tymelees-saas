@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
+import { fuseauDuTenant, dateHeureAvecFuseau } from '../../lib/fuseauHoraire';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 // Service role : le tenant_id est deja verifie et impose dans chaque requete
 // de ce fichier (scoped()/.eq('tenant_id', tenantId)) -- la clé anonyme ne
@@ -41,6 +42,8 @@ async function genererPdfContrat(contrat: any, tenantInfo: { societe?: string | 
   doc.on('data', (chunk: Buffer) => chunks.push(chunk));
 
   const nomEntreprise = tenantInfo?.societe || 'Xyra';
+  // Dates du certificat dans le fuseau du pays de l'entreprise, fuseau affiche (preuve de signature).
+  const fuseauContrat = await fuseauDuTenant(contrat.tenant_id);
   let logoBuffer: Buffer | null = null;
   if (tenantInfo?.logo_url) {
     try {
@@ -82,8 +85,8 @@ async function genererPdfContrat(contrat: any, tenantInfo: { societe?: string | 
     ligne('Reference', contrat.reference || '', y); y += 24;
     ligne('Signe par', `${contrat.signature_nom_tape || contrat.signataire_nom || ''} (${contrat.signataire_email || ''})`, y); y += 24;
     ligne('Role', contrat.signataire_role || '', y); y += 24;
-    ligne('Verification du code effectuee le', contrat.code_verifie_a ? new Date(contrat.code_verifie_a).toLocaleString('fr-FR') : '', y); y += 24;
-    ligne('Signature electronique le', contrat.signe_a ? new Date(contrat.signe_a).toLocaleString('fr-FR') : '', y); y += 24;
+    ligne('Verification du code effectuee le', contrat.code_verifie_a ? dateHeureAvecFuseau(new Date(contrat.code_verifie_a), fuseauContrat) : '', y); y += 24;
+    ligne('Signature electronique le', contrat.signe_a ? dateHeureAvecFuseau(new Date(contrat.signe_a), fuseauContrat) : '', y); y += 24;
     ligne('Adresse IP du signataire', contrat.signature_ip || '', y); y += 24;
     doc.fontSize(9).fillColor('#888888').text('Empreinte du document (SHA-256)', 50, y); y += 14;
     doc.fontSize(8).fillColor('#333333').font('Courier').text(contrat.document_hash || '', 50, y, { width: 495 }); doc.font('Helvetica');
@@ -228,7 +231,7 @@ export async function POST(req: NextRequest) {
       statut: 'signe', signe_a: signeA, signature_ip: ip,
       signature_nom_tape: nom_tape, document_hash: hash,
     }).eq('id', contrat.id);
-    const dateSignature = new Date(signeA).toLocaleString('fr-FR');
+    const dateSignature = dateHeureAvecFuseau(new Date(signeA), await fuseauDuTenant(contrat.tenant_id));
     const preuve = `<p>Document : <strong>${contrat.titre}</strong></p><p>Signe par : ${nom_tape} (${contrat.signataire_email})</p><p>Date : ${dateSignature}</p><p>Adresse IP : ${ip}</p><p>Empreinte du document : ${hash}</p>`;
 
     let tenantInfo: { societe?: string | null; logo_url?: string | null; email?: string | null } | null = null;

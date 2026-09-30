@@ -3,6 +3,8 @@ import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { estProprietaireDuTenant } from '../../lib/permissions';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 import { urlRetourInvitation } from '../../lib/invitation';
+import { getAnthropicKey } from '../../lib/anthropicKey';
+import { fuseauDuTenant } from '../../lib/fuseauHoraire';
 import { createClient } from '@supabase/supabase-js';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -48,6 +50,24 @@ async function estAutoriseGererEquipe(req: NextRequest, tenantId: string): Promi
   if (membreVerif?.role === 'owner') return true;
   const { data: monEquipe } = await sbAdmin.from('equipe').select('role').eq('user_id', authVerif.user.id).eq('tenant_id', tenantId).maybeSingle();
   return monEquipe?.role === 'Admin';
+}
+
+// Nom de la personne reellement connectee, pour signer un message/une evaluation/une fiche de paie --
+// remplace le prenom "Curtiss" qui etait ecrit en dur (n'avait de sens que pour un seul client Xyra).
+async function nomAppelant(req: NextRequest, tenantId: string): Promise<string> {
+  const token = req.cookies.get('sb-access-token')?.value;
+  if (!token) return 'RH';
+  const { data: auth } = await sbAdmin.auth.getUser(token);
+  if (!auth?.user) return 'RH';
+  const { data: monEquipe } = await sbAdmin.from('equipe').select('nom,prenom').eq('user_id', auth.user.id).eq('tenant_id', tenantId).maybeSingle();
+  if (monEquipe) return [monEquipe.prenom, monEquipe.nom].filter(Boolean).join(' ') || 'RH';
+  const { data: tenantInfo } = await sbAdmin.from('tenants').select('societe').eq('id', tenantId).maybeSingle();
+  return tenantInfo?.societe || 'RH';
+}
+
+// Texte saisi par l'utilisateur, insere dans un email HTML : on neutralise les balises.
+function echapperHtml(v: unknown): string {
+  return String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
 export async function GET(req: NextRequest) {
@@ -271,7 +291,30 @@ export async function GET(req: NextRequest) {
 
   const { data: obligationsLegales } = await sb.from('obligations_legales').select('*').eq('tenant_id', tenantId).order('echeance', { ascending: true, nullsFirst: false });
 
-  return NextResponse.json({ membres: enriched, alertes, catalogue: catalogue || [], obligationsLegales: obligationsLegales || [] });
+  // Donnees RH sensibles (salaire, NSS, RIB, fiche de paie...) : avant ce correctif, cet ecran les
+  // renvoyait pour TOUTE l'equipe a QUICONQUE le chargeait, quel que soit son role -- n'importe quel
+  // salarie pouvait voir le salaire et le NSS de tous ses collegues. On ne les garde que pour le
+  // proprietaire/Admin, ou pour la propre fiche de la personne connectee.
+  const estRH = await estAutoriseGererEquipe(req, tenantId);
+  let mesPropresIds = new Set<string>();
+  if (!estRH) {
+    const tokenMoiRH = req.cookies.get('sb-access-token')?.value;
+    if (tokenMoiRH) {
+      const { data: authMoiRH } = await sbAdmin.auth.getUser(tokenMoiRH);
+      if (authMoiRH?.user) mesPropresIds = new Set([authMoiRH.user.id]);
+    }
+  }
+  const CHAMPS_SENSIBLES = ['salaire', 'salaire_brut', 'nss', 'rib', 'adresse', 'date_naissance', 'paie', 'acomptes', 'fichePaieEnvoyee', 'fichePaieEnvoyeeLe'];
+  const membresFiltres = estRH ? enriched : enriched.map((m: any) => {
+    if (mesPropresIds.has(m.user_id)) return m;
+    const allege = { ...m };
+    for (const champ of CHAMPS_SENSIBLES) delete allege[champ];
+    return allege;
+  });
+
+  // Les alertes (demandes d'acompte avec montant, CDD a renouveler, conges en attente...) sont des
+  // alertes de gestion RH -- meme logique que les champs sensibles ci-dessus, reservees a estRH.
+  return NextResponse.json({ membres: membresFiltres, alertes: estRH ? alertes : [], catalogue: catalogue || [], obligationsLegales: obligationsLegales || [], estRH });
 }
 
 export async function POST(req: NextRequest) {
@@ -334,8 +377,10 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
   if (action === 'message_groupe') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { message, company_id } = body;
     if (!message) return NextResponse.json({ success: false, error: 'Message requis' }, { status: 400 });
+    const auteurMessage = await nomAppelant(req, tenantId);
     let mq = sb.from('equipe').select('*').eq('tenant_id', tenantId);
     if (company_id) mq = mq.eq('company_id', company_id);
     const { data: membres } = await mq;
@@ -353,7 +398,7 @@ export async function POST(req: NextRequest) {
         convId = newConv?.id;
       }
       if (convId) {
-        await sb.from('chat_messages').insert({ conversation_id: convId, auteur: 'Curtiss', contenu: message, moi: true, type: 'texte' });
+        await sb.from('chat_messages').insert({ conversation_id: convId, auteur: auteurMessage, contenu: message, moi: true, type: 'texte' });
         await sb.from('conversations').update({ derniere_activite: new Date().toISOString() }).eq('id', convId);
         envoyes++;
       }
@@ -702,6 +747,7 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
   }
 
   if (action === 'inviter_espace') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { id } = body;
     const { data: m } = await sb.from('equipe').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
     if (!m) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
@@ -760,6 +806,7 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
   }
 
   if (action === 'valider_conge') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { id, employe_id, jours } = body;
     await sb.from('conges').update({ statut: 'validé' }).eq('id', id).eq('tenant_id', tenantId);
 
@@ -770,12 +817,14 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
   }
 
   if (action === 'refuser_conge') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { id } = body;
     await sb.from('conges').update({ statut: 'refusé' }).eq('id', id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true });
   }
 
   if (action === 'valider_acompte') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { id, employe_id, montant, nom_employe, company_id } = body;
     await sb.from('acomptes').update({ statut: 'validé' }).eq('id', id).eq('tenant_id', tenantId);
     // Crée une vraie transaction dans le wallet
@@ -795,22 +844,26 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
   }
 
   if (action === 'refuser_acompte') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { id } = body;
     await sb.from('acomptes').update({ statut: 'refusé' }).eq('id', id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true });
   }
 
   if (action === 'ajouter_evaluation') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { employe_id, note, points_forts, axes_amelioration } = body;
     const { data: empVerifEval } = await sb.from('equipe').select('id').eq('id', employe_id).eq('tenant_id', tenantId).maybeSingle();
     if (!empVerifEval) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
-    const { data, error } = await sb.from('evaluations').insert({ employe_id, note, points_forts, axes_amelioration, evaluateur: 'Curtiss', tenant_id: tenantId }).select().single();
+    const evaluateurReel = await nomAppelant(req, tenantId);
+    const { data, error } = await sb.from('evaluations').insert({ employe_id, note, points_forts, axes_amelioration, evaluateur: evaluateurReel, tenant_id: tenantId }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     await sb.from('equipe').update({ performance: note }).eq('id', employe_id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true, evaluation: data });
   }
 
   if (action === 'ajouter_formation') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     let { employe_id, titre, statut, catalogue_id } = body;
     const { data: empVerifForm } = await sb.from('equipe').select('id').eq('id', employe_id).eq('tenant_id', tenantId).maybeSingle();
     if (!empVerifForm) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
@@ -825,6 +878,7 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
   }
 
   if (action === 'maj_formation') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { id, statut, score } = body;
     const { data: formVerif } = await sb.from('formations_equipe').select('id').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
     if (!formVerif) return NextResponse.json({ error: 'Formation introuvable' }, { status: 404 });
@@ -837,6 +891,7 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
   }
 
   if (action === 'analyse_ia') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { membre } = body;
     if (!membre) return NextResponse.json({ error: 'Données membre manquantes' }, { status: 400 });
     try {
@@ -866,6 +921,67 @@ Rédige une analyse RH courte (4-5 phrases) avec une recommandation concrète su
     }
   }
 
+  if (action === 'envoyer_rapport_rh') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { resume } = body;
+    if (!resume) return NextResponse.json({ error: 'Résumé RH manquant' }, { status: 400 });
+    const tokenRapport = req.cookies.get('sb-access-token')?.value;
+    const { data: authRapport } = tokenRapport ? await sbAdmin.auth.getUser(tokenRapport) : { data: null };
+    const emailDestinataire = authRapport?.user?.email;
+    if (!emailDestinataire) return NextResponse.json({ error: 'Aucun email pour le compte connecté' }, { status: 400 });
+    const mois = new Date().toLocaleDateString('fr', { month: 'long', year: 'numeric' });
+    const alertesRapport: any[] = Array.isArray(resume.alertes) ? resume.alertes : [];
+    const lignesAlertes = alertesRapport.length
+      ? alertesRapport.map((a: any) => `<li style="margin-bottom:4px"><strong>${echapperHtml(a.nom)}</strong> — ${echapperHtml(a.detail)}</li>`).join('')
+      : '<li style="color:#888">Aucune alerte en cours</li>';
+    const html = `<div style="font-family:sans-serif;padding:24px;max-width:600px;">
+      <h2 style="color:#C9A84C">Rapport RH — ${mois}</h2>
+      <table style="width:100%;border-collapse:collapse;margin-top:16px;">
+        <tr style="background:#f5f5f5"><td style="padding:8px">Effectif</td><td style="padding:8px;text-align:right"><strong>${echapperHtml(Number(resume.effectif) || 0)}</strong></td></tr>
+        <tr><td style="padding:8px">Masse salariale / mois</td><td style="padding:8px;text-align:right"><strong>${echapperHtml((Number(resume.masse_salariale) || 0).toLocaleString('fr'))}€</strong></td></tr>
+        <tr style="background:#f5f5f5"><td style="padding:8px">Performance moyenne</td><td style="padding:8px;text-align:right"><strong>${echapperHtml(Number(resume.perf_moyenne) || 0)}%</strong></td></tr>
+        <tr><td style="padding:8px">Alertes RH</td><td style="padding:8px;text-align:right"><strong>${alertesRapport.length}</strong></td></tr>
+      </table>
+      <h3 style="margin-top:20px;font-size:14px">Alertes</h3>
+      <ul style="padding-left:18px;font-size:13px">${lignesAlertes}</ul>
+    </div>`;
+    try {
+      await sendEmail(emailDestinataire, `Rapport RH — ${mois}`, html);
+    } catch (e: any) {
+      return NextResponse.json({ error: 'Envoi email échoué : ' + e.message }, { status: 500 });
+    }
+    return NextResponse.json({ success: true, envoye_a: emailDestinataire });
+  }
+
+  if (action === 'planifier_entretien') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { employe_id, date_entretien, note } = body;
+    if (!employe_id || !UUID_RE.test(employe_id)) return NextResponse.json({ error: 'Employé invalide' }, { status: 400 });
+    if (!date_entretien) return NextResponse.json({ error: 'Date requise' }, { status: 400 });
+    const dateEntretien = new Date(date_entretien);
+    if (Number.isNaN(dateEntretien.getTime())) return NextResponse.json({ error: 'Date invalide' }, { status: 400 });
+    const { data: m } = await sb.from('equipe').select('nom,prenom,email').eq('id', employe_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!m) return NextResponse.json({ error: 'Employé introuvable' }, { status: 404 });
+    if (!m.email) return NextResponse.json({ error: 'Aucun email pour cet employé' }, { status: 400 });
+    // Heure du pays de l'entreprise (le serveur tourne en UTC).
+    const fuseauEntretien = await fuseauDuTenant(tenantId);
+    const dateLisible = dateEntretien.toLocaleString('fr', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: fuseauEntretien });
+    const organisateur = await nomAppelant(req, tenantId);
+    const html = `<div style="font-family:sans-serif;padding:24px;max-width:600px;">
+      <h2 style="color:#C9A84C">Entretien planifié</h2>
+      <p>Bonjour ${echapperHtml(m.prenom || m.nom)},</p>
+      <p>Un entretien est prévu avec vous le <strong>${echapperHtml(dateLisible)}</strong>.</p>
+      ${note ? `<p style="background:#f5f5f5;padding:12px;border-radius:6px;white-space:pre-wrap">${echapperHtml(note)}</p>` : ''}
+      <p style="color:#888;font-size:12px;margin-top:16px;">Organisé par ${echapperHtml(organisateur)}</p>
+    </div>`;
+    try {
+      await sendEmail(m.email, `Entretien planifié — ${dateLisible}`, html);
+    } catch (e: any) {
+      return NextResponse.json({ error: 'Envoi email échoué : ' + e.message }, { status: 500 });
+    }
+    return NextResponse.json({ success: true, envoye_a: m.email });
+  }
+
   if (action === 'generer_fiche_paie') {
     const { id, envoyer } = body;
     const { data: m } = await sb.from('equipe').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
@@ -874,6 +990,8 @@ Rédige une analyse RH courte (4-5 phrases) avec une recommandation concrète su
     const paie = calculerPaie(Number(m.salaire_brut || m.salaire || 0));
     const moisIso = new Date().toISOString().slice(0, 7);
     const mois = new Date().toLocaleDateString('fr', { month: 'long', year: 'numeric' });
+    const { data: tenantPaie } = await sb.from('tenants').select('societe,nom_contact').eq('id', tenantId).maybeSingle();
+    const signaturePaie = [tenantPaie?.societe ? echapperHtml(tenantPaie.societe) : '', tenantPaie?.nom_contact ? `Signé ${echapperHtml(tenantPaie.nom_contact)}` : ''].filter(Boolean).join(' · ');
     const html = `<div style="font-family:sans-serif;padding:24px;max-width:600px;">
       <h2 style="color:#C9A84C">Fiche de paie — ${mois}</h2>
       <p><strong>${m.prenom || ''} ${m.nom}</strong> · ${m.role}</p>
@@ -884,7 +1002,7 @@ Rédige une analyse RH courte (4-5 phrases) avec une recommandation concrète su
         <tr><td style="padding:8px;color:#888">Charges patronales (42%)</td><td style="padding:8px;text-align:right;color:#888">${paie.chargesPatronales}€</td></tr>
         <tr style="background:#f5f5f5"><td style="padding:8px;color:#888">Coût total employeur</td><td style="padding:8px;text-align:right;color:#888">${paie.coutTotal}€</td></tr>
       </table>
-      <p style="color:#888;font-size:12px;margin-top:16px;">Xyra Services · Signé Curtiss — Fondateur</p>
+      ${signaturePaie ? `<p style="color:#888;font-size:12px;margin-top:16px;">${signaturePaie}</p>` : ''}
     </div>`;
 
     let envoyee = false;

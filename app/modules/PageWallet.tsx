@@ -72,7 +72,7 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
     }catch(e){console.error("Wallet parametres:",e);}
   };
 
-  useEffect(()=>{loadWallet();loadEquipe();loadPipeline();loadParametres();},[activeCompany?.id]);
+  useEffect(()=>{loadWallet();loadEquipe();loadPipeline();loadParametres();loadObjectifs();},[activeCompany?.id]);
   const[virementForm,setVirementForm]=useState({iban:"",bic:"",nom:"",montant:"",devise:"EUR",motif:""});
 
   const handleVirementSepa=async()=>{
@@ -105,8 +105,45 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
     }catch(e){showToast("❌ Erreur de connexion");}
     setEnregistrementSeuilEnCours(false);
   };
-  // Aucun wallet projet n'est encore enregistre en base : la liste commence vide (plus de projets fictifs).
+  // Epargne automatique par objectif : voir app/api/wallet-objectifs et app/lib/walletObjectifs.ts.
   const[walletProjet,setWalletProjet]=useState<any[]>([]);
+  const[showObjectifForm,setShowObjectifForm]=useState(false);
+  const[objectifForm,setObjectifForm]=useState({nom:"",cible:"",pourcentage_allocation:""});
+  const COULEURS_OBJECTIF=["gold","teal","blue","purple","green","orange","red","pink"];
+
+  const loadObjectifs=async()=>{
+    try{
+      const res=await fetch('/api/wallet-objectifs');
+      const data=await res.json();
+      if(data.objectifs)setWalletProjet(data.objectifs);
+    }catch(e){console.error("Objectifs:",e);}
+  };
+
+  const creerObjectif=async()=>{
+    if(!objectifForm.nom||!objectifForm.cible||objectifForm.pourcentage_allocation==="")return showToast("⚠️ Nom, objectif et % d'allocation requis");
+    try{
+      const res=await fetch('/api/wallet-objectifs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        action:'creer',nom:objectifForm.nom,cible:objectifForm.cible,pourcentage_allocation:objectifForm.pourcentage_allocation,
+        couleur:COULEURS_OBJECTIF[walletProjet.length%COULEURS_OBJECTIF.length],
+      })});
+      const data=await res.json();
+      if(data.success){
+        showToast("✅ Objectif créé");
+        setObjectifForm({nom:"",cible:"",pourcentage_allocation:""});
+        setShowObjectifForm(false);
+        loadObjectifs();
+      }else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
+  const archiverObjectif=async(id)=>{
+    try{
+      const res=await fetch('/api/wallet-objectifs',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'archiver',id})});
+      const data=await res.json();
+      if(data.success){showToast("✅ Objectif archivé");loadObjectifs();}
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const solde=soldeReel;
   const soldeConv=conv(solde,"EUR",devise);
   const dvSel=DEVISES.find(d=>d.code===devise);
@@ -353,13 +390,35 @@ const PageWallet=({plan,showToast,profil,activeCompany,METHODES_PAY,Convertisseu
     </Card>}
     {onglet==="convertisseur"&&<div style={{maxWidth:500}}><Convertisseur/></div>}
     {onglet==="iban"&&<div style={{maxWidth:600}}><IbanMondial showToast={showToast}/></div>}
-    {onglet==="wallets_projets"&&<Card><STitle>📂 Wallets Projets</STitle>
-      {walletProjet.map((w,i)=><div key={i} style={{background:C.card2,borderRadius:10,padding:14,marginBottom:10,border:`1px solid ${C.border}`}}>
-        <div style={{display:"flex",justifyContent:"space-between",marginBottom:8}}><div style={{fontSize:13,fontWeight:700,color:C.text}}>{w.nom}</div><Pill color={w.couleur}>{Math.round(w.solde/w.cible*100)}%</Pill></div>
+    {onglet==="wallets_projets"&&<Card>
+      <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+        <STitle>📂 Wallets Projets</STitle>
+        <Btn onClick={()=>setShowObjectifForm(s=>!s)} style={{fontSize:11,padding:"5px 12px"}}>+ Nouvel objectif</Btn>
+      </div>
+      <div style={{fontSize:11,color:C.muted,marginBottom:14}}>À chaque vraie entrée d'argent confirmée dans le Wallet, le % défini est automatiquement mis de côté pour l'objectif — un suivi honnête, pas un vrai transfert : le solde disponible du Wallet n'est jamais réduit par ceci.</div>
+      {showObjectifForm&&<div style={{background:C.card2,borderRadius:10,padding:14,marginBottom:14,border:`1px solid ${C.border}`}}>
+        <div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr",gap:8,marginBottom:8}}>
+          <Inp value={objectifForm.nom} onChange={e=>setObjectifForm(f=>({...f,nom:e.target.value}))} placeholder="Nom (ex: Fonds d'urgence)"/>
+          <Inp type="number" value={objectifForm.cible} onChange={e=>setObjectifForm(f=>({...f,cible:e.target.value}))} placeholder="Objectif (€)"/>
+          <Inp type="number" value={objectifForm.pourcentage_allocation} onChange={e=>setObjectifForm(f=>({...f,pourcentage_allocation:e.target.value}))} placeholder="% de chaque entrée"/>
+        </div>
+        <div style={{display:"flex",gap:8}}>
+          <Btn onClick={creerObjectif}>✅ Créer</Btn>
+          <BtnGhost onClick={()=>setShowObjectifForm(false)}>Annuler</BtnGhost>
+        </div>
+      </div>}
+      {walletProjet.map((w,i)=><div key={w.id||i} style={{background:C.card2,borderRadius:10,padding:14,marginBottom:10,border:`1px solid ${C.border}`}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:8}}>
+          <div style={{fontSize:13,fontWeight:700,color:C.text}}>{w.nom}<span style={{fontSize:10,color:C.muted,fontWeight:400}}> · {w.pourcentage_allocation}% de chaque entrée</span></div>
+          <div style={{display:"flex",gap:8,alignItems:"center"}}>
+            <Pill color={w.couleur}>{Math.round(Math.min(100,w.solde/w.cible*100))}%</Pill>
+            <BtnGhost onClick={()=>archiverObjectif(w.id)} style={{fontSize:9,padding:"2px 8px",color:C.red}}>Archiver</BtnGhost>
+          </div>
+        </div>
         <div style={{fontSize:20,fontWeight:700,color:w.couleur,marginBottom:6}}>{fmt(w.solde)}<span style={{fontSize:11,color:C.muted}}> / {fmt(w.cible)}</span></div>
         <SM val={w.solde} max={w.cible} color={w.couleur}/>
       </div>)}
-      {walletProjet.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:"24px 0"}}>Aucun wallet projet pour l'instant.</div>}
+      {walletProjet.length===0&&<div style={{fontSize:12,color:C.muted,textAlign:"center",padding:"24px 0"}}>Aucun objectif pour l'instant.</div>}
     </Card>}
     {onglet==="sante"&&<Card><STitle>❤ Score Santé Financière</STitle>
       {/* Les scores 76 / 85 / 72 / 68 etaient ecrits en dur, sans aucun calcul : ils sont retires tant qu'aucune formule reelle n'existe. */}
