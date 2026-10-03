@@ -451,9 +451,8 @@ export default function Xyra() {
           </div>
         </div>
         <button onClick={async()=>{
-          document.cookie="sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          await fetch("/api/session", { method: "DELETE" });
           document.cookie="active_tenant_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-          localStorage.removeItem("sb-access-token");
           window.location.href="/login";
         }} style={{width:"100%",padding:"9px 13px",background:"transparent",border:"none",borderTop:`1px solid ${C.border}`,color:C.red,cursor:"pointer",fontFamily:"inherit",fontSize:11,textAlign:"left"}}>Deconnexion</button>
       </div>
