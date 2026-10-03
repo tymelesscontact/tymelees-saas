@@ -55,12 +55,19 @@ export default function LoginPage() {
         return;
       }
       if (data.session) {
-        // Sauvegarder dans cookie ET localStorage
+        // Jeton pose en cookie HttpOnly cote serveur (illisible en JS, donc
+        // pas volable par une faille XSS) au lieu d'un cookie/localStorage cote client.
         const token = data.session.access_token;
-        const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
-        document.cookie = `sb-access-token=${token}; path=/; expires=${expires}; SameSite=Lax`;
-        document.cookie = `sb-jigwcrybfhvlmzoclbih-auth-token=${token}; path=/; expires=${expires}; SameSite=Lax`;
-        localStorage.setItem("sb-access-token", token);
+        const posePossible = await fetch("/api/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+        if (!posePossible.ok) {
+          setError("Erreur de connexion");
+          setLoading(false);
+          return;
+        }
 
         const res = await fetch("/api/whoami");
         const who = await res.json();
