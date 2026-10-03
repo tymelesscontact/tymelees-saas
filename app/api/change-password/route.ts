@@ -14,9 +14,13 @@ const sbAdmin = createClient(
 );
 
 export async function POST(req: NextRequest) {
-  const { token, currentPassword, newPassword } = await req.json();
-  if (!token || !currentPassword || !newPassword) {
+  const { currentPassword, newPassword } = await req.json();
+  if (!currentPassword || !newPassword) {
     return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
+  }
+  const token = req.cookies.get('sb-access-token')?.value;
+  if (!token) {
+    return NextResponse.json({ error: 'Session expirée, reconnecte-toi' }, { status: 401 });
   }
   if (newPassword.length < 8) {
     return NextResponse.json({ error: 'Le nouveau mot de passe doit faire au moins 8 caractères' }, { status: 400 });
