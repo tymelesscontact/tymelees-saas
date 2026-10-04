@@ -4581,9 +4581,6 @@ const PageMultiSocietes=({plan,showToast})=>{
   const[newTransfer,setNewTransfer]=useState({from_company_id:"",to_company_id:"",montant:"",devise:"EUR",libelle:""});
   const[selectedCompany,setSelectedCompany]=useState(null);
 
-  const MULTI_PLANS=["multi_societes","multi_pro","holding","owner"];
-  if(!MULTI_PLANS.includes(plan))return <div style={{padding:20}}><UpgradeWall page="Multi-Sociétés" plan={plan}/></div>;
-
   const load=async()=>{
     setLoading(true);
     try{
@@ -4602,6 +4599,9 @@ const PageMultiSocietes=({plan,showToast})=>{
   };
 
   useEffect(()=>{load();},[devise]);
+
+  const MULTI_PLANS=["multi_societes","multi_pro","holding","owner"];
+  if(!MULTI_PLANS.includes(plan))return <div style={{padding:20}}><UpgradeWall page="Multi-Sociétés" plan={plan}/></div>;
 
   const ajouterSociete=async()=>{
     if(!newCompany.nom)return showToast("⚠️ Nom requis");
