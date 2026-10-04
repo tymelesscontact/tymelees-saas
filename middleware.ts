@@ -15,6 +15,7 @@ const API_OUVERTES = [
   '/api/create-checkout-flutterwave',
   '/api/generer-secteur',
   '/api/whoami',
+  '/api/session',
   '/api/club',
   '/api/club-espace',
   '/api/club-deals',

@@ -27,10 +27,16 @@ export default function AdminLoginPage() {
       }
       if (data.session) {
         const token = data.session.access_token;
-        const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
-        document.cookie = `sb-access-token=${token}; path=/; expires=${expires}; SameSite=Lax`;
-        document.cookie = `sb-jigwcrybfhvlmzoclbih-auth-token=${token}; path=/; expires=${expires}; SameSite=Lax`;
-        localStorage.setItem("sb-access-token", token);
+        const posePossible = await fetch("/api/session", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ token }),
+        });
+        if (!posePossible.ok) {
+          setError("Erreur de connexion");
+          setLoading(false);
+          return;
+        }
         const res = await fetch("/api/whoami");
         const who = await res.json();
         if (who.isOwner) {
