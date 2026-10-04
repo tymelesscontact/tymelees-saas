@@ -440,7 +440,7 @@ export default function EspaceEquipe() {
                 {m.statut === "confirme" && <Btn onClick={() => updateMissionStatut(m.id, "en_route")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>🚗 Je pars en mission</Btn>}
                 {m.statut === "en_route" && <Btn onClick={() => updateMissionStatut(m.id, "en_cours")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>📍 Je suis arrive</Btn>}
                 {m.statut === "en_cours" && <Btn onClick={() => updateMissionStatut(m.id, "termine")} style={{ fontSize: 11, padding: "6px 12px", background: C.green }}>✅ Terminer</Btn>}
-                {m.adresse && <Btn onClick={() => ouvrirGPS(m.adresse, "driving")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>🗣 GPS</Btn>}
+                {m.adresse && <Btn onClick={() => ouvrirGPS(m.adresse, "driving")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>🗺 GPS</Btn>}
                 <Btn onClick={() => { setSignalementMissionId(m.id); setShowSignalementForm(true); }} style={{ fontSize: 11, padding: "6px 12px", background: C.red }}>⚠️ Problème</Btn>
               </div>
             </Card>
