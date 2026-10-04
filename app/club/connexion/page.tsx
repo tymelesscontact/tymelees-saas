@@ -53,9 +53,16 @@ export default function ConnexionClub() {
         return;
       }
       const token = data.session.access_token;
-      const expires = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toUTCString();
-      document.cookie = `sb-access-token=${token}; path=/; expires=${expires}; SameSite=Lax`;
-      localStorage.setItem("sb-access-token", token);
+      const posePossible = await fetch("/api/session", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token }),
+      });
+      if (!posePossible.ok) {
+        setErreur("Erreur de connexion");
+        setChargement(false);
+        return;
+      }
       window.location.replace("/club/espace");
     } catch {
       setErreur("Erreur de connexion");
