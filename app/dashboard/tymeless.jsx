@@ -164,28 +164,12 @@ export default function Xyra() {
           process.env.NEXT_PUBLIC_SUPABASE_URL,
           process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
         );
-        const[c,d,p,part,eq,m,s,dl]=await Promise.all([
-          sb.from('clients').select('*').order('created_at',{ascending:false}),
-          sb.from('devis').select('*').order('created_at',{ascending:false}),
-          sb.from('paiements').select('*').order('date_transaction',{ascending:false}),
-          sb.from('partenaires').select('*'),
-          sb.from('equipe').select('*'),
-          sb.from('missions').select('*').order('date_mission',{ascending:true}),
-          sb.from('stock').select('*'),
-          sb.from('deals').select('*').order('created_at',{ascending:false}),
-        ]);
-        if(c.data?.length)setClients(c.data);
-        if(d.data?.length)setDevis(d.data);
-        if(p.data?.length)setPaiements(p.data);
-        if(part.data?.length)setPartenaires(part.data);
-        if(eq.data?.length)setEquipe(eq.data);
-        if(m.data?.length)setMissions(m.data);
-        if(s.data?.length)setStock(s.data);
-        if(dl.data?.length)setDeals(dl.data);
-        // Charger le profil métier depuis le tenant
+        // Charger le profil métier depuis le tenant (et son id, pour filtrer les requetes ci-dessous)
         const{data:{user}}=await sb.auth.getUser();
+        let tenantId=null;
         if(user){
-          const{data:tenant}=await sb.from('tenants').select('metier,plan').eq('user_id',user.id).single();
+          const{data:tenant}=await sb.from('tenants').select('id,metier,plan').eq('user_id',user.id).single();
+          if(tenant?.id)tenantId=tenant.id;
           if(tenant?.metier){
             const metierKey=Object.keys(PROFILS_SECTEURS).find(k=>{
               const p=PROFILS_SECTEURS[k];
@@ -198,6 +182,26 @@ export default function Xyra() {
             const planNorm=tenant.plan.replace('business_pro','business').replace('_pro','');
             setPlan(planNorm);
           }
+        }
+        if(tenantId){
+          const[c,d,p,part,eq,m,s,dl]=await Promise.all([
+            sb.from('clients').select('*').eq('tenant_id',tenantId).order('created_at',{ascending:false}),
+            sb.from('devis').select('*').eq('tenant_id',tenantId).order('created_at',{ascending:false}),
+            sb.from('paiements').select('*').eq('tenant_id',tenantId).order('date_transaction',{ascending:false}),
+            sb.from('partenaires').select('*').eq('tenant_id',tenantId),
+            sb.from('equipe').select('*').eq('tenant_id',tenantId),
+            sb.from('missions').select('*').eq('tenant_id',tenantId).order('date_mission',{ascending:true}),
+            sb.from('stock').select('*').eq('tenant_id',tenantId),
+            sb.from('deals').select('*').eq('tenant_id',tenantId).order('created_at',{ascending:false}),
+          ]);
+          if(c.data?.length)setClients(c.data);
+          if(d.data?.length)setDevis(d.data);
+          if(p.data?.length)setPaiements(p.data);
+          if(part.data?.length)setPartenaires(part.data);
+          if(eq.data?.length)setEquipe(eq.data);
+          if(m.data?.length)setMissions(m.data);
+          if(s.data?.length)setStock(s.data);
+          if(dl.data?.length)setDeals(dl.data);
         }
       }catch(e){console.error('Supabase:',e);}
       finally{setSbLoading(false);}
@@ -358,9 +362,8 @@ export default function Xyra() {
           </div>
         </a>
         <button onClick={async()=>{
-          document.cookie="sb-access-token=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
+          await fetch("/api/session", { method: "DELETE" });
           document.cookie="active_tenant_id=; path=/; expires=Thu, 01 Jan 1970 00:00:00 GMT";
-          localStorage.removeItem("sb-access-token");
           window.location.href="/login";
         }} style={{width:"100%",padding:"9px 13px",background:"transparent",border:"none",borderTop:`1px solid ${C.border}`,color:C.red,cursor:"pointer",fontFamily:"inherit",fontSize:11,textAlign:"left"}}>Deconnexion</button>
       </div>
