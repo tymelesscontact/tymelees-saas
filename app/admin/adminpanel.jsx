@@ -3045,6 +3045,7 @@ const PageTresorerie=({plan,showToast})=>{
     try{
       const res=await fetch('/api/tresorerie');
       const d=await res.json();
+      setAnalyseIA("");
       setData(d);
       if(d.parametres)setSeuils(d.parametres);
     }catch(e){console.error("Tresorerie:",e);}
@@ -3537,6 +3538,7 @@ const PageAnalytique=({plan,showToast})=>{
     try{
       const res=await fetch(`/api/analytique?devise=${devise}`);
       const d=await res.json();
+      setAnalyseIA("");
       setData(d);
     }catch(e){console.error(e);}
     setLoading(false);

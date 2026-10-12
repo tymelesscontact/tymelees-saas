@@ -87,6 +87,7 @@ const PageOverview=({plan, modulesActifs,profil,setPage,showToast,UpgradeWall,ac
       const meteo=solde>10000&&caMois>3000?"🌞 Excellente":solde>5000&&caMois>1000?"🌤 Bonne":solde>2000?"⛅ Correcte":"🌧 Difficile";
       const meteoColor=solde>10000&&caMois>3000?C.green:solde>5000&&caMois>1000?C.teal:solde>2000?C.gold:C.red;
 
+      setBriefing("");
       setData({caMois,caSemaine,caTotal,solde,commissionsDues,montantEnAttente,facturesEnAttente,devisEnCours,devisSignesNonFactures,montantDevisSignesNonFactures,dealsActifs,valeurPipeline,scoreGlobal,activiteRecente,meteo,meteoColor,clients,partners});
     }catch(e){console.error("Overview:",e);}
     setLoading(false);
