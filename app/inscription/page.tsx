@@ -98,9 +98,11 @@ export default function Inscription() {
 
   const update = (key: string, val: string | number) => setForm(f => ({ ...f, [key]: val }));
 
+  const [txRef] = useState(() => `XYRA-${Date.now()}`);
+
   const flwConfig = {
     public_key: process.env.NEXT_PUBLIC_FLUTTERWAVE_PUBLIC_KEY!,
-    tx_ref: `XYRA-${Date.now()}`,
+    tx_ref: txRef,
     amount: form.planPrice || 59,
     currency: "EUR",
     payment_options: "mobilemoney,card",

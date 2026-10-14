@@ -29,7 +29,7 @@ const PageConversationsWhatsApp = () => {
     load();
     const interval = setInterval(load, 10000);
     return () => clearInterval(interval);
-  }, []);
+  }, [selected?.whatsapp]);
 
   const envoyerMessage = async () => {
     if (!messageInput.trim() || !selected) return;

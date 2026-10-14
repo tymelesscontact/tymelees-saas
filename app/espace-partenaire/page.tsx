@@ -14,6 +14,16 @@ const C = {
   blue:"#4B7BFF", purple:"#9B5FFF", orange:"#FF8C3A",
 };
 
+const Card = ({ children, style = {} }: any) => (
+  <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18, ...style }}>{children}</div>
+);
+const Pill = ({ children, color = C.gold }: any) => (
+  <span style={{ background: color + "22", color, border: `1px solid ${color}44`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>{children}</span>
+);
+const Btn = ({ children, onClick, color = C.gold, style = {} }: any) => (
+  <button onClick={onClick} style={{ background: color, color: color === C.gold ? "#000" : "#fff", border: "none", borderRadius: 7, padding: "8px 16px", cursor: "pointer", fontWeight: 600, fontSize: 13, fontFamily: "inherit", ...style }}>{children}</button>
+);
+
 export default function EspacePartenaire() {
   const [page, setPage] = useState("dashboard");
   const [user, setUser] = useState<any>(null);
@@ -102,18 +112,6 @@ export default function EspacePartenaire() {
     setTimeout(() => setCopied(null), 2000);
     showToast("🔗 Lien copié !");
   };
-
-  const Card = ({ children, style = {} }: any) => (
-    <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 18, ...style }}>{children}</div>
-  );
-
-  const Pill = ({ children, color = C.gold }: any) => (
-    <span style={{ background: color + "22", color, border: `1px solid ${color}44`, borderRadius: 20, padding: "2px 10px", fontSize: 11, fontWeight: 600 }}>{children}</span>
-  );
-
-  const Btn = ({ children, onClick, color = C.gold, style = {} }: any) => (
-    <button onClick={onClick} style={{ background: color, color: color === C.gold ? "#000" : "#fff", border: "none", borderRadius: 7, padding: "8px 16px", cursor: "pointer", fontWeight: 600, fontSize: 13, fontFamily: "inherit", ...style }}>{children}</button>
-  );
 
   const NAV = [
     { id: "dashboard", icon: "🏠", label: "Tableau de bord" },

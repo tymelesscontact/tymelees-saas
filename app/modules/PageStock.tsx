@@ -77,6 +77,9 @@ const PageStock=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompany
   const[showAdd,setShowAdd]=useState(false);
   const[addForm,setAddForm]=useState({art:"",cat:"Nettoyage",qte:"",min:"",max:"",u:"pcs",four:"",prixU:"",localisation:"Entrepôt A"});
   const[qrScan,setQrScan]=useState(false);
+  const[mvt,setMvt]=useState(null);
+  const[mvtForm,setMvtForm]=useState({type:"",quantite:"",note:"",cause:"",emplacement_id:"",emplacement_destination_id:"",numero_lot:"",date_peremption:""});
+  const[mvtEnCours,setMvtEnCours]=useState(false);
 
   const tabs=[{id:"inventaire",label:"📦 Inventaire"},{id:"mouvements",label:"🔄 Mouvements"},{id:"commandes",label:"🛒 Commandes"},{id:"ia",label:"🤖 IA Prédictive"},{id:"valorisation",label:"💰 Valorisation"}];
 
@@ -85,9 +88,6 @@ const PageStock=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompany
 
   if(!hasAccess(plan,"stock",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="stock" plan={plan}/></div>;
 
-  const[mvt,setMvt]=useState(null);
-  const[mvtForm,setMvtForm]=useState({type:"",quantite:"",note:"",cause:"",emplacement_id:"",emplacement_destination_id:"",numero_lot:"",date_peremption:""});
-  const[mvtEnCours,setMvtEnCours]=useState(false);
   const T=(cle,defaut)=>profil?.termes?.[cle]||defaut;
   const OPERATIONS=[
     {id:"reception",  icone:"\ud83d\udce5", libelle:()=>T("reception","Réception"),   couleur:C.green},

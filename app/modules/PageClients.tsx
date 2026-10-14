@@ -40,7 +40,7 @@ const PageClients=({plan, modulesActifs,showToast,profil,setPage,UpgradeWall,act
     }catch(e){}
     setChargementRentabiliteClients(false);
   };
-  useEffect(()=>{if(onglet==="rentabilite")chargerRentabiliteClients();},[onglet]);
+  useEffect(()=>{if(onglet==="rentabilite")chargerRentabiliteClients();},[onglet,activeCompany?.id]);
   const scoreColor=(s)=>s>=80?C.green:s>=60?C.gold:s>=40?C.orange:C.red;
   const scoreLabel=(s)=>s>=80?"Excellent":s>=60?"Bon":s>=40?"Moyen":"Risqué";
 

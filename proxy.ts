@@ -30,7 +30,7 @@ const API_OUVERTES = [
   '/api/sms-entrant',
 ]
 
-export async function middleware(req: NextRequest) {
+export async function proxy(req: NextRequest) {
   const path = req.nextUrl.pathname
   const isApi = path.startsWith('/api')
 

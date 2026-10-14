@@ -38,6 +38,7 @@ const PageTresorerie=({plan, modulesActifs,showToast,UpgradeWall,activeCompany})
       const companyParam=activeCompany?.id?`?company_id=${activeCompany.id}`:'';
       const res=await fetch('/api/tresorerie'+companyParam);
       const d=await res.json();
+      setAnalyseIA("");
       setData(d);
       if(d.parametres)setSeuils(d.parametres);
     }catch(e){console.error("Tresorerie:",e);}
