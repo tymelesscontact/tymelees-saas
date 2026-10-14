@@ -63,7 +63,7 @@ const PageNotifications=({notifs,setNotifs,showToast,activeCompany})=>{
       _loadNotifs();
     }catch(e){}
   };
-  useEffect(()=>{_loadNotifs();},[]);
+  useEffect(()=>{_loadNotifs();},[activeCompany?.id]);
   const[onglet,setOnglet]=useState("centre");
   const[config,setConfig]=useState({
     paiement:{actif:true,push:true,whatsapp:true,email:true},

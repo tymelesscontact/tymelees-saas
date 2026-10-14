@@ -3045,6 +3045,7 @@ const PageTresorerie=({plan,showToast})=>{
     try{
       const res=await fetch('/api/tresorerie');
       const d=await res.json();
+      setAnalyseIA("");
       setData(d);
       if(d.parametres)setSeuils(d.parametres);
     }catch(e){console.error("Tresorerie:",e);}
@@ -3537,6 +3538,7 @@ const PageAnalytique=({plan,showToast})=>{
     try{
       const res=await fetch(`/api/analytique?devise=${devise}`);
       const d=await res.json();
+      setAnalyseIA("");
       setData(d);
     }catch(e){console.error(e);}
     setLoading(false);
@@ -4581,9 +4583,6 @@ const PageMultiSocietes=({plan,showToast})=>{
   const[newTransfer,setNewTransfer]=useState({from_company_id:"",to_company_id:"",montant:"",devise:"EUR",libelle:""});
   const[selectedCompany,setSelectedCompany]=useState(null);
 
-  const MULTI_PLANS=["multi_societes","multi_pro","holding","owner"];
-  if(!MULTI_PLANS.includes(plan))return <div style={{padding:20}}><UpgradeWall page="Multi-Sociétés" plan={plan}/></div>;
-
   const load=async()=>{
     setLoading(true);
     try{
@@ -4602,6 +4601,9 @@ const PageMultiSocietes=({plan,showToast})=>{
   };
 
   useEffect(()=>{load();},[devise]);
+
+  const MULTI_PLANS=["multi_societes","multi_pro","holding","owner"];
+  if(!MULTI_PLANS.includes(plan))return <div style={{padding:20}}><UpgradeWall page="Multi-Sociétés" plan={plan}/></div>;
 
   const ajouterSociete=async()=>{
     if(!newCompany.nom)return showToast("⚠️ Nom requis");

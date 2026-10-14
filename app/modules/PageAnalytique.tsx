@@ -28,6 +28,7 @@ const PageAnalytique=({plan, modulesActifs,showToast,UpgradeWall,activeCompany})
       const companyParam=activeCompany?.id?`&company_id=${activeCompany.id}`:'';
       const res=await fetch(`/api/analytique?devise=${devise}`+companyParam);
       const d=await res.json();
+      setAnalyseIA("");
       setData(d);
     }catch(e){console.error(e);}
     setLoading(false);

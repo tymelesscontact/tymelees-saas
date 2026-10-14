@@ -9,6 +9,10 @@ const GRIS = "#9d95c0";
 const GRIS_CLAIR = "#b3aacf";
 const TRAIT = "#362e64";
 
+const Carte = ({ children, style = {} }: any) => (
+  <div style={{ background: CARTE, border: `0.5px solid ${TRAIT}`, borderRadius: 4, padding: 20, ...style }}>{children}</div>
+);
+
 export default function EspaceMembre() {
   const [chargement, setChargement] = useState(true);
   const [erreur, setErreur] = useState("");
@@ -187,10 +191,6 @@ export default function EspaceMembre() {
       </div>
     );
   }
-
-  const Carte = ({ children, style = {} }: any) => (
-    <div style={{ background: CARTE, border: `0.5px solid ${TRAIT}`, borderRadius: 4, padding: 20, ...style }}>{children}</div>
-  );
 
   return (
     <div style={{ background: NOIR, minHeight: "100vh", color: IVOIRE, fontFamily: "system-ui,-apple-system,sans-serif" }}>
