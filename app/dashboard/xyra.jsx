@@ -269,7 +269,7 @@ export default function Xyra() {
     evenements:<PageEvenementsModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     scoring:<PageScoringModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     equipe:<PageEquipeModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany} setPage={setPage}/>,
-    planning:<PagePlanningModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall}/>,
+    planning:<PagePlanningModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     prospection:<PageProspectionModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     deals:<PageDealsModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} setPage={setPage} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     stock:<PageStockModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
