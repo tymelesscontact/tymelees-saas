@@ -1,5 +1,5 @@
 // Configuration partagée entre les deux dashboards (app/mon-espace/xyra.jsx
-// et app/dashboard/tymeless.jsx) : plans, accès par page, structure de la
+// et app/dashboard/xyra.jsx) : plans, accès par page, structure de la
 // sidebar, profils sectoriels. Réunifiée le 14/09/2026 (T7) — avant cette
 // extraction, ce bloc était dupliqué à l'identique dans les deux fichiers.
 //

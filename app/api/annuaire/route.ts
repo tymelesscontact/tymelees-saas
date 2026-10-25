@@ -31,6 +31,7 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
   const tenantId = await getTenantIdFromRequest(req);
+  if (!tenantId) return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 401 });
   if (action === 'creer_contact') {
     const { nom, type, secteur, pays, ville, continent, tel, email, bio } = body;
     if (!nom) return NextResponse.json({ success: false, error: 'Nom requis' }, { status: 400 });
@@ -42,12 +43,15 @@ export async function POST(req: NextRequest) {
   }
   if (action === 'supprimer_contact') {
     const { id } = body;
-    const { error } = await sb.from('reseau_contacts').delete().eq('id', id);
+    const { error } = await sb.from('reseau_contacts').delete().eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
   if (action === 'demander_mise_en_relation') {
     const { reseau_contact_id, club_membre_id, club_membre_nom, notes } = body;
+    const { data: contact, error: contactError } = await sb.from('reseau_contacts').select('id').eq('id', reseau_contact_id).eq('tenant_id', tenantId).maybeSingle();
+    if (contactError) return NextResponse.json({ success: false, error: contactError.message }, { status: 500 });
+    if (!contact) return NextResponse.json({ success: false, error: 'Contact introuvable' }, { status: 404 });
     const { data, error } = await sb.from('reseau_deals').insert({
       reseau_contact_id, club_membre_id, initiateur: club_membre_nom, notes,
       statut: 'demande_mise_en_relation', tenant_id: tenantId,
@@ -57,23 +61,25 @@ export async function POST(req: NextRequest) {
   }
   if (action === 'valider_mise_en_relation') {
     const { id } = body;
-    const { error } = await sb.from('reseau_deals').update({ statut: 'valide' }).eq('id', id);
+    const { error } = await sb.from('reseau_deals').update({ statut: 'valide' }).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }
   if (action === 'definir_montant') {
-    const { id, valeur, commission_pct } = body;
-    const pct = commission_pct || 3;
-    const commission_montant = Math.round(Number(valeur) * pct / 100 * 100) / 100;
+    const { id, valeur } = body;
+    const montant = Number(valeur);
+    if (!Number.isFinite(montant) || montant <= 0) return NextResponse.json({ success: false, error: 'Montant invalide' }, { status: 400 });
+    const pct = 3;
+    const commission_montant = Math.round(montant * pct / 100 * 100) / 100;
     const { error } = await sb.from('reseau_deals').update({
-      valeur, commission_pct: pct, commission_montant, statut: 'conclu',
-    }).eq('id', id);
+      valeur: montant, commission_pct: pct, commission_montant, statut: 'conclu',
+    }).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, commission_montant });
   }
   if (action === 'marquer_commission_payee') {
     const { id } = body;
-    const { error } = await sb.from('reseau_deals').update({ commission_statut: 'payee' }).eq('id', id);
+    const { error } = await sb.from('reseau_deals').update({ commission_statut: 'payee' }).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
   }

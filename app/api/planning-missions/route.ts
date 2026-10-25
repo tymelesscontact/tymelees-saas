@@ -133,6 +133,7 @@ export async function POST(req: NextRequest) {
                 action: 'creer',
                 client_nom: mission.client_nom, client_email: mission.client_email, client_tel: mission.client_tel,
                 description: mission.service || 'Prestation', montant_ht: devis.montant,
+                devis_id: mission.devis_id, mission_id: mission.id,
               }),
             });
           }

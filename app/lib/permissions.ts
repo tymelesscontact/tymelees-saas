@@ -6,6 +6,19 @@ const sbAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+export async function estAdministrateurPlateforme(req: NextRequest): Promise<boolean> {
+  const emailsAutorises = (process.env.PLATFORM_ADMIN_EMAILS || '')
+    .split(',')
+    .map(email => email.trim().toLowerCase())
+    .filter(Boolean);
+  if (emailsAutorises.length === 0) return false;
+  const tokenVerif = req.cookies.get('sb-access-token')?.value;
+  if (!tokenVerif) return false;
+  const { data: authVerif } = await sbAdmin.auth.getUser(tokenVerif);
+  const email = authVerif?.user?.email?.toLowerCase();
+  return Boolean(email && emailsAutorises.includes(email));
+}
+
 export async function estAutoriseGererEquipe(req: NextRequest, tenantId: string): Promise<boolean> {
   const tokenVerif = req.cookies.get('sb-access-token')?.value;
   if (!tokenVerif) return false;

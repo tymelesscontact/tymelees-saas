@@ -36,7 +36,7 @@ const PageScoring=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompa
     try{
       const res=await fetch('/api/scoring',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter_avis',...avisForm})});
       const d=await res.json();
-      if(d.success){showToast("✅ Avis ajouté"+Number(avisForm.note)<=2?" · Alerte WhatsApp envoyée":"");setShowAjoutAvis(false);setAvisForm({client_nom:"",note:5,commentaire:"",service:"",source:"direct",google:false});load();}
+      if(d.success){showToast("✅ Avis ajouté"+(Number(avisForm.note)<=2?" · Alerte WhatsApp envoyée":""));setShowAjoutAvis(false);setAvisForm({client_nom:"",note:5,commentaire:"",service:"",source:"direct",google:false});load();}
     }catch(e){showToast("❌ Erreur");}
   };
 
@@ -52,7 +52,7 @@ const PageScoring=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompa
     if(!npsForm.client_nom)return showToast("⚠️ Nom requis");
     try{
       await fetch('/api/scoring',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'ajouter_nps',...npsForm})});
-      showToast("✅ NPS enregistré"+Number(npsForm.score)>=9?" · Invitation Google envoyée":Number(npsForm.score)<=6?" · Alerte envoyée":"");
+      showToast("✅ NPS enregistré"+(Number(npsForm.score)>=9?" · Invitation Google envoyée":Number(npsForm.score)<=6?" · Alerte envoyée":""));
       setShowNPS(false);setNpsForm({client_nom:"",client_email:"",score:8,commentaire:""});load();
     }catch(e){showToast("❌ Erreur");}
   };
@@ -95,7 +95,10 @@ const PageScoring=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompa
   if(loading)return <div style={{padding:20}}><div style={{fontSize:11,color:C.muted}}>⏳ Chargement de la réputation...</div></div>;
 
   const avisAffichés=data?.avis||[];
-  const scoreReputation=data?.scoreReputation||72;
+  const hasAvis=avisAffichés.length>0;
+  const hasNps=(data?.nps?.length||0)>0;
+  const hasCsat=(data?.csat?.length||0)>0;
+  const scoreReputation=data?.scoreReputation??0;
   const scoreColor=scoreReputation>=70?C.green:scoreReputation>=40?C.gold:C.red;
 
   const tabs=[
@@ -127,10 +130,10 @@ const PageScoring=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompa
         <div style={{fontSize:24,fontWeight:700,color:scoreColor}}>{scoreReputation}</div>
         <div style={{fontSize:9,color:scoreColor}}>/100</div>
       </CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>NOTE GOOGLE</div><div style={{fontSize:20,fontWeight:700,color:C.gold}}>★ {data?.noteGoogle||4.8}</div><div style={{fontSize:9,color:C.muted}}>{data?.totalAvis||0} avis</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>NPS</div><div style={{fontSize:20,fontWeight:700,color:data?.npsScore>=50?C.green:data?.npsScore>=0?C.gold:C.red}}>{data?.npsScore>=0?"+":""}{data?.npsScore||72}</div><div style={{fontSize:9,color:C.muted}}>Net Promoter</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>CSAT</div><div style={{fontSize:20,fontWeight:700,color:C.teal}}>{data?.csatScore||85}%</div><div style={{fontSize:9,color:C.muted}}>Satisfaction</div></CT>
-      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>TAUX RÉPONSE</div><div style={{fontSize:20,fontWeight:700,color:data?.tauxReponse>=80?C.green:C.orange}}>{data?.tauxReponse||91}%</div></CT>
+      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>NOTE GOOGLE</div><div style={{fontSize:20,fontWeight:700,color:C.gold}}>★ {hasAvis?data?.noteGoogle??0:"—"}</div><div style={{fontSize:9,color:C.muted}}>{data?.totalAvis??0} avis</div></CT>
+      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>NPS</div><div style={{fontSize:20,fontWeight:700,color:data?.npsScore>=50?C.green:data?.npsScore>=0?C.gold:C.red}}>{hasNps?`${data?.npsScore>=0?"+":""}${data?.npsScore??0}`:"—"}</div><div style={{fontSize:9,color:C.muted}}>Net Promoter</div></CT>
+      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>CSAT</div><div style={{fontSize:20,fontWeight:700,color:C.teal}}>{hasCsat?`${data?.csatScore??0}%`:"—"}</div><div style={{fontSize:9,color:C.muted}}>Satisfaction</div></CT>
+      <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>TAUX RÉPONSE</div><div style={{fontSize:20,fontWeight:700,color:data?.tauxReponse>=80?C.green:C.orange}}>{hasAvis?`${data?.tauxReponse??0}%`:"—"}</div></CT>
       <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>NON RÉPONDUS</div><div style={{fontSize:20,fontWeight:700,color:C.orange}}>{avisAffichés.filter(a=>a.statut==="nouveau").length}</div></CT>
     </div>
 
@@ -219,15 +222,15 @@ const PageScoring=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompa
             </div>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:6}}>
-            {[["Note globale",(data?.noteMoyenne||4.8)+"/5",C.gold],["NPS",(data?.npsScore>=0?"+":"")+String(data?.npsScore||72),C.blue],["CSAT",(data?.csatScore||85)+"%",C.teal],["Taux de réponse",(data?.tauxReponse||91)+"%",C.green]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
+            {[["Note globale",hasAvis?`${data?.noteMoyenne??0}/5`:"—",C.gold],["NPS",hasNps?`${data?.npsScore>=0?"+":""}${data?.npsScore??0}`:"—",C.blue],["CSAT",hasCsat?`${data?.csatScore??0}%`:"—",C.teal],["Taux de réponse",hasAvis?`${data?.tauxReponse??0}%`:"—",C.green]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"4px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
           </div>
         </Card>
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           <Card>
             <STitle>😊 Analyse des sentiments</STitle>
-            {[["🟢 Positif",(data?.sentiments?.positif||2),C.green],["🟡 Neutre",(data?.sentiments?.neutre||1),C.gold],["🔴 Négatif",(data?.sentiments?.négatif||0),C.red]].map(([l,v,c],i)=>{
-              const total=Object.values(data?.sentiments||{positif:2,neutre:1,négatif:0}).reduce((a,x)=>a+Number(x),0)||1;
-              const pct=Math.round(Number(v)/total*100);
+            {[["🟢 Positif",data?.sentiments?.positif??0,C.green],["🟡 Neutre",data?.sentiments?.neutre??0,C.gold],["🔴 Négatif",data?.sentiments?.négatif??0,C.red]].map(([l,v,c],i)=>{
+              const total=Object.values(data?.sentiments||{}).reduce((a,x)=>a+Number(x),0);
+              const pct=total>0?Math.round(Number(v)/total*100):0;
               return <div key={i} style={{marginBottom:8}}>
                 <div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{l}</span><span style={{color:c,fontWeight:700}}>{v} · {pct}%</span></div>
                 <SM val={pct} max={100} color={c}/>
@@ -236,7 +239,7 @@ const PageScoring=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompa
           </Card>
           <Card>
             <STitle>📊 Répartition NPS</STitle>
-            {[["🏆 Promoteurs (9-10)",data?.promoteurs||3,C.green],["😐 Passifs (7-8)",data?.passifs||2,C.gold],["⚠️ Détracteurs (0-6)",data?.detracteurs||0,C.red]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
+            {[["🏆 Promoteurs (9-10)",data?.promoteurs??0,C.green],["😐 Passifs (7-8)",data?.passifs??0,C.gold],["⚠️ Détracteurs (0-6)",data?.detracteurs??0,C.red]].map(([l,v,c],i)=><div key={i} style={{display:"flex",justifyContent:"space-between",fontSize:11,padding:"5px 0",borderBottom:`1px solid ${C.border}22`}}><span style={{color:C.muted}}>{l}</span><span style={{color:c,fontWeight:700}}>{v}</span></div>)}
           </Card>
         </div>
       </div>
@@ -284,7 +287,7 @@ const PageScoring=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompa
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div style={{background:`${C.blue}11`,border:`1px solid ${C.blue}33`,borderRadius:10,padding:14,flex:1,marginRight:12}}>
           <div style={{fontSize:9,color:C.blue,fontWeight:600,marginBottom:4}}>NET PROMOTER SCORE</div>
-          <div style={{fontSize:48,fontWeight:700,color:data?.npsScore>=50?C.green:data?.npsScore>=0?C.gold:C.red}}>{data?.npsScore>=0?"+":""}{data?.npsScore||72}</div>
+          <div style={{fontSize:48,fontWeight:700,color:data?.npsScore>=50?C.green:data?.npsScore>=0?C.gold:C.red}}>{hasNps?`${data?.npsScore>=0?"+":""}${data?.npsScore??0}`:"—"}</div>
           <div style={{fontSize:11,color:C.muted}}>Basé sur {data?.nps?.length||0} réponses · Promoteurs {data?.promoteurs||0} · Détracteurs {data?.detracteurs||0}</div>
         </div>
         <Btn onClick={()=>setShowNPS(true)} style={{fontSize:11,flexShrink:0}}>+ Ajouter réponse NPS</Btn>
@@ -310,8 +313,8 @@ const PageScoring=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompa
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <div style={{background:`${C.teal}11`,border:`1px solid ${C.teal}33`,borderRadius:10,padding:14,flex:1,marginRight:12}}>
           <div style={{fontSize:9,color:C.teal,fontWeight:600,marginBottom:4}}>CUSTOMER SATISFACTION SCORE</div>
-          <div style={{fontSize:48,fontWeight:700,color:C.teal}}>{data?.csatScore||85}%</div>
-          <div style={{fontSize:11,color:C.muted}}>Basé sur {data?.csat?.length||0} évaluations · Note moyenne : {data?.csat?.length>0?Math.round(data.csat.reduce((a,r)=>a+r.score,0)/data.csat.length*10)/10:4.2}/5</div>
+          <div style={{fontSize:48,fontWeight:700,color:C.teal}}>{hasCsat?`${data?.csatScore??0}%`:"—"}</div>
+          <div style={{fontSize:11,color:C.muted}}>Basé sur {data?.csat?.length||0} évaluations · Note moyenne : {hasCsat?Math.round(data.csat.reduce((a,r)=>a+r.score,0)/data.csat.length*10)/10:"—"}/5</div>
         </div>
         <Btn onClick={()=>setShowCSAT(true)} style={{fontSize:11,flexShrink:0}}>+ Ajouter CSAT</Btn>
       </div>

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantFromRequest } from '../../lib/supabaseServer';
+import { estAdministrateurPlateforme } from '../../lib/permissions';
 export const dynamic = 'force-dynamic';
 
 function getAdminClient() {
@@ -11,15 +12,13 @@ function getAdminClient() {
 
 export async function GET(req: NextRequest) {
   const sb = getAdminClient();
-  const { searchParams } = new URL(req.url);
-  const isAdmin = searchParams.get('admin') === 'true';
   const tenant = await getTenantFromRequest(req);
-  const tenantEmail = tenant?.email;
+  const isAdmin = await estAdministrateurPlateforme(req);
 
   let query = sb.from('tickets_support').select('*').order('created_at', { ascending: false });
   if (!isAdmin) {
-    if (!tenantEmail) return NextResponse.json({ tickets: [] });
-    query = query.eq('email', tenantEmail);
+    if (!tenant) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    query = query.eq('tenant_id', tenant.id);
   }
 
   const { data, error } = await query;
@@ -33,13 +32,15 @@ export async function POST(req: NextRequest) {
   const { action } = body;
 
   if (action === 'creer') {
-    const { tenant_id, societe, email, sujet, message, priorite } = body;
-    if (!email || !sujet || !message) {
+    const { sujet, message, priorite } = body;
+    const tenant = await getTenantFromRequest(req);
+    if (!tenant) return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 401 });
+    if (!tenant.email || !sujet || !message) {
       return NextResponse.json({ success: false, error: 'Champs obligatoires manquants' }, { status: 400 });
     }
 
     const { data, error } = await sb.from('tickets_support').insert({
-      tenant_id, societe, email, sujet, message,
+      tenant_id: tenant.id, societe: tenant.societe || '', email: tenant.email, sujet, message,
       priorite: priorite || 'normale',
       statut: 'ouvert',
     }).select().single();
@@ -54,7 +55,7 @@ export async function POST(req: NextRequest) {
           body: JSON.stringify({
             messaging_product: 'whatsapp',
             to: process.env.OWNER_WHATSAPP.replace(/\D/g, ''),
-            text: { body: `🎫 Nouveau ticket support — ${societe}\nSujet: ${sujet}\nPriorite: ${priorite || 'normale'}` },
+            text: { body: `🎫 Nouveau ticket support — ${tenant.societe || ''}\nSujet: ${sujet}\nPriorite: ${priorite || 'normale'}` },
           }),
         });
       } catch (e) { console.error('WhatsApp alert error:', e); }
@@ -64,6 +65,9 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'repondre') {
+    if (!(await estAdministrateurPlateforme(req))) {
+      return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 403 });
+    }
     const { id, reponse, statut } = body;
     const { error } = await sb.from('tickets_support').update({
       reponse,
