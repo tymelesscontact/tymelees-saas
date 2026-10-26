@@ -9,7 +9,7 @@ OBSERVATION → ANALYSE → PROPOSITION → VALIDATION HUMAINE → MODIFICATION 
 TEST → VÉRIFICATION → VALIDATION FINALE → MAIN. Ce document ne fait que
 lister ce qui a été trouvé — rien n'est corrigé ici sans validation.
 
-Dernière mise à jour : 2026-10-14 (revérification complète du code après 114 commits depuis le 13/09 — voir §4 et §7).
+Dernière mise à jour : 2026-10-26 (correctifs sécurité et argent, voir §4 et §9). Précédente : 2026-10-14 (revérification complète du code après 114 commits depuis le 13/09 — voir §4 et §7).
 
 ---
 
@@ -385,12 +385,26 @@ d'appels IA.
 | T18 | `error.message` brut renvoyé au client | 🟡 à faire (transversal, priorité basse) | Quasi tous les modules audités renvoient le message d'erreur Postgres/Supabase brut au front. Pas une fuite critique en soi mais à nettoyer un jour (messages génériques côté client, détail en log serveur). |
 | T19 | Deux fichiers dashboard divergents (`chat`/`conversations_whatsapp` sans entrée `PAGE_ACCESS`) | 🔍 à vérifier | Ces deux modules sont accessibles à tous les plans sans distinction — à confirmer si c'est voulu (gratuit pour tous) ou un oubli lors de l'ajout de ces modules à `PAGE_ACCESS`. |
 | T20 | Requête Supabase directe côté navigateur sans filtre tenant (2e cas après T6) | 🟢 vérifié — non-problème | `PageCompta.tsx` lit `notes_frais.tva` directement depuis le client, sans `.eq('tenant_id',...)` en apparence. Vérifié : la policy RLS sur `notes_frais` filtre déjà correctement par tenant côté base — la requête ne peut donc pas remonter les données d'un autre tenant, contrairement à T6 où la policy était ouverte. Laissé tel quel (pas une faille), mais reste un pattern à éviter pour la lisibilité (client direct plutôt que route API). |
-| T21 | Achat de modules à la carte (add-on) | ✅ réglé et testé bout-en-bout (12/09/2026) | Fonctionnalité complète livrée en 3 étapes (voir §5) : déblocage piloté par la table `modules_actifs`, bouton "Débloquer — X€/mois" sur `UpgradeWall` (partagé entre les deux dashboards), paiement Stripe (`checkout.session.completed` → active le module), reverrouillage automatique sur `customer.subscription.deleted`. Testé en conditions réelles sur `test` avec une carte de test Stripe : paiement → webhook → module débloqué au rechargement du dashboard. **Point ouvert, non tranché** : le reverrouillage n'a lieu qu'à l'annulation complète de l'abonnement Stripe, pas au premier échec de paiement — un client qui ne paie plus garde l'accès pendant toute la durée des relances automatiques de Stripe (plusieurs jours/semaines). |
+| T21 | Achat de modules à la carte (add-on) | ✅ réglé (26/10, `2637017`) | Livré et testé le 12/09. Depuis le 26/10 : `customer.subscription.updated` coupe le module dès le premier impayé (`past_due`/`unpaid` → `suspendu`) et le rend au paiement (`active` → `actif`). **À faire côté Stripe** : cocher l'événement `customer.subscription.updated` sur le webhook de xyratest1. Flutterwave/Swan toujours non branchés. |
 
 Statut d'audit : **tous les modules de la sidebar ont maintenant une fiche**
 (0 restant en 🔍, hors les 10 modules "Bientôt disponible" hors périmètre).
 
 ## 4. Prochaines étapes proposées
+
+### Bilan au 26/10/2026 (après reprise du travail Codex)
+
+**Réglé et en ligne sur xyratest1** (chaque fois : build Ready, routes refusées sans compte, aucune erreur serveur) :
+T29 tickets, T27 Club, T33 WhatsApp, T38 Deals (sécurité), T21 impayés, Notes de frais (validation propriétaire/Admin + pas de double dépense Wallet), API Xyra (SSRF du test de webhook), Annuaire (mutations filtrées), Facturation (actions réservées + facture de fin de mission réparée + KPI par statut), Réputation (plus de faux chiffres), Équipe (plus de NaN au chargement), Planning (suit la société active).
+
+**Pas vérifié avec un compte connecté** (aucun outil navigateur côté Claude) : parcours propriétaire et collaborateur à refaire à la main.
+
+**Encore ouvert** :
+1. Stripe : cocher `customer.subscription.updated` sur le webhook de xyratest1 (sinon T21 ne se déclenche pas).
+2. Deals : bouton « Créer un deal » absent, 4 deals de démo en dur.
+3. Prospection : onglets LinkedIn/Stats en chiffres inventés.
+4. Gravité moyenne : Planning `presence_collaborateur` sans filtre tenant ; Sessions `revoquer` par n'importe quel membre ; Événements `portee:'public'` sans contrôle ; CRM `modifier` sans liste blanche ; envois Clients/Partenaires sans vérif du destinataire ; Fournisseurs `commander` ; vidéos Formation en URL publique ; `whatsapp_token` en clair ; `verifierAccesModule` absent sur wallet/factures/stock/services/marges-cibles ; préférences de notifications jamais appliquées.
+5. T10 Annuaire (tables absentes), T19 Chat/WhatsApp ouverts à tous les forfaits, T7 phase 2, T18 `error.message`.
 
 ### Bilan au 14/10/2026 (revérifié dans le code, pas seulement dans l'historique)
 
@@ -575,16 +589,16 @@ Audit publié à l'origine uniquement dans la page visuelle (artefact « Feuille
 | T24 | Validation des congés sans autorisation | ✅ réglé (14/09) | `api/absences` action `valider` : `estAutoriseGererEquipe` ou responsable désigné (refus uniquement). |
 | T25 | `/api/recrutement` bloqué + `ReferenceError` dashboard | ✅ réglé (14/09) | — |
 | T26 | Route orpheline `app/fournisseurs/route.ts` sans auth | ✅ réglé (23/09, `02215c4`) | Fichier supprimé. |
-| T27 | `api/club` public : actions sensibles sans identité | 🟡 en partie (23/09, `8dc5a0b`) | Actions POST protégées (`estFondateurClub` / `estMembreClubActif`), `tenants` réduit à `societe,metier,pays`. **Reste ouvert** : GET `membres` (`club_membres.*`) et GET `candidatures` (`club_candidatures.*`) accessibles sans compte (route publique dans `proxy.ts`). |
+| T27 | `api/club` public : actions sensibles sans identité | ✅ réglé (26/10, `5897c3e`) | Lectures du Club réservées aux entreprises Xyra connectées (401 sans compte, testé sur xyratest1) ; candidatures (email/tél) réservées aux fondateurs ; formulaire public `/club/rejoindre` inchangé. |
 | T28 | `club-paiement` sans contrôle | ✅ réglé (23/09) | `estFondateurClub` en tête du POST. |
-| T29 | `api/tickets` : `?admin=true` falsifiable | 🔴 ouvert | `api/tickets/route.ts:15` — `isAdmin = searchParams.get('admin') === 'true'`, jamais vérifié. Fichier inchangé depuis l'audit. |
+| T29 | `api/tickets` : `?admin=true` falsifiable | ✅ réglé (26/10, `195b3f4`) | `?admin=true` supprimé ; tickets lus par `tenant_id` ; création avec l'identité serveur ; réponse réservée à `PLATFORM_ADMIN_EMAILS` (préparé par Codex, relu et complété). 401 sans compte testé. |
 | T30 | `tymeless.jsx` : chargement Supabase sans filtre tenant, IBAN, carte Prochain RDV | ✅ réglé (22/09 + 04/10) | `.eq('tenant_id',tenantId)` sur les 8 tables des deux dashboards ; `IbanMondial` passe par l'API (`090ac86`) ; plus de requête directe dans `PageAccueil.tsx`. |
-| T31 | `api/absences` : motifs d'absence de tout le personnel visibles par chaque salarié | 🔴 ouvert | GET sans `vue=` renvoie `absences.*` du tenant (commentaire « réservée au RH » mais aucun contrôle) ; `espace-equipe/page.tsx:103` l'appelle ainsi. |
+| T31 | `api/absences` : motifs d'absence de tout le personnel visibles par chaque salarié | ✅ réglé (14/10, `edff48f`) | Vue complète (type/motif) réservée propriétaire/Admin ; `vue=moi` pour l'espace salarié ; les autres membres ne voient que qui est absent et quand. |
 | T32 | Lea : appel et historique sans contrôle tenant/plan | ✅ réglé (30/09) | `verifierAccesModule('prospection')`, appel réservé propriétaire/Admin, `vapi_calls` filtré par `tenant_id`. |
-| T33 | `OWNER_WHATSAPP` reçoit des données propres à un tenant | 🔴 ouvert | Toujours utilisé dans `analytique` (rapport mensuel), `cartes`, `scoring`, `evenements`, `chat`, `tickets`, `deploiement`, `wallet-membres` (certains légitimes = notifs admin). |
+| T33 | `OWNER_WHATSAPP` reçoit des données propres à un tenant | ✅ réglé (26/10, `c3d1a9c`) | Alertes et rapports d'entreprise (analytique, cartes, scoring, événements, chat) envoyés au numéro de l'entreprise (`telephoneAlerteTenant`) ; `OWNER_WHATSAPP` gardé pour tickets/déploiement/wallet-membres. |
 | T34 | RGPD export/suppression ouverts à tout employé | ✅ réglé (21/09) | `estProprietaireDuTenant` dans `api/rgpd`. |
 | T35 | Actions RH sans contrôle de rôle | ✅ réglé (26/09, `75229eb`) | `estAutoriseGererEquipe` ajouté sur acomptes, évaluations, invitations, congés… |
-| T38 | Deals : UI peu branchée + fuites cross-tenant serveur | 🔴 ouvert | `api/deals/route.ts` et `PageDeals.tsx` inchangés depuis l'audit. L'UI appelle bien liste/modifier/relance/timeline, mais aucune création de deal depuis l'UI. |
+| T38 | Deals : UI peu branchée + fuites cross-tenant serveur | 🟡 sécurité réglée (26/10, `2e5c654`) | Recherche client et partenaire limitées à l'entreprise, champs modifiables en liste blanche, commission « Gagné » une seule fois (`DEAL-COMM-<id>`), relances/timeline vérifiées. **Reste (fonctionnel)** : pas de bouton « Créer un deal » dans l'écran, 4 deals de démo en dur. |
 | T39 | Chat : `envoyer_message`/`recevoir_message` inter-tenant | ✅ réglé (28/09, `5701f48`) | `conversationDuTenant(conversation_id, tenantId)` sur les deux actions. |
 
 **Constats par module de l'audit du 21/09 — toujours ouverts au 14/10** (fichiers non modifiés depuis, ou vérifiés ligne par ligne) :
@@ -598,4 +612,17 @@ Audit publié à l'origine uniquement dans la page visuelle (artefact « Feuille
 - `verifierAccesModule` absent sur `wallet`, `factures`, `stock`, `services-catalogue`, `marges-cibles` (contournement de paywall, pas de fuite) — 🟡.
 - Notifications : préférences chargées mais jamais appliquées aux interrupteurs (`_prefs` inutilisé) — 🟡.
 - Cartes : bouton « Refuser » une transaction = toast seul ; Recrutement `lier_employe` sans vérif d'appartenance ; Déploiement `demande_revendeur` non échappé — 🟡.
+
+## 9. Correctifs du 26/10/2026 (commits sur `test`, tous déployés sur xyratest1)
+
+| Commit | Sujet |
+|---|---|
+| `195b3f4` | Travail Codex relu et complété : tickets (T29), annuaire, factures réservées propriétaire/Admin, facture automatique de fin de mission réparée, KPI Facturation, Réputation sans faux chiffres, `tymeless.jsx` → `xyra.jsx`, recette `docs/xyra/` |
+| `a2c3b99` | Équipe sans NaN au chargement ; Planning reçoit la société active (2 dashboards) |
+| `5897c3e` | T27 Club : aperçu réservé aux entreprises Xyra, candidatures aux fondateurs |
+| `58d406f` | Notes de frais : validation propriétaire/Admin, une seule écriture Wallet ; acompte (action dormante) sécurisé |
+| `2e5c654` | T38 Deals : plus de fuite entre entreprises ni de commission en double |
+| `157ce11` | API Xyra : SSRF du test de webhook bloquée (`app/lib/urlExterne.ts`) |
+| `c3d1a9c` | T33 : alertes d'entreprise vers le numéro de l'entreprise |
+| `2637017` | T21 : module à la carte coupé dès le premier impayé, rendu au paiement |
 

@@ -66,3 +66,11 @@ Méthode : navigation, lecture et créations internes minimales, explicitement a
 2. Vérifier chaque création par rechargement, historique et isolation tenant.
 3. Corriger ou isoler les P0 avant de recetter paiements, droits, tickets support ou actions liées aux données financières.
 4. Recetter par rôle : owner, admin/manager et salarié, avec un tenant distinct non propriétaire.
+
+## Correctifs déployés sur xyratest1 — 26 octobre 2026 (Claude, reprise du travail Codex)
+
+- Les « correctifs locaux en attente de TEST » ci-dessus (Annuaire, Support) sont commités (`195b3f4`) et déployés. Facturation : la facture automatique de fin de mission, bloquée par le nouveau contrôle de rôle quand un salarié termine sa mission, est réparée (seule cette facture-là, une fois, au montant du devis).
+- Équipe / Planning (P1) : plus de `NaN%` ni de « 0 collaborateur » transitoire ; Planning suit la société active dans les deux dashboards (`a2c3b99`).
+- Club : lectures réservées aux entreprises Xyra, candidatures aux fondateurs (`5897c3e`).
+- Notes de frais, Deals, API Xyra (SSRF), alertes WhatsApp par entreprise, impayés Stripe : voir `docs/FEUILLE_DE_ROUTE.md` §9.
+- Vérifié sans compte sur xyratest1 : toutes les routes concernées répondent 401 ; aucune erreur serveur dans les journaux Vercel (fenêtre de 30 min du forfait). **Non vérifié** : parcours connectés owner / collaborateur.
