@@ -403,7 +403,7 @@ T29 tickets, T27 Club, T33 WhatsApp, T38 Deals (sécurité), T21 impayés, Notes
 1. Stripe : cocher `customer.subscription.updated` sur le webhook de xyratest1 (sinon T21 ne se déclenche pas).
 2. Deals : bouton « Créer un deal » absent, 4 deals de démo en dur.
 3. Prospection : onglets LinkedIn/Stats en chiffres inventés.
-4. Gravité moyenne : Planning `presence_collaborateur` sans filtre tenant ; Sessions `revoquer` par n'importe quel membre ; Événements `portee:'public'` sans contrôle ; CRM `modifier` sans liste blanche ; envois Clients/Partenaires sans vérif du destinataire ; Fournisseurs `commander` ; vidéos Formation en URL publique ; `whatsapp_token` en clair ; `verifierAccesModule` absent sur wallet/factures/stock/services/marges-cibles ; préférences de notifications jamais appliquées.
+4. ~~Gravité moyenne~~ ✅ **réglée le 26/10** (voir §9 : `ef432df`, `50fb208`, `4359efc`). Reste : bucket `formations-videos` à passer en **privé** dans Supabase TEST (action humaine), `wallet`/`factures` sans contrôle de forfait serveur (volontaire, écrans partagés).
 5. T10 Annuaire (tables absentes), T19 Chat/WhatsApp ouverts à tous les forfaits, T7 phase 2, T18 `error.message`.
 
 ### Bilan au 14/10/2026 (revérifié dans le code, pas seulement dans l'historique)
@@ -625,4 +625,7 @@ Audit publié à l'origine uniquement dans la page visuelle (artefact « Feuille
 | `157ce11` | API Xyra : SSRF du test de webhook bloquée (`app/lib/urlExterne.ts`) |
 | `c3d1a9c` | T33 : alertes d'entreprise vers le numéro de l'entreprise |
 | `2637017` | T21 : module à la carte coupé dès le premier impayé, rendu au paiement |
+| `ef432df` | Sessions : chacun ne voit/révoque que les siennes (propriétaire/Admin : toutes) ; Planning `presence_collaborateur` limité à l'entreprise |
+| `50fb208` | CRM `modifier` en liste blanche ; envois CRM/Clients/Partenaires vers le destinataire de la fiche uniquement, message échappé ; événement public réservé à la plateforme ; commande fournisseur (propriétaire/Admin, IBAN de la fiche, solde vérifié) |
+| `4359efc` | Vidéos Formation en liens signés ; jeton WhatsApp chiffré ; contrôle du forfait serveur sur stock, services-catalogue, marges-cibles ; préférences de notifications chargées et enregistrées |
 
