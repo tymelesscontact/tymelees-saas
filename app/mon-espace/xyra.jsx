@@ -419,7 +419,7 @@ export default function Xyra() {
             <div style={{fontSize:9,color:"#9090B8",letterSpacing:"0.2em",textTransform:"uppercase",padding:"10px 13px 3px",marginTop:gi>0?4:0,fontWeight:600}}>{grp.group}</div>
             {grp.items.map((item)=>{
               const active=page===item.id;
-              const locked=!hasAccess(plan,item.id)&&!modulesActifs.includes(item.id);
+              const locked=!hasAccess(plan,item.id)&&!modulesActifs.includes(item.id)&&!(item.id==="conversations_whatsapp"&&modulesActifs.includes("prospection"));
               const badge=item.badge?badges[item.badge]:0;
               if(item.soon) return (
                 <button key={item.id} onClick={()=>setPage(item.id)} style={{display:"flex",alignItems:"center",gap:8,padding:"7px 13px",cursor:"pointer",color:"#5A5A7A",background:"transparent",border:"none",borderLeft:"2px solid transparent",width:"100%",textAlign:"left",fontFamily:"inherit",fontSize:12,opacity:0.6}}>

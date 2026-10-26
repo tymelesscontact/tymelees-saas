@@ -98,8 +98,9 @@ const PageScoring=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompa
   const hasAvis=avisAffichés.length>0;
   const hasNps=(data?.nps?.length||0)>0;
   const hasCsat=(data?.csat?.length||0)>0;
-  const scoreReputation=data?.scoreReputation??0;
-  const scoreColor=scoreReputation>=70?C.green:scoreReputation>=40?C.gold:C.red;
+  const scoreConnu=data?.scoreReputation!==null&&data?.scoreReputation!==undefined;
+  const scoreReputation=scoreConnu?data.scoreReputation:0;
+  const scoreColor=!scoreConnu?C.muted:scoreReputation>=70?C.green:scoreReputation>=40?C.gold:C.red;
 
   const tabs=[
     {id:"dashboard",label:"★ Dashboard"},
@@ -127,7 +128,7 @@ const PageScoring=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompa
     <div style={{display:"grid",gridTemplateColumns:"repeat(6,1fr)",gap:10,marginBottom:14}}>
       <CT style={{borderColor:`${scoreColor}44`,gridColumn:"span 1"}}>
         <div style={{fontSize:9,color:C.muted,marginBottom:3}}>SCORE RÉPUTATION</div>
-        <div style={{fontSize:24,fontWeight:700,color:scoreColor}}>{scoreReputation}</div>
+        <div style={{fontSize:24,fontWeight:700,color:scoreColor}}>{scoreConnu?scoreReputation:"—"}</div>
         <div style={{fontSize:9,color:scoreColor}}>/100</div>
       </CT>
       <CT><div style={{fontSize:9,color:C.muted,marginBottom:3}}>NOTE GOOGLE</div><div style={{fontSize:20,fontWeight:700,color:C.gold}}>★ {hasAvis?data?.noteGoogle??0:"—"}</div><div style={{fontSize:9,color:C.muted}}>{data?.totalAvis??0} avis</div></CT>
@@ -215,7 +216,7 @@ const PageScoring=({plan, modulesActifs,showToast,profil,UpgradeWall,activeCompa
         <Card style={{borderColor:`${scoreColor}44`}}>
           <STitle>⭐ Score de réputation global</STitle>
           <div style={{textAlign:"center",padding:"16px 0"}}>
-            <div style={{fontSize:64,fontWeight:700,color:scoreColor,fontFamily:"Georgia,serif",lineHeight:1}}>{scoreReputation}</div>
+            <div style={{fontSize:64,fontWeight:700,color:scoreColor,fontFamily:"Georgia,serif",lineHeight:1}}>{scoreConnu?scoreReputation:"—"}</div>
             <div style={{fontSize:12,color:C.muted,marginBottom:12}}>/100</div>
             <div style={{height:6,background:C.border,borderRadius:3,margin:"0 20px",overflow:"hidden"}}>
               <div style={{height:"100%",width:scoreReputation+"%",background:scoreColor,borderRadius:3}}/>

@@ -75,12 +75,14 @@ export async function GET(req: NextRequest) {
   const tauxReponse = avis.length > 0 ? Math.round(avisAvecReponse / avis.length * 100) : 0;
 
   // Score réputation global 0-100
-  const scoreReputation = Math.round(
-    (noteMoyenne / 5 * 40) +
-    (Math.max(0, npsScore + 100) / 200 * 30) +
-    (csatScore / 100 * 20) +
-    (tauxReponse / 100 * 10)
-  );
+  // Seuls les elements qui existent comptent (sinon un NPS vide valait 15 points) ;
+  // memes poids qu'avant, ramenes sur 100. Aucune donnee -> null (affiche "—").
+  const parts: { poids: number; valeur: number }[] = [];
+  if (avis.length > 0) { parts.push({ poids: 40, valeur: noteMoyenne / 5 }); parts.push({ poids: 10, valeur: tauxReponse / 100 }); }
+  if (nps.length > 0) parts.push({ poids: 30, valeur: Math.max(0, npsScore + 100) / 200 });
+  if (csat.length > 0) parts.push({ poids: 20, valeur: csatScore / 100 });
+  const poidsTotal = parts.reduce((a, p) => a + p.poids, 0);
+  const scoreReputation = poidsTotal > 0 ? Math.round(parts.reduce((a, p) => a + p.poids * p.valeur, 0) / poidsTotal * 100) : null;
 
   // Analyse sentiment
   const sentiments = { positif: 0, neutre: 0, négatif: 0 };
