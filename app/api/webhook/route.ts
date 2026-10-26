@@ -1,3 +1,4 @@
+import crypto from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@supabase/supabase-js'
 import { generatePDFFromHTML } from '../../lib/generatePDF'
@@ -101,8 +102,39 @@ export async function GET(req: NextRequest) {
   return new NextResponse('Forbidden', { status: 403 })
 }
 
+// Signature Meta (X-Hub-Signature-256 = sha256=HMAC(secret de l'app, corps brut)).
+function signatureMetaValide(corpsBrut: string, entete: string | null, secret: string): boolean {
+  if (!entete || !entete.startsWith('sha256=')) return false
+  const attendu = Buffer.from('sha256=' + crypto.createHmac('sha256', secret).update(corpsBrut).digest('hex'))
+  const recu = Buffer.from(entete)
+  return recu.length === attendu.length && crypto.timingSafeEqual(recu, attendu)
+}
+
 export async function POST(req: NextRequest) {
-  const body = await req.json()
+  const corpsBrut = await req.text()
+  // Route publique (Meta) : on n'accepte que les messages signes par Meta des que
+  // le secret de l'app est configure.
+  const secretApp = process.env.WHATSAPP_APP_SECRET
+  if (secretApp) {
+    if (!signatureMetaValide(corpsBrut, req.headers.get('x-hub-signature-256'), secretApp)) {
+      return NextResponse.json({ error: 'signature_invalide' }, { status: 401 })
+    }
+  } else {
+    console.warn('Webhook WhatsApp : WHATSAPP_APP_SECRET absent, signature Meta non verifiee')
+  }
+  const body = (() => { try { return JSON.parse(corpsBrut) } catch { return null } })()
+  if (!body) return NextResponse.json({ error: 'corps_invalide' }, { status: 400 })
+
+  // Quel numero WhatsApp a recu ce message ? Sert a retrouver le client.
+  const numeroRecepteur = body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id
+  let tenantRecepteur: string | null = null
+  if (numeroRecepteur && numeroRecepteur !== process.env.WHATSAPP_PHONE_NUMBER_ID) {
+    try {
+      const { data: t } = await supabase.from('tenants')
+        .select('id').eq('whatsapp_phone_number_id', numeroRecepteur).eq('whatsapp_actif', true).maybeSingle()
+      tenantRecepteur = t?.id || null
+    } catch (e: any) { console.error('Tenant recepteur:', e.message) }
+  }
   // ── ECHOS : messages envoyes depuis l'application WhatsApp ──
   // Permet de repondre depuis le telephone et de retrouver le message
   // dans Xyra. Necessite la Coexistence et l'abonnement au champ
@@ -153,16 +185,6 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ status: 'ok' })
   }
 
-  // Quel numero WhatsApp a recu ce message ? Sert a retrouver le client.
-  const numeroRecepteur = body?.entry?.[0]?.changes?.[0]?.value?.metadata?.phone_number_id
-  let tenantRecepteur: string | null = null
-  if (numeroRecepteur && numeroRecepteur !== process.env.WHATSAPP_PHONE_NUMBER_ID) {
-    try {
-      const { data: t } = await supabase.from('tenants')
-        .select('id').eq('whatsapp_phone_number_id', numeroRecepteur).eq('whatsapp_actif', true).maybeSingle()
-      tenantRecepteur = t?.id || null
-    } catch (e: any) { console.error('Tenant recepteur:', e.message) }
-  }
 
   const message = body?.entry?.[0]?.changes?.[0]?.value?.messages?.[0]
   if (!message) return NextResponse.json({ status: 'ok' })
