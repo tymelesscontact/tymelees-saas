@@ -24,6 +24,11 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const action = searchParams.get('action') || 'membres';
 
+  // Apercu du Club reserve aux entreprises qui utilisent Xyra ; la route reste
+  // publique dans proxy.ts uniquement pour le formulaire /club/rejoindre (POST).
+  const tenantIdLecture = await getTenantIdFromRequest(req);
+  if (!tenantIdLecture) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+
   if (action === 'membres') {
     const [membresRes, tenantsRes] = await Promise.all([
       sb.from('club_membres').select('*').in('statut', ['actif', 'fondateur', 'attente_paiement', 'attente_cotisation']).order('score_reputation', { ascending: false }),
@@ -43,6 +48,8 @@ export async function GET(req: NextRequest) {
   }
 
   if (action === 'candidatures') {
+    // Coordonnees des candidats : fondateurs du Club uniquement.
+    if (!(await estFondateurClub(req))) return NextResponse.json({ candidatures: [] });
     const { data } = await sb.from('club_candidatures').select('*').order('created_at', { ascending: false });
     return NextResponse.json({ candidatures: data || [] });
   }
