@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
-import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { envoyerWhatsApp, telephoneAlerteTenant } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -193,8 +193,8 @@ Sois direct et précis.`;
   }
 
   if (action === 'rapport_mensuel_whatsapp') {
-    const ownerTel = process.env.OWNER_WHATSAPP;
-    if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
+    const ownerTel = await telephoneAlerteTenant(tenantId);
+    if (!ownerTel) return NextResponse.json({ error: 'Aucun numero de telephone configure pour ce compte' }, { status: 400 });
     const { caTotal, caMoisActuel, evolutionMois, tauxMarge, topClients, prevision } = body;
     try {
       const prompt = `Génère un rapport CA mensuel WhatsApp (5-6 lignes max, français, emojis) :

@@ -1,6 +1,23 @@
 import { createClient } from '@supabase/supabase-js';
 
 /**
+ * Numero ou envoyer les alertes propres a une entreprise (avis, NPS, cartes,
+ * rapports...) : celui de l'entreprise elle-meme, jamais le numero global de la
+ * plateforme (OWNER_WHATSAPP), sinon les donnees d'un client partent chez un autre.
+ */
+export async function telephoneAlerteTenant(tenantId?: string | null): Promise<string | null> {
+  if (!tenantId) return null;
+  const sb = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+  const { data: t } = await sb.from('tenants')
+    .select('telephone_contact,telephone_entreprise')
+    .eq('id', tenantId).maybeSingle();
+  return t?.telephone_contact || t?.telephone_entreprise || null;
+}
+
+/**
  * Envoi WhatsApp au nom du bon compte.
  * Chaque tenant peut connecter son propre numero WhatsApp Business.
  * A defaut, le compte Xyra est utilise.

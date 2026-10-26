@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
-import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { envoyerWhatsApp, telephoneAlerteTenant } from '../../lib/whatsapp';
 import { getAnthropicKey } from '../../lib/anthropicKey';
 import { estFondateurClub } from '../../lib/permissions';
 
@@ -131,16 +131,16 @@ export async function POST(req: NextRequest) {
 
   if (action === 'inviter_reseau') {
     const { titre, date_evenement, lieu } = body;
-    const ownerTel = process.env.OWNER_WHATSAPP;
-    if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
+    const ownerTel = await telephoneAlerteTenant(tenantId);
+    if (!ownerTel) return NextResponse.json({ error: 'Aucun numero de telephone configure pour ce compte' }, { status: 400 });
     const dateTexte = date_evenement ? new Date(date_evenement).toLocaleDateString('fr') : '';
     await envoyerWhatsApp(ownerTel, `Xyra Events : Invitation reseau envoyee pour ${titre} le ${dateTexte} a ${lieu || ''}.`, tenantId);
     return NextResponse.json({ success: true });
   }
 
   if (action === 'rappels') {
-    const ownerTel = process.env.OWNER_WHATSAPP;
-    if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
+    const ownerTel = await telephoneAlerteTenant(tenantId);
+    if (!ownerTel) return NextResponse.json({ error: 'Aucun numero de telephone configure pour ce compte' }, { status: 400 });
 
     if (!tenantId) return NextResponse.json({ success: true, rappels: 0 });
     const { data: evts } = await sb.from('evenements').select('*').eq('statut', 'ouvert').eq('tenant_id', tenantId);

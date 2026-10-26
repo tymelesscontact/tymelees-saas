@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
-import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { envoyerWhatsApp, telephoneAlerteTenant } from '../../lib/whatsapp';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -115,8 +115,9 @@ export async function POST(req: NextRequest) {
     await sb.from('cartes_virtuelles').update(updates).eq('id', id).eq('tenant_id', tenantId);
     // Alerte si > 80%
     const pct = (nouveau / Number(carte.limite)) * 100;
-    if (pct >= 80 && process.env.OWNER_WHATSAPP) {
-      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra Alerte carte : ${carte.nom} a utilise ${Math.round(pct)}% de son plafond (${nouveau}/${carte.limite})`, tenantId);
+    const telAlerte = await telephoneAlerteTenant(tenantId);
+    if (pct >= 80 && telAlerte) {
+      await envoyerWhatsApp(telAlerte, `Xyra Alerte carte : ${carte.nom} a utilise ${Math.round(pct)}% de son plafond (${nouveau}/${carte.limite})`, tenantId);
     }
     return NextResponse.json({ success: true, nouveau_solde: nouveau });
   }
@@ -132,8 +133,9 @@ export async function POST(req: NextRequest) {
     if (statut === 'approuvé') {
       await sb.from('cartes_virtuelles').update({ solde: Number(montant), updated_at: new Date().toISOString() }).eq('id', carte_id).eq('tenant_id', tenantId);
     }
-    if (approbation_requise && process.env.OWNER_WHATSAPP) {
-      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra Approbation requise : ${libelle} - ${montant}EUR sur carte. Repondez OUI pour approuver.`, tenantId);
+    const telAlerte = await telephoneAlerteTenant(tenantId);
+    if (approbation_requise && telAlerte) {
+      await envoyerWhatsApp(telAlerte, `Xyra Approbation requise : ${libelle} - ${montant}EUR sur carte. Repondez OUI pour approuver.`, tenantId);
     }
     return NextResponse.json({ success: true, transaction: data });
   }
