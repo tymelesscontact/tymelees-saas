@@ -825,20 +825,26 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
 
   if (action === 'valider_acompte') {
     if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
-    const { id, employe_id, montant, nom_employe, company_id } = body;
+    const { id, nom_employe, company_id } = body;
+    // Montant relu dans la demande d'acompte (jamais celui envoye par le navigateur),
+    // et une seule validation possible : pas de double sortie d'argent dans le Wallet.
+    const { data: acompte } = await sb.from('acomptes').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!acompte) return NextResponse.json({ error: 'Acompte introuvable' }, { status: 404 });
+    if (acompte.statut !== 'en_attente') return NextResponse.json({ error: 'Acompte deja traite' }, { status: 409 });
+    const nomAcompte = acompte.nom_employe || nom_employe || '';
     await sb.from('acomptes').update({ statut: 'validé' }).eq('id', id).eq('tenant_id', tenantId);
     // Crée une vraie transaction dans le wallet
     await sb.from('wallet_transactions').insert({
       type: 'acompte',
-      libelle: `Acompte ${nom_employe}`,
-      montant: Number(montant),
+      libelle: `Acompte ${nomAcompte}`,
+      montant: Number(acompte.montant),
       devise: 'EUR',
       methode: 'sepa',
       statut: 'à_virer',
-      ref: `ACOMP-${Date.now()}`,
-      destinataire_nom: nom_employe,
+      ref: `ACOMP-${acompte.id}`,
+      destinataire_nom: nomAcompte,
       tenant_id: tenantId,
-      company_id: company_id || null,
+      company_id: acompte.company_id || company_id || null,
     });
     return NextResponse.json({ success: true });
   }

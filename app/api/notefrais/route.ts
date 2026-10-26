@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { calculerTva } from '../../lib/reglesTva';
+import { estAutoriseGererEquipe } from '../../lib/permissions';
+const STATUTS_NOTE = ["en_attente", "validé", "refusé", "remboursé"]
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -98,6 +100,9 @@ export async function POST(req: NextRequest) {
   if (action === "budgets") {
     const { budgets, company_id } = body;
     if (!tenantId) return NextResponse.json({ error: "non_connecte" }, { status: 401 });
+    if (!(await estAutoriseGererEquipe(req, tenantId))) {
+      return NextResponse.json({ error: "reserve_au_proprietaire_ou_admin" }, { status: 403 });
+    }
     if (!budgets || typeof budgets !== "object") {
       return NextResponse.json({ error: "budgets requis" }, { status: 400 });
     }
@@ -120,11 +125,22 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "id et statut requis" }, { status: 400 })
     }
     if (!tenantId) return NextResponse.json({ success: false, error: "non_autorise" }, { status: 401 })
+    // Valider/rembourser engage de l'argent : proprietaire ou Admin uniquement.
+    if (!(await estAutoriseGererEquipe(req, tenantId))) {
+      return NextResponse.json({ success: false, error: "reserve_au_proprietaire_ou_admin" }, { status: 403 })
+    }
+    if (!STATUTS_NOTE.includes(statut)) {
+      return NextResponse.json({ success: false, error: "Statut invalide" }, { status: 400 })
+    }
     const uq = sb.from("notes_frais").update({ statut }).eq("id", id).eq("tenant_id", tenantId)
     const { data: note, error } = await uq.select().single()
 
-    // Note validee -> vraie ligne dans le Wallet (donc visible en Compta et Tresorerie)
-    if (!error && note && statut === "validé") {
+    // Note validee -> vraie ligne dans le Wallet (donc visible en Compta et Tresorerie),
+    // une seule fois meme si la note est validee plusieurs fois.
+    const { data: ligneExistante } = (!error && note && statut === "validé")
+      ? await sb.from("wallet_transactions").select("id").eq("ref", `NDF-${note.id}`).eq("tenant_id", tenantId).limit(1).maybeSingle()
+      : { data: null }
+    if (!error && note && statut === "validé" && !ligneExistante) {
       const { error: errTx } = await sb.from("wallet_transactions").insert({
         type: "note_frais",
         libelle: `Note de frais ${note.employe || ""} — ${note.marchand || ""}`.trim(),
@@ -145,6 +161,7 @@ export async function POST(req: NextRequest) {
       const { error: errMaj } = await sb.from("wallet_transactions")
         .update({ statut: "viré" })
         .eq("ref", `NDF-${note.id}`)
+        .eq("tenant_id", tenantId)
       if (errMaj) console.error("Note de frais: transaction wallet non mise a jour:", errMaj.message)
     }
     if (error) {
