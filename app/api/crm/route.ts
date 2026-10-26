@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { getAnthropicKey } from '../../lib/anthropicKey';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { echapHtml } from '../../lib/walletValidation';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -48,7 +49,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'modifier') {
-    const { id, ...fields } = body;
+    const { id } = body;
+    // Liste blanche : jamais tenant_id ni autre colonne technique depuis le navigateur.
+    const CHAMPS_LEAD = ['nom', 'contact', 'email', 'tel', 'metier', 'ca_potentiel', 'source', 'notes', 'etape', 'score'];
+    const fields: Record<string, unknown> = {};
+    for (const champ of CHAMPS_LEAD) if (body[champ] !== undefined) fields[champ] = body[champ];
     const { error } = await sb.from('crm_leads').update({ ...fields, updated_at: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });
@@ -62,7 +67,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'envoyer_whatsapp') {
-    const { id, tel, message } = body;
+    const { id, message } = body;
+    // Destinataire relu dans la fiche du lead : Xyra ne relaie pas vers un numero quelconque.
+    const { data: leadWa } = id ? await sb.from('crm_leads').select('tel').eq('id', id).eq('tenant_id', tenantId).maybeSingle() : { data: null };
+    if (!leadWa) return NextResponse.json({ error: 'Lead introuvable' }, { status: 404 });
+    const tel = leadWa.tel;
     if (!tel || !message) return NextResponse.json({ error: 'Téléphone et message requis' }, { status: 400 });
     try {
       await envoyerWhatsApp(tel, message, tenantId);
@@ -74,10 +83,13 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'envoyer_email') {
-    const { id, email, subject, message } = body;
+    const { id, subject, message } = body;
+    const { data: leadMail } = id ? await sb.from('crm_leads').select('email').eq('id', id).eq('tenant_id', tenantId).maybeSingle() : { data: null };
+    if (!leadMail) return NextResponse.json({ error: 'Lead introuvable' }, { status: 404 });
+    const email = leadMail.email;
     if (!email || !message) return NextResponse.json({ error: 'Email et message requis' }, { status: 400 });
     try {
-      await sendEmail(email, subject || 'Message de Xyra', `<div style="font-family:sans-serif;padding:24px;white-space:pre-line;">${message}</div>`);
+      await sendEmail(email, subject || 'Message de Xyra', `<div style="font-family:sans-serif;padding:24px;white-space:pre-line;">${echapHtml(String(message))}</div>`);
     } catch (e) {
       return NextResponse.json({ error: 'Échec envoi email' }, { status: 500 });
     }

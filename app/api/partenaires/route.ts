@@ -6,6 +6,7 @@ import { envoyerWhatsApp } from '../../lib/whatsapp';
 import { urlRetourInvitation } from '../../lib/invitation';
 import { estAutoriseGererEquipe } from '../../lib/permissions';
 import { calculerSolde } from '../../lib/walletSolde';
+import { echapHtml } from '../../lib/walletValidation';
 const UUID_RE =/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Client normal (lectures/écritures courantes)
@@ -315,10 +316,14 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'envoyer_email') {
-    const { email, subject, message, partenaire_id } = body;
+    const { subject, message, partenaire_id } = body;
+    // Destinataire relu dans la fiche partenaire de l'entreprise (pas de relais vers un email quelconque).
+    const { data: partMail } = partenaire_id ? await sb.from('partenaires').select('email').eq('id', partenaire_id).eq('tenant_id', tenantId).maybeSingle() : { data: null };
+    if (!partMail) return NextResponse.json({ error: 'Partenaire introuvable' }, { status: 404 });
+    const email = partMail.email;
     if (!email || !message) return NextResponse.json({ error: 'Email et message requis' }, { status: 400 });
     try {
-      await sendEmail(email, subject || 'Message de Xyra', `<div style="font-family:sans-serif;padding:24px;white-space:pre-line;">${message}</div>`);
+      await sendEmail(email, subject || 'Message de Xyra', `<div style="font-family:sans-serif;padding:24px;white-space:pre-line;">${echapHtml(String(message))}</div>`);
     } catch (e) {
       return NextResponse.json({ error: 'Échec envoi email' }, { status: 500 });
     }

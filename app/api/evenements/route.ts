@@ -3,7 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp, telephoneAlerteTenant } from '../../lib/whatsapp';
 import { getAnthropicKey } from '../../lib/anthropicKey';
-import { estFondateurClub } from '../../lib/permissions';
+import { estFondateurClub, estAdministrateurPlateforme } from '../../lib/permissions';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -90,6 +90,10 @@ export async function POST(req: NextRequest) {
       }
       porteeFinale = 'club';
     } else if (portee === 'public') {
+      // Visible par toutes les entreprises Xyra : reserve a l'administrateur de la plateforme.
+      if (!(await estAdministrateurPlateforme(req))) {
+        return NextResponse.json({ error: 'Seule la plateforme peut publier un evenement public' }, { status: 403 });
+      }
       porteeFinale = 'public';
     }
 

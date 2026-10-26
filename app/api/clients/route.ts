@@ -3,6 +3,7 @@ import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseS
 import { estAutoriseGererEquipe } from '../../lib/permissions';
 import { createClient } from '@supabase/supabase-js';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { echapHtml } from '../../lib/walletValidation';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -137,7 +138,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'envoyer_whatsapp') {
-    const { id, tel, message } = body;
+    const { id, message } = body;
+    // Destinataire relu dans la fiche client de l'entreprise (pas de relais vers un numero quelconque).
+    const { data: clientWa } = id ? await sb.from('clients').select('tel').eq('id', id).eq('tenant_id', tenantId).maybeSingle() : { data: null };
+    if (!clientWa) return NextResponse.json({ error: 'Client introuvable' }, { status: 404 });
+    const tel = clientWa.tel;
     if (!tel || !message) return NextResponse.json({ error: 'Téléphone et message requis' }, { status: 400 });
     try {
       await envoyerWhatsApp(tel, message, tenantId);
@@ -149,7 +154,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'envoyer_email') {
-    const { id, email, subject, message } = body;
+    const { id, subject, message } = body;
+    const { data: clientMail } = id ? await sb.from('clients').select('email').eq('id', id).eq('tenant_id', tenantId).maybeSingle() : { data: null };
+    if (!clientMail) return NextResponse.json({ error: 'Client introuvable' }, { status: 404 });
+    const email = clientMail.email;
     if (!email || !message) return NextResponse.json({ error: 'Email et message requis' }, { status: 400 });
     try {
       const { Resend } = await import('resend');
@@ -158,7 +166,7 @@ export async function POST(req: NextRequest) {
         from: 'Xyra <notifications@xyraio.fr>',
         to: email,
         subject: subject || 'Message de Xyra',
-        html: `<div style="font-family:sans-serif;padding:24px;white-space:pre-line;">${message}</div>`,
+        html: `<div style="font-family:sans-serif;padding:24px;white-space:pre-line;">${echapHtml(String(message))}</div>`,
       });
     } catch (e) {
       return NextResponse.json({ error: 'Échec envoi email' }, { status: 500 });
