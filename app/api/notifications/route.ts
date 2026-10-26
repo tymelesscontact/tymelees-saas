@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { alerterEntreprise } from '../../lib/rappels';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -170,24 +171,24 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'digest_quotidien') {
-    const { data: tenant } = await sb.from('tenants').select('telephone_contact,telephone_entreprise').eq('id', tenantId).single();
-    const tel = body.tel || tenant?.telephone_contact || tenant?.telephone_entreprise;
-    if (!tel) return NextResponse.json({ error: 'Numéro manquant' }, { status: 400 });
+    // WhatsApp si connecte, sinon email de l'entreprise (gratuit) ; deja visible dans la cloche.
     const autoNotifs = await genererNotificationsAuto(tenantId);
-    if (!autoNotifs.length) {
-      await envoyerWhatsApp(tel, 'Xyra - Bonjour ! Tout est a jour aujourd\'hui. Bonne journee.', tenantId);
-      return NextResponse.json({ success: true, nb: 0 });
-    }
     const priorites = autoNotifs.filter((n: any) => n.urgence === 'haute').slice(0, 3);
-    const msg = `Xyra - Bonjour ! Vos priorites du jour :\n${priorites.map((n: any, i: number) => `${i + 1}. ${n.titre} - ${n.message}`).join('\n')}\nBonne journee !`;
-    try { await envoyerWhatsApp(tel, msg, tenantId); } catch (e) { /* non bloquant */ }
-    return NextResponse.json({ success: true, nb: priorites.length });
+    const msg = priorites.length
+      ? `Xyra - Bonjour ! Vos priorites du jour :\n${priorites.map((n: any, i: number) => `${i + 1}. ${n.titre} - ${n.message}`).join('\n')}\nBonne journee !`
+      : 'Xyra - Bonjour ! Tout est a jour aujourd\'hui. Bonne journee.';
+    const canal = await alerterEntreprise(tenantId, 'Vos priorités du jour', msg, { cloche: false });
+    if (!canal) return NextResponse.json({ error: 'Aucun numero ni email configure pour ce compte (Parametres)' }, { status: 400 });
+    return NextResponse.json({ success: true, nb: priorites.length, canal });
   }
 
   if (action === 'push_whatsapp') {
     const { tel, titre, message } = body;
     if (!tel) return NextResponse.json({ error: 'Numéro manquant' }, { status: 400 });
-    try { await envoyerWhatsApp(tel, `Xyra - ${titre}\n${message}`, tenantId); } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
+    try {
+      const envoi = await envoyerWhatsApp(tel, `Xyra - ${titre}\n${message}`, tenantId);
+      if (!envoi?.ok) return NextResponse.json({ error: "WhatsApp n'est pas connecté pour le moment" }, { status: 503 });
+    } catch (e: any) { return NextResponse.json({ error: e.message }, { status: 500 }); }
     return NextResponse.json({ success: true });
   }
 

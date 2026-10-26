@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
-import { alerterEntreprise } from '../../lib/rappels';
+import { alerterEntreprise, envoyerPartout } from '../../lib/rappels';
 import { getAnthropicKey } from '../../lib/anthropicKey';
 import { estFondateurClub, estAdministrateurPlateforme } from '../../lib/permissions';
 
@@ -128,8 +128,9 @@ export async function POST(req: NextRequest) {
     const { data: evt } = await sb.from('evenements')
       .select('titre,max_inscrits,date_evenement,lieu').eq('id', evenement_id).single();
     if (!evt) return NextResponse.json({ error: 'Evenement introuvable' }, { status: 404 });
-    if (tel && process.env.WHATSAPP_PHONE_NUMBER_ID) {
-      await envoyerWhatsApp(tel, `Xyra Events : Inscription confirmee pour ${evt.titre} le ${new Date(evt.date_evenement).toLocaleDateString('fr')} a ${evt.lieu || ''}. A bientot !`, tenantId);
+    if (tel || email) {
+      // WhatsApp si connecte, sinon email de confirmation (gratuit).
+      await envoyerPartout(tel || null, email || null, `Xyra Events : Inscription confirmee pour ${evt.titre} le ${new Date(evt.date_evenement).toLocaleDateString('fr')} a ${evt.lieu || ''}. A bientot !`, tenantId || '', { sujet: `Inscription confirmée — ${evt.titre}` });
     }
     return NextResponse.json({ success: true, inscrits: resultat.inscrits });
   }

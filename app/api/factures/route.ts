@@ -312,8 +312,8 @@ export async function POST(req: NextRequest) {
     }
     if (facture.client_tel) {
       try {
-        await envoyerWhatsApp(facture.client_tel, `Bonjour ${facture.client_nom}, petit rappel pour votre facture ${facture.numero} (${facture.montant_ttc}€) toujours en attente.${lien ? `\nPayer : ${lien}` : ''}`, tenantIdPost);
-        envoye = true;
+        const envoiWa = await envoyerWhatsApp(facture.client_tel, `Bonjour ${facture.client_nom}, petit rappel pour votre facture ${facture.numero} (${facture.montant_ttc}€) toujours en attente.${lien ? `\nPayer : ${lien}` : ''}`, tenantIdPost);
+        if (envoiWa?.ok) envoye = true;
       } catch (e) { console.error('WhatsApp error:', e); }
     }
 

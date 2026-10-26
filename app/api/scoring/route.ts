@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
-import { alerterEntreprise } from '../../lib/rappels';
+import { alerterEntreprise, envoyerPartout } from '../../lib/rappels';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -157,10 +157,12 @@ Commence par "Bonjour ${client_nom},"`;
   }
 
   if (action === 'demander_avis_whatsapp') {
-    const { client_tel, client_nom, service } = body;
-    if (!client_tel) return NextResponse.json({ error: 'Numéro requis' }, { status: 400 });
-    await envoyerWhatsApp(client_tel, `Bonjour ${client_nom}, merci d'avoir fait appel a nos services pour ${service||'votre prestation'}. Votre avis compte beaucoup pour nous ! Notez-nous sur Google en 1 minute : https://g.page/r/xyra/review`, tenantId);
-    return NextResponse.json({ success: true });
+    const { client_tel, client_email, client_nom, service } = body;
+    if (!client_tel && !client_email) return NextResponse.json({ error: 'Ni téléphone ni email pour ce client' }, { status: 400 });
+    // WhatsApp si connecte, sinon email (gratuit).
+    const canal = await envoyerPartout(client_tel || null, client_email || null, `Bonjour ${client_nom}, merci d'avoir fait appel a nos services pour ${service||'votre prestation'}. Votre avis compte beaucoup pour nous ! Notez-nous sur Google en 1 minute : https://g.page/r/xyra/review`, tenantId || '', { sujet: 'Votre avis compte pour nous' });
+    if (!canal) return NextResponse.json({ error: 'Envoi impossible (ni WhatsApp ni email disponible)' }, { status: 503 });
+    return NextResponse.json({ success: true, canal });
   }
 
   if (action === 'analyse_concurrentielle') {

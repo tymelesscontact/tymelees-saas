@@ -302,7 +302,7 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     let whatsappEnvoye = false;
     if (estMoi && tel) {
-      try { await envoyerWhatsApp(tel, message, tenantId); whatsappEnvoye = true; } catch (e) { /* message gardé en interne même si l'envoi échoue */ }
+      try { const envoi = await envoyerWhatsApp(tel, message, tenantId); whatsappEnvoye = !!envoi?.ok; } catch (e) { /* message gardé en interne même si l'envoi échoue */ }
     }
     return NextResponse.json({ success: true, message: data, whatsappEnvoye });
   }

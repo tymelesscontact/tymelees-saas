@@ -113,13 +113,13 @@ export async function POST(req: NextRequest) {
     if (statut === 'termine') {
       try {
         const { data: mission } = await sb.from('missions').select('*').eq('id', id).maybeSingle();
-        if (mission?.client_tel) {
+        if (mission?.client_tel || mission?.client_email) {
           const site = process.env.NEXT_PUBLIC_SITE_URL || 'https://xyraio.fr';
           await fetch(`${site}/api/scoring`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', cookie: req.headers.get('cookie') || '' },
             body: JSON.stringify({
               action: 'demander_avis_whatsapp',
-              client_tel: mission.client_tel, client_nom: mission.client_nom, service: mission.service,
+              client_tel: mission.client_tel, client_email: mission.client_email, client_nom: mission.client_nom, service: mission.service,
             }),
           });
         }

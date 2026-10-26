@@ -145,7 +145,8 @@ export async function POST(req: NextRequest) {
     const tel = clientWa.tel;
     if (!tel || !message) return NextResponse.json({ error: 'Téléphone et message requis' }, { status: 400 });
     try {
-      await envoyerWhatsApp(tel, message, tenantId);
+      const envoi = await envoyerWhatsApp(tel, message, tenantId);
+      if (!envoi?.ok) return NextResponse.json({ error: "WhatsApp n'est pas connecté pour le moment — utilisez l'envoi par email" }, { status: 503 });
     } catch (e) {
       return NextResponse.json({ error: 'Échec envoi WhatsApp' }, { status: 500 });
     }

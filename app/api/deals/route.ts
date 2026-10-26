@@ -214,7 +214,10 @@ Message court, naturel, non commercial, en français. 3-4 phrases max. Objectif 
     const { data: deal } = await sb.from('deals').select('id,nom,tel,email').eq('id', body.deal.id).eq('tenant_id', tenantId).maybeSingle();
     if (!deal) return NextResponse.json({ error: 'Deal introuvable' }, { status: 404 });
     try {
-      if (canal === 'whatsapp' && deal.tel) await envoyerWhatsApp(deal.tel, message, tenantId);
+      if (canal === 'whatsapp' && deal.tel) {
+        const envoi = await envoyerWhatsApp(deal.tel, message, tenantId);
+        if (!envoi?.ok) return NextResponse.json({ error: "WhatsApp n'est pas connecté pour le moment — utilisez l'envoi par email" }, { status: 503 });
+      }
       if (canal === 'email' && deal.email) await sendEmail(deal.email, `Suivi — ${deal.nom}`, `<p>${message.replace(/\n/g, '<br>')}</p>`);
       await sb.from('deals_timeline').insert({ deal_id: deal.id, type: 'relance', description: `Relance envoyée par ${canal}`, operateur: 'Curtiss' });
       await sb.from('deals').update({ dernierContact: new Date().toISOString().split('T')[0], updated_at: new Date().toISOString() }).eq('id', deal.id).eq('tenant_id', tenantId);
