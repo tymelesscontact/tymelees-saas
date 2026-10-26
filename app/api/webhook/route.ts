@@ -307,6 +307,7 @@ export async function POST(req: NextRequest) {
         .from('devis')
         .select('*')
         .eq('reference', numeroDevis)
+        .is('tenant_id', null)
         .single()
 
       if (devis) {
@@ -321,6 +322,7 @@ export async function POST(req: NextRequest) {
         await supabase.from('devis')
           .update({ statut: 'envoyé' })
           .eq('reference', numeroDevis)
+          .is('tenant_id', null)
         await envoyerWhatsApp(OWNER_PHONE, `✅ Devis ${numeroDevis} — Message envoyé au client !`)
       }
       return NextResponse.json({ status: 'ok' })
@@ -328,7 +330,7 @@ export async function POST(req: NextRequest) {
 
     if (nonMatch) {
       const numeroDevis = nonMatch[1]
-      await supabase.from('devis').update({ statut: 'annulé' }).eq('reference', numeroDevis)
+      await supabase.from('devis').update({ statut: 'annulé' }).eq('reference', numeroDevis).is('tenant_id', null)
       await envoyerWhatsApp(OWNER_PHONE, `❌ Devis ${numeroDevis} annulé.`)
       return NextResponse.json({ status: 'ok' })
     }
