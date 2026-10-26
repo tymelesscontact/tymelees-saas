@@ -5,7 +5,7 @@ import crypto from "crypto"
 import { generateDevisHTML } from "../../lib/generateDevis"
 import { getTenantIdFromRequest } from "../../lib/supabaseServer"
 import { estAutoriseSignerDevisManuel } from "../../lib/permissions"
-import { envoyerWhatsApp, telephoneAlerteTenant } from "../../lib/whatsapp"
+import { alerterEntreprise } from "../../lib/rappels"
 type DevisData = {
   clientName: string
   clientPhone: string
@@ -174,14 +174,11 @@ export async function POST(req: NextRequest) {
     }
     // Notification a l'entreprise elle-meme (jamais au numero unique de la plateforme,
     // qui recevait les devis de toutes les entreprises). Non bloquant.
-    const telEntreprise = await telephoneAlerteTenant(tenantId)
-    if (telEntreprise) {
-      await envoyerWhatsApp(
-        telEntreprise,
-        `Nouveau devis cree\n\nN ${numeroDevis}\nClient : ${clientName || clientPhone || "Client"}\nService : ${service || ""}\nMontant : ${montant}`,
-        tenantId
-      )
-    }
+    await alerterEntreprise(
+      tenantId,
+      `Nouveau devis ${numeroDevis}`,
+      `Nouveau devis cree\n\nN ${numeroDevis}\nClient : ${clientName || clientPhone || "Client"}\nService : ${service || ""}\nMontant : ${montant}`
+    )
     return NextResponse.json({
       success: true,
       numeroDevis,

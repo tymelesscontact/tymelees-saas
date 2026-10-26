@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
-import { envoyerWhatsApp, telephoneAlerteTenant } from '../../lib/whatsapp';
+import { alerterEntreprise } from '../../lib/rappels';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -115,9 +115,8 @@ export async function POST(req: NextRequest) {
     await sb.from('cartes_virtuelles').update(updates).eq('id', id).eq('tenant_id', tenantId);
     // Alerte si > 80%
     const pct = (nouveau / Number(carte.limite)) * 100;
-    const telAlerte = await telephoneAlerteTenant(tenantId);
-    if (pct >= 80 && telAlerte) {
-      await envoyerWhatsApp(telAlerte, `Xyra Alerte carte : ${carte.nom} a utilise ${Math.round(pct)}% de son plafond (${nouveau}/${carte.limite})`, tenantId);
+    if (pct >= 80) {
+      await alerterEntreprise(tenantId, 'Carte proche du plafond', `Xyra Alerte carte : ${carte.nom} a utilise ${Math.round(pct)}% de son plafond (${nouveau}/${carte.limite})`);
     }
     return NextResponse.json({ success: true, nouveau_solde: nouveau });
   }
@@ -133,9 +132,8 @@ export async function POST(req: NextRequest) {
     if (statut === 'approuvé') {
       await sb.from('cartes_virtuelles').update({ solde: Number(montant), updated_at: new Date().toISOString() }).eq('id', carte_id).eq('tenant_id', tenantId);
     }
-    const telAlerte = await telephoneAlerteTenant(tenantId);
-    if (approbation_requise && telAlerte) {
-      await envoyerWhatsApp(telAlerte, `Xyra Approbation requise : ${libelle} - ${montant}EUR sur carte. Repondez OUI pour approuver.`, tenantId);
+    if (approbation_requise) {
+      await alerterEntreprise(tenantId, 'Approbation de dépense requise', `Xyra Approbation requise : ${libelle} - ${montant}EUR sur carte. Repondez OUI pour approuver.`);
     }
     return NextResponse.json({ success: true, transaction: data });
   }

@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
-import { envoyerWhatsApp, telephoneAlerteTenant } from '../../lib/whatsapp';
+import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { alerterEntreprise } from '../../lib/rappels';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -111,9 +112,8 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     // Alerte WhatsApp si avis négatif
-    const telAlerte = await telephoneAlerteTenant(tenantId);
-    if (Number(note) <= 2 && telAlerte) {
-      await envoyerWhatsApp(telAlerte, `Xyra ALERTE AVIS NEGATIF : ${client_nom} a laisse ${note}/5 etoiles pour ${service||'votre service'}. Commentaire : "${(commentaire||'').slice(0,100)}". Repondez rapidement !`, tenantId);
+    if (Number(note) <= 2) {
+      await alerterEntreprise(tenantId, 'Avis négatif reçu', `Xyra ALERTE AVIS NEGATIF : ${client_nom} a laisse ${note}/5 etoiles pour ${service||'votre service'}. Commentaire : "${(commentaire||'').slice(0,100)}". Repondez rapidement !`);
     }
     return NextResponse.json({ success: true, avis: data });
   }
@@ -142,11 +142,10 @@ Commence par "Bonjour ${client_nom},"`;
     await sb.from('nps_reponses').insert({ client_nom, client_email, score: Number(score), commentaire, categorie, company_id, tenant_id: tenantId });
 
     // Routage intelligent
-    const telAlerte = await telephoneAlerteTenant(tenantId);
-    if (Number(score) >= 9 && telAlerte) {
-      await envoyerWhatsApp(telAlerte, `Xyra NPS : ${client_nom} vous donne 9+/10 ! Invitez-le a laisser un avis Google maintenant.`, tenantId);
-    } else if (Number(score) <= 6 && telAlerte) {
-      await envoyerWhatsApp(telAlerte, `Xyra NPS DETRACTEUR : ${client_nom} donne ${score}/10. Contactez-le rapidement en prive pour resoudre le probleme.`, tenantId);
+    if (Number(score) >= 9) {
+      await alerterEntreprise(tenantId, 'Client promoteur (NPS)', `Xyra NPS : ${client_nom} vous donne 9+/10 ! Invitez-le a laisser un avis Google maintenant.`);
+    } else if (Number(score) <= 6) {
+      await alerterEntreprise(tenantId, 'Client détracteur (NPS)', `Xyra NPS DETRACTEUR : ${client_nom} donne ${score}/10. Contactez-le rapidement en prive pour resoudre le probleme.`);
     }
     return NextResponse.json({ success: true });
   }
@@ -175,16 +174,15 @@ Commence par "Bonjour ${client_nom},"`;
   }
 
   if (action === 'rapport_reputation_whatsapp') {
-    const ownerTel = await telephoneAlerteTenant(tenantId);
-    if (!ownerTel) return NextResponse.json({ error: 'Aucun numero de telephone configure pour ce compte' }, { status: 400 });
     const { scoreReputation, noteGoogle, npsScore, csatScore, totalAvis, tauxReponse } = body;
     try {
       const prompt = `Génère un rapport réputation WhatsApp (5 lignes max, français, emojis) :
 Score réputation : ${scoreReputation}/100 | Note Google : ${noteGoogle}/5 | NPS : ${npsScore} | CSAT : ${csatScore}% | Avis total : ${totalAvis} | Taux réponse : ${tauxReponse}%
 Commence par "Rapport Réputation Xyra —" et donne 1 point fort et 1 priorité.`;
       const message = await askClaude(prompt, 200);
-      await envoyerWhatsApp(ownerTel, message, tenantId);
-      return NextResponse.json({ success: true });
+      const canal = await alerterEntreprise(tenantId, 'Rapport réputation', message);
+      if (!canal) return NextResponse.json({ error: 'Aucun numero ni email configure pour ce compte (Parametres)' }, { status: 400 });
+      return NextResponse.json({ success: true, canal });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
     }

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantFromRequest } from '../../lib/supabaseServer';
 import { estAdministrateurPlateforme } from '../../lib/permissions';
+import { alerterPlateforme } from '../../lib/rappels';
 export const dynamic = 'force-dynamic';
 
 function getAdminClient() {
@@ -47,19 +48,7 @@ export async function POST(req: NextRequest) {
 
     if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
 
-    if (process.env.OWNER_WHATSAPP && process.env.WHATSAPP_TOKEN) {
-      try {
-        await fetch(`https://graph.facebook.com/v22.0/${process.env.WHATSAPP_PHONE_NUMBER_ID}/messages`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${process.env.WHATSAPP_TOKEN}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            messaging_product: 'whatsapp',
-            to: process.env.OWNER_WHATSAPP.replace(/\D/g, ''),
-            text: { body: `🎫 Nouveau ticket support — ${tenant.societe || ''}\nSujet: ${sujet}\nPriorite: ${priorite || 'normale'}` },
-          }),
-        });
-      } catch (e) { console.error('WhatsApp alert error:', e); }
-    }
+    await alerterPlateforme('Nouveau ticket support', `🎫 Nouveau ticket support — ${tenant.societe || ''}\nSujet: ${sujet}\nPriorite: ${priorite || 'normale'}`);
 
     return NextResponse.json({ success: true, ticket: data });
   }

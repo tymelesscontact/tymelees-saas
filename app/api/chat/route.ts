@@ -3,7 +3,8 @@ import { createClient } from '@supabase/supabase-js';
 import { envoyerPartout } from '../../lib/rappels';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { getAnthropicKey } from '../../lib/anthropicKey';
-import { envoyerWhatsApp, telephoneAlerteTenant } from '../../lib/whatsapp';
+import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { alerterEntreprise } from '../../lib/rappels';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -408,8 +409,8 @@ export async function POST(req: NextRequest) {
         action_type: 'chat', action_id: conv.id, lu: false,
         tenant_id: tenantId || null,
       });
-      const ownerTel = await telephoneAlerteTenant(tenantId);
-      if (ownerTel) { try { await envoyerWhatsApp(ownerTel, `Xyra - Claude a repondu a ${conv.contact_nom} (pas de reponse depuis 1h). Verifie la conversation.`, tenantId); } catch { /* non bloquant */ } }
+      // Alerte deja ajoutee a la cloche juste au-dessus : ici seulement WhatsApp/email.
+      await alerterEntreprise(tenantId, `Claude a répondu à ${conv.contact_nom}`, `Xyra - Claude a repondu a ${conv.contact_nom} (pas de reponse depuis 1h). Verifie la conversation.`, { cloche: false });
 
       nbRepondus++;
     }

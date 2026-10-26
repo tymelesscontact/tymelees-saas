@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { getAnthropicKey } from '../../lib/anthropicKey';
 import { createClient } from '@supabase/supabase-js';
-import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { alerterPlateforme } from '../../lib/rappels';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -121,15 +121,13 @@ Donne 2 actions concrètes pour améliorer la conversion essai → payant.`;
   }
 
   if (action === 'rapport_mrr') {
-    const ownerTel = process.env.OWNER_WHATSAPP;
-    if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
     const { mrr, membres_actifs, essais, expirant, taux_churn } = body;
     try {
       const prompt = `Génère un rapport MRR mensuel WhatsApp (5 lignes max, français, emojis) :
 MRR : ${mrr}€ | Membres actifs : ${membres_actifs} | En essai : ${essais} | Expirant bientôt : ${expirant} | Taux churn : ${taux_churn}%
 Commence par "Rapport Wallets Xyra —" et donne 1 insight et 1 priorité.`;
       const message = await askClaude(prompt, tenantIdClaude);
-      await envoyerWhatsApp(ownerTel, message);
+      await alerterPlateforme('Rapport MRR', message);
       return NextResponse.json({ success: true });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -138,11 +136,9 @@ Commence par "Rapport Wallets Xyra —" et donne 1 insight et 1 priorité.`;
 
   if (action === 'alertes_expiration') {
     const { membres } = body;
-    const ownerTel = process.env.OWNER_WHATSAPP;
-    if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
     const expirants = (membres || []).filter((m: any) => m.jours_restants !== null && m.jours_restants <= 3 && m.jours_restants >= 0);
     for (const m of expirants) {
-      await envoyerWhatsApp(ownerTel, `Xyra Alerte : ${m.societe} (${m.plan}) - essai expire dans ${m.jours_restants}j. Contactez-les pour convertir.`);
+      await alerterPlateforme('Essai qui expire', `Xyra Alerte : ${m.societe} (${m.plan}) - essai expire dans ${m.jours_restants}j. Contactez-les pour convertir.`);
     }
     return NextResponse.json({ success: true, alertes_envoyees: expirants.length });
   }
