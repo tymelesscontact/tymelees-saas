@@ -364,6 +364,37 @@ export async function POST(req: NextRequest) {
         .eq('statut', 'actif');
     }
 
+    // ── Impaye : module a la carte coupe des le premier paiement echoue, rendu des que
+    // l'abonnement redevient actif (forfaits non concernes, absents de modules_actifs) ──
+    if (event.type === 'customer.subscription.updated') {
+      const subscription = event.data.object as { id: string; status: string };
+      const { createClient } = await import('@supabase/supabase-js');
+      const sb = createClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.SUPABASE_SERVICE_ROLE_KEY!
+      );
+      if (['past_due', 'unpaid', 'incomplete_expired'].includes(subscription.status)) {
+        const { error: errSuspension } = await sb.from('modules_actifs')
+          .update({ statut: 'suspendu' })
+          .eq('stripe_subscription_id', subscription.id)
+          .eq('statut', 'actif');
+        // Repli si la base n'accepte pas la valeur 'suspendu' : l'acces doit etre coupe quand meme.
+        if (errSuspension) {
+          console.error('Suspension module (repli annule):', errSuspension.message);
+          await sb.from('modules_actifs')
+            .update({ statut: 'annulé', date_fin: new Date().toISOString() })
+            .eq('stripe_subscription_id', subscription.id)
+            .eq('statut', 'actif');
+        }
+      } else if (['active', 'trialing'].includes(subscription.status)) {
+        // Abonnement de nouveau paye (un abonnement supprime ne revient jamais a 'active').
+        await sb.from('modules_actifs')
+          .update({ statut: 'actif', date_fin: null })
+          .eq('stripe_subscription_id', subscription.id)
+          .in('statut', ['suspendu', 'annulé']);
+      }
+    }
+
     return NextResponse.json({ received: true });
   } catch (error: any) {
     console.error('Webhook error:', error);
