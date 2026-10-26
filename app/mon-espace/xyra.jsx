@@ -363,7 +363,7 @@ export default function Xyra() {
     stock:<PageStockModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     services:<PageServicesModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} profil={profil} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     chat:<PageChatModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} Chat={Chat} activeCompany={activeCompany}/>,
-    conversations_whatsapp:<PageConversationsWhatsapp/>,
+    conversations_whatsapp:(hasAccess(plan,"conversations_whatsapp")||modulesActifs.includes("prospection"))?<PageConversationsWhatsapp/>:<div style={{padding:20}}><UpgradeWall page="prospection" plan={plan}/></div>,
     notifications:<PageNotificationsModule notifs={notifs} setNotifs={setNotifs} showToast={showToast} activeCompany={activeCompany}/>,
     signature:<PageSignaturesModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,
     facturation:<PageFacturationModule plan={plan} modulesActifs={modulesActifs} showToast={showToast} UpgradeWall={UpgradeWall} activeCompany={activeCompany}/>,

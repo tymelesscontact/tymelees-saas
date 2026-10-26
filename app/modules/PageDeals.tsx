@@ -197,7 +197,7 @@ const PageDeals=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPag
           <Td style={{color:C.muted,fontSize:10}}>{d.dernierContact}</Td>
           <Td onClick={e=>e.stopPropagation()}><div style={{display:"flex",gap:4}}>
             <Btn onClick={()=>{setSel(d);setOnglet("fiche");}} style={{fontSize:9,padding:"3px 7px"}}>Fiche</Btn>
-            <BtnGhost onClick={()=>contacterDeal(d)} style={{fontSize:9,padding:"3px 7px"}}>📱</BtnGhost>
+            <BtnGhost onClick={()=>contacterDeal(d)} style={{fontSize:9,padding:"3px 7px"}} title="Contacter (Chat)">💬</BtnGhost>
           </div></Td>
         </tr>)}</tbody>
       </table>
@@ -232,7 +232,7 @@ const PageDeals=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPag
             <Card>
               <STitle>⚡ Actions rapides</STitle>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                <Btn onClick={()=>contacterDeal(sel)} style={{background:C.green,color:"#000"}}>📱 WhatsApp</Btn>
+                <Btn onClick={()=>contacterDeal(sel)} style={{background:C.green,color:"#000"}}>💬 Contacter (Chat)</Btn>
                 <Btn onClick={()=>creerDevisDepuisDeal(sel)} style={{background:C.blue}}>◧ Créer un devis</Btn>
                 <BtnGhost onClick={bientot}>📄 Générer proposition</BtnGhost>
                 <BtnGhost onClick={()=>{const idx=ETAPES.indexOf(sel.etape);if(idx<ETAPES.length-1){const nextEtape=ETAPES[idx+1];setDeals(ds=>ds.map(d=>d.id===sel.id?{...d,etape:nextEtape}:d));setSel(s=>({...s,etape:nextEtape}));if(sel.exemple)showToast(`✅ Deal avancé à "${nextEtape}" (exemple)`);else{showToast(`✅ Deal avancé à "${nextEtape}"`);_changerEtape(sel,nextEtape);}}}} style={{color:C.gold,borderColor:`${C.gold}44`}}>→ Avancer dans le pipeline</BtnGhost>
