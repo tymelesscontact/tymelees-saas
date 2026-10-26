@@ -402,7 +402,8 @@ T29 tickets, T27 Club, T33 WhatsApp, T38 Deals (sécurité), T21 impayés, Notes
 **Encore ouvert** :
 1. Stripe : cocher `customer.subscription.updated` sur le webhook de xyratest1 (sinon T21 ne se déclenche pas).
 2. ~~Deals : bouton « Créer un deal » absent, 4 deals de démo en dur~~ ✅ 26/10 (`4000174`) : création, avancée d'étape et « perdu » enregistrés ; exemples gardés, étiquetés, hors compteurs. Reste : boutons WhatsApp / Créer un devis / Propositions / Relancer de la fiche (toasts).
-3. Prospection : onglets LinkedIn/Stats en chiffres inventés.
+3. ~~Prospection : onglets LinkedIn/Stats en chiffres inventés~~ ✅ 26/10 : Stats = vrais chiffres dès le 1er lead (sinon exemple étiqueté) ; LinkedIn étiqueté « Exemple — pas encore connecté ».
+6. 🔴 **T40 (nouveau, 26/10)** : `api/devis` envoie chaque nouveau devis de **toutes** les entreprises (client, montant) sur `OWNER_PHONE`, numéro unique de la plateforme, et `api/webhook` permet à ce numéro de valider/annuler par « OUI/NON » le devis de n'importe quelle entreprise. À refaire : validation par entreprise (numéro de l'entreprise).
 4. ~~Gravité moyenne~~ ✅ **réglée le 26/10** (voir §9 : `ef432df`, `50fb208`, `4359efc`). Reste : bucket `formations-videos` à passer en **privé** dans Supabase TEST (action humaine), `wallet`/`factures` sans contrôle de forfait serveur (volontaire, écrans partagés).
 5. T10 Annuaire (tables absentes), T19 Chat/WhatsApp ouverts à tous les forfaits, T7 phase 2, T18 `error.message`.
 
@@ -629,3 +630,4 @@ Audit publié à l'origine uniquement dans la page visuelle (artefact « Feuille
 | `50fb208` | CRM `modifier` en liste blanche ; envois CRM/Clients/Partenaires vers le destinataire de la fiche uniquement, message échappé ; événement public réservé à la plateforme ; commande fournisseur (propriétaire/Admin, IBAN de la fiche, solde vérifié) |
 | `4359efc` | Vidéos Formation en liens signés ; jeton WhatsApp chiffré ; contrôle du forfait serveur sur stock, services-catalogue, marges-cibles ; préférences de notifications chargées et enregistrées |
 | `4000174` | Deals : « Créer le deal », « Avancer » et « Perdu » enregistrés via l'API ; deals de démonstration étiquetés « Exemple » et exclus des compteurs |
+| (ce commit) | Deals : fiche d'un vrai deal ne plante plus (historique `timeline`), Ajouter une action, Contacter/WhatsApp via le Chat, Créer un devis (brouillon), Relancer (message IA puis envoi au clic), propositions « bientôt disponible » ; Prospection : Stats réelles dès le 1er lead, exemples étiquetés |

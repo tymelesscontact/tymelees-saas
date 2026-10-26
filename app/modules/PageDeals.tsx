@@ -87,6 +87,35 @@ const PageDeals=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPag
   const totalPondere=dealsReels.reduce((a,d)=>a+d.valeur*(d.prob/100),0);
   const etapeColor={Identification:C.muted,Qualification:C.blue,Proposition:C.gold,Négociation:C.orange,Closing:C.purple,Gagné:C.green,Perdu:C.red};
 
+  // Actions de la fiche branchees sur les vraies routes ; un deal d'exemple reste local.
+  const contacterDeal=(d)=>{
+    if(d.exemple)return showToast(`📱 Contact ${d.client} (exemple)`);
+    ouvrirChat({nom:d.client||d.nom,email:d.email,tel:d.tel,type:"client"},setPage,showToast);
+  };
+  const ajouterActionDeal=async(d)=>{
+    if(d.exemple)return showToast("✅ Action ajoutée (exemple)");
+    const note=window.prompt("Action à ajouter (appel, RDV, note…)");
+    if(!note)return;
+    await _ajouterTimeline(d.id,"Note",note);
+    setSel(s=>s&&s.id===d.id?{...s,timeline:[{type:"Note",description:note,created_at:new Date().toISOString()},...(s.timeline||[])]}:s);
+    showToast("✅ Action ajoutée");
+  };
+  const creerDevisDepuisDeal=async(d)=>{
+    if(d.exemple)return showToast("✅ Devis créé depuis le deal (exemple)");
+    try{
+      const res=await fetch('/api/devis',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({
+        clientName:d.client||d.nom,clientEmail:d.email||"",clientPhone:d.tel||"",
+        service:d.nom,description:d.desc||d.nom,montant:Number(d.valeur)||0,
+        lignes:[{desc:d.nom,qte:1,pu:Number(d.valeur)||0}],statut:"brouillon",
+      })});
+      const data=await res.json();
+      if(!data.success)return showToast("❌ "+(data.error||"Erreur lors de la création du devis"));
+      showToast(`✅ Devis brouillon ${data.numeroDevis||""} créé`);
+      if(setPage)setPage("devis");
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+  const bientot=()=>showToast("🚧 Bientôt disponible : génération de propositions commerciales");
+
   if(!hasAccess(plan,"deals",modulesActifs))return <div style={{padding:20}}><UpgradeWall page="deals" plan={plan}/></div>;
 
   return <div style={{padding:20}}>
@@ -168,7 +197,7 @@ const PageDeals=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPag
           <Td style={{color:C.muted,fontSize:10}}>{d.dernierContact}</Td>
           <Td onClick={e=>e.stopPropagation()}><div style={{display:"flex",gap:4}}>
             <Btn onClick={()=>{setSel(d);setOnglet("fiche");}} style={{fontSize:9,padding:"3px 7px"}}>Fiche</Btn>
-            <BtnGhost onClick={()=>showToast(`📱 Contact ${d.client}`)} style={{fontSize:9,padding:"3px 7px"}}>📱</BtnGhost>
+            <BtnGhost onClick={()=>contacterDeal(d)} style={{fontSize:9,padding:"3px 7px"}}>📱</BtnGhost>
           </div></Td>
         </tr>)}</tbody>
       </table>
@@ -178,7 +207,7 @@ const PageDeals=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPag
     {onglet==="fiche"&&<div>
       {sel?<div>
         <BtnGhost onClick={()=>setSel(null)} style={{marginBottom:14}}>← Retour</BtnGhost>
-        {(sel.client_email||sel.client_tel)&&<Btn onClick={()=>ouvrirChat({nom:sel.client_nom||sel.nom,email:sel.client_email,tel:sel.client_tel,type:"client"},setPage,showToast)} style={{marginBottom:14,marginLeft:8,background:C.green}}>💬 Discuter</Btn>}
+        {(sel.email||sel.tel)&&<Btn onClick={()=>contacterDeal(sel)} style={{marginBottom:14,marginLeft:8,background:C.green}}>💬 Discuter</Btn>}
         <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14}}>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
             <Card style={{borderColor:`${etapeColor[sel.etape]||C.border}44`}}>
@@ -188,11 +217,11 @@ const PageDeals=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPag
             </Card>
             <Card>
               <STitle>📋 Historique actions</STitle>
-              {sel.actions.map((a,i)=><div key={i} style={{display:"flex",gap:10,padding:"7px 0",borderBottom:`1px solid ${C.border}22`}}>
+              {(sel.actions||(sel.timeline||[]).map(t=>({type:t.type,note:t.description,date:t.created_at?new Date(t.created_at).toLocaleDateString("fr"):""}))).map((a,i)=><div key={i} style={{display:"flex",gap:10,padding:"7px 0",borderBottom:`1px solid ${C.border}22`}}>
                 <Pill color={a.type==="RDV"?C.gold:a.type==="Email"?C.blue:a.type==="WhatsApp"?C.green:C.muted}>{a.type}</Pill>
                 <div style={{flex:1}}><div style={{fontSize:11}}>{a.note}</div><div style={{fontSize:9,color:C.muted}}>{a.date}</div></div>
               </div>)}
-              <button onClick={()=>showToast("✅ Action ajoutée")} style={{marginTop:8,background:"transparent",color:C.gold,border:`1px solid ${C.gold}44`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Ajouter une action</button>
+              <button onClick={()=>ajouterActionDeal(sel)} style={{marginTop:8,background:"transparent",color:C.gold,border:`1px solid ${C.gold}44`,borderRadius:6,padding:"5px 12px",cursor:"pointer",fontSize:11,fontFamily:"inherit"}}>+ Ajouter une action</button>
             </Card>
           </div>
           <div style={{display:"flex",flexDirection:"column",gap:10}}>
@@ -203,9 +232,9 @@ const PageDeals=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPag
             <Card>
               <STitle>⚡ Actions rapides</STitle>
               <div style={{display:"flex",flexDirection:"column",gap:8}}>
-                <Btn onClick={()=>showToast(`📱 WhatsApp à ${sel.client}`)} style={{background:C.green,color:"#000"}}>📱 WhatsApp</Btn>
-                <Btn onClick={()=>showToast("✅ Devis créé depuis le deal")} style={{background:C.blue}}>◧ Créer un devis</Btn>
-                <BtnGhost onClick={()=>showToast("📄 Proposition commerciale générée")}>📄 Générer proposition</BtnGhost>
+                <Btn onClick={()=>contacterDeal(sel)} style={{background:C.green,color:"#000"}}>📱 WhatsApp</Btn>
+                <Btn onClick={()=>creerDevisDepuisDeal(sel)} style={{background:C.blue}}>◧ Créer un devis</Btn>
+                <BtnGhost onClick={bientot}>📄 Générer proposition</BtnGhost>
                 <BtnGhost onClick={()=>{const idx=ETAPES.indexOf(sel.etape);if(idx<ETAPES.length-1){const nextEtape=ETAPES[idx+1];setDeals(ds=>ds.map(d=>d.id===sel.id?{...d,etape:nextEtape}:d));setSel(s=>({...s,etape:nextEtape}));if(sel.exemple)showToast(`✅ Deal avancé à "${nextEtape}" (exemple)`);else{showToast(`✅ Deal avancé à "${nextEtape}"`);_changerEtape(sel,nextEtape);}}}} style={{color:C.gold,borderColor:`${C.gold}44`}}>→ Avancer dans le pipeline</BtnGhost>
                 <BtnGhost onClick={()=>{setDeals(ds=>ds.map(d=>d.id===sel.id?{...d,etape:"Perdu"}:d));setSel(s=>({...s,etape:"Perdu"}));showToast("❌ Deal marqué comme perdu"+(sel.exemple?" (exemple)":""));if(!sel.exemple)_changerEtape(sel,"Perdu");}} style={{color:C.red,borderColor:`${C.red}33`}}>❌ Marquer comme perdu</BtnGhost>
               </div>
@@ -222,7 +251,7 @@ const PageDeals=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPag
     {onglet==="propositions"&&<div>
       <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:14}}>
         <STitle>📄 Propositions commerciales</STitle>
-        <Btn onClick={()=>showToast("🤖 Proposition IA générée !")}>🤖 Générer proposition (IA)</Btn>
+        <Btn onClick={bientot}>🤖 Générer proposition (IA)</Btn>
       </div>
       {deals.filter(d=>["Proposition","Négociation"].includes(d.etape)).map((d,i)=><Card key={i} style={{marginBottom:10,borderColor:`${C.gold}33`}}>
         <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:10}}>
@@ -234,10 +263,10 @@ const PageDeals=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPag
           Cher(e) {d.client}, suite à notre échange, nous avons le plaisir de vous soumettre notre proposition pour {d.desc}. Notre offre : {fmt(d.valeur)} HT avec une garantie satisfaction totale. Validity jusqu'au {d.dead}.
         </div>
         <div style={{display:"flex",gap:8}}>
-          <Btn onClick={()=>showToast(`📄 Proposition ${d.nom} PDF générée`)} style={{fontSize:11}}>📄 PDF</Btn>
-          <BtnGhost onClick={()=>showToast(`📱 Envoyée à ${d.client} sur WhatsApp`)} style={{fontSize:11}}>📱 WhatsApp</BtnGhost>
-          <BtnGhost onClick={()=>showToast(`📧 Envoyée à ${d.email}`)} style={{fontSize:11}}>📧 Email</BtnGhost>
-          <BtnGhost onClick={()=>showToast("🤖 Proposition personnalisée par IA")} style={{fontSize:11}}>🤖 Personnaliser</BtnGhost>
+          <Btn onClick={bientot} style={{fontSize:11}}>📄 PDF</Btn>
+          <BtnGhost onClick={bientot} style={{fontSize:11}}>📱 WhatsApp</BtnGhost>
+          <BtnGhost onClick={bientot} style={{fontSize:11}}>📧 Email</BtnGhost>
+          <BtnGhost onClick={bientot} style={{fontSize:11}}>🤖 Personnaliser</BtnGhost>
         </div>
       </Card>)}
     </div>}
@@ -249,8 +278,15 @@ const PageDeals=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPag
         return <div key={i} style={{background:stagne?`${C.red}11`:`${C.orange}11`,border:`1px solid ${stagne?C.red:C.orange}33`,borderRadius:10,padding:14}}>
           <div style={{display:"flex",justifyContent:"space-between",alignItems:"center"}}>
             <div><div style={{fontSize:12,fontWeight:700,color:stagne?C.red:C.orange}}>{stagne?"🚨":"⚠️"} {d.nom}</div><div style={{fontSize:11,color:C.muted}}>{d.client} · {fmt(d.valeur)} · Deadline : {d.dead}</div><div style={{fontSize:11,color:C.text,marginTop:4}}>Dernier contact : {d.dernierContact} · Étape : {d.etape}</div></div>
-            <Btn onClick={()=>showToast(`📱 Relance envoyée à ${d.client}`)} style={{fontSize:11,flexShrink:0}}>Relancer</Btn>
+            <Btn onClick={()=>d.exemple?showToast(`📱 Relance envoyée à ${d.client} (exemple)`):_genererRelanceIA(d)} style={{fontSize:11,flexShrink:0}}>{_relanceLoading[d.id]?"⏳ IA…":"Relancer"}</Btn>
           </div>
+          {!d.exemple&&_relanceCache[d.id]&&<div style={{marginTop:10,background:C.card,borderRadius:8,padding:10}}>
+            <div style={{fontSize:11,color:C.text,whiteSpace:"pre-line",marginBottom:8}}>{_relanceCache[d.id]}</div>
+            <div style={{display:"flex",gap:6}}>
+              {d.tel&&<Btn onClick={()=>_envoyerRelance(d,"whatsapp")} style={{fontSize:10,background:C.green,color:"#000"}}>📱 Envoyer WhatsApp</Btn>}
+              {d.email&&<BtnGhost onClick={()=>_envoyerRelance(d,"email")} style={{fontSize:10}}>📧 Envoyer email</BtnGhost>}
+            </div>
+          </div>}
         </div>;
       })}
     </div>}
