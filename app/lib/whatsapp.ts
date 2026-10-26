@@ -1,4 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
+import { chiffrer, dechiffrer } from './anthropicKey';
+
+// Jeton WhatsApp Business stocke chiffre (prefixe 'enc:') ; les anciens jetons en
+// clair restent lisibles et sont chiffres au prochain enregistrement.
+export function jetonWhatsAppChiffre(jeton: string): string {
+  return 'enc:' + chiffrer(jeton);
+}
+export function jetonWhatsAppLisible(valeur?: string | null): string | null {
+  if (!valeur) return null;
+  if (!valeur.startsWith('enc:')) return valeur;
+  try { return dechiffrer(valeur.slice(4)); } catch { return null; }
+}
 
 /**
  * Numero ou envoyer les alertes propres a une entreprise (avis, NPS, cartes,
@@ -37,9 +49,10 @@ export async function envoyerWhatsApp(to: string, message: string, tenantId?: st
       const { data: t } = await sb.from('tenants')
         .select('whatsapp_phone_number_id,whatsapp_token,whatsapp_actif')
         .eq('id', tenantId).maybeSingle();
-      if (t?.whatsapp_actif && t.whatsapp_phone_number_id && t.whatsapp_token) {
+      const jetonTenant = jetonWhatsAppLisible(t?.whatsapp_token);
+      if (t?.whatsapp_actif && t.whatsapp_phone_number_id && jetonTenant) {
         phoneId = t.whatsapp_phone_number_id;
-        token = t.whatsapp_token;
+        token = jetonTenant;
       }
     } catch (e: any) {
       console.error('WhatsApp tenant:', e.message);

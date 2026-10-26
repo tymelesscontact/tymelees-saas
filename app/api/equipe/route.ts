@@ -17,6 +17,25 @@ const sbAdmin = createClient(
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
 
+// Videos de formation : on stocke le chemin du fichier et on ne renvoie que des
+// liens signes a duree limitee. Les anciennes lignes contenant un lien public sont
+// gerees en extrayant le chemin apres "/formations-videos/".
+async function signerVideosFormation<T extends { video_url?: string | null }>(lignes: T[]): Promise<T[]> {
+  const cheminDe = (v?: string | null) => {
+    if (!v) return null;
+    const i = v.indexOf('/formations-videos/');
+    return i >= 0 ? decodeURIComponent(v.slice(i + '/formations-videos/'.length).split('?')[0]) : (v.startsWith('http') ? null : v);
+  };
+  const chemins = lignes.map(l => cheminDe(l.video_url)).filter((c): c is string => !!c);
+  if (chemins.length === 0) return lignes;
+  const { data: signes } = await sb.storage.from('formations-videos').createSignedUrls(chemins, 6 * 3600);
+  const parChemin = new Map((signes || []).filter(x => x.path && x.signedUrl).map(x => [x.path as string, x.signedUrl]));
+  return lignes.map(l => {
+    const chemin = cheminDe(l.video_url);
+    return chemin && parChemin.has(chemin) ? { ...l, video_url: parChemin.get(chemin)! } : l;
+  });
+}
+
 async function sendEmail(to: string, subject: string, html: string) {
   const { Resend } = await import('resend');
   const resend = new Resend(process.env.RESEND_API_KEY);
@@ -88,7 +107,7 @@ export async function GET(req: NextRequest) {
       sb.from('formations_equipe').select('*').eq('tenant_id', moi.tenant_id).eq('employe_id', moi.id).order('created_at', { ascending: false }),
       sb.from('formations_catalogue').select('*').eq('tenant_id', moi.tenant_id),
     ]);
-    return NextResponse.json({ formations: mesFormations || [], catalogue: catalogueMoi || [] });
+    return NextResponse.json({ formations: mesFormations || [], catalogue: await signerVideosFormation(catalogueMoi || []) });
   }
 
   const companyId = searchParams.get('company_id');
@@ -314,7 +333,7 @@ export async function GET(req: NextRequest) {
 
   // Les alertes (demandes d'acompte avec montant, CDD a renouveler, conges en attente...) sont des
   // alertes de gestion RH -- meme logique que les champs sensibles ci-dessus, reservees a estRH.
-  return NextResponse.json({ membres: membresFiltres, alertes: estRH ? alertes : [], catalogue: catalogue || [], obligationsLegales: obligationsLegales || [], estRH });
+  return NextResponse.json({ membres: membresFiltres, alertes: estRH ? alertes : [], catalogue: await signerVideosFormation(catalogue || []), obligationsLegales: obligationsLegales || [], estRH });
 }
 
 export async function POST(req: NextRequest) {
@@ -366,12 +385,12 @@ export async function POST(req: NextRequest) {
       upsert: false,
     });
     if (errUpload) return NextResponse.json({ error: errUpload.message }, { status: 500 });
-    const { data: urlData } = sb.storage.from('formations-videos').getPublicUrl(chemin);
+    // Chemin seulement (lien signe genere a la lecture), plus de lien public permanent.
     const { data, error } = await sb.from('formations_catalogue').insert({
-      tenant_id: tenantId, titre, description, video_url: urlData.publicUrl,
+      tenant_id: tenantId, titre, description, video_url: chemin,
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    return NextResponse.json({ success: true, modele: data });
+    return NextResponse.json({ success: true, modele: (await signerVideosFormation([data]))[0] });
   }
 
   const body = await req.json();
