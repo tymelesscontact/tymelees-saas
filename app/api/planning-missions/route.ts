@@ -215,6 +215,8 @@ export async function POST(req: NextRequest) {
     const { mission_id, collaborateur_id, statut_presence } = body;
     const valides = ['prevu', 'arrive', 'termine', 'absent'];
     if (!valides.includes(statut_presence)) return NextResponse.json({ error: 'Statut invalide' }, { status: 400 });
+    const { data: missionDuTenant } = await sb.from('missions').select('id').eq('id', mission_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!missionDuTenant) return NextResponse.json({ error: 'Mission introuvable' }, { status: 404 });
     const { error } = await sb.from('missions_collaborateurs')
       .update({ statut_presence }).eq('mission_id', mission_id).eq('collaborateur_id', collaborateur_id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
