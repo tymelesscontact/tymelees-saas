@@ -637,3 +637,13 @@ Audit publié à l'origine uniquement dans la page visuelle (artefact « Feuille
 | (ce commit) | Notifications (lot 1) : WhatsApp déconnecté de Meta → alertes de l'entreprise (`alerterEntreprise`) et de la plateforme (`alerterPlateforme`) passent par `envoyerPartout` : WhatsApp si reconnecté, sinon **email Resend (gratuit)**, + cloche Xyra. Cartes, Réputation, Événements, Chat, Devis, Trésorerie, Analytique, Déploiement, Wallet-membres, Tickets. Lot 2 à faire : messages aux clients. |
 | (ce commit) | Notifications (lot 2) : boutons WhatsApp CRM/Clients/Deals/Partenaires disent clairement « WhatsApp n'est pas connecté — utilisez l'email » (plus de faux succès) ; inscription événement, demande d'avis Google (aussi en fin de mission) et résumé quotidien passent par l'email si WhatsApp indisponible ; relance facture comptée envoyée seulement si un envoi a réussi |
 | (ce commit) | T19 : Chat (messagerie interne) ouvert à tous les forfaits (décision écrite) ; WhatsApp-Lea réservé Enterprise / module Prospection (écran + API) ; Deals : bouton « 📱 WhatsApp » renommé « 💬 Contacter (Chat) » |
+| `d44f132` | Réputation : score « — » sans donnée (un NPS vide donnait 15/100) ; adminpanel ne montre plus 72 par défaut ; cadenas WhatsApp-Lea levé avec le module Prospection |
+| `1760b1a` | T10 Annuaire : script SQL `docs/xyra/sql/2026-10-26-T10-annuaire.sql` (tables `reseau_contacts`, `reseau_deals`, additif, RLS activée) — **à exécuter par Curtiss sur Supabase TEST** |
+
+### Point au 31/10/2026 — avant production
+- Fusion `test` → `main` simulée (`git merge-tree`) : **aucun conflit**, résultat identique à `test`, aucune migration de base nécessaire pour le code.
+- À régler avant fusion : `PLATFORM_ADMIN_EMAILS` sur le projet Vercel de production (`tymelees-saas-yzel`) ; Stripe live : événement `customer.subscription.updated`.
+- Après fusion : bucket `formations-videos` privé (Supabase PROD) ; vérification connectée sur xyraio.fr.
+- Non fait : recette connectée sur xyratest1 (facture, deal, avis 1★) ; script T10 à exécuter sur TEST.
+- Local : `SUPABASE_SERVICE_ROLE_KEY` vide dans `.env.local` (cause de l'échec du build local, pas un bug de code).
+
