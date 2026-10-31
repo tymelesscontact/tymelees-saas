@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -66,6 +66,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // Ecritures reservees aux forfaits qui incluent Stock ou Produits & Services
+  // (la lecture reste ouverte : le Chat l'utilise pour tous les forfaits).
+  const acces = await verifierAccesModule(req, ['stock', 'services']);
+  if (!acces.ok) return acces.reponse;
   const tenantId = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;

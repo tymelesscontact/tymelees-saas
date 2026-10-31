@@ -1,6 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
+import { estAutoriseGererEquipe } from '../../lib/permissions';
+import { montantValide } from '../../lib/walletValidation';
+import { calculerSolde } from '../../lib/walletSolde';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -61,12 +64,28 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true });
   }
   if (action === 'commander') {
-    const { fournisseur_id, nom, montant, iban, company_id } = body;
-    if (!montant) return NextResponse.json({ success: false, error: 'Montant requis' }, { status: 400 });
+    if (!tenantId) return NextResponse.json({ success: false, error: 'non_autorise' }, { status: 401 });
+    // Sortie d'argent : proprietaire/Admin, vers l'IBAN de la fiche fournisseur, dans la limite du solde.
+    if (!(await estAutoriseGererEquipe(req, tenantId))) {
+      return NextResponse.json({ success: false, error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    }
+    const { fournisseur_id, montant, company_id } = body;
+    const { data: fournisseur } = fournisseur_id
+      ? await sb.from('fournisseurs').select('nom,iban').eq('id', fournisseur_id).eq('tenant_id', tenantId).maybeSingle()
+      : { data: null };
+    if (!fournisseur) return NextResponse.json({ success: false, error: 'Fournisseur introuvable' }, { status: 404 });
+    const montantCommande = montantValide(montant);
+    if (montantCommande === null) return NextResponse.json({ success: false, error: 'Montant invalide' }, { status: 400 });
+    const soldeDisponible = await calculerSolde(sb, tenantId, null);
+    if (montantCommande > soldeDisponible) {
+      return NextResponse.json({ success: false, error: `Solde insuffisant : ${soldeDisponible.toFixed(2)} disponible(s)` }, { status: 400 });
+    }
+    const nom = fournisseur.nom;
+    const iban = fournisseur.iban;
     const { data, error } = await sb.from('wallet_transactions').insert({
       type: 'sortie',
       libelle: `Commande — ${nom}`,
-      montant: Number(montant),
+      montant: montantCommande,
       devise: 'EUR',
       methode: 'Virement SEPA',
       statut: 'à_virer',

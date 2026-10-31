@@ -462,8 +462,8 @@ const PageProspection=({plan, modulesActifs,showToast,profil=null,UpgradeWall,ac
     {onglet==="sequences"&&<RelanceIAWidget showToast={showToast} profil={profil}/>}
     {onglet==="bot"&&<BotWhatsAppTab/>}
     {onglet==="vocal"&&<PageLea showToast={showToast} leads={leads} profil={profil}/>}
-    {onglet==="linkedin"&&<Card><STitle>💼 Prospection LinkedIn</STitle>
-      <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Envoi de messages LinkedIn automatiques via extension Chrome</div>
+    {onglet==="linkedin"&&<Card><STitle>💼 Prospection LinkedIn<span style={{fontSize:9,background:`${C.muted}22`,color:C.muted,padding:"2px 7px",borderRadius:6,marginLeft:6,fontWeight:600}}>Exemple</span></STitle>
+      <div style={{fontSize:12,color:C.muted,marginBottom:16}}>Envoi de messages LinkedIn automatiques via extension Chrome — chiffres d&apos;exemple : LinkedIn n&apos;est pas encore connecté à Xyra.</div>
       <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
         <KPI label="Connexions envoyées" val="84" color={C.blue}/>
         <KPI label="Acceptées" val="31" color={C.green}/>
@@ -471,13 +471,21 @@ const PageProspection=({plan, modulesActifs,showToast,profil=null,UpgradeWall,ac
         <KPI label="RDV générés" val="4" color={C.teal}/>
       </div>
     </Card>}
-    {onglet==="stats"&&<Card><STitle>📊 Performance prospection globale</STitle>
+    {onglet==="stats"&&(()=>{
+      // Vrais chiffres des que l'entreprise a des leads ; sinon exemple etiquete.
+      const aDesLeads=leadsReal.length>0;
+      const sortisNouveau=leadsReal.filter(l=>l.etape!=="Nouveau").length;
+      const gagnes=leadsReal.filter(l=>l.etape==="Gagné");
+      const tauxConv=sortisNouveau>0?Math.round(gagnes.length/sortisNouveau*100):0;
+      const caGenere=gagnes.reduce((a,l)=>a+Number(l.ca_potentiel||0),0);
+      return <Card><STitle>📊 Performance prospection globale{aDesLeads?null:<span style={{fontSize:9,background:`${C.muted}22`,color:C.muted,padding:"2px 7px",borderRadius:6,marginLeft:6,fontWeight:600}}>Exemple</span>}</STitle>
+      {!aDesLeads&&<div style={{fontSize:11,color:C.muted,marginBottom:10}}>Chiffres d&apos;exemple : ils disparaissent dès vos premiers leads.</div>}
       <div style={{display:"grid",gridTemplateColumns:"repeat(3,1fr)",gap:10}}>
-        <KPI label="Leads générés" val="71" color={C.blue}/>
-        <KPI label="Taux conversion global" val="12%" color={C.green}/>
-        <KPI label="CA généré" val="8 400 €" color={C.gold}/>
+        <KPI label="Leads générés" val={aDesLeads?leadsReal.length:"71"} color={C.blue}/>
+        <KPI label="Taux conversion global" val={aDesLeads?tauxConv+"%":"12%"} color={C.green}/>
+        <KPI label="CA généré" val={aDesLeads?caGenere.toLocaleString("fr")+" €":"8 400 €"} color={C.gold}/>
       </div>
-    </Card>}
+    </Card>;})()}
   </div>;
 };
 

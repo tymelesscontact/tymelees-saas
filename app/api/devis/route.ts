@@ -5,6 +5,7 @@ import crypto from "crypto"
 import { generateDevisHTML } from "../../lib/generateDevis"
 import { getTenantIdFromRequest } from "../../lib/supabaseServer"
 import { estAutoriseSignerDevisManuel } from "../../lib/permissions"
+import { alerterEntreprise } from "../../lib/rappels"
 type DevisData = {
   clientName: string
   clientPhone: string
@@ -54,9 +55,6 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: false, error: "Non autorise" }, { status: 401 })
     }
     const supabase = getSupabase()
-    const WHATSAPP_TOKEN = process.env.WHATSAPP_TOKEN
-    const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
-    const OWNER_PHONE = process.env.OWNER_PHONE
     const body = await req.json()
     const {
       clientPhone,
@@ -174,32 +172,13 @@ export async function POST(req: NextRequest) {
         { status: 500 }
       )
     }
-    if (WHATSAPP_TOKEN && PHONE_NUMBER_ID && OWNER_PHONE) {
-      const messageOwner =
-        `Nouveau devis a valider\n\n` +
-        `N ${numeroDevis}\n` +
-        `Client : ${clientName || clientPhone}\n` +
-        `Service : ${service}\n` +
-        `Montant : ${montant}\n` +
-        `${description}\n\n` +
-        `Repondez OUI ${numeroDevis} pour envoyer au client\n` +
-        `Repondez NON ${numeroDevis} pour annuler`
-      await fetch(
-        `https://graph.facebook.com/v22.0/${PHONE_NUMBER_ID}/messages`,
-        {
-          method: "POST",
-          headers: {
-            Authorization: `Bearer ${WHATSAPP_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            messaging_product: "whatsapp",
-            to: OWNER_PHONE,
-            text: { body: messageOwner },
-          }),
-        }
-      )
-    }
+    // Notification a l'entreprise elle-meme (jamais au numero unique de la plateforme,
+    // qui recevait les devis de toutes les entreprises). Non bloquant.
+    await alerterEntreprise(
+      tenantId,
+      `Nouveau devis ${numeroDevis}`,
+      `Nouveau devis cree\n\nN ${numeroDevis}\nClient : ${clientName || clientPhone || "Client"}\nService : ${service || ""}\nMontant : ${montant}`
+    )
     return NextResponse.json({
       success: true,
       numeroDevis,

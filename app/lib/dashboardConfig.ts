@@ -1,5 +1,5 @@
 // Configuration partagée entre les deux dashboards (app/mon-espace/xyra.jsx
-// et app/dashboard/tymeless.jsx) : plans, accès par page, structure de la
+// et app/dashboard/xyra.jsx) : plans, accès par page, structure de la
 // sidebar, profils sectoriels. Réunifiée le 14/09/2026 (T7) — avant cette
 // extraction, ce bloc était dupliqué à l'identique dans les deux fichiers.
 //
@@ -51,6 +51,8 @@ export const PAGE_ACCESS: Record<string, string[]> = {
   notifications:  ["starter","business","enterprise",...MULTI,"club_affaires","owner"],
   // Enterprise uniquement
   prospection:    ["enterprise","owner"],
+  // Bot WhatsApp-Lea : meme regle que la Prospection. Chat : pas d'entree, ouvert a tous (decision 26/10).
+  conversations_whatsapp: ["enterprise","owner"],
   // Club d'affaires — option séparée ou inclus Enterprise
   club_affaires:  ["enterprise","club_affaires","owner"],
   // Multi-Sociétés — plans multi uniquement

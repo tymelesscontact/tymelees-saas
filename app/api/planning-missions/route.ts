@@ -113,13 +113,13 @@ export async function POST(req: NextRequest) {
     if (statut === 'termine') {
       try {
         const { data: mission } = await sb.from('missions').select('*').eq('id', id).maybeSingle();
-        if (mission?.client_tel) {
+        if (mission?.client_tel || mission?.client_email) {
           const site = process.env.NEXT_PUBLIC_SITE_URL || 'https://xyraio.fr';
           await fetch(`${site}/api/scoring`, {
             method: 'POST', headers: { 'Content-Type': 'application/json', cookie: req.headers.get('cookie') || '' },
             body: JSON.stringify({
               action: 'demander_avis_whatsapp',
-              client_tel: mission.client_tel, client_nom: mission.client_nom, service: mission.service,
+              client_tel: mission.client_tel, client_email: mission.client_email, client_nom: mission.client_nom, service: mission.service,
             }),
           });
         }
@@ -133,6 +133,7 @@ export async function POST(req: NextRequest) {
                 action: 'creer',
                 client_nom: mission.client_nom, client_email: mission.client_email, client_tel: mission.client_tel,
                 description: mission.service || 'Prestation', montant_ht: devis.montant,
+                devis_id: mission.devis_id, mission_id: mission.id,
               }),
             });
           }
@@ -214,6 +215,8 @@ export async function POST(req: NextRequest) {
     const { mission_id, collaborateur_id, statut_presence } = body;
     const valides = ['prevu', 'arrive', 'termine', 'absent'];
     if (!valides.includes(statut_presence)) return NextResponse.json({ error: 'Statut invalide' }, { status: 400 });
+    const { data: missionDuTenant } = await sb.from('missions').select('id').eq('id', mission_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!missionDuTenant) return NextResponse.json({ error: 'Mission introuvable' }, { status: 404 });
     const { error } = await sb.from('missions_collaborateurs')
       .update({ statut_presence }).eq('mission_id', mission_id).eq('collaborateur_id', collaborateur_id);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

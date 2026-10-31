@@ -28,7 +28,10 @@ export async function GET(req: NextRequest) {
   const { data: deals, error } = await dealsQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  const { data: timeline } = await sb.from('deals_timeline').select('*').order('created_at', { ascending: false });
+  const idsDeals = (deals || []).map((d: { id: string }) => d.id);
+  const { data: timeline } = idsDeals.length
+    ? await sb.from('deals_timeline').select('*').in('deal_id', idsDeals).order('created_at', { ascending: false })
+    : { data: [] };
   const { data: partenaires } = await sb.from('partenaires').select('id,nom,commission,email,tel').eq('tenant_id', tenantId).order('nom');
   const { data: clients } = await sb.from('clients').select('nom,email').eq('tenant_id', tenantId).order('nom');
 
@@ -73,7 +76,7 @@ export async function POST(req: NextRequest) {
 
     // Vérification doublon client
     if (client) {
-      const { data: clientExist } = await sb.from('clients').select('id,nom').ilike('nom', `%${client}%`).limit(1);
+      const { data: clientExist } = await sb.from('clients').select('id,nom').eq('tenant_id', tenantId).ilike('nom', `%${client}%`).limit(1);
       if (clientExist?.length) {
         return NextResponse.json({ success: false, doublon: true, message: `${client} est déjà un client Xyra. Créer un devis plutôt ?`, client: clientExist[0] });
       }
@@ -83,7 +86,7 @@ export async function POST(req: NextRequest) {
     let commissionPct = Number(commission_pct) || 0;
     let partenaireNom = '';
     if (partenaire_id) {
-      const { data: p } = await sb.from('partenaires').select('nom,commission').eq('id', partenaire_id).single();
+      const { data: p } = await sb.from('partenaires').select('nom,commission').eq('id', partenaire_id).eq('tenant_id', tenantId).maybeSingle();
       if (p) { partenaireNom = p.nom; if (!commissionPct) commissionPct = p.commission || 0; }
     }
     const commissionMontant = Math.round(Number(valeur || 0) * commissionPct / 100);
@@ -106,31 +109,38 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'modifier') {
-    const { id, ...fields } = body;
-    const oldEtape = fields._oldEtape;
-    delete fields._oldEtape;
+    const { id } = body;
+    // L'etat de reference est celui de la base, jamais celui envoye par le navigateur.
+    const { data: avant } = await sb.from('deals').select('etape,valeur,commission_pct').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!avant) return NextResponse.json({ error: 'Deal introuvable' }, { status: 404 });
+    const oldEtape = avant.etape;
+
+    const CHAMPS_MODIFIABLES = ['nom', 'valeur', 'prob', 'etape', 'client', 'email', 'tel', 'dead', 'source', 'desc', 'partenaire_id', 'commission_pct', 'dernierContact', 'company_id'];
+    const fields: Record<string, unknown> = {};
+    for (const champ of CHAMPS_MODIFIABLES) if (body[champ] !== undefined) fields[champ] = body[champ];
     fields.updated_at = new Date().toISOString();
     if (fields.dernierContact === undefined) fields.dernierContact = new Date().toISOString().split('T')[0];
 
     // Recalculer commission si valeur ou partenaire change
     if (fields.valeur !== undefined || fields.commission_pct !== undefined) {
-      const { data: current } = await sb.from('deals').select('valeur,commission_pct').eq('id', id).single();
-      const valeur = fields.valeur ?? current?.valeur ?? 0;
-      const pct = fields.commission_pct ?? current?.commission_pct ?? 0;
+      const valeur = fields.valeur ?? avant.valeur ?? 0;
+      const pct = fields.commission_pct ?? avant.commission_pct ?? 0;
       fields.commission_montant = Math.round(Number(valeur) * Number(pct) / 100);
     }
 
     const { error } = await sb.from('deals').update(fields).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-    // Si passage en "Gagné" → créer transaction commission dans Wallet
+    // Si passage en "Gagné" → créer transaction commission dans Wallet (une seule fois par deal)
     if (fields.etape === 'Gagné' && oldEtape !== 'Gagné') {
-      const { data: deal } = await sb.from('deals').select('*').eq('id', id).single();
-      if (deal?.partenaire_id && deal?.commission_montant > 0) {
+      const { data: deal } = await sb.from('deals').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+      const { data: commissionExistante } = await sb.from('wallet_transactions').select('id')
+        .eq('ref', `DEAL-COMM-${id}`).eq('tenant_id', tenantId).limit(1).maybeSingle();
+      if (deal?.partenaire_id && deal?.commission_montant > 0 && !commissionExistante) {
         await sb.from('wallet_transactions').insert({
           type: 'commission', libelle: `Commission deal "${deal.nom}" — ${deal.partenaire_nom}`,
           montant: deal.commission_montant, devise: 'EUR', methode: 'sepa',
-          statut: 'à_virer', ref: `DEAL-COMM-${Date.now()}`,
+          statut: 'à_virer', ref: `DEAL-COMM-${id}`,
           destinataire_nom: deal.partenaire_nom,
           tenant_id: tenantId || null,
         });
@@ -152,6 +162,8 @@ export async function POST(req: NextRequest) {
 
   if (action === 'ajouter_timeline') {
     const { deal_id, type, description } = body;
+    const { data: dealCible } = await sb.from('deals').select('id').eq('id', deal_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!dealCible) return NextResponse.json({ error: 'Deal introuvable' }, { status: 404 });
     const { data, error } = await sb.from('deals_timeline').insert({ deal_id, type, description, operateur: 'Curtiss' }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true, entree: data });
@@ -165,8 +177,12 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'relance_ia') {
-    const { deal } = body;
-    if (!deal) return NextResponse.json({ error: 'Deal manquant' }, { status: 400 });
+    if (!body.deal?.id) return NextResponse.json({ error: 'Deal manquant' }, { status: 400 });
+    // Donnees du prompt relues en base (le deal doit appartenir a l'entreprise).
+    const { data: deal } = await sb.from('deals').select('*').eq('id', body.deal.id).eq('tenant_id', tenantId).maybeSingle();
+    if (!deal) return NextResponse.json({ error: 'Deal introuvable' }, { status: 404 });
+    const dernier = deal.dernierContact ? new Date(deal.dernierContact) : new Date(deal.updated_at || deal.created_at);
+    deal.joursInactif = Math.floor((Date.now() - dernier.getTime()) / (1000 * 60 * 60 * 24));
     try {
       const prompt = `Tu es commercial chez Xyra. Génère un message de relance personnalisé (WhatsApp ou email) pour ce deal :
 Deal : "${deal.nom}"
@@ -192,12 +208,19 @@ Message court, naturel, non commercial, en français. 3-4 phrases max. Objectif 
   }
 
   if (action === 'envoyer_relance') {
-    const { deal, message, canal } = body;
+    const { message, canal } = body;
+    if (!body.deal?.id) return NextResponse.json({ error: 'Deal manquant' }, { status: 400 });
+    // Destinataire relu en base : on ne relaie jamais vers un numero/email fourni par le navigateur.
+    const { data: deal } = await sb.from('deals').select('id,nom,tel,email').eq('id', body.deal.id).eq('tenant_id', tenantId).maybeSingle();
+    if (!deal) return NextResponse.json({ error: 'Deal introuvable' }, { status: 404 });
     try {
-      if (canal === 'whatsapp' && deal.tel) await envoyerWhatsApp(deal.tel, message, tenantId);
+      if (canal === 'whatsapp' && deal.tel) {
+        const envoi = await envoyerWhatsApp(deal.tel, message, tenantId);
+        if (!envoi?.ok) return NextResponse.json({ error: "WhatsApp n'est pas connecté pour le moment — utilisez l'envoi par email" }, { status: 503 });
+      }
       if (canal === 'email' && deal.email) await sendEmail(deal.email, `Suivi — ${deal.nom}`, `<p>${message.replace(/\n/g, '<br>')}</p>`);
       await sb.from('deals_timeline').insert({ deal_id: deal.id, type: 'relance', description: `Relance envoyée par ${canal}`, operateur: 'Curtiss' });
-      await sb.from('deals').update({ dernierContact: new Date().toISOString().split('T')[0], updated_at: new Date().toISOString() }).eq('id', deal.id);
+      await sb.from('deals').update({ dernierContact: new Date().toISOString().split('T')[0], updated_at: new Date().toISOString() }).eq('id', deal.id).eq('tenant_id', tenantId);
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
     }

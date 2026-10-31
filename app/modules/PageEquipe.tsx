@@ -686,7 +686,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
   const moisActuel=new Date().toISOString().slice(0,7);
   const arretsCeMoisDe=(e)=>arretsDe(e).filter(a=>(a.debut||"").slice(0,7)===moisActuel);
   const totalArrets=equipe.reduce((a,e)=>a+arretsCeMoisDe(e).length,0);
-  const perfMoy=Math.round(equipe.reduce((a,e)=>a+e.perf,0)/equipe.length);
+  const perfMoy=equipe.length?Math.round(equipe.reduce((a,e)=>a+e.perf,0)/equipe.length):0;
 
   return <div style={{padding:20}}>
     {debugErreur&&<div style={{background:"#3a0000",border:"2px solid #FF5252",borderRadius:8,padding:14,marginBottom:14,color:"#fff",fontSize:12,wordBreak:"break-all"}}>
@@ -762,7 +762,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
 
     {/* KPIs RAPIDES */}
     <div style={{display:"grid",gridTemplateColumns:`repeat(${estRH?5:4},1fr)`,gap:10,marginBottom:14}}>
-      {[["Effectif",equipe.length,"#4B7BFF"],["En mission",equipe.filter(e=>e.statut==="En mission").length,"#C9A84C"],...(estRH?[["Masse salariale/mois","€"+totalSalaire.toLocaleString("fr"),"#FF5252"]]:[]),["Perf. moyenne",perfMoy+"%","#2EC9B0"],["Arrêts ce mois",totalArrets,"#FF8C3A"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",border:`1px solid #1E1E36`,borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:c,fontFamily:"Georgia,serif"}}>{v}</div></div>)}
+      {[["Effectif",equipe.length,"#4B7BFF"],["En mission",equipe.filter(e=>e.statut==="En mission").length,"#C9A84C"],...(estRH?[["Masse salariale/mois","€"+totalSalaire.toLocaleString("fr"),"#FF5252"]]:[]),["Perf. moyenne",perfMoy+"%","#2EC9B0"],["Arrêts ce mois",totalArrets,"#FF8C3A"]].map(([l,v,c],i)=><div key={i} style={{background:"#121222",border:`1px solid #1E1E36`,borderRadius:10,padding:14}}><div style={{fontSize:9,color:"#5A5A7A",textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:20,fontWeight:700,color:c,fontFamily:"Georgia,serif"}}>{loadingEquipe?"…":v}</div></div>)}
     </div>
 
     {/* TABS */}
@@ -791,7 +791,7 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           {estRH&&<div style={{background:"#0C0C1A",border:"1px solid #1E1E36",borderRadius:12,padding:16}}>
             <div style={{fontSize:9,color:"#5A5A7A",letterSpacing:"0.15em",textTransform:"uppercase",marginBottom:10,fontWeight:600}}>💸 Répartition masse salariale</div>
-            {equipe.map((e,i)=><div key={i} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{e.prenom}</span><span style={{color:e.couleur,fontWeight:700}}>{e.salaire.toLocaleString("fr")}€</span></div><div style={{height:4,borderRadius:2,background:"#1E1E36"}}><div style={{height:"100%",width:(e.salaire/totalSalaire*100)+"%",background:e.couleur,borderRadius:2}}/></div></div>)}
+            {equipe.map((e,i)=><div key={i} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{e.prenom}</span><span style={{color:e.couleur,fontWeight:700}}>{e.salaire.toLocaleString("fr")}€</span></div><div style={{height:4,borderRadius:2,background:"#1E1E36"}}><div style={{height:"100%",width:(totalSalaire>0?e.salaire/totalSalaire*100:0)+"%",background:e.couleur,borderRadius:2}}/></div></div>)}
             <div style={{marginTop:8,fontSize:11,color:"#C9A84C",fontWeight:700,textAlign:"right"}}>Total : {totalSalaire.toLocaleString("fr")} € net · {Math.round(totalSalaire*1.43).toLocaleString("fr")} € brut</div>
           </div>}
           <div style={{background:"#FF525211",border:"1px solid #FF525233",borderRadius:10,padding:14}}>

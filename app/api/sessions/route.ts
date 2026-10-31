@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { randomUUID } from 'crypto';
+import { estAutoriseGererEquipe } from '../../lib/permissions';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -23,17 +24,29 @@ function deviceLisible(userAgent: string): string {
   return `${os} — ${nav}`;
 }
 
+// Proprietaire/Admin : toutes les sessions de l'entreprise. Autres membres :
+// uniquement les leurs (ni voir les appareils/IP des collegues, ni les deconnecter).
+async function perimetreSessions(req: NextRequest, tenantId: string): Promise<{ toutes: boolean; userId: string | null }> {
+  if (await estAutoriseGererEquipe(req, tenantId)) return { toutes: true, userId: null };
+  const tokenAcces = req.cookies.get('sb-access-token')?.value;
+  const { data: authData } = tokenAcces ? await sb.auth.getUser(tokenAcces) : { data: null };
+  return { toutes: false, userId: authData?.user?.id || null };
+}
+
 export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
+  const perimetre = await perimetreSessions(req, tenantId);
+  if (!perimetre.toutes && !perimetre.userId) return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
 
   const tokenActuel = req.cookies.get('session_id')?.value;
 
-  const { data, error } = await sb.from('sessions_actives')
+  let requeteSessions = sb.from('sessions_actives')
     .select('id, appareil, ip, created_at, derniere_activite, session_token')
     .eq('tenant_id', tenantId)
-    .eq('revoquee', false)
-    .order('derniere_activite', { ascending: false });
+    .eq('revoquee', false);
+  if (!perimetre.toutes) requeteSessions = requeteSessions.eq('user_id', perimetre.userId!);
+  const { data, error } = await requeteSessions.order('derniere_activite', { ascending: false });
 
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -45,9 +58,11 @@ export async function GET(req: NextRequest) {
     actuelle: s.session_token === tokenActuel,
   }));
 
-  const { data: historique } = await sb.from('sessions_actives')
+  let requeteHistorique = sb.from('sessions_actives')
     .select('id, appareil, ip, created_at')
-    .eq('tenant_id', tenantId)
+    .eq('tenant_id', tenantId);
+  if (!perimetre.toutes) requeteHistorique = requeteHistorique.eq('user_id', perimetre.userId!);
+  const { data: historique } = await requeteHistorique
     .order('created_at', { ascending: false })
     .limit(50);
 
@@ -97,15 +112,21 @@ export async function POST(req: NextRequest) {
 
   if (!tenantId) return NextResponse.json({ success: false, error: 'Session invalide' }, { status: 401 });
 
+  const perimetre = await perimetreSessions(req, tenantId);
+  if (!perimetre.toutes && !perimetre.userId) return NextResponse.json({ success: false, error: 'Session invalide' }, { status: 401 });
+
   if (action === 'revoquer') {
     const { id } = body;
-    await sb.from('sessions_actives').update({ revoquee: true }).eq('id', id).eq('tenant_id', tenantId);
+    let requete = sb.from('sessions_actives').update({ revoquee: true }).eq('id', id).eq('tenant_id', tenantId);
+    if (!perimetre.toutes) requete = requete.eq('user_id', perimetre.userId!);
+    await requete;
     return NextResponse.json({ success: true });
   }
 
   if (action === 'revoquer_toutes_sauf_actuelle') {
     const tokenActuel = req.cookies.get('session_id')?.value;
     let requete = sb.from('sessions_actives').update({ revoquee: true }).eq('tenant_id', tenantId);
+    if (!perimetre.toutes) requete = requete.eq('user_id', perimetre.userId!);
     if (tokenActuel) requete = requete.neq('session_token', tokenActuel);
     await requete;
     return NextResponse.json({ success: true });

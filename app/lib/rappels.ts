@@ -1,5 +1,6 @@
 import { createClient } from '@supabase/supabase-js';
-import { envoyerWhatsApp } from './whatsapp';
+import { envoyerWhatsApp, telephoneAlerteTenant } from './whatsapp';
+import { echapHtml } from './walletValidation';
 import { envoyerSMS } from './sms';
 
 const sb = createClient(
@@ -25,7 +26,7 @@ export async function envoyerPartout(tel: string | null, email: string | null, t
       const resend = new Resend(process.env.RESEND_API_KEY);
       await resend.emails.send({
         from: 'Xyra <notifications@xyraio.fr>', to: email, subject: options?.sujet || 'Rappel de rendez-vous',
-        html: `<p>${texte}</p>`,
+        html: `<p style="white-space:pre-line">${echapHtml(texte)}</p>`,
         ...(options?.replyTo ? { replyTo: options.replyTo } : {}),
         // In-Reply-To/References : dit a Gmail/Outlook que cet email fait
         // suite au precedent, pour que tout reste groupe dans un seul fil
@@ -42,6 +43,33 @@ export async function envoyerPartout(tel: string | null, email: string | null, t
     } catch (e: any) { console.error('Rappel SMS:', e.message); }
   }
   return null;
+}
+
+/**
+ * Alerte destinee a l'entreprise elle-meme (avis, NPS, cartes, tresorerie, devis...).
+ * Cloche Xyra (table notifications) + envoyerPartout : WhatsApp si l'entreprise l'a
+ * connecte, sinon email (Resend, gratuit), sinon SMS. Ne leve jamais d'erreur.
+ */
+export async function alerterEntreprise(tenantId: string | null, sujet: string, texte: string, options?: { cloche?: boolean }): Promise<string | null> {
+  if (!tenantId) return null;
+  if (options?.cloche !== false) try {
+    await sb.from('notifications').insert({ type: 'info', icon: '🔔', urgence: 'normale', titre: sujet, message: texte, lu: false, tenant_id: tenantId });
+  } catch (e) { console.error('Alerte cloche:', (e as Error)?.message); }
+  try {
+    const tel = await telephoneAlerteTenant(tenantId);
+    const { data: t } = await sb.from('tenants').select('email').eq('id', tenantId).maybeSingle();
+    return await envoyerPartout(tel, t?.email || null, texte, tenantId, { sujet: `Xyra — ${sujet}` });
+  } catch (e) { console.error('Alerte entreprise:', (e as Error)?.message); return null; }
+}
+
+/**
+ * Notification pour l'administrateur de la plateforme (nouveau client, revendeur,
+ * essais...) : OWNER_WHATSAPP si WhatsApp marche, sinon OWNER_EMAIL.
+ */
+export async function alerterPlateforme(sujet: string, texte: string): Promise<string | null> {
+  try {
+    return await envoyerPartout(process.env.OWNER_WHATSAPP || null, process.env.OWNER_EMAIL || null, texte, '', { sujet: `Xyra plateforme — ${sujet}` });
+  } catch (e) { console.error('Alerte plateforme:', (e as Error)?.message); return null; }
 }
 
 /**

@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { estAutoriseGererEquipe } from '../../lib/permissions';
+import { montantValide } from '../../lib/walletValidation';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -95,6 +97,33 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
 
+  if (['creer', 'envoyer_paiement', 'marquer_payee', 'relancer'].includes(action)) {
+    if (!tenantIdPost) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    if (!(await estAutoriseGererEquipe(req, tenantIdPost))) {
+      // Seule exception : la facture automatique de fin de mission, declenchee par
+      // api/planning-missions quand un salarie passe sa mission en "termine".
+      // Mission du tenant, terminee, devis lie, pas encore facture ; montant relu en base.
+      let factureFinMission = false;
+      if (action === 'creer' && body.mission_id && body.devis_id) {
+        const { data: missionFin } = await sb.from('missions').select('id,devis_id,statut')
+          .eq('id', body.mission_id).eq('tenant_id', tenantIdPost).maybeSingle();
+        if (missionFin && missionFin.statut === 'termine' && missionFin.devis_id === body.devis_id) {
+          const { data: dejaFacturee } = await sb.from('factures').select('id')
+            .eq('tenant_id', tenantIdPost).eq('devis_id', body.devis_id).limit(1).maybeSingle();
+          const { data: devisFin } = await sb.from('devis').select('montant')
+            .eq('id', body.devis_id).eq('tenant_id', tenantIdPost).maybeSingle();
+          if (!dejaFacturee && devisFin) {
+            body.montant_ht = devisFin.montant;
+            factureFinMission = true;
+          }
+        }
+      }
+      if (!factureFinMission) {
+        return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+      }
+    }
+  }
+
   // ── CRÉER UNE FACTURE ───────────────────────────────────────
   if (action === 'creer') {
     const { client_nom, client_email, client_tel, siren, type_client, description, montant_ht, taux_tva, devis_id } = body;
@@ -106,8 +135,12 @@ export async function POST(req: NextRequest) {
     const annee = new Date().getFullYear();
     const numero = `FA-${annee}-${String((count || 0) + 1).padStart(4, '0')}`;
 
-    const montantHT = Number(montant_ht);
+    const montantHT = montantValide(montant_ht);
+    if (montantHT === null) return NextResponse.json({ error: 'Montant HT invalide' }, { status: 400 });
     const tauxTVA = Number(taux_tva ?? 20);
+    if (!Number.isFinite(tauxTVA) || tauxTVA < 0 || tauxTVA > 100) {
+      return NextResponse.json({ error: 'Taux de TVA invalide' }, { status: 400 });
+    }
     const montantTVA = Math.round(montantHT * tauxTVA) / 100;
     const montantTTC = montantHT + montantTVA;
 
@@ -201,8 +234,8 @@ export async function POST(req: NextRequest) {
           },
           quantity: 1,
         }],
-        success_url: `https://xyraio.fr/dashboard?facture=success`,
-        cancel_url: `https://xyraio.fr/dashboard?facture=cancelled`,
+        success_url: `${req.nextUrl.origin}/dashboard?facture=success`,
+        cancel_url: `${req.nextUrl.origin}/dashboard?facture=cancelled`,
       });
 
       paymentUrl = session.url;
@@ -279,8 +312,8 @@ export async function POST(req: NextRequest) {
     }
     if (facture.client_tel) {
       try {
-        await envoyerWhatsApp(facture.client_tel, `Bonjour ${facture.client_nom}, petit rappel pour votre facture ${facture.numero} (${facture.montant_ttc}€) toujours en attente.${lien ? `\nPayer : ${lien}` : ''}`, tenantIdPost);
-        envoye = true;
+        const envoiWa = await envoyerWhatsApp(facture.client_tel, `Bonjour ${facture.client_nom}, petit rappel pour votre facture ${facture.numero} (${facture.montant_ttc}€) toujours en attente.${lien ? `\nPayer : ${lien}` : ''}`, tenantIdPost);
+        if (envoiWa?.ok) envoye = true;
       } catch (e) { console.error('WhatsApp error:', e); }
     }
 

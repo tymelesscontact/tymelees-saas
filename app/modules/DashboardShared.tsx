@@ -1,6 +1,6 @@
 "use client";
 // Composants partagés entre les deux dashboards (app/mon-espace/xyra.jsx et
-// app/dashboard/tymeless.jsx). Extraits le 14/09/2026 (T7) — avant cette
+// app/dashboard/xyra.jsx). Extraits le 14/09/2026 (T7) — avant cette
 // extraction, ils étaient dupliqués à l'identique dans les deux fichiers.
 // (IbanMondial n'est volontairement PAS ici : son implémentation diffère
 // réellement entre les deux dashboards — route API côté xyra.jsx, écriture

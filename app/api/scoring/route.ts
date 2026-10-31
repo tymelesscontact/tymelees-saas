@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { alerterEntreprise, envoyerPartout } from '../../lib/rappels';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -74,12 +75,14 @@ export async function GET(req: NextRequest) {
   const tauxReponse = avis.length > 0 ? Math.round(avisAvecReponse / avis.length * 100) : 0;
 
   // Score réputation global 0-100
-  const scoreReputation = Math.round(
-    (noteMoyenne / 5 * 40) +
-    (Math.max(0, npsScore + 100) / 200 * 30) +
-    (csatScore / 100 * 20) +
-    (tauxReponse / 100 * 10)
-  );
+  // Seuls les elements qui existent comptent (sinon un NPS vide valait 15 points) ;
+  // memes poids qu'avant, ramenes sur 100. Aucune donnee -> null (affiche "—").
+  const parts: { poids: number; valeur: number }[] = [];
+  if (avis.length > 0) { parts.push({ poids: 40, valeur: noteMoyenne / 5 }); parts.push({ poids: 10, valeur: tauxReponse / 100 }); }
+  if (nps.length > 0) parts.push({ poids: 30, valeur: Math.max(0, npsScore + 100) / 200 });
+  if (csat.length > 0) parts.push({ poids: 20, valeur: csatScore / 100 });
+  const poidsTotal = parts.reduce((a, p) => a + p.poids, 0);
+  const scoreReputation = poidsTotal > 0 ? Math.round(parts.reduce((a, p) => a + p.poids * p.valeur, 0) / poidsTotal * 100) : null;
 
   // Analyse sentiment
   const sentiments = { positif: 0, neutre: 0, négatif: 0 };
@@ -111,8 +114,8 @@ export async function POST(req: NextRequest) {
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     // Alerte WhatsApp si avis négatif
-    if (Number(note) <= 2 && process.env.OWNER_WHATSAPP) {
-      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra ALERTE AVIS NEGATIF : ${client_nom} a laisse ${note}/5 etoiles pour ${service||'votre service'}. Commentaire : "${(commentaire||'').slice(0,100)}". Repondez rapidement !`, tenantId);
+    if (Number(note) <= 2) {
+      await alerterEntreprise(tenantId, 'Avis négatif reçu', `Xyra ALERTE AVIS NEGATIF : ${client_nom} a laisse ${note}/5 etoiles pour ${service||'votre service'}. Commentaire : "${(commentaire||'').slice(0,100)}". Repondez rapidement !`);
     }
     return NextResponse.json({ success: true, avis: data });
   }
@@ -141,10 +144,10 @@ Commence par "Bonjour ${client_nom},"`;
     await sb.from('nps_reponses').insert({ client_nom, client_email, score: Number(score), commentaire, categorie, company_id, tenant_id: tenantId });
 
     // Routage intelligent
-    if (Number(score) >= 9 && process.env.OWNER_WHATSAPP) {
-      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra NPS : ${client_nom} vous donne 9+/10 ! Invitez-le a laisser un avis Google maintenant.`, tenantId);
-    } else if (Number(score) <= 6 && process.env.OWNER_WHATSAPP) {
-      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra NPS DETRACTEUR : ${client_nom} donne ${score}/10. Contactez-le rapidement en prive pour resoudre le probleme.`, tenantId);
+    if (Number(score) >= 9) {
+      await alerterEntreprise(tenantId, 'Client promoteur (NPS)', `Xyra NPS : ${client_nom} vous donne 9+/10 ! Invitez-le a laisser un avis Google maintenant.`);
+    } else if (Number(score) <= 6) {
+      await alerterEntreprise(tenantId, 'Client détracteur (NPS)', `Xyra NPS DETRACTEUR : ${client_nom} donne ${score}/10. Contactez-le rapidement en prive pour resoudre le probleme.`);
     }
     return NextResponse.json({ success: true });
   }
@@ -156,10 +159,12 @@ Commence par "Bonjour ${client_nom},"`;
   }
 
   if (action === 'demander_avis_whatsapp') {
-    const { client_tel, client_nom, service } = body;
-    if (!client_tel) return NextResponse.json({ error: 'Numéro requis' }, { status: 400 });
-    await envoyerWhatsApp(client_tel, `Bonjour ${client_nom}, merci d'avoir fait appel a nos services pour ${service||'votre prestation'}. Votre avis compte beaucoup pour nous ! Notez-nous sur Google en 1 minute : https://g.page/r/xyra/review`, tenantId);
-    return NextResponse.json({ success: true });
+    const { client_tel, client_email, client_nom, service } = body;
+    if (!client_tel && !client_email) return NextResponse.json({ error: 'Ni téléphone ni email pour ce client' }, { status: 400 });
+    // WhatsApp si connecte, sinon email (gratuit).
+    const canal = await envoyerPartout(client_tel || null, client_email || null, `Bonjour ${client_nom}, merci d'avoir fait appel a nos services pour ${service||'votre prestation'}. Votre avis compte beaucoup pour nous ! Notez-nous sur Google en 1 minute : https://g.page/r/xyra/review`, tenantId || '', { sujet: 'Votre avis compte pour nous' });
+    if (!canal) return NextResponse.json({ error: 'Envoi impossible (ni WhatsApp ni email disponible)' }, { status: 503 });
+    return NextResponse.json({ success: true, canal });
   }
 
   if (action === 'analyse_concurrentielle') {
@@ -173,16 +178,15 @@ Commence par "Bonjour ${client_nom},"`;
   }
 
   if (action === 'rapport_reputation_whatsapp') {
-    const ownerTel = process.env.OWNER_WHATSAPP;
-    if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
     const { scoreReputation, noteGoogle, npsScore, csatScore, totalAvis, tauxReponse } = body;
     try {
       const prompt = `Génère un rapport réputation WhatsApp (5 lignes max, français, emojis) :
 Score réputation : ${scoreReputation}/100 | Note Google : ${noteGoogle}/5 | NPS : ${npsScore} | CSAT : ${csatScore}% | Avis total : ${totalAvis} | Taux réponse : ${tauxReponse}%
 Commence par "Rapport Réputation Xyra —" et donne 1 point fort et 1 priorité.`;
       const message = await askClaude(prompt, 200);
-      await envoyerWhatsApp(ownerTel, message, tenantId);
-      return NextResponse.json({ success: true });
+      const canal = await alerterEntreprise(tenantId, 'Rapport réputation', message);
+      if (!canal) return NextResponse.json({ error: 'Aucun numero ni email configure pour ce compte (Parametres)' }, { status: 400 });
+      return NextResponse.json({ success: true, canal });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
     }

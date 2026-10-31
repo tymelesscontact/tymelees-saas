@@ -5,6 +5,7 @@ import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { getAnthropicKey } from '../../lib/anthropicKey';
 import { createClient } from '@supabase/supabase-js';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { alerterPlateforme } from '../../lib/rappels';
 
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -123,25 +124,21 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'alerte_inactifs') {
-    const ownerTel = process.env.OWNER_WHATSAPP;
-    if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
     const { inactifs } = body;
     if (!inactifs?.length) return NextResponse.json({ success: true, message: 'Aucun inactif' });
     const noms = inactifs.map((t: any) => t.societe).join(', ');
-    await envoyerWhatsApp(ownerTel, `Xyra Alerte inactifs : ${inactifs.length} client(s) sans connexion depuis 14j : ${noms}. Contactez-les pour eviter le churn.`);
+    await alerterPlateforme('Clients inactifs', `Xyra Alerte inactifs : ${inactifs.length} client(s) sans connexion depuis 14j : ${noms}. Contactez-les pour eviter le churn.`);
     return NextResponse.json({ success: true });
   }
 
   if (action === 'rapport_mensuel') {
-    const ownerTel = process.env.OWNER_WHATSAPP;
-    if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
     const { mrr, actifs, essais, churnes, commissions } = body;
     try {
       const prompt = `Génère un rapport mensuel SaaS WhatsApp (5 lignes max, français, emojis) :
 MRR : ${mrr}€ | Clients actifs : ${actifs} | En essai : ${essais} | Churns : ${churnes} | Commissions Xyra : ${commissions}€
 Commence par "Rapport SaaS Xyra —" et donne 1 insight et 1 priorité.`;
       const message = await askClaude(prompt, tenantIdClaude);
-      await envoyerWhatsApp(ownerTel, message);
+      await alerterPlateforme('Rapport mensuel plateforme', message);
       return NextResponse.json({ success: true });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
@@ -157,8 +154,8 @@ Commence par "Rapport SaaS Xyra —" et donne 1 insight et 1 priorité.`;
       trial_ends_at: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000).toISOString(),
     }).select().single();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
-    if (process.env.OWNER_WHATSAPP) {
-      await envoyerWhatsApp(process.env.OWNER_WHATSAPP, `Xyra Nouveau client : ${societe} (${metier}, ${pays}) - Plan ${plan} a ${prix}EUR/mois. Essai 14j demarre.`);
+    {
+      await alerterPlateforme('Nouveau client', `Xyra Nouveau client : ${societe} (${metier}, ${pays}) - Plan ${plan} a ${prix}EUR/mois. Essai 14j demarre.`);
     }
     return NextResponse.json({ success: true, tenant: data });
   }

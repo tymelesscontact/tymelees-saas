@@ -9,7 +9,7 @@ OBSERVATION → ANALYSE → PROPOSITION → VALIDATION HUMAINE → MODIFICATION 
 TEST → VÉRIFICATION → VALIDATION FINALE → MAIN. Ce document ne fait que
 lister ce qui a été trouvé — rien n'est corrigé ici sans validation.
 
-Dernière mise à jour : 2026-09-13.
+Dernière mise à jour : 2026-10-26 (correctifs sécurité et argent, voir §4 et §9). Précédente : 2026-10-14 (revérification complète du code après 114 commits depuis le 13/09 — voir §4 et §7).
 
 ---
 
@@ -50,7 +50,7 @@ Dernière mise à jour : 2026-09-13.
 | T4 | `hasAccess(plan,"compta")` dans [PageFacturation.tsx:114](../app/modules/PageFacturation.tsx#L114) au lieu de `"facturation"` | ✅ réglé (10/09/2026) | Clé corrigée en `"facturation"`. Testé et poussé sur `test`. |
 | T5 | `hasAccess(plan,"deploiement")` dans [PageAPI.tsx:96](../app/modules/PageAPI.tsx#L96) au lieu de `"api"` | ✅ réglé (11/09/2026) | Corrigé au passage pendant le nettoyage label/clé de `UpgradeWall` (voir T21). |
 | T6 | `IbanMondial` ([app/mon-espace/xyra.jsx](../app/mon-espace/xyra.jsx)), utilisé dans Wallet & Paiements | ✅ réglé et testé (10/09/2026) | Corrigé : nouvelle route `app/api/wallet-ibans/route.ts` (service-role + `tenant_id` imposé) ; `IbanMondial` passe désormais par `fetch()` au lieu d'un client Supabase direct côté navigateur ; colonne `tenant_id` ajoutée sur `wallet_ibans` + policy `isolation_tenant_wallet_ibans` (`appartient_au_tenant`) remplaçant l'ancienne policy ouverte `using(true)`. Testé en conditions réelles sur `test` (ajout/suppression d'IBAN) — OK. |
-| T7 | Deux fichiers dashboard quasi-identiques : `app/mon-espace/xyra.jsx` (customer, routé `/mon-espace`) et `app/dashboard/tymeless.jsx` (owner, routé `/dashboard`) | 🟡 en partie réglé | Comprendre pourquoi les deux existent : ce n'est pas un bug — `app/login/page.tsx` route vers l'un ou l'autre selon le rôle (owner vs client). Le vrai souci est la **duplication de code** entre les deux. Premier pas fait le 11/09 : le composant `UpgradeWall` (+ `MODULE_PRICES`/`MODULE_PREVIEWS`) a été extrait en un seul fichier partagé `app/modules/UpgradeWall.tsx`, importé par les deux dashboards — un seul endroit à corriger désormais pour ce composant. Le reste des ~900 lignes de chaque fichier (sidebar, state, pageMap) reste dupliqué — chantier de fond, pas commencé. |
+| T7 | Deux fichiers dashboard quasi-identiques : `app/mon-espace/xyra.jsx` (customer, routé `/mon-espace`) et `app/dashboard/tymeless.jsx` (owner, routé `/dashboard`) | 🟡 phase 1 réglée (14/09/2026) | **Mise à jour 14/10** : phase 1 faite (commit `5b149fb`) — config commune extraite dans `app/lib/dashboardConfig.ts` (PLANS, PAGE_ACCESS, NAV, profils sectoriels) + `app/modules/DashboardShared.tsx` ; les fichiers passent de 869→551 lignes (`xyra.jsx`) et 735→414 (`tymeless.jsx`). Reste ~250 lignes divergentes entre les deux (state, pageMap, chargement) + une 3e copie partielle dans `app/admin/adminpanel.jsx`. Historique : Comprendre pourquoi les deux existent : ce n'est pas un bug — `app/login/page.tsx` route vers l'un ou l'autre selon le rôle (owner vs client). Le vrai souci est la **duplication de code** entre les deux. Premier pas fait le 11/09 : le composant `UpgradeWall` (+ `MODULE_PRICES`/`MODULE_PREVIEWS`) a été extrait en un seul fichier partagé `app/modules/UpgradeWall.tsx`, importé par les deux dashboards — un seul endroit à corriger désormais pour ce composant. Le reste des ~900 lignes de chaque fichier (sidebar, state, pageMap) reste dupliqué — chantier de fond, pas commencé. |
 | T8 | Menu réel vs code | ✅ non-problème | Le premier menu collé était partiel. Le second collage (complet, avec "Bientôt disponible") correspond exactement au `NAV` du code — même ordre, mêmes 24 items + 10 items "à venir", mêmes badges. Pas de filtrage anormal, le compte Tymeless voit tout. |
 | T9 | Cluster "business" abandonné (16 tables) | ✅ réglé (09/09/2026) | Supprimé — voir séance du jour. |
 | T10 | Annuaire/Réseau cassé (`reseau_contacts`/`reseau_deals` inexistantes en base) | 🔴 à faire — reporté à plus tard | Décision explicite : on s'en occupe après. Ne pas commencer sans feu vert. |
@@ -242,7 +242,7 @@ Légende statut : ✅ audité et sain · 🟡 audité, problèmes mineurs notés
 ### OPÉRATIONS
 
 #### ⊞ Équipe — `PageEquipe.tsx` / `api/equipe` (+ `api/pointage`, `api/absences`)
-- **Statut** : 🔴
+- **Statut** : 🟡 (était 🔴 — revérifié le 14/10/2026, voir T16 : quasi tous les boutons sont désormais réels, 1 bouton factice restant ligne 1591 ; la liste ci-dessous est l'état d'origine du 12/09)
 - **Rôle** : module RH annoncé "16 modules RH, pointage GPS, paie automatique" — fiches collaborateurs, pointage, congés, arrêts, paie, contrats, documents, évaluations, formations, carrière, juridique.
 - **Tables** : `equipe`, `pointages`, `conges`, `absences`, `acomptes`, `evaluations`, `formations_equipe`, `missions`, `tenant_membres`, `wallet_transactions`.
 - **Problèmes trouvés** (isolation tenant correcte partout, `hasAccess` correct — mais énormément de boutons fictifs) :
@@ -264,7 +264,7 @@ Légende statut : ✅ audité et sain · 🟡 audité, problèmes mineurs notés
   - Sinon module sain : toutes les autres requêtes bien filtrées/écrites par `tenant_id`, `hasAccess` correct, aucune donnée factice détectée.
 
 #### ⊕ Prospection Auto — `PageProspection.tsx` / `api/prospection` (Enterprise uniquement)
-- **Statut** : 🔴
+- **Statut** : 🟡 (était 🔴 — revérifié le 14/10/2026) : Lea fonctionne (voir T15). Recherche web Claude + Hunter pour enrichir les leads (15/09). **Toujours vrai au 14/10** : onglets LinkedIn/Stats en chiffres codés en dur (`PageProspection.tsx:468-478` : `84`, `12%`, `8 400 €`…). La liste ci-dessous est l'état d'origine.
 - **Rôle annoncé** : hub SIRENE · Bot vocal · Bot WhatsApp · LinkedIn — leads à prospecter, séquences email IA, bot WhatsApp (Lea), agent vocal IA sortant (Lea/Vapi), stats LinkedIn.
 - **Tables** : `crm_leads`, `relance_sequences/etapes/contacts`, `conduit`, `devis`, `secteurs_generes`.
 - **Problèmes trouvés** :
@@ -379,18 +379,64 @@ d'appels IA.
 | # | Constat | Statut | Détail |
 |---|---|---|---|
 | T14 | IDOR sur Chat (`api/chat/route.ts`) | ✅ réglé et testé (10/09/2026) | Motif `tenantId && c.tenant_id !== tenantId` : si `tenantId` est `null` (appel non authentifié), le contrôle était court-circuité et désactivé. Touchait `marquer_lu`, `supprimer_conversation`, `contexte` (6e cas trouvé pendant la correction, pas dans l'audit initial), `lien_fichier`, `participants`, `ajouter_participant`/`retirer_participant`. Corrigé partout en `!tenantId \|\| c.tenant_id !== tenantId`. Testé en conditions réelles sur `test` — OK. |
-| T15 | Modules entièrement factices facturés comme réels | 🟡 2/3 réglé | **Formation équipe** (13/09/2026) : ✅ reconstruit pour de vrai, voir fiche module ci-dessus. **Investissement IA** (13/09/2026) : ✅ reconstruit pour de vrai, voir fiche module ci-dessous. **Agent vocal "Lea"** dans Prospection Auto (module 29€/mois) : toujours aucun backend. Décision prise : construire les trois pour de vrai plutôt que les retirer de la facturation. |
-| T16 | Modules RH (Équipe) : très nombreux boutons qui ne persistent rien | 🔴 à faire | Pointage GPS, congés, arrêts, paie, contrats, évaluations, formations, carrière, juridique : la plupart des actions ne font qu'un `showToast` local alors que le backend expose déjà les vraies actions (non branchées côté UI). Risque : l'entreprise croit avoir un dossier RH à jour alors que rien n'est enregistré. |
+| T15 | Modules entièrement factices facturés comme réels | ✅ 3/3 construit (14/09/2026) | **Mise à jour 14/10** : Lea branchée sur le vrai Vapi (commit `492270e`), puis quotas de minutes par forfait, plafond global mensuel, coût réel, Lea parle au nom du client et s'annonce comme IA (commit `0f57c61`, 30/09), webhook Vapi authentifié (`1f1d9b2`), appel réservé propriétaire/Admin. Reste dans le même module : onglets LinkedIn/Stats en chiffres inventés (voir fiche Prospection). Historique : **Formation équipe** (13/09/2026) : ✅ reconstruit pour de vrai, voir fiche module ci-dessus. **Investissement IA** (13/09/2026) : ✅ reconstruit pour de vrai, voir fiche module ci-dessous. **Agent vocal "Lea"** dans Prospection Auto (module 29€/mois) : toujours aucun backend. Décision prise : construire les trois pour de vrai plutôt que les retirer de la facturation. |
+| T16 | Modules RH (Équipe) : très nombreux boutons qui ne persistent rien | 🟡 quasi réglé (26/09/2026) | **Mise à jour 14/10** : commits `75229eb`/`6eed8f6`/`681f92d` — paie, rapport RH, entretiens, évaluations, formations, arrêts, corrections de pointage, documents, objectifs, promotions, départs, offres d'emploi appellent maintenant l'API ; actions de gestion réservées propriétaire/Admin ; salaire/NSS/RIB ne sont plus envoyés aux collègues ; employés fictifs retirés. **Reste 1 bouton factice** : bouton d'action des recommandations de l'onglet IA RH (`PageEquipe.tsx:1591`, simple toast « Action enregistrée »). Historique : Pointage GPS, congés, arrêts, paie, contrats, évaluations, formations, carrière, juridique : la plupart des actions ne font qu'un `showToast` local alors que le backend expose déjà les vraies actions (non branchées côté UI). Risque : l'entreprise croit avoir un dossier RH à jour alors que rien n'est enregistré. |
 | T17 | Paywall absent au niveau composant sur plusieurs modules (pas seulement des clés inversées T2/T3/T4) | ✅ réglé (11/09/2026) | Garde `hasAccess(plan,"x",modulesActifs)` + `<UpgradeWall/>` ajoutés sur Cartes Virtuelles, Fournisseurs, Notes de Frais — dans le même chantier que le déploiement des modules à la carte (T21). |
 | T18 | `error.message` brut renvoyé au client | 🟡 à faire (transversal, priorité basse) | Quasi tous les modules audités renvoient le message d'erreur Postgres/Supabase brut au front. Pas une fuite critique en soi mais à nettoyer un jour (messages génériques côté client, détail en log serveur). |
 | T19 | Deux fichiers dashboard divergents (`chat`/`conversations_whatsapp` sans entrée `PAGE_ACCESS`) | 🔍 à vérifier | Ces deux modules sont accessibles à tous les plans sans distinction — à confirmer si c'est voulu (gratuit pour tous) ou un oubli lors de l'ajout de ces modules à `PAGE_ACCESS`. |
 | T20 | Requête Supabase directe côté navigateur sans filtre tenant (2e cas après T6) | 🟢 vérifié — non-problème | `PageCompta.tsx` lit `notes_frais.tva` directement depuis le client, sans `.eq('tenant_id',...)` en apparence. Vérifié : la policy RLS sur `notes_frais` filtre déjà correctement par tenant côté base — la requête ne peut donc pas remonter les données d'un autre tenant, contrairement à T6 où la policy était ouverte. Laissé tel quel (pas une faille), mais reste un pattern à éviter pour la lisibilité (client direct plutôt que route API). |
-| T21 | Achat de modules à la carte (add-on) | ✅ réglé et testé bout-en-bout (12/09/2026) | Fonctionnalité complète livrée en 3 étapes (voir §5) : déblocage piloté par la table `modules_actifs`, bouton "Débloquer — X€/mois" sur `UpgradeWall` (partagé entre les deux dashboards), paiement Stripe (`checkout.session.completed` → active le module), reverrouillage automatique sur `customer.subscription.deleted`. Testé en conditions réelles sur `test` avec une carte de test Stripe : paiement → webhook → module débloqué au rechargement du dashboard. **Point ouvert, non tranché** : le reverrouillage n'a lieu qu'à l'annulation complète de l'abonnement Stripe, pas au premier échec de paiement — un client qui ne paie plus garde l'accès pendant toute la durée des relances automatiques de Stripe (plusieurs jours/semaines). |
+| T21 | Achat de modules à la carte (add-on) | ✅ réglé (26/10, `2637017`) | Livré et testé le 12/09. Depuis le 26/10 : `customer.subscription.updated` coupe le module dès le premier impayé (`past_due`/`unpaid` → `suspendu`) et le rend au paiement (`active` → `actif`). **À faire côté Stripe** : cocher l'événement `customer.subscription.updated` sur le webhook de xyratest1. Flutterwave/Swan toujours non branchés. |
 
 Statut d'audit : **tous les modules de la sidebar ont maintenant une fiche**
 (0 restant en 🔍, hors les 10 modules "Bientôt disponible" hors périmètre).
 
 ## 4. Prochaines étapes proposées
+
+### Bilan au 26/10/2026 (après reprise du travail Codex)
+
+**Réglé et en ligne sur xyratest1** (chaque fois : build Ready, routes refusées sans compte, aucune erreur serveur) :
+T29 tickets, T27 Club, T33 WhatsApp, T38 Deals (sécurité), T21 impayés, Notes de frais (validation propriétaire/Admin + pas de double dépense Wallet), API Xyra (SSRF du test de webhook), Annuaire (mutations filtrées), Facturation (actions réservées + facture de fin de mission réparée + KPI par statut), Réputation (plus de faux chiffres), Équipe (plus de NaN au chargement), Planning (suit la société active).
+
+**Pas vérifié avec un compte connecté** (aucun outil navigateur côté Claude) : parcours propriétaire et collaborateur à refaire à la main.
+
+**Encore ouvert** :
+1. Stripe : cocher `customer.subscription.updated` sur le webhook de xyratest1 (sinon T21 ne se déclenche pas).
+2. ~~Deals : bouton « Créer un deal » absent, 4 deals de démo en dur~~ ✅ 26/10 (`4000174`) : création, avancée d'étape et « perdu » enregistrés ; exemples gardés, étiquetés, hors compteurs. Reste : boutons WhatsApp / Créer un devis / Propositions / Relancer de la fiche (toasts).
+3. ~~Prospection : onglets LinkedIn/Stats en chiffres inventés~~ ✅ 26/10 : Stats = vrais chiffres dès le 1er lead (sinon exemple étiqueté) ; LinkedIn étiqueté « Exemple — pas encore connecté ».
+6. ✅ **T40 réglé (26/10, `ae05b78`)** : la notification d'un nouveau devis part au numéro de l'entreprise (plus sur `OWNER_PHONE`) ; la validation OUI/NON du bot ne touche que les devis du bot Tymeless.
+7. 🟡 **T41 (26/10)** : `api/webhook` (WhatsApp, route publique) ne vérifiait pas la signature Meta → faux messages possibles (dont « OUI » au nom de `OWNER_PHONE`). Vérification `X-Hub-Signature-256` ajoutée, **active dès que `WHATSAPP_APP_SECRET` est défini sur Vercel** (à ajouter sur xyratest1, puis en production avant la fusion vers main). Bug réparé au passage : les messages envoyés depuis le téléphone (« échos ») n'étaient jamais enregistrés (`tenantRecepteur` utilisé avant sa déclaration).
+4. ~~Gravité moyenne~~ ✅ **réglée le 26/10** (voir §9 : `ef432df`, `50fb208`, `4359efc`). Reste : bucket `formations-videos` à passer en **privé** dans Supabase TEST (action humaine), `wallet`/`factures` sans contrôle de forfait serveur (volontaire, écrans partagés).
+5. T10 Annuaire (tables absentes), T19 Chat/WhatsApp ouverts à tous les forfaits, T7 phase 2, T18 `error.message`.
+
+### Bilan au 14/10/2026 (revérifié dans le code, pas seulement dans l'historique)
+
+**Réglé depuis le 13/09** : T15 (Lea construite), T16 (RH branché, 1 bouton restant), T7 phase 1 (config commune des dashboards). Plus tout le travail listé en §7 (sécurité Lot 1-3, Wallet, Club, Chat…).
+
+**⚠️ Le fichier `.md` n'avait jamais reçu l'audit sécurité du 21/09 (T24–T39)**, publié seulement dans la page visuelle. Il est reporté en §8 avec l'état revérifié le 14/10.
+
+**Encore ouvert — sécurité (audit 21/09, revérifié le 14/10, détail §8)** :
+- 🔴 **T29** `api/tickets` : `?admin=true` lu depuis l'URL, jamais vérifié → tout compte connecté lit les tickets de support de tous les clients.
+- 🔴 **T31** `api/absences` GET sans `vue=` : renvoie toutes les absences du tenant avec le motif (santé) — et `/espace-equipe` l'appelle ainsi pour chaque salarié.
+- 🔴 **T27 (reste)** `api/club` GET public : `action=membres` (`club_membres.*`) et `action=candidatures` (`club_candidatures.*`) sans aucune authentification.
+- 🔴 **T33** `OWNER_WHATSAPP` : `analytique` (rapport mensuel), `cartes`, `scoring` envoient des données d'un tenant vers le numéro unique de la plateforme.
+- 🔴 Notes de frais `update` sans contrôle de rôle (auto-validation/remboursement) · Deals : fuites cross-tenant côté serveur · API Xyra : SSRF sur `tester_webhook`.
+- 🟡 Sessions `revoquer` par n'importe quel membre · Événements `portee:'public'` sans contrôle · CRM `modifier` sans liste blanche · Clients/Partenaires `envoyer_*` sans vérif du destinataire · Fournisseurs `commander` · vidéos Formation en URL publique · `whatsapp_token` en clair · `demande_revendeur` non échappé · `verifierAccesModule` absent sur wallet/factures/stock/services/marges-cibles.
+
+**Encore ouvert — fonctionnel / produit** :
+1. **T21 — accès conservé après impayé** : `api/stripe-webhook/route.ts` ne traite toujours que `checkout.session.completed` et `customer.subscription.deleted` — rien sur `invoice.payment_failed` / `past_due`. 🔴
+2. **Prospection — LinkedIn/Stats inventés** (`PageProspection.tsx:468-478`). 🔴
+3. **T10 — Annuaire/Réseau** : `api/annuaire` lit toujours `reseau_contacts`/`reseau_deals` (tables inexistantes). Reporté volontairement. 🔴
+4. **T16 — dernier bouton factice** IA RH (`PageEquipe.tsx:1591`). 🟡
+5. **Planning — IDOR `presence_collaborateur`** (`api/planning-missions`) : pas de correctif trouvé dans l'historique, à revérifier ligne par ligne avant correction. 🟡
+6. **T19 — Chat / WhatsApp-Lea sans entrée `PAGE_ACCESS`** (`app/lib/dashboardConfig.ts`) : toujours accessibles à tous les forfaits — décision produit à prendre. 🔍
+7. **T7 phase 2** : ~250 lignes divergentes entre `xyra.jsx` et `tymeless.jsx` + copie partielle dans `adminpanel.jsx`. 🟡
+8. **Modules à la carte via Flutterwave/Swan** : toujours Stripe seul (`modules_actifs` n'est écrit que par `stripe-webhook`). 🔴
+9. **T18 — `error.message` brut** : encore présent dans 81 fichiers sous `app/api`. 🟡 priorité basse
+10. **T11/T13** (tables mortes, arbitrage RLS), **T12** (policy `companies`), **`rgpd_demandes` absente de TEST**, **doublon de compte TYMELESS en prod**, **erreur Meta WhatsApp (ID 1309197707798157)** : non vérifiables depuis le code (base / comptes externes) — statut inchangé, à contrôler dans Supabase/Meta.
+
+Priorité proposée : **T29, T31, T27 (fuites actives de données personnelles)** → T21 (argent non encaissé) → Notes de frais / Deals / SSRF → chiffres inventés Prospection → le reste.
+
+### Bilan précédent (12/09/2026, conservé pour l'historique)
 
 Bilan mis à jour (12/09/2026) : **réglés et testés** — T2, T3, T4, T5, T6,
 T14, T17, T21 (modules à la carte), T22 (fuite totale sur `/api/wallet-membres`,
@@ -523,3 +569,81 @@ l'abonnement ne soit définitivement annulé.
 **Reporté, non commencé** : brancher Flutterwave et Swan sur ce même flux
 (demandé, pas encore fait) ; décider si les 3 cartes de `UpgradeWall`
 doivent toujours s'afficher ou seulement selon le plan actuel.
+
+## 7. Travaux réalisés du 14/09 au 14/10/2026 (relevé des commits sur `test`)
+
+- **14/09** — T7 phase 1 (dashboards dédoublonnés), T15 Lea branchée sur Vapi.
+- **15/09** — Prospection : enrichissement des leads par recherche web Claude, Hunter en repli, envoi auto.
+- **21/09** — Accueil : brief IA fiable, carte « Prochain RDV » branchée sur les missions, CA complet. 2FA : jeton signé lié à l'utilisateur. Invitations → `/reset-password`. RGPD : export/suppression réservés au propriétaire.
+- **21-22/09** — Wallet : fin des faux chiffres, solde exact (commission Xyra non virable), IBAN protégés, seuil d'alerte et BIC enregistrés, erreurs Stripe visibles. Factures + commissions partenaires reliées au Wallet. Club Deals via Stripe Connect.
+- **23/09** — Wallet : épargne par objectif (`wallet_objectifs`). Club d'affaires : actions admin protégées, fuite tenants corrigée, adhésion par IBAN. Équipe : données RH sensibles non visibles des collègues. Route orpheline `app/fournisseurs/route.ts` supprimée.
+- **26-28/09** — Équipe RH branchée pour de vrai (T16). Chat : canal d'équipe + conversation RH privée ; un collaborateur ne voit que ses conversations.
+- **30/09** — Sécurité lots 1-2 (Next 16.3.6, webhook Vapi authentifié, prospection cloisonnée, inscription prouvée, 2FA multi-tenant et par personne). Heures dans le fuseau du pays de chaque entreprise. Lea : quotas et plafond.
+- **03-04/10** — Sécurité lot 3 : jeton de session en cookie HttpOnly serveur partout (connexion, déconnexion, mot de passe, admin, club). Fuite cross-tenant corrigée sur le chargement direct Supabase des dashboards. Restaurations urgentes de fichiers écrasés par des push via API (`adminpanel.jsx`, `middleware.ts`, `espace-equipe`).
+- **11-14/10** — Nettoyage ESLint `react-hooks` (4 vrais bugs de données figées corrigés), `middleware.ts` → `proxy.ts` (Next.js 16), boucle de rechargement WhatsApp corrigée.
+
+## 8. Audit sécurité du 21/09/2026 (T24–T39) — état revérifié dans le code le 14/10/2026
+
+Audit publié à l'origine uniquement dans la page visuelle (artefact « Feuille de route Xyra »), reporté ici.
+
+| ID | Sujet | Statut au 14/10 | Preuve dans le code |
+|---|---|---|---|
+| T24 | Validation des congés sans autorisation | ✅ réglé (14/09) | `api/absences` action `valider` : `estAutoriseGererEquipe` ou responsable désigné (refus uniquement). |
+| T25 | `/api/recrutement` bloqué + `ReferenceError` dashboard | ✅ réglé (14/09) | — |
+| T26 | Route orpheline `app/fournisseurs/route.ts` sans auth | ✅ réglé (23/09, `02215c4`) | Fichier supprimé. |
+| T27 | `api/club` public : actions sensibles sans identité | ✅ réglé (26/10, `5897c3e`) | Lectures du Club réservées aux entreprises Xyra connectées (401 sans compte, testé sur xyratest1) ; candidatures (email/tél) réservées aux fondateurs ; formulaire public `/club/rejoindre` inchangé. |
+| T28 | `club-paiement` sans contrôle | ✅ réglé (23/09) | `estFondateurClub` en tête du POST. |
+| T29 | `api/tickets` : `?admin=true` falsifiable | ✅ réglé (26/10, `195b3f4`) | `?admin=true` supprimé ; tickets lus par `tenant_id` ; création avec l'identité serveur ; réponse réservée à `PLATFORM_ADMIN_EMAILS` (préparé par Codex, relu et complété). 401 sans compte testé. |
+| T30 | `tymeless.jsx` : chargement Supabase sans filtre tenant, IBAN, carte Prochain RDV | ✅ réglé (22/09 + 04/10) | `.eq('tenant_id',tenantId)` sur les 8 tables des deux dashboards ; `IbanMondial` passe par l'API (`090ac86`) ; plus de requête directe dans `PageAccueil.tsx`. |
+| T31 | `api/absences` : motifs d'absence de tout le personnel visibles par chaque salarié | ✅ réglé (14/10, `edff48f`) | Vue complète (type/motif) réservée propriétaire/Admin ; `vue=moi` pour l'espace salarié ; les autres membres ne voient que qui est absent et quand. |
+| T32 | Lea : appel et historique sans contrôle tenant/plan | ✅ réglé (30/09) | `verifierAccesModule('prospection')`, appel réservé propriétaire/Admin, `vapi_calls` filtré par `tenant_id`. |
+| T33 | `OWNER_WHATSAPP` reçoit des données propres à un tenant | ✅ réglé (26/10, `c3d1a9c`) | Alertes et rapports d'entreprise (analytique, cartes, scoring, événements, chat) envoyés au numéro de l'entreprise (`telephoneAlerteTenant`) ; `OWNER_WHATSAPP` gardé pour tickets/déploiement/wallet-membres. |
+| T34 | RGPD export/suppression ouverts à tout employé | ✅ réglé (21/09) | `estProprietaireDuTenant` dans `api/rgpd`. |
+| T35 | Actions RH sans contrôle de rôle | ✅ réglé (26/09, `75229eb`) | `estAutoriseGererEquipe` ajouté sur acomptes, évaluations, invitations, congés… |
+| T38 | Deals : UI peu branchée + fuites cross-tenant serveur | 🟡 sécurité réglée (26/10, `2e5c654`) | Recherche client et partenaire limitées à l'entreprise, champs modifiables en liste blanche, commission « Gagné » une seule fois (`DEAL-COMM-<id>`), relances/timeline vérifiées. **Reste (fonctionnel)** : pas de bouton « Créer un deal » dans l'écran, 4 deals de démo en dur. |
+| T39 | Chat : `envoyer_message`/`recevoir_message` inter-tenant | ✅ réglé (28/09, `5701f48`) | `conversationDuTenant(conversation_id, tenantId)` sur les deux actions. |
+
+**Constats par module de l'audit du 21/09 — toujours ouverts au 14/10** (fichiers non modifiés depuis, ou vérifiés ligne par ligne) :
+- Notes de frais : `update` sans contrôle de rôle (auto-validation + remboursement) — 🔴.
+- API Xyra : SSRF `tester_webhook` (`api/api-xyra/route.ts:105-110`, `fetch(url)` sans filtre d'hôte) — 🔴.
+- Planning : IDOR `presence_collaborateur` (`api/planning-missions/route.ts:213-221`, pas de filtre tenant) — 🟡.
+- Paramètres : `api/sessions` `revoquer` sans contrôle de rôle (un collaborateur peut déconnecter le propriétaire) ; `whatsapp_token` stocké en clair — 🟡.
+- Événements : `portee:'public'` sans contrôle (seul `club` est vérifié) — 🟡.
+- CRM `modifier` sans liste blanche ; Clients/Partenaires `envoyer_whatsapp/email` sans vérification du destinataire ; Fournisseurs `commander` sans contrôle tenant — 🟡.
+- Formation : vidéos en `getPublicUrl` (`api/equipe/route.ts:369`) au lieu de liens signés — 🟡.
+- `verifierAccesModule` absent sur `wallet`, `factures`, `stock`, `services-catalogue`, `marges-cibles` (contournement de paywall, pas de fuite) — 🟡.
+- Notifications : préférences chargées mais jamais appliquées aux interrupteurs (`_prefs` inutilisé) — 🟡.
+- Cartes : bouton « Refuser » une transaction = toast seul ; Recrutement `lier_employe` sans vérif d'appartenance ; Déploiement `demande_revendeur` non échappé — 🟡.
+
+## 9. Correctifs du 26/10/2026 (commits sur `test`, tous déployés sur xyratest1)
+
+| Commit | Sujet |
+|---|---|
+| `195b3f4` | Travail Codex relu et complété : tickets (T29), annuaire, factures réservées propriétaire/Admin, facture automatique de fin de mission réparée, KPI Facturation, Réputation sans faux chiffres, `tymeless.jsx` → `xyra.jsx`, recette `docs/xyra/` |
+| `a2c3b99` | Équipe sans NaN au chargement ; Planning reçoit la société active (2 dashboards) |
+| `5897c3e` | T27 Club : aperçu réservé aux entreprises Xyra, candidatures aux fondateurs |
+| `58d406f` | Notes de frais : validation propriétaire/Admin, une seule écriture Wallet ; acompte (action dormante) sécurisé |
+| `2e5c654` | T38 Deals : plus de fuite entre entreprises ni de commission en double |
+| `157ce11` | API Xyra : SSRF du test de webhook bloquée (`app/lib/urlExterne.ts`) |
+| `c3d1a9c` | T33 : alertes d'entreprise vers le numéro de l'entreprise |
+| `2637017` | T21 : module à la carte coupé dès le premier impayé, rendu au paiement |
+| `ef432df` | Sessions : chacun ne voit/révoque que les siennes (propriétaire/Admin : toutes) ; Planning `presence_collaborateur` limité à l'entreprise |
+| `50fb208` | CRM `modifier` en liste blanche ; envois CRM/Clients/Partenaires vers le destinataire de la fiche uniquement, message échappé ; événement public réservé à la plateforme ; commande fournisseur (propriétaire/Admin, IBAN de la fiche, solde vérifié) |
+| `4359efc` | Vidéos Formation en liens signés ; jeton WhatsApp chiffré ; contrôle du forfait serveur sur stock, services-catalogue, marges-cibles ; préférences de notifications chargées et enregistrées |
+| `4000174` | Deals : « Créer le deal », « Avancer » et « Perdu » enregistrés via l'API ; deals de démonstration étiquetés « Exemple » et exclus des compteurs |
+| (ce commit) | Deals : fiche d'un vrai deal ne plante plus (historique `timeline`), Ajouter une action, Contacter/WhatsApp via le Chat, Créer un devis (brouillon), Relancer (message IA puis envoi au clic), propositions « bientôt disponible » ; Prospection : Stats réelles dès le 1er lead, exemples étiquetés |
+| `ae05b78` | T40 : notification de devis au numéro de l'entreprise ; validation OUI/NON limitée aux devis du bot Tymeless |
+| (ce commit) | T41 : signature Meta vérifiée sur le webhook WhatsApp (si `WHATSAPP_APP_SECRET`) ; échos du téléphone enregistrés |
+| (ce commit) | Notifications (lot 1) : WhatsApp déconnecté de Meta → alertes de l'entreprise (`alerterEntreprise`) et de la plateforme (`alerterPlateforme`) passent par `envoyerPartout` : WhatsApp si reconnecté, sinon **email Resend (gratuit)**, + cloche Xyra. Cartes, Réputation, Événements, Chat, Devis, Trésorerie, Analytique, Déploiement, Wallet-membres, Tickets. Lot 2 à faire : messages aux clients. |
+| (ce commit) | Notifications (lot 2) : boutons WhatsApp CRM/Clients/Deals/Partenaires disent clairement « WhatsApp n'est pas connecté — utilisez l'email » (plus de faux succès) ; inscription événement, demande d'avis Google (aussi en fin de mission) et résumé quotidien passent par l'email si WhatsApp indisponible ; relance facture comptée envoyée seulement si un envoi a réussi |
+| (ce commit) | T19 : Chat (messagerie interne) ouvert à tous les forfaits (décision écrite) ; WhatsApp-Lea réservé Enterprise / module Prospection (écran + API) ; Deals : bouton « 📱 WhatsApp » renommé « 💬 Contacter (Chat) » |
+| `d44f132` | Réputation : score « — » sans donnée (un NPS vide donnait 15/100) ; adminpanel ne montre plus 72 par défaut ; cadenas WhatsApp-Lea levé avec le module Prospection |
+| `1760b1a` | T10 Annuaire : script SQL `docs/xyra/sql/2026-10-26-T10-annuaire.sql` (tables `reseau_contacts`, `reseau_deals`, additif, RLS activée) — **à exécuter par Curtiss sur Supabase TEST** |
+
+### Point au 31/10/2026 — avant production
+- Fusion `test` → `main` simulée (`git merge-tree`) : **aucun conflit**, résultat identique à `test`, aucune migration de base nécessaire pour le code.
+- À régler avant fusion : `PLATFORM_ADMIN_EMAILS` sur le projet Vercel de production (`tymelees-saas-yzel`) ; Stripe live : événement `customer.subscription.updated`.
+- Après fusion : bucket `formations-videos` privé (Supabase PROD) ; vérification connectée sur xyraio.fr.
+- Non fait : recette connectée sur xyratest1 (facture, deal, avis 1★) ; script T10 à exécuter sur TEST.
+- Local : `SUPABASE_SERVICE_ROLE_KEY` vide dans `.env.local` (cause de l'échec du build local, pas un bug de code).
+

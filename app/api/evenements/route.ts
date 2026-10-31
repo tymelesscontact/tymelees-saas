@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { alerterEntreprise, envoyerPartout } from '../../lib/rappels';
 import { getAnthropicKey } from '../../lib/anthropicKey';
-import { estFondateurClub } from '../../lib/permissions';
+import { estFondateurClub, estAdministrateurPlateforme } from '../../lib/permissions';
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -90,6 +91,10 @@ export async function POST(req: NextRequest) {
       }
       porteeFinale = 'club';
     } else if (portee === 'public') {
+      // Visible par toutes les entreprises Xyra : reserve a l'administrateur de la plateforme.
+      if (!(await estAdministrateurPlateforme(req))) {
+        return NextResponse.json({ error: 'Seule la plateforme peut publier un evenement public' }, { status: 403 });
+      }
       porteeFinale = 'public';
     }
 
@@ -123,25 +128,22 @@ export async function POST(req: NextRequest) {
     const { data: evt } = await sb.from('evenements')
       .select('titre,max_inscrits,date_evenement,lieu').eq('id', evenement_id).single();
     if (!evt) return NextResponse.json({ error: 'Evenement introuvable' }, { status: 404 });
-    if (tel && process.env.WHATSAPP_PHONE_NUMBER_ID) {
-      await envoyerWhatsApp(tel, `Xyra Events : Inscription confirmee pour ${evt.titre} le ${new Date(evt.date_evenement).toLocaleDateString('fr')} a ${evt.lieu || ''}. A bientot !`, tenantId);
+    if (tel || email) {
+      // WhatsApp si connecte, sinon email de confirmation (gratuit).
+      await envoyerPartout(tel || null, email || null, `Xyra Events : Inscription confirmee pour ${evt.titre} le ${new Date(evt.date_evenement).toLocaleDateString('fr')} a ${evt.lieu || ''}. A bientot !`, tenantId || '', { sujet: `Inscription confirmée — ${evt.titre}` });
     }
     return NextResponse.json({ success: true, inscrits: resultat.inscrits });
   }
 
   if (action === 'inviter_reseau') {
     const { titre, date_evenement, lieu } = body;
-    const ownerTel = process.env.OWNER_WHATSAPP;
-    if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
     const dateTexte = date_evenement ? new Date(date_evenement).toLocaleDateString('fr') : '';
-    await envoyerWhatsApp(ownerTel, `Xyra Events : Invitation reseau envoyee pour ${titre} le ${dateTexte} a ${lieu || ''}.`, tenantId);
-    return NextResponse.json({ success: true });
+    const canal = await alerterEntreprise(tenantId, 'Invitation réseau', `Xyra Events : Invitation reseau envoyee pour ${titre} le ${dateTexte} a ${lieu || ''}.`);
+    if (!canal) return NextResponse.json({ error: 'Aucun numero ni email configure pour ce compte (Parametres)' }, { status: 400 });
+    return NextResponse.json({ success: true, canal });
   }
 
   if (action === 'rappels') {
-    const ownerTel = process.env.OWNER_WHATSAPP;
-    if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
-
     if (!tenantId) return NextResponse.json({ success: true, rappels: 0 });
     const { data: evts } = await sb.from('evenements').select('*').eq('statut', 'ouvert').eq('tenant_id', tenantId);
 
@@ -152,7 +154,7 @@ export async function POST(req: NextRequest) {
       const jours = Math.ceil((dateEvt.getTime() - now.getTime()) / 86400000);
       if (jours === 7 || jours === 1) {
         const nb = await compterInscrits(evt.id);
-        await envoyerWhatsApp(ownerTel, `Xyra Events rappel J-${jours} : ${evt.titre} le ${dateEvt.toLocaleDateString('fr')}. ${nb}/${evt.max_inscrits || 0} inscrits.`, tenantId);
+        await alerterEntreprise(tenantId, `Rappel événement J-${jours}`, `Xyra Events rappel J-${jours} : ${evt.titre} le ${dateEvt.toLocaleDateString('fr')}. ${nb}/${evt.max_inscrits || 0} inscrits.`);
         rappelsEnvoyes++;
       }
     }
