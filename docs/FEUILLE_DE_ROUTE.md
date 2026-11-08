@@ -647,3 +647,20 @@ Audit publié à l'origine uniquement dans la page visuelle (artefact « Feuille
 - Non fait : recette connectée sur xyratest1 (facture, deal, avis 1★) ; script T10 à exécuter sur TEST.
 - Local : `SUPABASE_SERVICE_ROLE_KEY` vide dans `.env.local` (cause de l'échec du build local, pas un bug de code).
 
+
+### Point au 08/11/2026 — audit avant production + correctifs
+Audit lecture seule de `test` (diff vers `main`, typecheck, lint, build). Correctifs commit `c078736` :
+
+| Commit | Correctif |
+|---|---|
+| `c078736` | Droits : repli `tenants.user_id` pour les anciens propriétaires (sinon 403 sur factures, fournisseurs, notes de frais… après fusion) |
+| `c078736` | Emails : l'erreur renvoyée par Resend est lue (`envoyerPartout`, relance facture) — plus de faux succès |
+| `c078736` | WhatsApp : jeton client illisible → erreur, plus d'envoi silencieux depuis le numéro Xyra |
+| `c078736` | Fin de mission : chaîne (facture + demande d'avis) une seule fois ; pas de 2e facture pour un même devis ; TVA et client relus en base |
+| `c078736` | Wallet : validation atomique acompte / note de frais / commission deal (plus de double virement) |
+| `c078736` | Stripe : état réel de l'abonnement relu avant de réactiver un module |
+| `c078736` | Deals : relance email échappée, erreur claire sans coordonnée ; fusion des exemples par `id` |
+
+- Vérifié : aucune nouvelle erreur TypeScript, build OK (98 pages). Recette sur xyratest1 à faire.
+- Reste avant fusion (Curtiss) : `PLATFORM_ADMIN_EMAILS` + `ENCRYPTION_KEY` (identique) sur Vercel prod ; Stripe live `customer.subscription.updated` ; requête de contrôle des propriétaires sur Supabase PROD ; script T10 sur TEST.
+- WhatsApp laissé en l'état (suppression de `€`/emojis connue) : le Chat interne sert de canal pour l'instant. `WHATSAPP_APP_SECRET` à n'activer qu'après confirmation que tous les numéros passent par l'app Xyra.
