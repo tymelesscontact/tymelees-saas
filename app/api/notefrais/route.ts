@@ -132,8 +132,15 @@ export async function POST(req: NextRequest) {
     if (!STATUTS_NOTE.includes(statut)) {
       return NextResponse.json({ success: false, error: "Statut invalide" }, { status: 400 })
     }
-    const uq = sb.from("notes_frais").update({ statut }).eq("id", id).eq("tenant_id", tenantId)
-    const { data: note, error } = await uq.select().single()
+    let uq = sb.from("notes_frais").update({ statut }).eq("id", id).eq("tenant_id", tenantId)
+    // Validation atomique : seule la requete qui fait vraiment passer la note en "validé"
+    // recoit la ligne (deux clics simultanes ne creent pas deux virements).
+    if (statut === "validé") uq = uq.or("statut.is.null,statut.neq.validé")
+    const { data: lignesNote, error } = await uq.select()
+    const note = lignesNote?.[0]
+    if (!error && !note && statut !== "validé") {
+      return NextResponse.json({ success: false, error: "Note introuvable" }, { status: 404 })
+    }
 
     // Note validee -> vraie ligne dans le Wallet (donc visible en Compta et Tresorerie),
     // une seule fois meme si la note est validee plusieurs fois.

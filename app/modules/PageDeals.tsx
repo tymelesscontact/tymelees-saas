@@ -25,7 +25,7 @@ const PageDeals=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPag
         setCaPipeline(data.caPipeline||0);
         setCaGagne(data.caGagne||0);
         setDeals(prev=>{
-          const merged=data.deals.map(r=>{const e=prev.find(p=>p.nom===r.nom||p.id===r.id);return e?{...e,...r}:r;});
+          const merged=data.deals.map(r=>{const e=prev.find(p=>p.id===r.id);return e?{...e,...r}:r;});
           return merged.length>0?merged:prev;
         });
       }

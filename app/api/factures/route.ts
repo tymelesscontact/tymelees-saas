@@ -105,15 +105,20 @@ export async function POST(req: NextRequest) {
       // Mission du tenant, terminee, devis lie, pas encore facture ; montant relu en base.
       let factureFinMission = false;
       if (action === 'creer' && body.mission_id && body.devis_id) {
-        const { data: missionFin } = await sb.from('missions').select('id,devis_id,statut')
+        const { data: missionFin } = await sb.from('missions').select('id,devis_id,statut,client_nom,client_email,client_tel')
           .eq('id', body.mission_id).eq('tenant_id', tenantIdPost).maybeSingle();
         if (missionFin && missionFin.statut === 'termine' && missionFin.devis_id === body.devis_id) {
           const { data: dejaFacturee } = await sb.from('factures').select('id')
             .eq('tenant_id', tenantIdPost).eq('devis_id', body.devis_id).limit(1).maybeSingle();
-          const { data: devisFin } = await sb.from('devis').select('montant')
+          const { data: devisFin } = await sb.from('devis').select('*')
             .eq('id', body.devis_id).eq('tenant_id', tenantIdPost).maybeSingle();
           if (!dejaFacturee && devisFin) {
+            // Montant, TVA et client relus en base : rien ne vient du navigateur du salarie
             body.montant_ht = devisFin.montant;
+            body.taux_tva = devisFin.taux_tva ?? undefined;
+            body.client_nom = missionFin.client_nom || devisFin.client_nom || body.client_nom;
+            body.client_email = missionFin.client_email || devisFin.client_email || null;
+            body.client_tel = missionFin.client_tel || devisFin.client_tel || null;
             factureFinMission = true;
           }
         }
@@ -131,6 +136,12 @@ export async function POST(req: NextRequest) {
 
     const tenantIdCreer = await getTenantIdFromRequest(req);
     if (!tenantIdCreer) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    // Facture automatique de fin de mission : jamais deux fois pour le meme devis (admin compris)
+    if (body.mission_id && devis_id) {
+      const { data: dejaFactureeMission } = await sb.from('factures').select('id')
+        .eq('tenant_id', tenantIdCreer).eq('devis_id', devis_id).limit(1).maybeSingle();
+      if (dejaFactureeMission) return NextResponse.json({ success: true, deja_facturee: true, facture_id: dejaFactureeMission.id });
+    }
     const { count } = await sb.from('factures').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantIdCreer);
     const annee = new Date().getFullYear();
     const numero = `FA-${annee}-${String((count || 0) + 1).padStart(4, '0')}`;
@@ -300,14 +311,15 @@ export async function POST(req: NextRequest) {
         const pdfBuffer = await genererPdfFacture(facture);
         const { Resend } = await import('resend');
         const resend = new Resend(process.env.RESEND_API_KEY);
-        await resend.emails.send({
+        const { error: erreurRelance } = await resend.emails.send({
           from: 'Xyra <notifications@xyraio.fr>',
           to: facture.client_email,
           subject: `Rappel — Facture ${facture.numero} en attente de paiement`,
           html: `<div style="font-family:sans-serif;padding:24px;"><p>Bonjour ${facture.client_nom},</p><p>Petit rappel : votre facture ${facture.numero} d'un montant de <strong>${facture.montant_ttc}€</strong> est toujours en attente de paiement (facture jointe).</p>${lien ? `<p><a href="${lien}" style="background:#C9A84C;color:#000;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">Payer maintenant</a></p>` : ''}</div>`,
           attachments: [{ filename: `Facture-${facture.numero}.pdf`, content: pdfBuffer.toString('base64') }],
         });
-        envoye = true;
+        if (erreurRelance) console.error('Email error:', erreurRelance.message);
+        else envoye = true;
       } catch (e) { console.error('Email error:', e); }
     }
     if (facture.client_tel) {

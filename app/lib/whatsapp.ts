@@ -50,6 +50,12 @@ export async function envoyerWhatsApp(to: string, message: string, tenantId?: st
         .select('whatsapp_phone_number_id,whatsapp_token,whatsapp_actif')
         .eq('id', tenantId).maybeSingle();
       const jetonTenant = jetonWhatsAppLisible(t?.whatsapp_token);
+      // Le client a son propre numero mais son jeton ne se dechiffre pas (ENCRYPTION_KEY
+      // absente ou changee) : on refuse plutot que d'envoyer en silence depuis le numero Xyra.
+      if (t?.whatsapp_actif && t.whatsapp_phone_number_id && t.whatsapp_token && !jetonTenant) {
+        console.error('WhatsApp tenant: jeton illisible pour', tenantId);
+        return { ok: false, raison: 'jeton_whatsapp_illisible' };
+      }
       if (t?.whatsapp_actif && t.whatsapp_phone_number_id && jetonTenant) {
         phoneId = t.whatsapp_phone_number_id;
         token = jetonTenant;

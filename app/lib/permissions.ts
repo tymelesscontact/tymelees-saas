@@ -26,6 +26,9 @@ export async function estAutoriseGererEquipe(req: NextRequest, tenantId: string)
   if (!authVerif?.user) return false;
   const { data: membreVerif } = await sbAdmin.from('tenant_membres').select('role').eq('user_id', authVerif.user.id).eq('tenant_id', tenantId).maybeSingle();
   if (membreVerif?.role === 'owner') return true;
+  // Repli tenants.user_id : comptes proprietaires crees avant l'entree "owner" dans tenant_membres
+  const { data: tenantProprio } = await sbAdmin.from('tenants').select('id').eq('id', tenantId).eq('user_id', authVerif.user.id).maybeSingle();
+  if (tenantProprio) return true;
   const { data: monEquipe } = await sbAdmin.from('equipe').select('role').eq('user_id', authVerif.user.id).eq('tenant_id', tenantId).maybeSingle();
   return monEquipe?.role === 'Admin';
 }
@@ -36,7 +39,10 @@ export async function estProprietaireDuTenant(req: NextRequest, tenantId: string
   const { data: authVerif } = await sbAdmin.auth.getUser(tokenVerif);
   if (!authVerif?.user) return false;
   const { data: membreVerif } = await sbAdmin.from('tenant_membres').select('role').eq('user_id', authVerif.user.id).eq('tenant_id', tenantId).maybeSingle();
-  return membreVerif?.role === 'owner';
+  if (membreVerif?.role === 'owner') return true;
+  // Meme repli tenants.user_id que estAutoriseGererEquipe
+  const { data: tenantProprio } = await sbAdmin.from('tenants').select('id').eq('id', tenantId).eq('user_id', authVerif.user.id).maybeSingle();
+  return !!tenantProprio;
 }
 
 // Club d'affaires : n'a pas de tenant_id (les membres ne sont pas forcement des tenants Xyra),

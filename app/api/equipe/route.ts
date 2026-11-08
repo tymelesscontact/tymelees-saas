@@ -851,7 +851,10 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
     if (!acompte) return NextResponse.json({ error: 'Acompte introuvable' }, { status: 404 });
     if (acompte.statut !== 'en_attente') return NextResponse.json({ error: 'Acompte deja traite' }, { status: 409 });
     const nomAcompte = acompte.nom_employe || nom_employe || '';
-    await sb.from('acomptes').update({ statut: 'validé' }).eq('id', id).eq('tenant_id', tenantId);
+    // Passage atomique en_attente -> validé : en cas de double clic, une seule requete gagne
+    const { data: acompteValide } = await sb.from('acomptes').update({ statut: 'validé' })
+      .eq('id', id).eq('tenant_id', tenantId).eq('statut', 'en_attente').select('id');
+    if (!acompteValide || acompteValide.length === 0) return NextResponse.json({ error: 'Acompte deja traite' }, { status: 409 });
     // Crée une vraie transaction dans le wallet
     await sb.from('wallet_transactions').insert({
       type: 'acompte',

@@ -105,12 +105,16 @@ export async function POST(req: NextRequest) {
     const champsMaj: any = { statut };
     if (statut === 'confirme') champsMaj.prise_connaissance_le = new Date().toISOString();
 
+    // Statut avant modification : la chaine de fin de mission ne doit partir qu'une fois
+    const { data: avant } = await sb.from('missions').select('statut').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    const dejaTerminee = avant?.statut === 'termine';
+
     const { error } = await sb.from('missions')
       .update(champsMaj).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     // Chaine automatique quand une mission se termine : demande d'avis + facture si devis lie
-    if (statut === 'termine') {
+    if (statut === 'termine' && !dejaTerminee) {
       try {
         const { data: mission } = await sb.from('missions').select('*').eq('id', id).maybeSingle();
         if (mission?.client_tel || mission?.client_email) {

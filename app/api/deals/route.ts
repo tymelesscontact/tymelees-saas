@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { echapHtml } from '../../lib/walletValidation';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -128,11 +129,16 @@ export async function POST(req: NextRequest) {
       fields.commission_montant = Math.round(Number(valeur) * Number(pct) / 100);
     }
 
-    const { error } = await sb.from('deals').update(fields).eq('id', id).eq('tenant_id', tenantId);
+    // Passage en "Gagné" atomique : seule la requete qui fait vraiment la transition
+    // cree la commission (deux clics simultanes ne creent pas deux virements).
+    const passageGagne = fields.etape === 'Gagné' && oldEtape !== 'Gagné';
+    let majDeal = sb.from('deals').update(fields).eq('id', id).eq('tenant_id', tenantId);
+    if (passageGagne) majDeal = majDeal.or('etape.is.null,etape.neq.Gagné');
+    const { data: lignesDeal, error } = await majDeal.select('id');
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
     // Si passage en "Gagné" → créer transaction commission dans Wallet (une seule fois par deal)
-    if (fields.etape === 'Gagné' && oldEtape !== 'Gagné') {
+    if (passageGagne && lignesDeal && lignesDeal.length > 0) {
       const { data: deal } = await sb.from('deals').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
       const { data: commissionExistante } = await sb.from('wallet_transactions').select('id')
         .eq('ref', `DEAL-COMM-${id}`).eq('tenant_id', tenantId).limit(1).maybeSingle();
@@ -213,12 +219,15 @@ Message court, naturel, non commercial, en français. 3-4 phrases max. Objectif 
     // Destinataire relu en base : on ne relaie jamais vers un numero/email fourni par le navigateur.
     const { data: deal } = await sb.from('deals').select('id,nom,tel,email').eq('id', body.deal.id).eq('tenant_id', tenantId).maybeSingle();
     if (!deal) return NextResponse.json({ error: 'Deal introuvable' }, { status: 404 });
+    // Pas de faux succes : sans coordonnee pour le canal choisi, rien ne peut partir
+    if (canal === 'whatsapp' && !deal.tel) return NextResponse.json({ error: "Ce deal n'a pas de numéro de téléphone" }, { status: 400 });
+    if (canal === 'email' && !deal.email) return NextResponse.json({ error: "Ce deal n'a pas d'adresse email" }, { status: 400 });
     try {
       if (canal === 'whatsapp' && deal.tel) {
         const envoi = await envoyerWhatsApp(deal.tel, message, tenantId);
         if (!envoi?.ok) return NextResponse.json({ error: "WhatsApp n'est pas connecté pour le moment — utilisez l'envoi par email" }, { status: 503 });
       }
-      if (canal === 'email' && deal.email) await sendEmail(deal.email, `Suivi — ${deal.nom}`, `<p>${message.replace(/\n/g, '<br>')}</p>`);
+      if (canal === 'email' && deal.email) await sendEmail(deal.email, `Suivi — ${deal.nom}`, `<p>${echapHtml(message).replace(/\n/g, '<br>')}</p>`);
       await sb.from('deals_timeline').insert({ deal_id: deal.id, type: 'relance', description: `Relance envoyée par ${canal}`, operateur: 'Curtiss' });
       await sb.from('deals').update({ dernierContact: new Date().toISOString().split('T')[0], updated_at: new Date().toISOString() }).eq('id', deal.id).eq('tenant_id', tenantId);
     } catch (e: any) {

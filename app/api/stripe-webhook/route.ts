@@ -388,6 +388,12 @@ export async function POST(req: NextRequest) {
         }
       } else if (['active', 'trialing'].includes(subscription.status)) {
         // Abonnement de nouveau paye (un abonnement supprime ne revient jamais a 'active').
+        // Stripe ne garantit pas l'ordre des evenements : on relit l'etat reel avant de reactiver,
+        // pour qu'un vieil evenement "active" ne ranime pas un module resilie entre-temps.
+        const abonnementReel = await stripe.subscriptions.retrieve(subscription.id);
+        if (!['active', 'trialing'].includes(abonnementReel.status)) {
+          return NextResponse.json({ received: true });
+        }
         await sb.from('modules_actifs')
           .update({ statut: 'actif', date_fin: null })
           .eq('stripe_subscription_id', subscription.id)

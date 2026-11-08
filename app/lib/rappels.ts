@@ -24,7 +24,8 @@ export async function envoyerPartout(tel: string | null, email: string | null, t
     try {
       const { Resend } = await import('resend');
       const resend = new Resend(process.env.RESEND_API_KEY);
-      await resend.emails.send({
+      // Resend ne leve pas d'erreur en cas d'echec : il renvoie { error }
+      const { error: erreurEnvoi } = await resend.emails.send({
         from: 'Xyra <notifications@xyraio.fr>', to: email, subject: options?.sujet || 'Rappel de rendez-vous',
         html: `<p style="white-space:pre-line">${echapHtml(texte)}</p>`,
         ...(options?.replyTo ? { replyTo: options.replyTo } : {}),
@@ -33,6 +34,7 @@ export async function envoyerPartout(tel: string | null, email: string | null, t
         // de discussion au lieu d'emails separes.
         ...(options?.enReponseA ? { headers: { 'In-Reply-To': options.enReponseA, 'References': options.enReponseA } } : {}),
       });
+      if (erreurEnvoi) throw new Error(erreurEnvoi.message);
       return 'email';
     } catch (e: any) { console.error('Rappel email:', e.message); }
   }
