@@ -148,20 +148,24 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
 
   const validerAbsence = async (id: string, statut: string) => {
     try {
-      await fetch("/api/absences", {
+      const r = await fetch("/api/absences", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "valider", id, statut }),
       });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) showToast("❌ " + (d.error || "Action refusée"));
       charger();
     } catch { showToast("❌ Erreur"); }
   };
 
   const confirmerDeclarationEmployeur = async (id: string) => {
     try {
-      await fetch("/api/absences", {
+      const r = await fetch("/api/absences", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "confirmer_declaration_employeur", id }),
       });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { showToast("❌ " + (d.error === "reserve_au_proprietaire_ou_admin" ? "Réservé au propriétaire ou à un Admin" : (d.error || "Action refusée"))); return; }
       showToast("✅ Déclaration confirmée");
       charger();
     } catch { showToast("❌ Erreur"); }
@@ -241,7 +245,13 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
                 <div style={{ fontSize: 13 }}>{s.contenu}</div>
               </div>
               <BtnGhost onClick={async () => {
-                await fetch("/api/signalements", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "resoudre", id: s.id }) });
+                // La resolution (texte) est obligatoire cote serveur : on la demande, et on ne retire
+                // le signalement de la liste que si le serveur a bien accepte.
+                const resolution = window.prompt("Comment ce signalement a-t-il été résolu ?");
+                if (!resolution?.trim()) return;
+                const r = await fetch("/api/signalements", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "resoudre", id: s.id, resolution }) });
+                const d = await r.json().catch(() => ({}));
+                if (!r.ok || d.error) { showToast("❌ " + (d.error || "Action refusée")); return; }
                 setSignalements((sig) => sig.filter((x) => x.id !== s.id));
               }} style={{ fontSize: 10, padding: "4px 10px", whiteSpace: "nowrap" as any }}>✓ Résolu</BtnGhost>
             </div>

@@ -2,12 +2,21 @@ import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { calculerTva } from '../../lib/reglesTva';
-import { estAutoriseGererEquipe } from '../../lib/permissions';
+import { estAutoriseGererEquipe, estProprietaireDuTenant } from '../../lib/permissions';
 const STATUTS_NOTE = ["en_attente", "validé", "refusé", "remboursé"]
 function getAdminClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL!
   const key = process.env.SUPABASE_SERVICE_ROLE_KEY!
   return createClient(url, key)
+}
+// Nom (prenom + nom) de la personne connectee dans l'equipe de ce tenant
+async function monNomEquipe(req: NextRequest, sb: any, tenantId: string): Promise<string | null> {
+  const token = req.cookies.get("sb-access-token")?.value
+  if (!token) return null
+  const { data: auth } = await sb.auth.getUser(token)
+  if (!auth?.user) return null
+  const { data: moi } = await sb.from("equipe").select("prenom,nom").eq("user_id", auth.user.id).eq("tenant_id", tenantId).maybeSingle()
+  return moi ? `${moi.prenom || ""} ${moi.nom || ""}`.trim() || null : null
 }
 export async function GET(req: NextRequest) {
   const acces = await verifierAccesModule(req, "notefrais")
@@ -20,6 +29,12 @@ export async function GET(req: NextRequest) {
   let q = sb.from("notes_frais").select("*").eq("tenant_id", tenantId).order("date", { ascending: false })
   const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
   if (companyId && UUID.test(companyId)) q = q.eq("company_id", companyId)
+  // Un salarie ne voit que ses propres notes ; le RH / proprietaire voit tout
+  if (!(await estAutoriseGererEquipe(req, tenantId))) {
+    const monNom = await monNomEquipe(req, sb, tenantId)
+    if (!monNom) return NextResponse.json({ notes: [], budgets: {} })
+    q = q.ilike("employe", monNom)
+  }
   const { data, error } = await q
   if (error) {
     return NextResponse.json({ error: error.message }, { status: 500 })
@@ -128,6 +143,14 @@ export async function POST(req: NextRequest) {
     // Valider/rembourser engage de l'argent : proprietaire ou Admin uniquement.
     if (!(await estAutoriseGererEquipe(req, tenantId))) {
       return NextResponse.json({ success: false, error: "reserve_au_proprietaire_ou_admin" }, { status: 403 })
+    }
+    // Personne ne valide sa propre note (sauf le proprietaire de l'entreprise)
+    if (!(await estProprietaireDuTenant(req, tenantId))) {
+      const monNom = await monNomEquipe(req, sb, tenantId)
+      const { data: noteCible } = await sb.from("notes_frais").select("employe").eq("id", id).eq("tenant_id", tenantId).maybeSingle()
+      if (monNom && noteCible?.employe && noteCible.employe.trim().toLowerCase() === monNom.toLowerCase()) {
+        return NextResponse.json({ success: false, error: "Vous ne pouvez pas valider votre propre note" }, { status: 403 })
+      }
     }
     if (!STATUTS_NOTE.includes(statut)) {
       return NextResponse.json({ success: false, error: "Statut invalide" }, { status: 400 })

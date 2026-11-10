@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
-import { estAutoriseGererEquipe } from '../../lib/permissions';
+import { estAutoriseGererEquipe, estProprietaireDuTenant } from '../../lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +9,51 @@ const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+// Fiche "equipe" de la personne connectee dans ce tenant (null si pas salariee ici)
+async function maFicheEquipe(req: NextRequest, tenantId: string): Promise<string | null> {
+  const token = req.cookies.get('sb-access-token')?.value;
+  if (!token) return null;
+  const { data: auth } = await sb.auth.getUser(token);
+  if (!auth?.user) return null;
+  const { data: moi } = await sb.from('equipe').select('id').eq('user_id', auth.user.id).eq('tenant_id', tenantId).maybeSingle();
+  return moi?.id || null;
+}
+
+// Jours feries francais (fixes + Paques, Ascension, Pentecote) pour une annee
+function joursFeries(annee: number): Set<string> {
+  const a = annee % 19, b = Math.floor(annee / 100), c = annee % 100, d = Math.floor(b / 4), e = b % 4;
+  const f = Math.floor((b + 8) / 25), g = Math.floor((b - f + 1) / 3), h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4, l = (32 + 2 * e + 2 * i - h - k) % 7, m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mois = Math.floor((h + l - 7 * m + 114) / 31), jour = ((h + l - 7 * m + 114) % 31) + 1;
+  const paques = Date.UTC(annee, mois - 1, jour);
+  const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
+  const j = 86400000;
+  return new Set([
+    `${annee}-01-01`, `${annee}-05-01`, `${annee}-05-08`, `${annee}-07-14`,
+    `${annee}-08-15`, `${annee}-11-01`, `${annee}-11-11`, `${annee}-12-25`,
+    iso(paques + j), iso(paques + 39 * j), iso(paques + 50 * j),
+  ]);
+}
+
+// Conges payes : decompte en jours ouvrables (lundi-samedi, hors jours feries).
+// Autres absences : jours calendaires.
+function compterJours(type: string, debut: string, fin?: string | null): number {
+  const d0 = Date.parse(debut + 'T00:00:00Z'), d1 = Date.parse((fin || debut) + 'T00:00:00Z');
+  if (isNaN(d0) || isNaN(d1) || d1 < d0) return 1;
+  if (type !== 'conge_paye') return Math.round((d1 - d0) / 86400000) + 1;
+  let n = 0;
+  const feries: Record<number, Set<string>> = {};
+  for (let t = d0; t <= d1; t += 86400000) {
+    const dt = new Date(t);
+    if (dt.getUTCDay() === 0) continue;
+    const an = dt.getUTCFullYear();
+    feries[an] = feries[an] || joursFeries(an);
+    if (feries[an].has(dt.toISOString().slice(0, 10))) continue;
+    n++;
+  }
+  return Math.max(1, n);
+}
 
 const TYPES_VALIDES = [
   'conge_paye', 'conge_sans_solde', 'arret_maladie', 'accident_travail',
@@ -117,10 +162,13 @@ export async function POST(req: NextRequest) {
     const { data: emp } = await sb.from('equipe').select('id,nom,prenom')
       .eq('id', employe_id).eq('tenant_id', tenantId).maybeSingle();
     if (!emp) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    // Un salarie ne declare une absence que pour lui-meme ; le RH/proprietaire pour n'importe qui
+    if (!(await estAutoriseGererEquipe(req, tenantId))) {
+      const moiId = await maFicheEquipe(req, tenantId);
+      if (moiId !== employe_id) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    }
 
-    const jours = fin
-      ? Math.max(1, Math.round((new Date(fin).getTime() - new Date(debut).getTime()) / 86400000) + 1)
-      : 1;
+    const jours = compterJours(type, debut, fin);
 
     const { data, error } = await sb.from('absences').insert({
       tenant_id: tenantId, employe_id,
@@ -146,8 +194,17 @@ export async function POST(req: NextRequest) {
     if (!['validee', 'refusee'].includes(statut)) {
       return NextResponse.json({ error: 'Statut invalide' }, { status: 400 });
     }
-    const { data: cibleValidation } = await sb.from('absences').select('employe_id').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    const { data: cibleValidation } = await sb.from('absences').select('employe_id,statut').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
     if (!cibleValidation) return NextResponse.json({ error: 'Demande introuvable' }, { status: 404 });
+    // Deja tranchee dans ce sens : rien a faire (evite de decompter deux fois)
+    if (cibleValidation.statut === statut) return NextResponse.json({ error: 'Demande deja traitee' }, { status: 409 });
+    // Seule une demande en attente peut etre validee ; une demande validee peut encore etre annulee (refusee)
+    if (statut === 'validee' && cibleValidation.statut !== 'en_attente') return NextResponse.json({ error: 'Demande deja traitee' }, { status: 409 });
+    // Personne ne valide sa propre demande, sauf le proprietaire de l'entreprise
+    const moiValideur = await maFicheEquipe(req, tenantId);
+    if (moiValideur && moiValideur === cibleValidation.employe_id && !(await estProprietaireDuTenant(req, tenantId))) {
+      return NextResponse.json({ error: 'Vous ne pouvez pas valider votre propre demande' }, { status: 403 });
+    }
 
     const autoriseRH = await estAutoriseGererEquipe(req, tenantId);
     let autoriseResponsable = false;
@@ -170,14 +227,18 @@ export async function POST(req: NextRequest) {
 
     const { data: absValidee, error } = await sb.from('absences')
       .update({ statut, motif_refus: motif_refus || null, valide_le: new Date().toISOString() })
-      .eq('id', id).eq('tenant_id', tenantId).select('type,jours,employe_id').single();
+      // Transition atomique depuis le statut lu : deux clics ne decomptent pas deux fois
+      .eq('id', id).eq('tenant_id', tenantId).eq('statut', cibleValidation.statut).select('type,jours,employe_id').maybeSingle();
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (!absValidee) return NextResponse.json({ error: 'Demande deja traitee' }, { status: 409 });
 
-    // Congé payé validé : decompte reel du solde de l'employe.
-    if (statut === 'validee' && absValidee?.type === 'conge_paye') {
+    // Congé payé : validé -> on retire les jours ; validé puis annulé -> on les rend.
+    const ancienStatut = cibleValidation.statut;
+    if (absValidee.type === 'conge_paye' && (statut === 'validee' || ancienStatut === 'validee')) {
       const { data: empSolde } = await sb.from('equipe').select('conges_solde').eq('id', absValidee.employe_id).eq('tenant_id', tenantId).maybeSingle();
       if (empSolde) {
-        await sb.from('equipe').update({ conges_solde: Math.max(0, Number(empSolde.conges_solde || 0) - Number(absValidee.jours || 1)) }).eq('id', absValidee.employe_id).eq('tenant_id', tenantId);
+        const delta = statut === 'validee' ? -Number(absValidee.jours || 1) : Number(absValidee.jours || 1);
+        await sb.from('equipe').update({ conges_solde: Math.max(0, Number(empSolde.conges_solde || 0) + delta) }).eq('id', absValidee.employe_id).eq('tenant_id', tenantId);
       }
     }
     return NextResponse.json({ success: true });

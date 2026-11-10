@@ -147,11 +147,14 @@ const PageNoteFrais=({plan,modulesActifs,showToast,activeCompany,UpgradeWall})=>
 
   const updateStatut=async(id,statut,msg)=>{
     try{
-      await fetch('/api/notefrais',{
+      const res=await fetch('/api/notefrais',{
         method:'POST',
         headers:{'Content-Type':'application/json'},
         body:JSON.stringify({action:'update',id,statut}),
       });
+      const data=await res.json().catch(()=>({}));
+      // Pas de faux succes : on n'affiche le nouveau statut que si le serveur l'a accepte
+      if(!res.ok||data.success===false){showToast("❌ "+(data.error==="reserve_au_proprietaire_ou_admin"?"Réservé au propriétaire ou à un Admin":(data.error||"Action refusée")));return;}
       setNotes(n=>n.map(x=>x.id===id?{...x,statut}:x));
       showToast(msg);
     }catch(e){showToast("❌ Erreur");}

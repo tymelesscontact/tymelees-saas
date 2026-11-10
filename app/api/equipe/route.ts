@@ -366,6 +366,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, document: docInsere });
     }
 
+    // Ajouter une video au catalogue de formation : RH / proprietaire uniquement
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const titre = String(formData.get('titre') || '').trim();
     const description = String(formData.get('description') || '');
     const fichier = formData.get('video') as File | null;
@@ -784,8 +786,21 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
   if (action === 'modifier') {
     if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { id, ...fields } = body;
-    if ('peut_signer_devis' in fields && !(await estProprietaireDuTenant(req, tenantId))) {
+    // Champs techniques jamais modifiables depuis l'ecran (rattachement compte/entreprise)
+    for (const champ of ['action', 'id', 'tenant_id', 'user_id', 'created_at']) delete (fields as any)[champ];
+    const estProprio = await estProprietaireDuTenant(req, tenantId);
+    if ('peut_signer_devis' in fields && !estProprio) {
       return NextResponse.json({ error: 'reserve_au_proprietaire' }, { status: 403 });
+    }
+    // Un Admin ne modifie pas son propre salaire, role ou solde de conges (seul le proprietaire le peut)
+    if (!estProprio) {
+      const tokenModif = req.cookies.get('sb-access-token')?.value;
+      const { data: authModif } = tokenModif ? await sbAdmin.auth.getUser(tokenModif) : { data: null as any };
+      const { data: cibleModif } = await sb.from('equipe').select('user_id').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+      const champsPerso = ['salaire', 'salaire_brut', 'role', 'conges_solde', 'paie', 'acomptes'];
+      if (authModif?.user && cibleModif?.user_id === authModif.user.id && champsPerso.some(c => c in fields)) {
+        return NextResponse.json({ error: 'Vous ne pouvez pas modifier votre propre salaire, rôle ou solde' }, { status: 403 });
+      }
     }
     const { error } = await sb.from('equipe').update(fields).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -844,6 +859,14 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
     const { data: acompte } = await sb.from('acomptes').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
     if (!acompte) return NextResponse.json({ error: 'Acompte introuvable' }, { status: 404 });
     if (acompte.statut !== 'en_attente') return NextResponse.json({ error: 'Acompte deja traite' }, { status: 409 });
+    if (!(await estProprietaireDuTenant(req, tenantId))) {
+      const tokenAc = req.cookies.get('sb-access-token')?.value;
+      const { data: authAc } = tokenAc ? await sbAdmin.auth.getUser(tokenAc) : { data: null as any };
+      const { data: moiAc } = authAc?.user ? await sb.from('equipe').select('id').eq('user_id', authAc.user.id).eq('tenant_id', tenantId).maybeSingle() : { data: null as any };
+      if (moiAc && acompte.employe_id && moiAc.id === acompte.employe_id) {
+        return NextResponse.json({ error: 'Vous ne pouvez pas valider votre propre acompte' }, { status: 403 });
+      }
+    }
     const nomAcompte = acompte.nom_employe || nom_employe || '';
     // Passage atomique en_attente -> validé : en cas de double clic, une seule requete gagne
     const { data: acompteValide } = await sb.from('acomptes').update({ statut: 'validé' })
@@ -1015,11 +1038,12 @@ Rédige une analyse RH courte (4-5 phrases) avec une recommandation concrète su
     const { data: tenantPaie } = await sb.from('tenants').select('societe,nom_contact').eq('id', tenantId).maybeSingle();
     const signaturePaie = [tenantPaie?.societe ? echapperHtml(tenantPaie.societe) : '', tenantPaie?.nom_contact ? `Signé ${echapperHtml(tenantPaie.nom_contact)}` : ''].filter(Boolean).join(' · ');
     const html = `<div style="font-family:sans-serif;padding:24px;max-width:600px;">
-      <h2 style="color:#C9A84C">Fiche de paie — ${mois}</h2>
+      <h2 style="color:#C9A84C">Estimation de salaire — ${mois}</h2>
+      <p style="background:#fff4e0;padding:10px;border-radius:6px;font-size:13px;">Document indicatif : ce n'est pas un bulletin de paie. Taux forfaitaires, hors absences, heures supplémentaires et acomptes. Seul le bulletin établi par votre employeur ou son cabinet fait foi.</p>
       <p><strong>${m.prenom || ''} ${m.nom}</strong> · ${m.role}</p>
       <table style="width:100%;border-collapse:collapse;margin-top:16px;">
         <tr style="background:#f5f5f5"><td style="padding:8px">Salaire brut</td><td style="padding:8px;text-align:right"><strong>${paie.salaireBrut}€</strong></td></tr>
-        <tr><td style="padding:8px">Charges salariales (22%)</td><td style="padding:8px;text-align:right">-${paie.chargesSalariales}€</td></tr>
+        <tr><td style="padding:8px">Charges salariales (estimation forfaitaire 22%)</td><td style="padding:8px;text-align:right">-${paie.chargesSalariales}€</td></tr>
         <tr style="background:#f5f5f5"><td style="padding:8px"><strong>Salaire net à payer</strong></td><td style="padding:8px;text-align:right"><strong style="color:#2EC9B0">${paie.salaireNet}€</strong></td></tr>
         <tr><td style="padding:8px;color:#888">Charges patronales (42%)</td><td style="padding:8px;text-align:right;color:#888">${paie.chargesPatronales}€</td></tr>
         <tr style="background:#f5f5f5"><td style="padding:8px;color:#888">Coût total employeur</td><td style="padding:8px;text-align:right;color:#888">${paie.coutTotal}€</td></tr>
@@ -1031,7 +1055,7 @@ Rédige une analyse RH courte (4-5 phrases) avec une recommandation concrète su
     if (envoyer !== false) {
       if (!m.email) return NextResponse.json({ error: 'Aucun email pour cet employé' }, { status: 400 });
       try {
-        await sendEmail(m.email, `Votre fiche de paie — ${mois}`, html);
+        await sendEmail(m.email, `Estimation de salaire (indicatif) — ${mois}`, html);
         envoyee = true;
       } catch (e: any) {
         return NextResponse.json({ error: 'Envoi email échoué : ' + e.message }, { status: 500 });

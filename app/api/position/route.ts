@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
+import { estAutoriseGererEquipe } from '../../lib/permissions';
 
 export const dynamic = 'force-dynamic';
 
@@ -50,6 +51,8 @@ export async function GET(req: NextRequest) {
   if (!acces.ok) return acces.reponse;
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ error: 'non_connecte' }, { status: 401 });
+  // Position des collegues : reservee au RH / proprietaire (donnee personnelle)
+  if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ positions: [] });
 
   const { data: positions } = await sb.from('positions_collaborateurs')
     .select('*, equipe(nom,prenom), missions(client_nom,adresse)')

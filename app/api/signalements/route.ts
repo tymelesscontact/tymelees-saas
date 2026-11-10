@@ -20,7 +20,8 @@ export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);
   const missionId = searchParams.get('mission_id');
   // vue "equipe" : les collaborateurs voient le contenu, jamais l'auteur (donnee sensible pour Bene)
-  const vueEquipe = searchParams.get('vue') === 'equipe';
+  // L'auteur n'est visible que du RH / proprietaire, quel que soit le parametre envoye par l'ecran
+  const vueEquipe = searchParams.get('vue') === 'equipe' || !(await estAutoriseGererEquipe(req, tenantId));
 
   let q = sb.from('signalements_mission').select('*, signalement_photos(id,chemin)').eq('tenant_id', tenantId);
   if (missionId) q = q.eq('mission_id', missionId);
@@ -53,8 +54,14 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
     }
 
-    const { data: emp } = await sb.from('equipe').select('id').eq('id', collaborateur_id).eq('tenant_id', tenantId).maybeSingle();
+    const { data: emp } = await sb.from('equipe').select('id,user_id').eq('id', collaborateur_id).eq('tenant_id', tenantId).maybeSingle();
     if (!emp) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    // Un salarie signale en son propre nom (pas au nom d'un collegue) ; le RH peut saisir pour un autre
+    if (!(await estAutoriseGererEquipe(req, tenantId))) {
+      const tokenSig = req.cookies.get('sb-access-token')?.value;
+      const { data: authSig } = tokenSig ? await sb.auth.getUser(tokenSig) : { data: null as any };
+      if (!authSig?.user || emp.user_id !== authSig.user.id) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    }
 
     const { data: signalement, error } = await sb.from('signalements_mission').insert({
       tenant_id: tenantId, mission_id, collaborateur_id, type,
