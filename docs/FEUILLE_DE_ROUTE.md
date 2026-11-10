@@ -677,3 +677,10 @@ Audit lecture seule de `test` (diff vers `main`, typecheck, lint, build). Correc
 - Reste : vérification connectée sur xyraio.fr (facture visible, PDF, vidéos de formation) ; script T10 (Annuaire) à exécuter sur TEST.
 - Contrôles PROD (lecture) : `api_logs.tenant_id` présente ; `modules_actifs` accepte « suspendu » ; 1 seul ticket sans entreprise (test interne Xyra, résolu) ; tables Annuaire absentes (T10 à faire).
 - T10 Annuaire : script exécuté sur TEST (par Curtiss) et sur PROD (par Claude, 10/11) — tables `reseau_contacts` et `reseau_deals` créées, RLS activée.
+
+### 10/11/2026 — RH : audit, correctifs, veille concurrents
+- `bfb997f` : données de santé/salaires/évaluations/documents/GPS cachés aux collègues ; route Équipe sur les droits partagés (repli propriétaire).
+- `d65c206` : étape 1 — congés (validation unique, annulation rend les jours, jours ouvrables hors fériés, pas d'auto-validation), acompte et note de frais non auto-validables, `modifier` protégé, vidéo réservée RH, « fiche de paie » → « estimation de salaire (indicatif) », notes de frais visibles par leur auteur seulement, GPS réservé RH, signalements protégés, plus de faux succès Planning.
+- `f8fab65` : **Remplacement en un clic** (Planning → « Missions à couvrir » → Remplacer → remplaçant prévenu WhatsApp/email/SMS, client en option).
+- Veille RH (Skello, Combo, Connecteam, Lucca, PayFit, Factorial…) — prochaines fonctions : pointage géolocalisé chez le client, feuille d'heures signée → export cabinet, alertes légales du planning, notes de frais/km depuis l'app salarié, demande d'acompte salarié.
+- Restent : fausses alertes RH codées en dur dans `adminpanel.jsx` (~l.7061-7095) à remplacer par de vraies alertes (accord requis) ; facturation électronique (promesses fausses à corriger, mentions PDF, raccordement PA avant 09/2027).
