@@ -684,3 +684,6 @@ Audit lecture seule de `test` (diff vers `main`, typecheck, lint, build). Correc
 - `f8fab65` : **Remplacement en un clic** (Planning → « Missions à couvrir » → Remplacer → remplaçant prévenu WhatsApp/email/SMS, client en option).
 - Veille RH (Skello, Combo, Connecteam, Lucca, PayFit, Factorial…) — prochaines fonctions : pointage géolocalisé chez le client, feuille d'heures signée → export cabinet, alertes légales du planning, notes de frais/km depuis l'app salarié, demande d'acompte salarié.
 - Restent : fausses alertes RH codées en dur dans `adminpanel.jsx` (~l.7061-7095) à remplacer par de vraies alertes (accord requis) ; facturation électronique (promesses fausses à corriger, mentions PDF, raccordement PA avant 09/2027).
+- `43394b1` : demande d'acompte par le salarié (espace salarié → « Acompte ») + validation RH à l'écran (Équipe → « Acomptes à valider »).
+- `c037792` : pointage chez le client — heure réelle d'arrivée/fin, position comparée à l'adresse (Base Adresse Nationale, alerte > 300 m), prévu vs réel dans Dispatch.
+- `c2b5d96` : **Biens & QR codes** — fiche par logement (codes d'accès, boîte à clés, Wi-Fi, consignes), QR imprimable ; scan = arrivée puis départ, codes montrés seulement si mission du jour, patron prévenu à chaque scan. SQL `docs/xyra/sql/2026-11-10-biens-qr.sql` exécuté sur TEST (Curtiss) et PROD (Claude, 10/11).
