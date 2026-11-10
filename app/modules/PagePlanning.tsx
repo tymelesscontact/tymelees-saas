@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef } from "react";
 import { C, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
+import { QRCodeSVG } from "qrcode.react";
 
 const TYPE_LABELS: Record<string, string> = {
   conge_paye: "Congé payé", conge_sans_solde: "Congé sans solde",
@@ -19,8 +20,13 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
   const [showNouvelleMission, setShowNouvelleMission] = useState(false);
   const [missionForm, setMissionForm] = useState({
     client_nom: "", client_email: "", client_tel: "", date_mission: "",
-    heure_debut: "", heure_fin: "", adresse: "", notes: "", collaborateur_ids: [] as string[],
+    heure_debut: "", heure_fin: "", adresse: "", notes: "", collaborateur_ids: [] as string[], bien_id: "",
   });
+  // Biens (logements) avec QR code de pointage
+  const BIEN_VIDE = { id: "", nom: "", client_nom: "", type_bien: "", adresse: "", etage_porte: "", code_acces: "", code_boite_cles: "", emplacement_boite_cles: "", wifi: "", consignes: "", infos: "" };
+  const [biens, setBiens] = useState<any[]>([]);
+  const [bienForm, setBienForm] = useState<any>(null);
+  const [qrOuvert, setQrOuvert] = useState<string | null>(null);
   const [showDeclarerAbsence, setShowDeclarerAbsence] = useState(false);
   const [absenceForm, setAbsenceForm] = useState({ employe_id: "", type: "conge_paye", debut: "", fin: "", motif: "" });
   const [positions, setPositions] = useState<any[]>([]);
@@ -49,6 +55,7 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
       setAbsences(rAbsences.absences || []);
       setPositions(rPositions.positions || []);
       setSignalements((rSignalements.signalements || []).filter((s: any) => s.statut !== "resolu"));
+      fetch("/api/biens").then((r) => r.json()).then((d) => setBiens(d.biens || [])).catch(() => {});
     } catch (e) { console.error("Planning:", e); }
     setChargement(false);
   };
@@ -118,7 +125,7 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
       if (d.success) {
         showToast("✅ Mission créée");
         setShowNouvelleMission(false);
-        setMissionForm({ client_nom: "", client_email: "", client_tel: "", date_mission: "", heure_debut: "", heure_fin: "", adresse: "", notes: "", collaborateur_ids: [] });
+        setMissionForm({ client_nom: "", client_email: "", client_tel: "", date_mission: "", heure_debut: "", heure_fin: "", adresse: "", notes: "", collaborateur_ids: [], bien_id: "" });
         charger();
       } else showToast("❌ " + (d.error || "Erreur"));
     } catch { showToast("❌ Erreur de connexion"); }
@@ -212,11 +219,52 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
     setRemplEnCours(false);
   };
 
+  const enregistrerBien = async () => {
+    if (!bienForm?.nom?.trim()) return showToast("⚠️ Donnez un nom au bien");
+    try {
+      const r = await fetch("/api/biens", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: bienForm.id ? "modifier" : "creer", ...bienForm }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { showToast("❌ " + (d.error === "reserve_au_proprietaire_ou_admin" ? "Réservé au propriétaire ou à un Admin" : (d.error || "Erreur"))); return; }
+      showToast(bienForm.id ? "✅ Bien mis à jour" : "✅ Bien créé — son QR code est prêt");
+      setBienForm(null);
+      if (!bienForm.id && d.bien?.id) setQrOuvert(d.bien.id);
+      const l = await fetch("/api/biens").then((x) => x.json()).catch(() => ({}));
+      setBiens(l.biens || []);
+    } catch { showToast("❌ Erreur de connexion"); }
+  };
+
+  const actionBien = async (b: any, action: "desactiver" | "nouveau_qr") => {
+    const question = action === "desactiver" ? `Désactiver « ${b.nom} » ? Son QR code ne fonctionnera plus (l'historique est conservé).` : `Créer un nouveau QR code pour « ${b.nom} » ? L'ancien autocollant ne fonctionnera plus.`;
+    if (!window.confirm(question)) return;
+    try {
+      const r = await fetch("/api/biens", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action, id: b.id }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { showToast("❌ " + (d.error || "Erreur")); return; }
+      showToast(action === "desactiver" ? "Bien désactivé" : "✅ Nouveau QR code — pensez à réimprimer l'autocollant");
+      const l = await fetch("/api/biens").then((x) => x.json()).catch(() => ({}));
+      setBiens(l.biens || []);
+    } catch { showToast("❌ Erreur de connexion"); }
+  };
+
+  const lienQR = (b: any) => `${typeof window !== "undefined" ? window.location.origin : "https://xyraio.fr"}/b/${b.qr_token}`;
+  const imprimerQR = (b: any) => {
+    const el = document.getElementById("qr-" + b.id);
+    if (!el) return;
+    const esc = (t: string) => String(t || "").replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" } as any)[c]);
+    const w = window.open("", "_blank");
+    if (!w) return showToast("⚠️ Autorisez l'ouverture de fenêtre pour imprimer");
+    w.document.write(`<html><head><title>QR ${esc(b.nom)}</title></head><body style="font-family:sans-serif;text-align:center;padding:30px"><h2 style="margin:0 0 6px">${esc(b.nom)}</h2><div style="color:#555;margin-bottom:16px">${esc(b.adresse || "")}</div>${el.innerHTML}<p style="font-size:18px;margin-top:16px"><strong>Intervenant : scannez à votre arrivée et à votre départ</strong></p></body></html>`);
+    w.document.close();
+    w.focus();
+    w.print();
+  };
+
   const tabs = [
     ["dispatch", "📊 Dispatch"],
     ["missions", "📋 Missions"],
     ["absences", "🏥 Absences"],
     ["carte", "📍 Carte"],
+    ["biens", "🏠 Biens & QR"],
   ];
 
   const aujourdhui = new Date().toISOString().slice(0, 10);
@@ -360,6 +408,11 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
       {showNouvelleMission && <Card style={{ marginBottom: 16 }}>
         <STitle>Nouvelle mission</STitle>
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+          {biens.length > 0 && <select value={missionForm.bien_id} onChange={(e: any) => { const b = biens.find((x) => x.id === e.target.value); setMissionForm((f) => ({ ...f, bien_id: e.target.value, ...(b ? { adresse: b.adresse || f.adresse, client_nom: b.client_nom || f.client_nom } : {}) })); }}
+            style={{ gridColumn: "1 / -1", background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "9px 10px", color: C.text, fontSize: 12, fontFamily: "inherit" }}>
+            <option value="">🏠 Bien (logement) — facultatif, permet le pointage par QR code</option>
+            {biens.map((b) => <option key={b.id} value={b.id}>{b.nom}{b.client_nom ? ` — ${b.client_nom}` : ""}</option>)}
+          </select>}
           <Inp value={missionForm.client_nom} onChange={(e: any) => setMissionForm((f) => ({ ...f, client_nom: e.target.value }))} placeholder="Nom du client" />
           <Inp value={missionForm.client_tel} onChange={(e: any) => setMissionForm((f) => ({ ...f, client_tel: e.target.value }))} placeholder="Téléphone" />
           <Inp type="date" value={missionForm.date_mission} onChange={(e: any) => setMissionForm((f) => ({ ...f, date_mission: e.target.value }))} />
@@ -390,6 +443,49 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
           </tr>)}</tbody>
         </table>
       </Card>}
+    </div>}
+
+    {!chargement && onglet === "biens" && <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 14, gap: 10 }}>
+        <div style={{ fontSize: 11, color: C.muted }}>Un QR code par logement : l'intervenant le scanne en arrivant et en partant. Il voit les codes d'accès et toutes les infos du bien, et vous êtes prévenu.</div>
+        <Btn onClick={() => setBienForm(bienForm ? null : { ...BIEN_VIDE })}>{bienForm && !bienForm.id ? "Fermer" : "+ Nouveau bien"}</Btn>
+      </div>
+      {bienForm && <Card style={{ marginBottom: 16 }}>
+        <STitle>{bienForm.id ? "Modifier le bien" : "Nouveau bien"}</STitle>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10, marginBottom: 10 }}>
+          <Inp value={bienForm.nom || ""} onChange={(e: any) => setBienForm((f: any) => ({ ...f, nom: e.target.value }))} placeholder="Nom du bien * (ex. Studio Marais)" />
+          <Inp value={bienForm.client_nom || ""} onChange={(e: any) => setBienForm((f: any) => ({ ...f, client_nom: e.target.value }))} placeholder="Propriétaire / client" />
+          <Inp value={bienForm.type_bien || ""} onChange={(e: any) => setBienForm((f: any) => ({ ...f, type_bien: e.target.value }))} placeholder="Type (appartement, maison…)" />
+          <Inp value={bienForm.etage_porte || ""} onChange={(e: any) => setBienForm((f: any) => ({ ...f, etage_porte: e.target.value }))} placeholder="Étage, porte, bâtiment" />
+          <Inp value={bienForm.adresse || ""} onChange={(e: any) => setBienForm((f: any) => ({ ...f, adresse: e.target.value }))} placeholder="Adresse complète" style={{ gridColumn: "1 / -1" }} />
+          <Inp value={bienForm.code_acces || ""} onChange={(e: any) => setBienForm((f: any) => ({ ...f, code_acces: e.target.value }))} placeholder="Code d'entrée (porte, digicode)" />
+          <Inp value={bienForm.code_boite_cles || ""} onChange={(e: any) => setBienForm((f: any) => ({ ...f, code_boite_cles: e.target.value }))} placeholder="Code de la boîte à clés" />
+          <Inp value={bienForm.emplacement_boite_cles || ""} onChange={(e: any) => setBienForm((f: any) => ({ ...f, emplacement_boite_cles: e.target.value }))} placeholder="Où se trouve la boîte à clés" style={{ gridColumn: "1 / -1" }} />
+          <Inp value={bienForm.wifi || ""} onChange={(e: any) => setBienForm((f: any) => ({ ...f, wifi: e.target.value }))} placeholder="Wi-Fi (réseau / mot de passe)" style={{ gridColumn: "1 / -1" }} />
+          <textarea value={bienForm.consignes || ""} onChange={(e: any) => setBienForm((f: any) => ({ ...f, consignes: e.target.value }))} placeholder="Consignes : check-list ménage, linge, poubelles, alarme…" rows={3} style={{ gridColumn: "1 / -1", background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: 10, color: C.text, fontSize: 12, fontFamily: "inherit", resize: "vertical" }} />
+          <textarea value={bienForm.infos || ""} onChange={(e: any) => setBienForm((f: any) => ({ ...f, infos: e.target.value }))} placeholder="Autres infos utiles : parking, animaux, points d'attention…" rows={3} style={{ gridColumn: "1 / -1", background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: 10, color: C.text, fontSize: 12, fontFamily: "inherit", resize: "vertical" }} />
+        </div>
+        <div style={{ fontSize: 10, color: C.muted, marginBottom: 10 }}>🔒 Les codes ne sont montrés qu'à l'intervenant qui a une mission dans ce bien le jour même (et à vous).</div>
+        <div style={{ display: "flex", gap: 8 }}><Btn onClick={enregistrerBien}>Enregistrer</Btn><BtnGhost onClick={() => setBienForm(null)}>Annuler</BtnGhost></div>
+      </Card>}
+      {biens.length === 0 && !bienForm && <Card style={{ textAlign: "center", padding: 30 }}><div style={{ fontSize: 12, color: C.muted }}>Aucun bien pour le moment. Créez-en un pour obtenir son QR code.</div></Card>}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 12 }}>
+        {biens.map((b) => <Card key={b.id}>
+          <div style={{ fontSize: 13, fontWeight: 700, color: C.text }}>🏠 {b.nom}</div>
+          {b.client_nom && <div style={{ fontSize: 11, color: C.muted }}>{b.client_nom}</div>}
+          {b.adresse && <div style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{b.adresse}</div>}
+          {b.qr_token && qrOuvert === b.id && <div style={{ textAlign: "center", margin: "12px 0" }}>
+            <div id={"qr-" + b.id} style={{ background: "#fff", padding: 10, display: "inline-block", borderRadius: 8 }}><QRCodeSVG value={lienQR(b)} size={180} level="M" /></div>
+          </div>}
+          {b.qr_token && <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 10 }}>
+            <BtnGhost onClick={() => setQrOuvert(qrOuvert === b.id ? null : b.id)} style={{ fontSize: 10, padding: "4px 10px" }}>{qrOuvert === b.id ? "Masquer le QR" : "📱 QR code"}</BtnGhost>
+            {qrOuvert === b.id && <Btn onClick={() => imprimerQR(b)} style={{ fontSize: 10, padding: "4px 10px" }}>🖨 Imprimer</Btn>}
+            <BtnGhost onClick={() => setBienForm({ ...BIEN_VIDE, ...b })} style={{ fontSize: 10, padding: "4px 10px" }}>Modifier</BtnGhost>
+            <BtnGhost onClick={() => actionBien(b, "nouveau_qr")} style={{ fontSize: 10, padding: "4px 10px" }}>Nouveau QR</BtnGhost>
+            <BtnGhost onClick={() => actionBien(b, "desactiver")} style={{ fontSize: 10, padding: "4px 10px", color: C.red }}>Désactiver</BtnGhost>
+          </div>}
+        </Card>)}
+      </div>
     </div>}
 
     {!chargement && onglet === "carte" && <div>

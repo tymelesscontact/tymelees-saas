@@ -81,8 +81,16 @@ export async function POST(req: NextRequest) {
     const {
       type_mission_id, client_id, client_nom, client_email, client_tel,
       date_mission, heure_debut, heure_fin, adresse, notes,
-      collaborateur_ids, acompte_montant, recurrence_frequence, company_id, cree_par,
+      collaborateur_ids, acompte_montant, recurrence_frequence, company_id, cree_par, bien_id,
     } = body;
+
+    // Bien (logement) choisi : il doit appartenir a l'entreprise ; il complete adresse et client
+    let bien: any = null;
+    if (bien_id) {
+      const { data: b } = await sb.from('biens').select('id,nom,adresse,client_id,client_nom').eq('id', bien_id).eq('tenant_id', tenantId).eq('actif', true).maybeSingle();
+      if (!b) return NextResponse.json({ error: 'Bien introuvable' }, { status: 404 });
+      bien = b;
+    }
 
     if (!date_mission || !heure_debut) {
       return NextResponse.json({ error: 'Date et heure necessaires' }, { status: 400 });
@@ -108,10 +116,11 @@ export async function POST(req: NextRequest) {
       tenant_id: tenantId, company_id: company_id || null,
       type_mission_id: type_mission_id || null,
       service: serviceNom,
-      client_id: client_id || null, client_nom: client_nom || null,
+      client_id: client_id || bien?.client_id || null, client_nom: client_nom || bien?.client_nom || null,
       client_email: client_email || null, client_tel: client_tel || null,
       date_mission, heure: heure_debut,
-      adresse: adresse || null, notes: notes || null,
+      adresse: adresse || bien?.adresse || null, notes: notes || null,
+      ...(bien ? { bien_id: bien.id } : {}),
       acompte_montant: acompte_montant || null,
       recurrence_frequence: recurrence_frequence || null,
       cree_par: cree_par || 'equipe',
