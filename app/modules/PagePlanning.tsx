@@ -25,6 +25,11 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
   const [absenceForm, setAbsenceForm] = useState({ employe_id: "", type: "conge_paye", debut: "", fin: "", motif: "" });
   const [positions, setPositions] = useState<any[]>([]);
   const [signalements, setSignalements] = useState<any[]>([]);
+  // Remplacement en un clic : mission ouverte, suggestions de remplacants, prevenir le client
+  const [remplacement, setRemplacement] = useState<any>(null);
+  const [suggestionsRempl, setSuggestionsRempl] = useState<any[] | null>(null);
+  const [prevenirClient, setPrevenirClient] = useState(true);
+  const [remplEnCours, setRemplEnCours] = useState(false);
   const carteDiv = useRef<HTMLDivElement>(null);
   const carteObjet = useRef<any>(null);
   const marqueurs = useRef<any[]>([]);
@@ -173,6 +178,40 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
 
   if (!hasAccess(plan,"planning",modulesActifs)) return <div style={{ padding: 20 }}><UpgradeWall page="planning" plan={plan} /></div>;
 
+  const ouvrirRemplacement = async (m: any, absence: any) => {
+    setRemplacement({ mission: m, absence });
+    setSuggestionsRempl(null);
+    try {
+      const r = await fetch("/api/planning-missions", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "suggerer_collaborateurs", date_mission: m.date_mission, heure_debut: String(m.heure || "09:00").slice(0, 5), exclure_id: absence.employe_id }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { showToast("❌ " + (d.error || "Suggestions indisponibles")); setSuggestionsRempl([]); return; }
+      setSuggestionsRempl(d.suggestions || []);
+    } catch { showToast("❌ Erreur de connexion"); setSuggestionsRempl([]); }
+  };
+
+  const confirmerRemplacement = async (nouveau: any) => {
+    if (!remplacement) return;
+    setRemplEnCours(true);
+    try {
+      const r = await fetch("/api/planning-missions", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "remplacer", mission_id: remplacement.mission.id, ancien_id: remplacement.absence.employe_id, nouveau_id: nouveau.id, prevenir_client: prevenirClient }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { showToast("❌ " + (d.error === "reserve_au_proprietaire_ou_admin" ? "Réservé au propriétaire ou à un Admin" : (d.error || "Remplacement impossible"))); setRemplEnCours(false); return; }
+      const canal = (c: string | null) => c === "whatsapp" ? "WhatsApp" : c === "email" ? "email" : c === "sms" ? "SMS" : null;
+      const info = [canal(d.canal_remplacant) ? `${d.remplacant} prévenu par ${canal(d.canal_remplacant)}` : `${d.remplacant} non prévenu (ni téléphone ni email joignable)`,
+        prevenirClient ? (canal(d.canal_client) ? `client prévenu par ${canal(d.canal_client)}` : "client non prévenu (pas de coordonnées)") : null].filter(Boolean).join(" · ");
+      showToast((canal(d.canal_remplacant) ? "✅ " : "⚠️ ") + "Mission confiée à " + d.remplacant + " — " + info);
+      setRemplacement(null);
+      charger();
+    } catch { showToast("❌ Erreur de connexion"); }
+    setRemplEnCours(false);
+  };
+
   const tabs = [
     ["dispatch", "📊 Dispatch"],
     ["missions", "📋 Missions"],
@@ -184,6 +223,18 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
   const missionsAujourdhui = missions.filter((m) => m.date_mission === aujourdhui && m.statut !== "annule");
   const absencesEnAttente = absences.filter((a) => a.statut === "en_attente");
   const accidentsSansDeclaration = absences.filter((a) => a.type === "accident_travail" && a.employeur_alerte_le && !a.employeur_declare_le);
+  // Missions a venir dont un collaborateur assigne est absent (absence validee ou en attente)
+  const missionsACouvrir: { mission: any; absence: any }[] = [];
+  for (const a of absences) {
+    if (!["validee", "en_attente"].includes(a.statut) || a.type === "retard" || !a.employe_id) continue;
+    const fin = a.fin || a.debut;
+    for (const m of missions) {
+      if (!m.date_mission || m.date_mission < aujourdhui || m.date_mission < a.debut || m.date_mission > fin) continue;
+      if (["annule", "termine"].includes(m.statut)) continue;
+      if ((m.missions_collaborateurs || []).some((c: any) => c.collaborateur_id === a.employe_id)) missionsACouvrir.push({ mission: m, absence: a });
+    }
+  }
+  missionsACouvrir.sort((x, y) => (x.mission.date_mission + (x.mission.heure || "")).localeCompare(y.mission.date_mission + (y.mission.heure || "")));
 
   return <div style={{ padding: 20 }}>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
@@ -199,6 +250,31 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
         <span>{a.nom_employe} — signalé le {a.employeur_alerte_le ? new Date(a.employeur_alerte_le).toLocaleDateString("fr") : ""}</span>
         <Btn onClick={() => confirmerDeclarationEmployeur(a.id)} style={{ fontSize: 10, padding: "4px 10px", background: C.red }}>J'ai déclaré à l'organisme</Btn>
       </div>)}
+    </Card>}
+
+    {missionsACouvrir.length > 0 && <Card style={{ marginBottom: 16, borderColor: `${C.gold}55`, background: `${C.gold}0D` }}>
+      <div style={{ fontSize: 12, color: C.gold, fontWeight: 700, marginBottom: 8 }}>🔁 {missionsACouvrir.length} mission{missionsACouvrir.length > 1 ? "s" : ""} à couvrir — collaborateur absent</div>
+      {missionsACouvrir.map(({ mission: m, absence: a }) => {
+        const ouvert = remplacement?.mission?.id === m.id && remplacement?.absence?.employe_id === a.employe_id;
+        return <div key={m.id + a.id} style={{ padding: "8px 0", borderTop: `1px solid ${C.border}` }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 8, fontSize: 11 }}>
+            <span><strong>{new Date(m.date_mission + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}{m.heure ? " · " + String(m.heure).slice(0, 5) : ""}</strong> — {m.client_nom || "Client"}{m.adresse ? ` (${m.adresse})` : ""} · <span style={{ color: C.red }}>{a.nom_employe} absent{a.statut === "en_attente" ? " (demande en attente)" : ""}</span></span>
+            {!ouvert && <Btn onClick={() => ouvrirRemplacement(m, a)} style={{ fontSize: 10, padding: "4px 10px" }}>Remplacer</Btn>}
+            {ouvert && <BtnGhost onClick={() => setRemplacement(null)} style={{ fontSize: 10, padding: "4px 10px" }}>Fermer</BtnGhost>}
+          </div>
+          {ouvert && <div style={{ marginTop: 8, padding: 10, background: C.card2, borderRadius: 8 }}>
+            <label style={{ fontSize: 11, color: C.muted, display: "flex", alignItems: "center", gap: 6, marginBottom: 8 }}>
+              <input type="checkbox" checked={prevenirClient} onChange={(e) => setPrevenirClient(e.target.checked)} /> Prévenir le client du changement d'intervenant
+            </label>
+            {suggestionsRempl === null && <div style={{ fontSize: 11, color: C.muted }}>Recherche des collaborateurs disponibles…</div>}
+            {suggestionsRempl !== null && suggestionsRempl.length === 0 && <div style={{ fontSize: 11, color: C.muted }}>Aucun collaborateur disponible sur ce créneau (tous absents ou déjà en mission).</div>}
+            {(suggestionsRempl || []).slice(0, 5).map((sug: any, i: number) => <div key={sug.id} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "5px 0", fontSize: 11 }}>
+              <span>{i === 0 ? "⭐ " : ""}<strong>{sug.nom}</strong> <span style={{ color: C.muted }}>· {sug.missions_ce_jour} mission{sug.missions_ce_jour > 1 ? "s" : ""} ce jour{sug.zone_compatible ? "" : " · hors zone"}{sug.competence_compatible ? "" : " · compétence à vérifier"}</span></span>
+              <Btn onClick={() => confirmerRemplacement(sug)} style={{ fontSize: 10, padding: "4px 10px", opacity: remplEnCours ? 0.5 : 1 }}>{remplEnCours ? "…" : "Confier la mission"}</Btn>
+            </div>)}
+          </div>}
+        </div>;
+      })}
     </Card>}
 
     <div style={{ marginBottom: 16, display: "flex", gap: 4, background: C.card2, borderRadius: 8, padding: 4, flexWrap: "wrap" }}>
