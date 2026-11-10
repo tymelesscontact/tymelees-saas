@@ -27,6 +27,7 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
   const [biens, setBiens] = useState<any[]>([]);
   const [bienForm, setBienForm] = useState<any>(null);
   const [qrOuvert, setQrOuvert] = useState<string | null>(null);
+  const [detailMission, setDetailMission] = useState<string | null>(null);
   // Feuilles d'heures du mois (vue RH) + email de l'expert-comptable
   const [moisFH, setMoisFH] = useState(() => new Date().toISOString().slice(0, 7));
   const [feuillesFH, setFeuillesFH] = useState<any[] | null>(null);
@@ -137,12 +138,17 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
     } catch { showToast("❌ Erreur de connexion"); }
   };
 
+  const LIBELLE_STATUT: Record<string, string> = { propose: "Proposée", confirme: "Confirmée", en_route: "En route", en_cours: "En cours", termine: "Terminée", annule: "Annulée", reporte: "Reportée" };
   const changerStatutMission = async (id: string, statut: string) => {
+    if (statut === "annule" && !window.confirm("Annuler cette mission ?")) return;
     try {
-      await fetch("/api/planning-missions", {
+      const r = await fetch("/api/planning-missions", {
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "modifier_statut", id, statut }),
       });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { showToast("❌ " + (d.error === "non_autorise" ? "Action non autorisée" : (d.error || "Erreur"))); return; }
+      showToast("✅ Mission " + (LIBELLE_STATUT[statut] || statut).toLowerCase());
       charger();
     } catch { showToast("❌ Erreur"); }
   };
@@ -469,13 +475,35 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
       {missions.length === 0 && <Card style={{ textAlign: "center", padding: 30 }}><div style={{ fontSize: 12, color: C.muted }}>Aucune mission.</div></Card>}
       {missions.length > 0 && <Card style={{ padding: 0, overflow: "hidden" }}>
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
-          <thead><tr><TH>Date</TH><TH>Heure</TH><TH>Client</TH><TH>Statut</TH></tr></thead>
-          <tbody>{missions.map((m) => <tr key={m.id}>
-            <Td style={{ color: C.gold }}>{m.date_mission}</Td>
-            <Td>{m.heure}</Td>
-            <Td style={{ fontWeight: 600 }}>{m.client_nom || "—"}</Td>
-            <Td><Pill color={m.statut === "termine" ? C.green : m.statut === "annule" ? C.red : C.blue}>{m.statut}</Pill></Td>
-          </tr>)}</tbody>
+          <thead><tr><TH>Date</TH><TH>Heure</TH><TH>Client / bien</TH><TH>Collaborateurs</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
+          <tbody>{missions.map((m) => {
+            const bien = biens.find((b) => b.id === m.bien_id);
+            const noms = (m.missions_collaborateurs || []).map((mc: any) => mc.equipe ? `${mc.equipe.prenom || ""} ${mc.equipe.nom || ""}`.trim() : collaborateurs.find((c) => c.id === mc.collaborateur_id)?.nom).filter(Boolean).join(", ");
+            const ouverte = detailMission === m.id;
+            return <Fragment key={m.id}>
+              <tr onClick={() => setDetailMission(ouverte ? null : m.id)} style={{ cursor: "pointer" }}>
+                <Td style={{ color: C.gold }}>{new Date(m.date_mission + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</Td>
+                <Td>{String(m.heure || "").slice(0, 5)}{m.heure_arrivee_reelle && <div style={{ fontSize: 9, color: C.green }}>arrivé {String(m.heure_arrivee_reelle).slice(0, 5)}{m.heure_fin_reelle ? ` · fini ${String(m.heure_fin_reelle).slice(0, 5)}` : ""}</div>}</Td>
+                <Td style={{ fontWeight: 600 }}>{m.client_nom || "—"}{bien && <div style={{ fontSize: 10, color: C.muted, fontWeight: 400 }}>🏠 {bien.nom}</div>}</Td>
+                <Td style={{ fontSize: 11 }}>{noms || <span style={{ color: C.red }}>personne</span>}</Td>
+                <Td><Pill color={m.statut === "termine" ? C.green : m.statut === "annule" ? C.red : m.statut === "en_cours" ? C.gold : C.blue}>{LIBELLE_STATUT[m.statut] || m.statut}</Pill></Td>
+                <Td><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
+                  {m.statut === "propose" && <BtnGhost onClick={() => changerStatutMission(m.id, "confirme")} style={{ fontSize: 9, padding: "3px 8px" }}>Confirmer</BtnGhost>}
+                  {!["termine", "annule"].includes(m.statut) && <BtnGhost onClick={() => changerStatutMission(m.id, "termine")} style={{ fontSize: 9, padding: "3px 8px" }}>Terminer</BtnGhost>}
+                  {!["termine", "annule"].includes(m.statut) && <BtnGhost onClick={() => changerStatutMission(m.id, "annule")} style={{ fontSize: 9, padding: "3px 8px", color: C.red }}>Annuler</BtnGhost>}
+                </div></Td>
+              </tr>
+              {ouverte && <tr><td colSpan={6} style={{ padding: "10px 14px", background: C.card2, fontSize: 11, lineHeight: 1.7 }}>
+                {m.service && <div><strong>Prestation :</strong> {m.service}</div>}
+                <div><strong>Adresse :</strong> {m.adresse || bien?.adresse || "—"}</div>
+                {bien && <div><strong>Bien :</strong> {bien.nom} — QR code dans l'onglet « Biens & QR »</div>}
+                {(m.client_tel || m.client_email) && <div><strong>Client :</strong> {[m.client_tel, m.client_email].filter(Boolean).join(" · ")}</div>}
+                <div><strong>Collaborateurs :</strong> {noms || "aucun"}</div>
+                <div><strong>Pointage :</strong> {m.heure_arrivee_reelle ? `arrivée ${String(m.heure_arrivee_reelle).slice(0, 5)}` : "pas encore arrivé"}{m.heure_fin_reelle ? ` · fin ${String(m.heure_fin_reelle).slice(0, 5)}` : ""}</div>
+                {m.notes && <div><strong>Notes :</strong> {m.notes}</div>}
+              </td></tr>}
+            </Fragment>;
+          })}</tbody>
         </table>
       </Card>}
     </div>}
