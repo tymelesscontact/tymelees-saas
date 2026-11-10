@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
-import { estProprietaireDuTenant } from '../../lib/permissions';
+import { estProprietaireDuTenant, estAutoriseGererEquipe } from '../../lib/permissions';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 import { urlRetourInvitation } from '../../lib/invitation';
 import { getAnthropicKey } from '../../lib/anthropicKey';
@@ -60,16 +60,8 @@ function calculerPaie(salaireBrut: number) {
   return { salaireBrut, chargesSalariales, chargesPatronales, salaireNet, coutTotal };
 }
 
-async function estAutoriseGererEquipe(req: NextRequest, tenantId: string): Promise<boolean> {
-  const tokenVerif = req.cookies.get('sb-access-token')?.value;
-  if (!tokenVerif) return false;
-  const { data: authVerif } = await sbAdmin.auth.getUser(tokenVerif);
-  if (!authVerif?.user) return false;
-  const { data: membreVerif } = await sbAdmin.from('tenant_membres').select('role').eq('user_id', authVerif.user.id).eq('tenant_id', tenantId).maybeSingle();
-  if (membreVerif?.role === 'owner') return true;
-  const { data: monEquipe } = await sbAdmin.from('equipe').select('role').eq('user_id', authVerif.user.id).eq('tenant_id', tenantId).maybeSingle();
-  return monEquipe?.role === 'Admin';
-}
+// Droits RH : version partagee (app/lib/permissions.ts), avec le repli tenants.user_id
+// pour les anciens proprietaires sans ligne "owner" dans tenant_membres.
 
 // Nom de la personne reellement connectee, pour signer un message/une evaluation/une fiche de paie --
 // remplace le prenom "Curtiss" qui etait ecrit en dur (n'avait de sens que pour un seul client Xyra).
@@ -323,7 +315,9 @@ export async function GET(req: NextRequest) {
       if (authMoiRH?.user) mesPropresIds = new Set([authMoiRH.user.id]);
     }
   }
-  const CHAMPS_SENSIBLES = ['salaire', 'salaire_brut', 'nss', 'rib', 'adresse', 'date_naissance', 'paie', 'acomptes', 'fichePaieEnvoyee', 'fichePaieEnvoyeeLe'];
+  const CHAMPS_SENSIBLES = ['salaire', 'salaire_brut', 'nss', 'rib', 'adresse', 'date_naissance', 'paie', 'acomptes', 'fichePaieEnvoyee', 'fichePaieEnvoyeeLe',
+    // donnees de sante (motifs d'absence), historique des salaires, evaluations, documents, GPS
+    'absences', 'carriere', 'evaluations', 'documents', 'position'];
   const membresFiltres = estRH ? enriched : enriched.map((m: any) => {
     if (mesPropresIds.has(m.user_id)) return m;
     const allege = { ...m };
