@@ -675,3 +675,4 @@ Audit lecture seule de `test` (diff vers `main`, typecheck, lint, build). Correc
 - Vercel prod : `PLATFORM_ADMIN_EMAILS` ajoutée ; `ENCRYPTION_KEY` présente.
 - Supabase PROD : bucket `formations-videos` passé en privé ; 1 propriétaire sans ligne `owner` (couvert par le repli `tenants.user_id`).
 - Reste : vérification connectée sur xyraio.fr (facture visible, PDF, vidéos de formation) ; script T10 (Annuaire) à exécuter sur TEST.
+- Contrôles PROD (lecture) : `api_logs.tenant_id` présente ; `modules_actifs` accepte « suspendu » ; 1 seul ticket sans entreprise (test interne Xyra, résolu) ; tables Annuaire absentes (T10 à faire).
