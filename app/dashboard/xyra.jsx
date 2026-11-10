@@ -229,7 +229,8 @@ export default function Xyra() {
   const[sirApiKey,setSirApiKey]=useState(()=>typeof window!=="undefined"?localStorage.getItem("ty_anthropic")||"":"");
   const[sidebarOpen,setSidebarOpen]=useState(true);
 
-  const showToast=(msg)=>{setToast(msg);setTimeout(()=>setToast(null),3000);};
+  // Erreurs/avertissements affiches 10 s (le temps de les lire) ; un message n'efface que lui-meme
+  const showToast=(msg)=>{setToast(msg);const duree=/^(❌|⚠️)/.test(String(msg))?10000:3000;setTimeout(()=>setToast(t=>t===msg?null:t),duree);};
   useEffect(()=>{if(sirApiKey&&typeof window!=="undefined")localStorage.setItem("ty_anthropic",sirApiKey);},[sirApiKey]);
   useEffect(()=>{
     fetch("/api/tenant-info").then(r=>r.json()).then(d=>{
