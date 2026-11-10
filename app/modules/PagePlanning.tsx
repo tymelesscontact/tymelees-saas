@@ -153,6 +153,18 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
     } catch { showToast("❌ Erreur"); }
   };
 
+  const supprimerMission = async (m: any) => {
+    if (!window.confirm(`Supprimer définitivement la mission du ${m.date_mission}${m.client_nom ? " chez " + m.client_nom : ""} ? Cette action est irréversible.`)) return;
+    try {
+      const r = await fetch("/api/planning-missions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "supprimer", id: m.id }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { showToast("❌ " + (d.error === "reserve_au_proprietaire_ou_admin" ? "Réservé au propriétaire ou à un Admin" : (d.error || "Suppression impossible"))); return; }
+      showToast("🗑 Mission supprimée");
+      setDetailMission(null);
+      charger();
+    } catch { showToast("❌ Erreur de connexion"); }
+  };
+
   const declarerAbsence = async () => {
     if (!absenceForm.employe_id || !absenceForm.debut) return showToast("⚠️ Collaborateur et date necessaires");
     try {
@@ -491,6 +503,7 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
                   {m.statut === "propose" && <BtnGhost onClick={() => changerStatutMission(m.id, "confirme")} style={{ fontSize: 9, padding: "3px 8px" }}>Confirmer</BtnGhost>}
                   {!["termine", "annule"].includes(m.statut) && <BtnGhost onClick={() => changerStatutMission(m.id, "termine")} style={{ fontSize: 9, padding: "3px 8px" }}>Terminer</BtnGhost>}
                   {!["termine", "annule"].includes(m.statut) && <BtnGhost onClick={() => changerStatutMission(m.id, "annule")} style={{ fontSize: 9, padding: "3px 8px", color: C.red }}>Annuler</BtnGhost>}
+                  {m.statut !== "termine" && <BtnGhost onClick={() => supprimerMission(m)} style={{ fontSize: 9, padding: "3px 8px", color: C.red }}>🗑 Supprimer</BtnGhost>}
                 </div></Td>
               </tr>
               {ouverte && <tr><td colSpan={6} style={{ padding: "10px 14px", background: C.card2, fontSize: 11, lineHeight: 1.7 }}>

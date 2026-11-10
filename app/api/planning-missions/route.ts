@@ -332,6 +332,26 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, remplacant: nomRemplacant, canal_remplacant: canalRemplacant, canal_client: canalClient });
   }
 
+  // Suppression definitive d'une mission (RH / proprietaire). Refusee si la mission est terminee
+  // (heures dans les feuilles d'heures, facture) ou si elle a des signalements : on l'annule alors.
+  if (action === 'supprimer') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { id } = body;
+    if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
+    const { data: mission } = await sb.from('missions').select('id,statut').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!mission) return NextResponse.json({ error: 'Mission introuvable' }, { status: 404 });
+    if (mission.statut === 'termine') return NextResponse.json({ error: 'Mission terminée : ses heures et sa facture sont conservées. Elle ne peut pas être supprimée.' }, { status: 409 });
+    const { count: nbSignalements } = await sb.from('signalements_mission').select('id', { count: 'exact', head: true }).eq('mission_id', id);
+    if ((nbSignalements || 0) > 0) return NextResponse.json({ error: 'Cette mission a des signalements : utilisez « Annuler » pour garder leur historique.' }, { status: 409 });
+    // Liens qui empecheraient la suppression
+    await sb.from('positions_collaborateurs').delete().eq('mission_id', id);
+    await sb.from('signalements_mission').update({ mission_suivi_id: null }).eq('mission_suivi_id', id);
+    await sb.from('missions').update({ recurrence_parent_id: null }).eq('recurrence_parent_id', id).eq('tenant_id', tenantId);
+    const { error } = await sb.from('missions').delete().eq('id', id).eq('tenant_id', tenantId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
+  }
+
   if (action === 'presence_collaborateur') {
     const { mission_id, collaborateur_id, statut_presence } = body;
     const valides = ['prevu', 'arrive', 'termine', 'absent'];
