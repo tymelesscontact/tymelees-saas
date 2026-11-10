@@ -89,7 +89,7 @@ export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ partenaires: [] });
   let partsQuery = sb.from('partenaires').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
-  if (companyId && UUID_RE.test(companyId)) partsQuery = partsQuery.eq('company_id', companyId);
+  if (companyId && UUID_RE.test(companyId)) partsQuery = partsQuery.or(`company_id.eq.${companyId},company_id.is.null`);
   const { data: parts, error } = await partsQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

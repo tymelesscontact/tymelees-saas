@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ articles: [], mouvements: [], fournisseurs: [], emplacements: [], valeurTotale: 0, articlesCritiques: [], scoreStock: 100 });
   let articlesQuery = sb.from('stock').select('*').eq('tenant_id', tenantId).order('art', { ascending: true });
-  if (companyId && UUID_RE.test(companyId)) articlesQuery = articlesQuery.eq('company_id', companyId);
+  if (companyId && UUID_RE.test(companyId)) articlesQuery = articlesQuery.or(`company_id.eq.${companyId},company_id.is.null`);
   const { data: articles, error } = await articlesQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

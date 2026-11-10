@@ -30,7 +30,7 @@ export async function GET(req: NextRequest) {
   const companyId = searchParams.get('company_id');
   function scoped(q) {
     q = q.eq('tenant_id', tenantId);
-    if (companyId && UUID_RE.test(companyId)) q = q.eq('company_id', companyId);
+    if (companyId && UUID_RE.test(companyId)) q = q.or(`company_id.eq.${companyId},company_id.is.null`);
     return q;
   }
   if (!tenantId) return NextResponse.json({ cartes: [], transactions: [], budgets: [] });

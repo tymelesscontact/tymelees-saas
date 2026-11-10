@@ -99,7 +99,7 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
     if(!newFact.client_nom||!newFact.montant_ht)return showToast("⚠️ Remplissez client et montant");
     showToast("⏳ Création de la facture...");
     try{
-      const res=await fetch('/api/factures',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer',...newFact})});
+      const res=await fetch('/api/factures',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer',...newFact,company_id:activeCompany?.id||null})});
       const data=await res.json();
       if(data.success){
         showToast(`✅ Facture ${data.facture.numero} créée !`);

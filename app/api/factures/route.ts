@@ -82,7 +82,7 @@ export async function GET(req: NextRequest) {
     if (!tenantId) return NextResponse.json({ factures: [] });
     const companyId = searchParams.get('company_id');
     let query = sb.from('factures').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(200);
-    if (companyId && UUID_RE.test(companyId)) query = query.eq('company_id', companyId);
+    if (companyId && UUID_RE.test(companyId)) query = query.or(`company_id.eq.${companyId},company_id.is.null`);
     const { data, error } = await query;
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -212,6 +212,8 @@ export async function POST(req: NextRequest) {
       statut: 'émise',
       statut_dgfip: statutDgfip,
       date_echeance: echeance.toISOString().split('T')[0],
+      // Rattachee a la societe active, sinon invisible dans la liste filtree par societe
+      company_id: (typeof body.company_id === 'string' && UUID_RE.test(body.company_id)) ? body.company_id : null,
     }).select().single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

@@ -66,7 +66,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ mois: moisR, lignes });
   }
   let clientsQuery = sb.from('clients').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
-  if (companyId && UUID_RE.test(companyId)) clientsQuery = clientsQuery.eq('company_id', companyId);
+  if (companyId && UUID_RE.test(companyId)) clientsQuery = clientsQuery.or(`company_id.eq.${companyId},company_id.is.null`);
   const { data: clients, error } = await clientsQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 

@@ -24,7 +24,7 @@ export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ leads: [] });
   let query = sb.from('crm_leads').select('*').eq('tenant_id', tenantId).order('updated_at', { ascending: false });
-  if (companyId && UUID_RE.test(companyId)) query = query.eq('company_id', companyId);
+  if (companyId && UUID_RE.test(companyId)) query = query.or(`company_id.eq.${companyId},company_id.is.null`);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ leads: data });

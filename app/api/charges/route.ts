@@ -14,7 +14,7 @@ export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ charges: [] });
   let query = sb.from('charges').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false });
-  if (companyId && UUID_RE.test(companyId)) query = query.eq('company_id', companyId);
+  if (companyId && UUID_RE.test(companyId)) query = query.or(`company_id.eq.${companyId},company_id.is.null`);
   const { data, error } = await query;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
   return NextResponse.json({ charges: data });

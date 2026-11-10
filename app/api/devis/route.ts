@@ -325,7 +325,7 @@ export async function GET(req: NextRequest) {
       const companyId = searchParams.get('company_id')
       let query = supabase.from('devis').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false })
       if (companyId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(companyId)) {
-        query = query.eq('company_id', companyId)
+        query = query.or(`company_id.eq.${companyId},company_id.is.null`)
       }
       const { data, error } = await query
       if (error) {
