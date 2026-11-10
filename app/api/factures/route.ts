@@ -308,6 +308,7 @@ export async function POST(req: NextRequest) {
 
     const lien = facture.stripe_payment_url || '';
     let envoye = false;
+    let raisonEchec = '';
     if (facture.client_email) {
       try {
         const pdfBuffer = await genererPdfFacture(facture);
@@ -320,19 +321,25 @@ export async function POST(req: NextRequest) {
           html: `<div style="font-family:sans-serif;padding:24px;"><p>Bonjour ${facture.client_nom},</p><p>Petit rappel : votre facture ${facture.numero} d'un montant de <strong>${facture.montant_ttc}€</strong> est toujours en attente de paiement (facture jointe).</p>${lien ? `<p><a href="${lien}" style="background:#C9A84C;color:#000;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">Payer maintenant</a></p>` : ''}</div>`,
           attachments: [{ filename: `Facture-${facture.numero}.pdf`, content: pdfBuffer.toString('base64') }],
         });
-        if (erreurRelance) console.error('Email error:', erreurRelance.message);
+        if (erreurRelance) { console.error('Email error:', erreurRelance.message); raisonEchec = 'email refusé : ' + erreurRelance.message; }
         else envoye = true;
-      } catch (e) { console.error('Email error:', e); }
+      } catch (e: any) { console.error('Email error:', e); raisonEchec = 'email : ' + (e?.message || 'erreur'); }
     }
     if (facture.client_tel) {
       try {
         const envoiWa = await envoyerWhatsApp(facture.client_tel, `Bonjour ${facture.client_nom}, petit rappel pour votre facture ${facture.numero} (${facture.montant_ttc}€) toujours en attente.${lien ? `\nPayer : ${lien}` : ''}`, tenantIdPost);
         if (envoiWa?.ok) envoye = true;
+        else if (!raisonEchec) raisonEchec = 'WhatsApp indisponible et pas d\'email client';
       } catch (e) { console.error('WhatsApp error:', e); }
     }
 
-    await sb.from('factures').update({ statut: 'en_retard' }).eq('id', id).eq('tenant_id', tenantIdPost);
-    return NextResponse.json({ success: true, envoye });
+    if (!facture.client_email && !facture.client_tel) raisonEchec = 'aucun email ni téléphone client sur la facture';
+    // "En retard" seulement si l'echeance est vraiment depassee (et la facture pas payee)
+    const aujourdhui = new Date().toISOString().split('T')[0];
+    if (facture.date_echeance && facture.date_echeance < aujourdhui && !['payée', 'payee'].includes(facture.statut)) {
+      await sb.from('factures').update({ statut: 'en_retard' }).eq('id', id).eq('tenant_id', tenantIdPost);
+    }
+    return NextResponse.json({ success: true, envoye, raison: envoye ? undefined : (raisonEchec || 'envoi impossible') });
   }
 
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });

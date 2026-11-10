@@ -133,7 +133,7 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
     try{
       const res=await fetch('/api/factures',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'relancer',id})});
       const data=await res.json();
-      if(data.success)showToast(data.envoye?"✅ Relance envoyée !":"⚠️ Aucun email/téléphone client renseigné");
+      if(data.success)showToast(data.envoye?"✅ Relance envoyée !":"⚠️ Relance non envoyée — "+(data.raison||"envoi impossible"));else showToast("❌ "+(data.error||"Erreur"));
       loadFactures();
     }catch(e){showToast("❌ Erreur");}
   };
