@@ -667,3 +667,11 @@ Audit lecture seule de `test` (diff vers `main`, typecheck, lint, build). Correc
 | `8e5882c` | Multi-sociétés : une facture créée avec une société sélectionnée était invisible (jamais rattachée à la société, liste filtrée). Facture rattachée à la société active ; Factures, Devis, Clients, Charges, CRM, Cartes, Partenaires, Stock affichent aussi les éléments sans société. **Bug aussi présent en prod.** |
 | (suite) | Relance facture : « en retard » seulement après l'échéance ; message clair si non envoyée (pas d'email, email refusé + motif, WhatsApp indisponible) |
 | (suite) | PDF : `pdfkit` hors bundle (`serverExternalPackages` dans `next.config.ts`, validé) — en ligne, aucun PDF (factures, devis, contrats, partenaires) ne se générait : police Helvetica.afm introuvable. **Bug aussi présent en prod.** |
+
+### Mise en production — 10/11/2026
+- PR #34 `test` → `main` fusionnée (`9205a49`, 21:07) ; conflit GitHub `app/dashboard/tymeless.jsx` résolu (`f50d75c` : fichier renommé en `xyra.jsx` sur test, correctif tenant déjà présent).
+- Déploiement Vercel prod « Ready » à 21:07:31 ; xyraio.fr répond.
+- Stripe live : webhook `xyra-webhook` écoute `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
+- Vercel prod : `PLATFORM_ADMIN_EMAILS` ajoutée ; `ENCRYPTION_KEY` présente.
+- Supabase PROD : bucket `formations-videos` passé en privé ; 1 propriétaire sans ligne `owner` (couvert par le repli `tenants.user_id`).
+- Reste : vérification connectée sur xyraio.fr (facture visible, PDF, vidéos de formation) ; script T10 (Annuaire) à exécuter sur TEST.
