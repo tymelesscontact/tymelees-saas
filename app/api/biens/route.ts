@@ -114,11 +114,34 @@ export async function POST(req: NextRequest) {
         return NextResponse.json({ error: d.error || 'Pointage impossible' }, { status: r.status });
       }
       const libelle = actionPointage === 'arrivee' ? 'est arrivé(e)' : 'a terminé et quitté';
-      try { await alerterEntreprise(bien.tenant_id, actionPointage === 'arrivee' ? 'Agent arrivé' : 'Agent parti', `${nomAgent} ${libelle} le bien « ${bien.nom} »${bien.adresse ? ' (' + bien.adresse + ')' : ''} le ${aujourdhui} à ${heure} — pointé par QR code.`); } catch (e: any) { console.error('Alerte scan:', e.message); }
+      let detailDuree = '';
+      if (actionPointage === 'depart' && mission.heure_arrivee_reelle) {
+        const enMin = (t: string) => { const [h, m] = String(t).slice(0, 5).split(':').map(Number); return h * 60 + (m || 0); };
+        let d = enMin(heure) - enMin(mission.heure_arrivee_reelle);
+        if (d < 0) d += 24 * 60;
+        detailDuree = ` Durée de la mission : ${d >= 60 ? Math.floor(d / 60) + ' h ' + String(d % 60).padStart(2, '0') : d + ' min'} (arrivée ${String(mission.heure_arrivee_reelle).slice(0, 5)}).`;
+      }
+      try { await alerterEntreprise(bien.tenant_id, actionPointage === 'arrivee' ? 'Agent arrivé' : 'Mission terminée', `${nomAgent} ${libelle} le bien « ${bien.nom} »${bien.adresse ? ' (' + bien.adresse + ')' : ''} le ${aujourdhui} à ${heure} — pointé par QR code.${detailDuree}`); } catch (e: any) { console.error('Alerte scan:', e.message); }
+    }
+
+    // Fin de mission : heure d'arrivee + duree passee sur place (relues en base)
+    let heureArrivee: string | null = mission.heure_arrivee_reelle ? String(mission.heure_arrivee_reelle).slice(0, 5) : (actionPointage === 'arrivee' ? heure : null);
+    let heureFin: string | null = null;
+    if (actionPointage === 'depart' || actionPointage === 'deja_termine') {
+      const { data: m2 } = await sb.from('missions').select('heure_arrivee_reelle,heure_fin_reelle').eq('id', mission.id).maybeSingle();
+      heureArrivee = m2?.heure_arrivee_reelle ? String(m2.heure_arrivee_reelle).slice(0, 5) : heureArrivee;
+      heureFin = m2?.heure_fin_reelle ? String(m2.heure_fin_reelle).slice(0, 5) : heure;
+    }
+    let dureeMinutes: number | null = null;
+    if (heureArrivee && heureFin) {
+      const enMin = (t: string) => { const [h, m] = t.split(':').map(Number); return h * 60 + (m || 0); };
+      dureeMinutes = enMin(heureFin) - enMin(heureArrivee);
+      if (dureeMinutes < 0) dureeMinutes += 24 * 60; // mission passee minuit
     }
 
     return NextResponse.json({
       success: true, action: actionPointage, agent: nomAgent, date: aujourdhui, heure,
+      heure_arrivee: heureArrivee, heure_fin: heureFin, duree_minutes: dureeMinutes,
       bien: infosBien, mission: { service: mission.service, heure: mission.heure },
     });
   }

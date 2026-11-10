@@ -61,6 +61,18 @@ const TYPE_SIGNALEMENT_LABELS: Record<string, string> = {
   probleme_client: "Problème client", autre: "Autre",
 };
 
+// Chronometre en direct depuis l'heure d'arrivee pointee (HH:MM du jour)
+function ChronoMission({ depuis }: { depuis: string }) {
+  const [maintenant, setMaintenant] = useState(() => Date.now());
+  useEffect(() => { const i = setInterval(() => setMaintenant(Date.now()), 1000); return () => clearInterval(i); }, []);
+  const [h, m] = String(depuis).slice(0, 5).split(":").map(Number);
+  const debut = new Date(); debut.setHours(h, m || 0, 0, 0);
+  let s = Math.max(0, Math.floor((maintenant - debut.getTime()) / 1000));
+  if (s > 20 * 3600) s = 0;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return <span style={{ fontWeight: 800, color: "#C9A84C", fontVariantNumeric: "tabular-nums" }}>⏱ {p(Math.floor(s / 3600))}:{p(Math.floor((s % 3600) / 60))}:{p(s % 60)}</span>;
+}
+
 export default function EspaceEquipe() {
   const [page, setPage] = useState("dashboard");
   const [membre, setMembre] = useState<any>(null);
@@ -232,7 +244,7 @@ export default function EspaceEquipe() {
       });
       const d = await r.json().catch(() => ({}));
       if (!r.ok || d.error) { showToast("❌ " + (d.error === "non_autorise" ? "Cette mission ne vous est pas confiée" : (d.error || "Erreur"))); return; }
-      setMissions(ms => ms.map(m => m.id === id ? { ...m, statut } : m));
+      setMissions(ms => ms.map(m => m.id === id ? { ...m, statut, ...(statut === "en_cours" && !m.heure_arrivee_reelle && d.heure ? { heure_arrivee_reelle: d.heure } : {}) } : m));
       let msg = statut === "en_cours" ? `📍 Arrivée pointée à ${d.heure || ""}` : statut === "termine" ? `✅ Fin pointée à ${d.heure || ""}` : "✅ C'est noté";
       if (pointe && !pos) msg += " — position non partagée";
       else if (pointe && typeof d.distance_m === "number") msg += d.distance_m > (d.rayon_m || 300) ? ` — ⚠️ à ${d.distance_m >= 1000 ? (d.distance_m / 1000).toFixed(1) + " km" : d.distance_m + " m"} de l'adresse, votre responsable est prévenu` : " — sur place ✓";
@@ -429,6 +441,7 @@ export default function EspaceEquipe() {
                   {m.statut === "propose" && <Btn onClick={() => updateMissionStatut(m.id, "confirme")} style={{ fontSize: 11, padding: "5px 10px", background: C.orange }}>Prise de connaissance</Btn>}
                   {m.statut === "confirme" && <Btn onClick={() => updateMissionStatut(m.id, "en_route")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>🚗 Je pars en mission</Btn>}
                   {m.statut === "en_route" && <Btn onClick={() => updateMissionStatut(m.id, "en_cours")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>📍 Je suis arrive</Btn>}
+                  {m.statut === "en_cours" && m.heure_arrivee_reelle && <ChronoMission depuis={m.heure_arrivee_reelle} />}
                   {m.statut === "en_cours" && <Btn onClick={() => updateMissionStatut(m.id, "termine")} style={{ fontSize: 11, padding: "5px 10px", background: C.green }}>✅ Terminer</Btn>}
                   <Btn onClick={() => { setSignalementMissionId(m.id); setShowSignalementForm(true); }} style={{ fontSize: 11, padding: "5px 10px", background: C.red }}>⚠️ Signaler un problème</Btn>
                 </div>
@@ -480,7 +493,8 @@ export default function EspaceEquipe() {
                 {m.statut === "propose" && <Btn onClick={() => updateMissionStatut(m.id, "confirme")} style={{ fontSize: 11, padding: "6px 12px", background: C.orange }}>Prise de connaissance</Btn>}
                 {m.statut === "confirme" && <Btn onClick={() => updateMissionStatut(m.id, "en_route")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>🚗 Je pars en mission</Btn>}
                 {m.statut === "en_route" && <Btn onClick={() => updateMissionStatut(m.id, "en_cours")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>📍 Je suis arrive</Btn>}
-                {m.statut === "en_cours" && <Btn onClick={() => updateMissionStatut(m.id, "termine")} style={{ fontSize: 11, padding: "6px 12px", background: C.green }}>✅ Terminer</Btn>}
+                {m.statut === "en_cours" && m.heure_arrivee_reelle && <ChronoMission depuis={m.heure_arrivee_reelle} />}
+                  {m.statut === "en_cours" && <Btn onClick={() => updateMissionStatut(m.id, "termine")} style={{ fontSize: 11, padding: "6px 12px", background: C.green }}>✅ Terminer</Btn>}
                 {m.adresse && <Btn onClick={() => ouvrirGPS(m.adresse, "driving")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>🗺 GPS</Btn>}
                 <Btn onClick={() => { setSignalementMissionId(m.id); setShowSignalementForm(true); }} style={{ fontSize: 11, padding: "6px 12px", background: C.red }}>⚠️ Problème</Btn>
               </div>

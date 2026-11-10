@@ -28,6 +28,58 @@ function Ligne({ label, valeur, gros }: { label: string; valeur?: string | null;
   );
 }
 
+// Confettis maison (aucune librairie) : 160 morceaux colores qui tombent ~4 s
+function lancerConfettis() {
+  if (typeof window === "undefined") return;
+  const canvas = document.createElement("canvas");
+  canvas.style.cssText = "position:fixed;inset:0;width:100vw;height:100vh;pointer-events:none;z-index:9999";
+  canvas.width = window.innerWidth; canvas.height = window.innerHeight;
+  document.body.appendChild(canvas);
+  const ctx = canvas.getContext("2d");
+  if (!ctx) return;
+  const couleurs = ["#C9A84C", "#2EC9B0", "#FF5F9E", "#4B7BFF", "#FF8C3A", "#9B5FFF", "#FFFFFF"];
+  const morceaux = Array.from({ length: 160 }, () => ({
+    x: canvas.width / 2 + (Math.random() - 0.5) * 120, y: canvas.height * 0.35,
+    vx: (Math.random() - 0.5) * 14, vy: -Math.random() * 14 - 4,
+    t: Math.random() * 8 + 5, r: Math.random() * Math.PI, vr: (Math.random() - 0.5) * 0.3,
+    c: couleurs[Math.floor(Math.random() * couleurs.length)],
+  }));
+  const debut = performance.now();
+  const image = (now: number) => {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    for (const p of morceaux) {
+      p.vy += 0.35; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.r += p.vr;
+      ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+      ctx.fillStyle = p.c; ctx.fillRect(-p.t / 2, -p.t / 4, p.t, p.t / 2); ctx.restore();
+    }
+    if (now - debut < 4200) requestAnimationFrame(image); else canvas.remove();
+  };
+  requestAnimationFrame(image);
+}
+
+function formatDuree(min?: number | null) {
+  if (min == null) return "";
+  const h = Math.floor(min / 60), m = min % 60;
+  return h > 0 ? `${h} h ${String(m).padStart(2, "0")}` : `${m} min`;
+}
+
+// Chronometre en direct depuis l'heure d'arrivee (HH:MM du jour, heure du telephone)
+function Chrono({ depuis }: { depuis: string }) {
+  const [maintenant, setMaintenant] = useState(() => Date.now());
+  useEffect(() => { const i = setInterval(() => setMaintenant(Date.now()), 1000); return () => clearInterval(i); }, []);
+  const [h, m] = depuis.split(":").map(Number);
+  const debut = new Date(); debut.setHours(h, m || 0, 0, 0);
+  let s = Math.max(0, Math.floor((maintenant - debut.getTime()) / 1000));
+  if (s > 20 * 3600) s = 0;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return <div style={{ fontSize: 44, fontWeight: 900, color: C.gold, fontVariantNumeric: "tabular-nums", letterSpacing: 2 }}>{p(Math.floor(s / 3600))}:{p(Math.floor((s % 3600) / 60))}:{p(s % 60)}</div>;
+}
+
+function chronoFixe(min?: number | null) {
+  if (min == null) return "";
+  return `${String(Math.floor(min / 60)).padStart(2, "0")}:${String(min % 60).padStart(2, "0")}:00`;
+}
+
 export default function ScanBien() {
   const params = useParams<{ token: string }>();
   const token = params?.token;
@@ -48,6 +100,7 @@ export default function ScanBien() {
         if (r.status === 401) { setEtat("connexion"); return; }
         if (!r.ok || d.error) { setErreur(d.error || "Pointage impossible"); setEtat("erreur"); return; }
         setRes(d); setEtat("ok");
+        if (d.action === "depart") setTimeout(lancerConfettis, 150);
       })
       .catch(() => { setErreur("Pas de connexion internet"); setEtat("erreur"); });
   }, [token]);
@@ -72,12 +125,28 @@ export default function ScanBien() {
           <div style={{ fontSize: 15, fontWeight: 700, color: C.red, marginBottom: 6 }}>⚠️ {erreur}</div>
         </div>}
 
-        {etat === "ok" && res && <>
+        {etat === "ok" && res && (res.action === "depart" || res.action === "deja_termine") && <div style={{ textAlign: "center", background: `linear-gradient(160deg, ${C.green}22, ${C.gold}22)`, border: `1px solid ${C.green}66`, borderRadius: 16, padding: "26px 18px", marginBottom: 14 }}>
+          <div style={{ fontSize: 46, lineHeight: 1 }}>🎉</div>
+          <div style={{ fontSize: 26, fontWeight: 900, color: C.green, margin: "10px 0 4px" }}>{res.action === "depart" ? "Bravo !" : "Mission déjà terminée"}</div>
+          <div style={{ fontSize: 16, fontWeight: 700, marginBottom: 14 }}>Fin de mission{res.agent ? `, ${res.agent.split(" ")[0]}` : ""}</div>
+          {res.duree_minutes != null && <div style={{ fontSize: 13, color: C.muted }}>Temps passé sur la mission</div>}
+          {res.duree_minutes != null && <div style={{ fontSize: 44, fontWeight: 900, color: C.gold, letterSpacing: 2, fontVariantNumeric: "tabular-nums" }}>⏱ {chronoFixe(res.duree_minutes)}</div>}
+          {res.duree_minutes != null && <div style={{ fontSize: 13, color: C.muted }}>soit {formatDuree(res.duree_minutes)}</div>}
+          <div style={{ fontSize: 14, marginTop: 10 }}>{res.heure_arrivee ? `Arrivée ${res.heure_arrivee} · ` : ""}Fin <strong>{res.heure_fin || res.heure}</strong></div>
+          <div style={{ fontSize: 13, color: C.muted, marginTop: 2 }}>{dateFr(res.date)}</div>
+          <div style={{ fontSize: 13, marginTop: 12 }}>🏠 {res.bien?.nom}</div>
+        </div>}
+
+        {etat === "ok" && res && res.action !== "depart" && res.action !== "deja_termine" && <>
           <div style={{ background: res.action === "depart" || res.action === "deja_termine" ? `${C.green}18` : `${C.gold}18`, border: `1px solid ${res.action === "depart" || res.action === "deja_termine" ? C.green : C.gold}66`, borderRadius: 12, padding: 18, marginBottom: 14 }}>
             <div style={{ fontSize: 17, fontWeight: 800, marginBottom: 6 }}>{res.action === "arrivee" ? "📍 " : res.action === "depart" ? "✅ " : "ℹ️ "}{LIBELLES[res.action] || "Pointage"}</div>
             <div style={{ fontSize: 14 }}><strong>{res.agent}</strong></div>
             <div style={{ fontSize: 13, color: C.muted }}>{dateFr(res.date)} · {res.heure}</div>
             {res.mission?.service && <div style={{ fontSize: 12, color: C.muted, marginTop: 4 }}>Mission : {res.mission.service}{res.mission.heure ? ` (prévue à ${String(res.mission.heure).slice(0, 5)})` : ""}</div>}
+            {(res.action === "arrivee" || res.action === "deja_arrive") && res.heure_arrivee && <div style={{ textAlign: "center", margin: "14px 0 4px" }}>
+              <div style={{ fontSize: 11, color: C.muted, marginBottom: 2 }}>⏱ Mission en cours depuis {res.heure_arrivee}</div>
+              <Chrono depuis={res.heure_arrivee} />
+            </div>}
             {(res.action === "arrivee" || res.action === "deja_arrive") && <div style={{ fontSize: 12, color: C.muted, marginTop: 8 }}>Scannez à nouveau ce QR code en partant pour pointer votre départ.</div>}
           </div>
 
