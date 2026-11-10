@@ -212,14 +212,31 @@ export default function EspaceEquipe() {
     return () => clearInterval(intervalle);
   }, [missions]);
 
+  // Position du telephone (8 s max) pour pointer sur le lieu de la mission ; null si refusee
+  const positionTelephone = (): Promise<{ lat: number; lng: number } | null> => new Promise((ok) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return ok(null);
+    navigator.geolocation.getCurrentPosition(
+      (p) => ok({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => ok(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+    );
+  });
+
   const updateMissionStatut = async (id: string, statut: string) => {
     try {
-      await fetch("/api/planning-missions", {
+      const pointe = statut === "en_cours" || statut === "termine";
+      const pos = pointe ? await positionTelephone() : null;
+      const r = await fetch("/api/planning-missions", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "modifier_statut", id, statut }),
+        body: JSON.stringify({ action: "modifier_statut", id, statut, ...(pos || {}) }),
       });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { showToast("❌ " + (d.error === "non_autorise" ? "Cette mission ne vous est pas confiée" : (d.error || "Erreur"))); return; }
       setMissions(ms => ms.map(m => m.id === id ? { ...m, statut } : m));
-      showToast(statut === "en_cours" ? "🚀 Mission démarrée" : "✅ Mission terminée");
+      let msg = statut === "en_cours" ? `📍 Arrivée pointée à ${d.heure || ""}` : statut === "termine" ? `✅ Fin pointée à ${d.heure || ""}` : "✅ C'est noté";
+      if (pointe && !pos) msg += " — position non partagée";
+      else if (pointe && typeof d.distance_m === "number") msg += d.distance_m > (d.rayon_m || 300) ? ` — ⚠️ à ${d.distance_m >= 1000 ? (d.distance_m / 1000).toFixed(1) + " km" : d.distance_m + " m"} de l'adresse, votre responsable est prévenu` : " — sur place ✓";
+      showToast(msg);
       if (statut === "en_cours") setTimeout(envoyerPosition, 500);
     } catch { showToast("❌ Erreur"); }
   };

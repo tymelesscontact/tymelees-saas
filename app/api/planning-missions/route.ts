@@ -2,8 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
-import { envoyerRappelMission, envoyerPartout } from '../../lib/rappels';
+import { envoyerRappelMission, envoyerPartout, alerterEntreprise } from '../../lib/rappels';
 import { estAutoriseGererEquipe } from '../../lib/permissions';
+import { fuseauDuTenant, heureLocale } from '../../lib/fuseauHoraire';
 
 export const dynamic = 'force-dynamic';
 
@@ -11,6 +12,31 @@ const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+// Coordonnees d'une adresse francaise (Base Adresse Nationale, gratuite, sans cle). null si introuvable.
+async function geocoderAdresse(adresse: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const ctrl = new AbortController();
+    const minuteur = setTimeout(() => ctrl.abort(), 3000);
+    const r = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(adresse)}&limit=1`, { signal: ctrl.signal });
+    clearTimeout(minuteur);
+    const d = await r.json();
+    const f = d?.features?.[0];
+    if (!f || (f.properties?.score ?? 0) < 0.4) return null;
+    return { lng: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] };
+  } catch { return null; }
+}
+
+// Distance en metres entre deux points GPS
+function distanceMetres(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6371000, rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad, dLng = (b.lng - a.lng) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(h)));
+}
+
+// Au-dela de cette distance de l'adresse de la mission, le pointage est signale au patron
+const RAYON_POINTAGE_METRES = 300;
 
 export async function GET(req: NextRequest) {
   const acces = await verifierAccesModule(req, "planning");
@@ -100,15 +126,51 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'modifier_statut') {
-    const { id, statut } = body;
+    const { id, statut, lat, lng } = body;
     const valides = ['propose', 'confirme', 'en_route', 'en_cours', 'termine', 'annule', 'reporte'];
     if (!valides.includes(statut)) return NextResponse.json({ error: 'Statut invalide' }, { status: 400 });
     const champsMaj: any = { statut };
     if (statut === 'confirme') champsMaj.prise_connaissance_le = new Date().toISOString();
 
     // Statut avant modification : la chaine de fin de mission ne doit partir qu'une fois
-    const { data: avant } = await sb.from('missions').select('statut').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    const { data: avant } = await sb.from('missions').select('statut,adresse,client_nom,heure,heure_arrivee_reelle,collaborateur_id,employe_id,missions_collaborateurs(collaborateur_id)').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!avant) return NextResponse.json({ error: 'Mission introuvable' }, { status: 404 });
     const dejaTerminee = avant?.statut === 'termine';
+
+    // Un salarie ne change que le statut des missions qui lui sont confiees (le RH : toutes)
+    const estRH = await estAutoriseGererEquipe(req, tenantId);
+    let moiCollab: any = null;
+    {
+      const tokenMoi = req.cookies.get('sb-access-token')?.value;
+      const { data: authMoi } = tokenMoi ? await sb.auth.getUser(tokenMoi) : { data: null as any };
+      if (authMoi?.user) {
+        const { data: m } = await sb.from('equipe').select('id,nom,prenom').eq('user_id', authMoi.user.id).eq('tenant_id', tenantId).maybeSingle();
+        moiCollab = m;
+      }
+    }
+    const monId = moiCollab?.id;
+    const assigne = !!monId && (avant.collaborateur_id === monId || avant.employe_id === monId || (avant.missions_collaborateurs || []).some((c: any) => c.collaborateur_id === monId));
+    if (!estRH && !assigne) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+
+    // Pointage reel : heure d'arrivee (premiere arrivee) et heure de fin, dans le fuseau de l'entreprise
+    const heureMaintenant = heureLocale(new Date(), await fuseauDuTenant(tenantId));
+    if (statut === 'en_cours' && !avant.heure_arrivee_reelle) champsMaj.heure_arrivee_reelle = heureMaintenant;
+    if (statut === 'termine') champsMaj.heure_fin_reelle = heureMaintenant;
+
+    // Controle de lieu : position du telephone comparee a l'adresse de la mission
+    let distanceM: number | null = null;
+    if (assigne && (statut === 'en_cours' || statut === 'termine') && typeof lat === 'number' && typeof lng === 'number' && avant.adresse) {
+      const cible = await geocoderAdresse(avant.adresse);
+      if (cible) distanceM = distanceMetres({ lat, lng }, cible);
+    }
+    if (distanceM !== null && distanceM > RAYON_POINTAGE_METRES) {
+      const qui = `${moiCollab?.prenom || ''} ${moiCollab?.nom || ''}`.trim() || 'Un collaborateur';
+      const dist = distanceM >= 1000 ? `${(distanceM / 1000).toFixed(1).replace('.', ',')} km` : `${distanceM} m`;
+      try { await alerterEntreprise(tenantId, 'Pointage hors du lieu de mission', `${qui} a pointé ${statut === 'en_cours' ? "son arrivée" : 'la fin'} de la mission chez ${avant.client_nom || 'le client'} à ${dist} de l'adresse prévue (${avant.adresse}), à ${heureMaintenant}.`); } catch (e: any) { console.error('Alerte pointage:', e.message); }
+    }
+    if (assigne && (statut === 'en_cours' || statut === 'termine')) {
+      await sb.from('missions_collaborateurs').update({ statut_presence: statut === 'en_cours' ? 'arrive' : 'termine' }).eq('mission_id', id).eq('collaborateur_id', monId);
+    }
 
     const { error } = await sb.from('missions')
       .update(champsMaj).eq('id', id).eq('tenant_id', tenantId);
@@ -148,7 +210,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, heure: heureMaintenant, distance_m: distanceM, rayon_m: RAYON_POINTAGE_METRES });
   }
 
   // Rappel de mission — WhatsApp d'abord, email si echec, SMS en dernier recours

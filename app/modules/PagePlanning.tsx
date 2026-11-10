@@ -289,7 +289,13 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead><tr><TH>Heure</TH><TH>Client</TH><TH>Collaborateurs</TH><TH>Statut</TH><TH>Actions</TH></tr></thead>
           <tbody>{missionsAujourdhui.map((m) => <tr key={m.id}>
-            <Td style={{ color: C.gold, fontWeight: 700 }}>{m.heure}</Td>
+            <Td style={{ color: C.gold, fontWeight: 700 }}>{m.heure}{(() => {
+              // Prevu vs reel : heure d'arrivee pointee par le collaborateur, retard en couleur
+              if (!m.heure_arrivee_reelle) return null;
+              const hm = (t: string) => { const [h, mi] = String(t).slice(0, 5).split(":").map(Number); return h * 60 + (mi || 0); };
+              const ecart = m.heure ? hm(m.heure_arrivee_reelle) - hm(m.heure) : 0;
+              return <div style={{ fontSize: 9, fontWeight: 600, color: ecart > 10 ? C.red : C.green }}>arrivé {String(m.heure_arrivee_reelle).slice(0, 5)}{ecart > 10 ? ` (+${ecart} min)` : ""}{m.heure_fin_reelle ? ` · fini ${String(m.heure_fin_reelle).slice(0, 5)}` : ""}</div>;
+            })()}</Td>
             <Td style={{ fontWeight: 600 }}>{m.client_nom || "—"}</Td>
             <Td style={{ fontSize: 11 }}>{(m.missions_collaborateurs || []).map((mc: any) => collaborateurs.find((c) => c.id === mc.collaborateur_id)?.nom).filter(Boolean).join(", ") || "—"}</Td>
             <Td><Pill color={m.statut === "termine" ? C.green : m.statut === "annule" ? C.red : C.blue}>{m.statut}</Pill></Td>
