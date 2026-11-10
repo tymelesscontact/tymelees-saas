@@ -20,7 +20,7 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
   };
   useEffect(()=>{loadFactures();},[activeCompany?.id]);
 
-  const[newFact,setNewFact]=useState({client_nom:"",client_email:"",client_tel:"",siren:"",type_client:"entreprise",description:"",montant_ht:"",taux_tva:"20",format:"Factur-X"});
+  const[newFact,setNewFact]=useState({client_nom:"",client_email:"",client_tel:"",client_adresse:"",siren:"",type_client:"entreprise",description:"",montant_ht:"",taux_tva:"20",format:"Factur-X"});
   const tvaMontant=newFact.montant_ht?Math.round(Number(newFact.montant_ht)*Number(newFact.taux_tva))/100:0;
   const ttc=newFact.montant_ht?Number(newFact.montant_ht)+tvaMontant:0;
 
@@ -65,34 +65,22 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
   const aEncaisserHT=factures.filter(f=>["émise","en_retard"].includes(f.statut)).reduce((a,f)=>a+Number(f.montant_ht||0),0);
   const payées=factures.filter(f=>f.statut==="payée").length;
 
+  // Apercu = le vrai PDF envoye au client (mentions legales comprises)
   const apercuPDF=(f)=>{
-    const win=window.open("","_blank");
-    if(!win)return showToast("⚠️ Autorisez les pop-ups pour voir l'aperçu");
-    const nomEntreprise=f.tenant_snapshot?.societe||"Xyra";
-    const logoHtml=f.tenant_snapshot?.logo_url?`<img src="${f.tenant_snapshot.logo_url}" alt="${nomEntreprise}" style="max-height:36px;" />`:`<h1>${nomEntreprise}</h1>`;
-    win.document.write(`<!DOCTYPE html><html><head><title>Facture ${f.numero}</title><style>
-      body{font-family:'Segoe UI',sans-serif;background:#fff;color:#111;padding:40px;max-width:700px;margin:0 auto;}
-      h1{font-size:22px;color:#C9A84C;font-family:Georgia,serif;letter-spacing:.1em;}
-      .meta{color:#888;font-size:11px;margin-top:8px;}
-      table{width:100%;border-collapse:collapse;font-size:13px;margin-top:24px;}
-      th{text-align:left;padding-bottom:8px;color:#888;border-bottom:2px solid #ddd;}
-      td{padding:10px 0;border-bottom:1px solid #eee;}
-      .total{text-align:right;margin-top:24px;font-size:20px;font-weight:700;color:#C9A84C;}
-      .btn{background:#C9A84C;color:#000;border:none;padding:10px 24px;border-radius:6px;font-weight:700;cursor:pointer;margin-top:30px;}
-      @media print{.btn{display:none;}}
-    </style></head><body>
-      ${logoHtml}
-      <div class="meta">Facture ${f.numero} · ${f.date_emission||""}</div>
-      <div class="meta">Facturé à : ${f.client_nom}${f.siren?" · SIREN "+f.siren:""}</div>
-      <table>
-        <tr><th>Description</th><th style="text-align:right;">Montant HT</th></tr>
-        <tr><td>${f.description||"Prestation de services"}</td><td style="text-align:right;">${Number(f.montant_ht).toFixed(2)}€</td></tr>
-        <tr><td>TVA (${f.taux_tva}%)</td><td style="text-align:right;">${Number(f.montant_tva).toFixed(2)}€</td></tr>
-      </table>
-      <div class="total">Total TTC : ${Number(f.montant_ttc).toFixed(2)}€</div>
-      <button class="btn" onclick="window.print()">🖨 Imprimer / Enregistrer en PDF</button>
-    </body></html>`);
-    win.document.close();
+    const win=window.open(`/api/factures?action=pdf&id=${f.id}`,"_blank");
+    if(!win)showToast("⚠️ Autorisez les pop-ups pour voir le PDF");
+  };
+
+  const creerAvoir=async(f)=>{
+    const motif=window.prompt(`Créer un avoir qui annule la facture ${f.numero} (${Number(f.montant_ttc).toFixed(2)} € TTC) ?\nMotif (facultatif) :`,"");
+    if(motif===null)return;
+    try{
+      const res=await fetch('/api/factures',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'avoir',id:f.id,motif})});
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok||data.error){showToast("❌ "+(data.error==="reserve_au_proprietaire_ou_admin"?"Réservé au propriétaire ou à un Admin":(data.error||"Erreur")));return;}
+      showToast(`✅ Avoir ${data.avoir?.numero||""} créé — facture ${f.numero} annulée`);
+      loadFactures();
+    }catch(e){showToast("❌ Erreur de connexion");}
   };
 
   const creerFacture=async()=>{
@@ -103,7 +91,7 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
       const data=await res.json();
       if(data.success){
         showToast(`✅ Facture ${data.facture.numero} créée !`);
-        setNewFact({client_nom:"",client_email:"",client_tel:"",siren:"",type_client:"entreprise",description:"",montant_ht:"",taux_tva:"20",format:"Factur-X"});
+        setNewFact({client_nom:"",client_email:"",client_tel:"",client_adresse:"",siren:"",type_client:"entreprise",description:"",montant_ht:"",taux_tva:"20",format:"Factur-X"});
         setOnglet("historique");
         loadFactures();
       }else{showToast("❌ "+(data.error||"Erreur"));}
@@ -180,6 +168,7 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Client *</label><Inp value={newFact.client_nom} onChange={e=>setNewFact(f=>({...f,client_nom:e.target.value}))} placeholder="Nom / raison sociale"/></div>
+            <div style={{gridColumn:"1 / -1"}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Adresse du client (mention obligatoire)</label><Inp value={newFact.client_adresse} onChange={e=>setNewFact(f=>({...f,client_adresse:e.target.value}))} placeholder="12 rue de la Paix, 75002 Paris"/></div>
             <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>SIREN (si entreprise)</label><Inp value={newFact.siren} onChange={e=>setNewFact(f=>({...f,siren:e.target.value}))} placeholder="123 456 789"/></div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
@@ -272,9 +261,11 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
           <Td><Pill color={f.statut_dgfip==="transmise"?C.green:f.statut_dgfip==="a_transmettre"?C.orange:C.muted}>{f.statut_dgfip==="non_applicable"?"N/A":f.statut_dgfip==="a_transmettre"?"À transmettre":f.statut_dgfip==="transmise"?"Transmise":"—"}</Pill></Td>
           <Td><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
             <BtnGhost onClick={()=>apercuPDF(f)} style={{fontSize:9,padding:"3px 6px"}}>👁 PDF</BtnGhost>
-            {f.statut!=="payée"&&<Btn onClick={()=>envoyerPaiement(f.id)} style={{fontSize:9,padding:"3px 6px",background:C.green}}>💳 Lien paiement</Btn>}
-            {f.statut!=="payée"&&<BtnGhost onClick={()=>marquerPayee(f.id)} style={{fontSize:9,padding:"3px 6px"}}>✅ Marquer payée</BtnGhost>}
-            {f.statut!=="payée"&&<BtnGhost onClick={()=>relancer(f.id)} style={{fontSize:9,padding:"3px 6px",color:C.orange}}>🔔 Relancer</BtnGhost>}
+            {f.type_document==="avoir"&&<Pill color={C.purple||C.blue}>Avoir</Pill>}
+            {f.type_document!=="avoir"&&f.statut!=="payée"&&f.statut!=="annulée"&&<Btn onClick={()=>envoyerPaiement(f.id)} style={{fontSize:9,padding:"3px 6px",background:C.green}}>💳 Lien paiement</Btn>}
+            {f.type_document!=="avoir"&&f.statut!=="payée"&&f.statut!=="annulée"&&<BtnGhost onClick={()=>marquerPayee(f.id)} style={{fontSize:9,padding:"3px 6px"}}>✅ Marquer payée</BtnGhost>}
+            {f.type_document!=="avoir"&&f.statut!=="payée"&&f.statut!=="annulée"&&<BtnGhost onClick={()=>relancer(f.id)} style={{fontSize:9,padding:"3px 6px",color:C.orange}}>🔔 Relancer</BtnGhost>}
+            {f.type_document!=="avoir"&&f.statut!=="annulée"&&<BtnGhost onClick={()=>creerAvoir(f)} style={{fontSize:9,padding:"3px 6px",color:C.red}}>↩️ Avoir</BtnGhost>}
           </div></Td>
         </tr>)}</tbody>
       </table>
