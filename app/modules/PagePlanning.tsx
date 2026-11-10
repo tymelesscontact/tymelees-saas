@@ -153,6 +153,29 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
     } catch { showToast("❌ Erreur"); }
   };
 
+  const affecterMission = async (m: any, collaborateurId: string) => {
+    if (!collaborateurId) return;
+    try {
+      const r = await fetch("/api/planning-missions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "affecter", mission_id: m.id, collaborateur_id: collaborateurId }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { showToast("❌ " + (d.error === "reserve_au_proprietaire_ou_admin" ? "Réservé au propriétaire ou à un Admin" : (d.error || "Erreur"))); return; }
+      const c = d.canal === "whatsapp" ? "WhatsApp" : d.canal === "email" ? "email" : d.canal === "sms" ? "SMS" : null;
+      showToast(`✅ Mission confiée à ${d.collaborateur}${c ? ` — prévenu par ${c}` : " — non prévenu (ni téléphone ni email)"}`);
+      charger();
+    } catch { showToast("❌ Erreur de connexion"); }
+  };
+
+  const retirerCollaborateur = async (m: any, collaborateurId: string, nom: string) => {
+    if (!window.confirm(`Retirer ${nom} de cette mission ?`)) return;
+    try {
+      const r = await fetch("/api/planning-missions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "retirer_collaborateur", mission_id: m.id, collaborateur_id: collaborateurId }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { showToast("❌ " + (d.error || "Erreur")); return; }
+      showToast(`${nom} retiré de la mission`);
+      charger();
+    } catch { showToast("❌ Erreur de connexion"); }
+  };
+
   const supprimerMission = async (m: any) => {
     if (!window.confirm(`Supprimer définitivement la mission du ${m.date_mission}${m.client_nom ? " chez " + m.client_nom : ""} ? Cette action est irréversible.`)) return;
     try {
@@ -497,7 +520,14 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
                 <Td style={{ color: C.gold }}>{new Date(m.date_mission + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short", year: "numeric" })}</Td>
                 <Td>{String(m.heure || "").slice(0, 5)}{m.heure_arrivee_reelle && <div style={{ fontSize: 9, color: C.green }}>arrivé {String(m.heure_arrivee_reelle).slice(0, 5)}{m.heure_fin_reelle ? ` · fini ${String(m.heure_fin_reelle).slice(0, 5)}` : ""}</div>}</Td>
                 <Td style={{ fontWeight: 600 }}>{m.client_nom || "—"}{bien && <div style={{ fontSize: 10, color: C.muted, fontWeight: 400 }}>🏠 {bien.nom}</div>}</Td>
-                <Td style={{ fontSize: 11 }}>{noms || <span style={{ color: C.red }}>personne</span>}</Td>
+                <Td style={{ fontSize: 11 }}>
+                  <div>{noms || <span style={{ color: C.red }}>personne</span>}</div>
+                  {!["termine", "annule"].includes(m.statut) && <select value="" onClick={(e) => e.stopPropagation()} onChange={(e) => affecterMission(m, e.target.value)}
+                    style={{ marginTop: 4, background: C.card2, border: `1px solid ${C.border}`, borderRadius: 6, padding: "3px 6px", color: C.gold, fontSize: 10, fontFamily: "inherit", cursor: "pointer" }}>
+                    <option value="">👤 Confier à…</option>
+                    {collaborateurs.filter((c) => !(m.missions_collaborateurs || []).some((mc: any) => mc.collaborateur_id === c.id)).map((c) => <option key={c.id} value={c.id}>{`${c.prenom || ""} ${c.nom || ""}`.trim()}</option>)}
+                  </select>}
+                </Td>
                 <Td><Pill color={m.statut === "termine" ? C.green : m.statut === "annule" ? C.red : m.statut === "en_cours" ? C.gold : C.blue}>{LIBELLE_STATUT[m.statut] || m.statut}</Pill></Td>
                 <Td><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }} onClick={(e) => e.stopPropagation()}>
                   {m.statut === "propose" && <BtnGhost onClick={() => changerStatutMission(m.id, "confirme")} style={{ fontSize: 9, padding: "3px 8px" }}>Confirmer</BtnGhost>}
@@ -511,7 +541,10 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
                 <div><strong>Adresse :</strong> {m.adresse || bien?.adresse || "—"}</div>
                 {bien && <div><strong>Bien :</strong> {bien.nom} — QR code dans l'onglet « Biens & QR »</div>}
                 {(m.client_tel || m.client_email) && <div><strong>Client :</strong> {[m.client_tel, m.client_email].filter(Boolean).join(" · ")}</div>}
-                <div><strong>Collaborateurs :</strong> {noms || "aucun"}</div>
+                <div><strong>Collaborateurs :</strong> {(m.missions_collaborateurs || []).length === 0 ? "aucun" : (m.missions_collaborateurs || []).map((mc: any) => {
+                  const nom = mc.equipe ? `${mc.equipe.prenom || ""} ${mc.equipe.nom || ""}`.trim() : (collaborateurs.find((c) => c.id === mc.collaborateur_id)?.nom || "?");
+                  return <span key={mc.collaborateur_id} style={{ marginRight: 10 }}>{nom}{!["termine", "annule"].includes(m.statut) && <button onClick={() => retirerCollaborateur(m, mc.collaborateur_id, nom)} style={{ marginLeft: 4, background: "transparent", border: "none", color: C.red, cursor: "pointer", fontSize: 11 }}>✕</button>}</span>;
+                })}</div>
                 <div><strong>Pointage :</strong> {m.heure_arrivee_reelle ? `arrivée ${String(m.heure_arrivee_reelle).slice(0, 5)}` : "pas encore arrivé"}{m.heure_fin_reelle ? ` · fin ${String(m.heure_fin_reelle).slice(0, 5)}` : ""}</div>
                 {m.notes && <div><strong>Notes :</strong> {m.notes}</div>}
               </td></tr>}
