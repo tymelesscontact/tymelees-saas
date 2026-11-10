@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
-import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { alerterEntreprise } from '../../lib/rappels';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 // Service role : le tenant_id est deja verifie et impose dans chaque requete
@@ -307,9 +307,7 @@ Explique POURQUOI le solde va baisser et donne 2 actions concrètes pour l'évit
     if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     // Le numero destinataire est celui du tenant lui-meme, jamais une valeur
     // globale -- sinon le rapport financier d'un tenant part chez un autre.
-    const { data: tenantRow } = await sb.from('tenants').select('telephone_contact,prenom,civilite').eq('id', tenantId).maybeSingle();
-    const destTel = tenantRow?.telephone_contact;
-    if (!destTel) return NextResponse.json({ error: 'Aucun numero de telephone configure pour ce compte' }, { status: 400 });
+    const { data: tenantRow } = await sb.from('tenants').select('prenom,civilite').eq('id', tenantId).maybeSingle();
     const { soldeActuel, scoreFinancier, pointMort, clientsEnRetard, commissionsDues } = body;
     try {
       const prompt = `Génère un rapport trésorerie hebdomadaire WhatsApp (5-6 lignes max, français, emojis autorisés) :
@@ -318,8 +316,9 @@ Commissions dues : ${commissionsDues}€ | Clients en retard : ${(clientsEnRetar
 Inclus : 1 chiffre clé, 1 risque, 1 priorité cette semaine. Commence par "Bonjour${tenantRow?.prenom ? ' ' + tenantRow.prenom : ''}"`;
 
       const message = await askClaude(prompt, 300);
-      await envoyerWhatsApp(destTel, message, tenantId);
-      return NextResponse.json({ success: true });
+      const canal = await alerterEntreprise(tenantId, 'Rapport trésorerie hebdomadaire', message);
+      if (!canal) return NextResponse.json({ error: 'Aucun numero ni email configure pour ce compte (Parametres)' }, { status: 400 });
+      return NextResponse.json({ success: true, canal });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
     }
@@ -328,13 +327,11 @@ Inclus : 1 chiffre clé, 1 risque, 1 priorité cette semaine. Commence par "Bonj
   // ── ALERTE CRITIQUE WHATSAPP ──────────────────────────────
   if (action === 'alerte_critique_whatsapp') {
     if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
-    const { data: tenantRow } = await sb.from('tenants').select('telephone_contact').eq('id', tenantId).maybeSingle();
-    const destTel = tenantRow?.telephone_contact;
-    if (!destTel) return NextResponse.json({ error: 'Aucun numero de telephone configure pour ce compte' }, { status: 400 });
     const { soldeActuel, seuil } = body;
     try {
-      await envoyerWhatsApp(destTel, `Xyra ALERTE TRESORERIE - Solde actuel : ${soldeActuel}€ est passe sous le seuil critique de ${seuil}€. Action requise immediatement.`, tenantId);
-      return NextResponse.json({ success: true });
+      const canal = await alerterEntreprise(tenantId, 'Alerte trésorerie', `Xyra ALERTE TRESORERIE - Solde actuel : ${soldeActuel}€ est passe sous le seuil critique de ${seuil}€. Action requise immediatement.`);
+      if (!canal) return NextResponse.json({ error: 'Aucun numero ni email configure pour ce compte (Parametres)' }, { status: 400 });
+      return NextResponse.json({ success: true, canal });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
     }

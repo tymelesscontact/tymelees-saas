@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { estAutoriseGererEquipe } from '../../lib/permissions';
+import { montantValide } from '../../lib/walletValidation';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -80,7 +82,7 @@ export async function GET(req: NextRequest) {
     if (!tenantId) return NextResponse.json({ factures: [] });
     const companyId = searchParams.get('company_id');
     let query = sb.from('factures').select('*').eq('tenant_id', tenantId).order('created_at', { ascending: false }).limit(200);
-    if (companyId && UUID_RE.test(companyId)) query = query.eq('company_id', companyId);
+    if (companyId && UUID_RE.test(companyId)) query = query.or(`company_id.eq.${companyId},company_id.is.null`);
     const { data, error } = await query;
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -95,6 +97,38 @@ export async function POST(req: NextRequest) {
   const body = await req.json();
   const { action } = body;
 
+  if (['creer', 'envoyer_paiement', 'marquer_payee', 'relancer'].includes(action)) {
+    if (!tenantIdPost) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    if (!(await estAutoriseGererEquipe(req, tenantIdPost))) {
+      // Seule exception : la facture automatique de fin de mission, declenchee par
+      // api/planning-missions quand un salarie passe sa mission en "termine".
+      // Mission du tenant, terminee, devis lie, pas encore facture ; montant relu en base.
+      let factureFinMission = false;
+      if (action === 'creer' && body.mission_id && body.devis_id) {
+        const { data: missionFin } = await sb.from('missions').select('id,devis_id,statut,client_nom,client_email,client_tel')
+          .eq('id', body.mission_id).eq('tenant_id', tenantIdPost).maybeSingle();
+        if (missionFin && missionFin.statut === 'termine' && missionFin.devis_id === body.devis_id) {
+          const { data: dejaFacturee } = await sb.from('factures').select('id')
+            .eq('tenant_id', tenantIdPost).eq('devis_id', body.devis_id).limit(1).maybeSingle();
+          const { data: devisFin } = await sb.from('devis').select('*')
+            .eq('id', body.devis_id).eq('tenant_id', tenantIdPost).maybeSingle();
+          if (!dejaFacturee && devisFin) {
+            // Montant, TVA et client relus en base : rien ne vient du navigateur du salarie
+            body.montant_ht = devisFin.montant;
+            body.taux_tva = devisFin.taux_tva ?? undefined;
+            body.client_nom = missionFin.client_nom || devisFin.client_nom || body.client_nom;
+            body.client_email = missionFin.client_email || devisFin.client_email || null;
+            body.client_tel = missionFin.client_tel || devisFin.client_tel || null;
+            factureFinMission = true;
+          }
+        }
+      }
+      if (!factureFinMission) {
+        return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+      }
+    }
+  }
+
   // ── CRÉER UNE FACTURE ───────────────────────────────────────
   if (action === 'creer') {
     const { client_nom, client_email, client_tel, siren, type_client, description, montant_ht, taux_tva, devis_id } = body;
@@ -102,12 +136,22 @@ export async function POST(req: NextRequest) {
 
     const tenantIdCreer = await getTenantIdFromRequest(req);
     if (!tenantIdCreer) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    // Facture automatique de fin de mission : jamais deux fois pour le meme devis (admin compris)
+    if (body.mission_id && devis_id) {
+      const { data: dejaFactureeMission } = await sb.from('factures').select('id')
+        .eq('tenant_id', tenantIdCreer).eq('devis_id', devis_id).limit(1).maybeSingle();
+      if (dejaFactureeMission) return NextResponse.json({ success: true, deja_facturee: true, facture_id: dejaFactureeMission.id });
+    }
     const { count } = await sb.from('factures').select('*', { count: 'exact', head: true }).eq('tenant_id', tenantIdCreer);
     const annee = new Date().getFullYear();
     const numero = `FA-${annee}-${String((count || 0) + 1).padStart(4, '0')}`;
 
-    const montantHT = Number(montant_ht);
+    const montantHT = montantValide(montant_ht);
+    if (montantHT === null) return NextResponse.json({ error: 'Montant HT invalide' }, { status: 400 });
     const tauxTVA = Number(taux_tva ?? 20);
+    if (!Number.isFinite(tauxTVA) || tauxTVA < 0 || tauxTVA > 100) {
+      return NextResponse.json({ error: 'Taux de TVA invalide' }, { status: 400 });
+    }
     const montantTVA = Math.round(montantHT * tauxTVA) / 100;
     const montantTTC = montantHT + montantTVA;
 
@@ -168,6 +212,8 @@ export async function POST(req: NextRequest) {
       statut: 'émise',
       statut_dgfip: statutDgfip,
       date_echeance: echeance.toISOString().split('T')[0],
+      // Rattachee a la societe active, sinon invisible dans la liste filtree par societe
+      company_id: (typeof body.company_id === 'string' && UUID_RE.test(body.company_id)) ? body.company_id : null,
     }).select().single();
 
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -201,8 +247,8 @@ export async function POST(req: NextRequest) {
           },
           quantity: 1,
         }],
-        success_url: `https://xyraio.fr/dashboard?facture=success`,
-        cancel_url: `https://xyraio.fr/dashboard?facture=cancelled`,
+        success_url: `${req.nextUrl.origin}/dashboard?facture=success`,
+        cancel_url: `${req.nextUrl.origin}/dashboard?facture=cancelled`,
       });
 
       paymentUrl = session.url;
@@ -262,30 +308,38 @@ export async function POST(req: NextRequest) {
 
     const lien = facture.stripe_payment_url || '';
     let envoye = false;
+    let raisonEchec = '';
     if (facture.client_email) {
       try {
         const pdfBuffer = await genererPdfFacture(facture);
         const { Resend } = await import('resend');
         const resend = new Resend(process.env.RESEND_API_KEY);
-        await resend.emails.send({
+        const { error: erreurRelance } = await resend.emails.send({
           from: 'Xyra <notifications@xyraio.fr>',
           to: facture.client_email,
           subject: `Rappel — Facture ${facture.numero} en attente de paiement`,
           html: `<div style="font-family:sans-serif;padding:24px;"><p>Bonjour ${facture.client_nom},</p><p>Petit rappel : votre facture ${facture.numero} d'un montant de <strong>${facture.montant_ttc}€</strong> est toujours en attente de paiement (facture jointe).</p>${lien ? `<p><a href="${lien}" style="background:#C9A84C;color:#000;padding:12px 24px;text-decoration:none;border-radius:6px;font-weight:bold;">Payer maintenant</a></p>` : ''}</div>`,
           attachments: [{ filename: `Facture-${facture.numero}.pdf`, content: pdfBuffer.toString('base64') }],
         });
-        envoye = true;
-      } catch (e) { console.error('Email error:', e); }
+        if (erreurRelance) { console.error('Email error:', erreurRelance.message); raisonEchec = 'email refusé : ' + erreurRelance.message; }
+        else envoye = true;
+      } catch (e: any) { console.error('Email error:', e); raisonEchec = 'email : ' + (e?.message || 'erreur'); }
     }
     if (facture.client_tel) {
       try {
-        await envoyerWhatsApp(facture.client_tel, `Bonjour ${facture.client_nom}, petit rappel pour votre facture ${facture.numero} (${facture.montant_ttc}€) toujours en attente.${lien ? `\nPayer : ${lien}` : ''}`, tenantIdPost);
-        envoye = true;
+        const envoiWa = await envoyerWhatsApp(facture.client_tel, `Bonjour ${facture.client_nom}, petit rappel pour votre facture ${facture.numero} (${facture.montant_ttc}€) toujours en attente.${lien ? `\nPayer : ${lien}` : ''}`, tenantIdPost);
+        if (envoiWa?.ok) envoye = true;
+        else if (!raisonEchec) raisonEchec = 'WhatsApp indisponible et pas d\'email client';
       } catch (e) { console.error('WhatsApp error:', e); }
     }
 
-    await sb.from('factures').update({ statut: 'en_retard' }).eq('id', id).eq('tenant_id', tenantIdPost);
-    return NextResponse.json({ success: true, envoye });
+    if (!facture.client_email && !facture.client_tel) raisonEchec = 'aucun email ni téléphone client sur la facture';
+    // "En retard" seulement si l'echeance est vraiment depassee (et la facture pas payee)
+    const aujourdhui = new Date().toISOString().split('T')[0];
+    if (facture.date_echeance && facture.date_echeance < aujourdhui && !['payée', 'payee'].includes(facture.statut)) {
+      await sb.from('factures').update({ statut: 'en_retard' }).eq('id', id).eq('tenant_id', tenantIdPost);
+    }
+    return NextResponse.json({ success: true, envoye, raison: envoye ? undefined : (raisonEchec || 'envoi impossible') });
   }
 
   return NextResponse.json({ error: 'Action inconnue' }, { status: 400 });

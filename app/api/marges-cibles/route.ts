@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { estAutoriseGererEquipe } from '../../lib/permissions';
 
 export const dynamic = 'force-dynamic';
@@ -11,6 +11,8 @@ const sb = createClient(
 );
 
 export async function GET(req: NextRequest) {
+  const acces = await verifierAccesModule(req, 'facturation');
+  if (!acces.ok) return acces.reponse;
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ marges: [] });
   const { data } = await sb.from('marges_cibles_categorie').select('*').eq('tenant_id', tenantId).order('categorie');
@@ -18,6 +20,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const acces = await verifierAccesModule(req, 'facturation');
+  if (!acces.ok) return acces.reponse;
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
   if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });

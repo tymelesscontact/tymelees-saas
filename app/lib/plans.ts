@@ -99,6 +99,9 @@ export const PAGE_ACCESS: Record<string, string[]> = {
   revendeur: [...WHITE_LABEL_PLANS, "owner"],
   notifications: ["starter", "business", "enterprise", ...MULTI_PLANS, "club_affaires", "owner"],
   prospection: ["enterprise", "owner"],
+  // Bot WhatsApp-Lea : meme regle que la Prospection (Enterprise). Le Chat (messagerie
+  // interne) n'a volontairement pas d'entree : ouvert a tous les forfaits (decision 26/10).
+  conversations_whatsapp: ["enterprise", "owner"],
   club_affaires: ["enterprise", "club_affaires", "owner"],
   multi_societes: ["multi_societes", "multi_societes_pro", "holding", "enterprise", "owner"],
   signature: ["business", "enterprise", "owner"],

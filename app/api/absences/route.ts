@@ -45,11 +45,40 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ absences: demandes || [] });
   }
 
+  // vue "moi" : l'espace equipe d'un salarie ne recoit que ses propres absences
+  if (searchParams.get('vue') === 'moi') {
+    const tokenMoi = req.cookies.get('sb-access-token')?.value;
+    if (!tokenMoi) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const { data: authMoi } = await sb.auth.getUser(tokenMoi);
+    if (!authMoi?.user) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const { data: moi } = await sb.from('equipe').select('id').eq('user_id', authMoi.user.id).eq('tenant_id', tenantId).maybeSingle();
+    if (!moi) return NextResponse.json({ absences: [] });
+    const { data: miennes, error: errMiennes } = await sb.from('absences').select('*')
+      .eq('tenant_id', tenantId).eq('employe_id', moi.id).order('debut', { ascending: false });
+    if (errMiennes) return NextResponse.json({ error: errMiennes.message }, { status: 500 });
+    return NextResponse.json({ absences: miennes || [] });
+  }
+
   const { data, error } = await sb.from('absences')
     .select('*').eq('tenant_id', tenantId).order('debut', { ascending: false });
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
-  if (vueSimple) {
+  // Type et motif (donnees de sante) : reserves au proprietaire et a l'Admin.
+  // Repli tenants.user_id pour les comptes proprietaires crees avant l'entree
+  // automatique 'owner' dans tenant_membres.
+  let voitMotifs = await estAutoriseGererEquipe(req, tenantId);
+  if (!voitMotifs) {
+    const tokenVerif = req.cookies.get('sb-access-token')?.value;
+    if (tokenVerif) {
+      const { data: authVerif } = await sb.auth.getUser(tokenVerif);
+      if (authVerif?.user) {
+        const { data: tenantProprio } = await sb.from('tenants').select('id').eq('id', tenantId).eq('user_id', authVerif.user.id).maybeSingle();
+        voitMotifs = !!tenantProprio;
+      }
+    }
+  }
+
+  if (vueSimple || !voitMotifs) {
     // Les collegues voient seulement qu'un collaborateur est absent, jamais pourquoi.
     const simplifiees = (data || []).map((a: any) => ({
       id: a.id, employe_id: a.employe_id, nom_employe: a.nom_employe,

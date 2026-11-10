@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { createClient } from "@supabase/supabase-js"
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 
 function getAdminClient() {
@@ -14,6 +14,9 @@ const PHONE_NUMBER_ID = process.env.WHATSAPP_PHONE_NUMBER_ID
 
 
 export async function GET(req: NextRequest) {
+  // Bot WhatsApp-Lea : forfaits Enterprise (ou module Prospection achete).
+  const acces = await verifierAccesModule(req, ['conversations_whatsapp', 'prospection'])
+  if (!acces.ok) return acces.reponse
   const sb = getAdminClient()
   const tenantId = await getTenantIdFromRequest(req)
   if (!tenantId) return NextResponse.json({ conversations: [] })
@@ -37,6 +40,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // Bot WhatsApp-Lea : forfaits Enterprise (ou module Prospection achete).
+  const acces = await verifierAccesModule(req, ['conversations_whatsapp', 'prospection'])
+  if (!acces.ok) return acces.reponse
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ success: false, error: "non_autorise" }, { status: 401 })
   const body = await req.json()

@@ -100,7 +100,7 @@ export default function EspaceEquipe() {
 
       const [mis, abs, sig, msgs] = await Promise.all([
         fetch("/api/planning-missions").then(r => r.json()).catch(() => ({})),
-        fetch("/api/absences").then(r => r.json()).catch(() => ({})),
+        fetch("/api/absences?vue=moi").then(r => r.json()).catch(() => ({})),
         fetch("/api/signalements?vue=equipe").then(r => r.json()).catch(() => ({})),
         fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "mes_conversations" }) }).then(r => r.json()).catch(() => ({})),
       ]);

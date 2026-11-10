@@ -60,10 +60,10 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
   ];
 
   const statutColor={payée:C.green,"émise":C.blue,en_retard:C.red,brouillon:C.muted,annulée:C.muted};
-  const totalHT=factures.reduce((a,f)=>a+Number(f.montant_ht||0),0);
-  const totalTVA=factures.reduce((a,f)=>a+Number(f.montant_tva||0),0);
+  const facturesEmises=factures.filter(f=>["émise","en_retard","payée"].includes(f.statut));
+  const caEncaisseHT=factures.filter(f=>f.statut==="payée").reduce((a,f)=>a+Number(f.montant_ht||0),0);
+  const aEncaisserHT=factures.filter(f=>["émise","en_retard"].includes(f.statut)).reduce((a,f)=>a+Number(f.montant_ht||0),0);
   const payées=factures.filter(f=>f.statut==="payée").length;
-  const enRetard=factures.filter(f=>f.statut==="en_retard").length;
 
   const apercuPDF=(f)=>{
     const win=window.open("","_blank");
@@ -99,7 +99,7 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
     if(!newFact.client_nom||!newFact.montant_ht)return showToast("⚠️ Remplissez client et montant");
     showToast("⏳ Création de la facture...");
     try{
-      const res=await fetch('/api/factures',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer',...newFact})});
+      const res=await fetch('/api/factures',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'creer',...newFact,company_id:activeCompany?.id||null})});
       const data=await res.json();
       if(data.success){
         showToast(`✅ Facture ${data.facture.numero} créée !`);
@@ -133,7 +133,7 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
     try{
       const res=await fetch('/api/factures',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'relancer',id})});
       const data=await res.json();
-      if(data.success)showToast(data.envoye?"✅ Relance envoyée !":"⚠️ Aucun email/téléphone client renseigné");
+      if(data.success)showToast(data.envoye?"✅ Relance envoyée !":"⚠️ Relance non envoyée — "+(data.raison||"envoi impossible"));else showToast("❌ "+(data.error||"Erreur"));
       loadFactures();
     }catch(e){showToast("❌ Erreur");}
   };
@@ -150,7 +150,7 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
     </div>
 
     <div style={{display:"grid",gridTemplateColumns:"repeat(4,1fr)",gap:10,marginBottom:14}}>
-      {[["Factures émises",factures.length,C.blue],["Payées",payées,C.green],["CA HT total",fmt(totalHT),C.gold],["En retard",enRetard,C.red]].map(([l,v,c],i)=><CT key={i}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div></CT>)}
+      {[["Factures émises",facturesEmises.length,C.blue],["Payées",payées,C.green],["CA encaissé HT",fmt(caEncaisseHT),C.gold],["À encaisser HT",fmt(aEncaisserHT),C.red]].map(([l,v,c],i)=><CT key={i}><div style={{fontSize:9,color:C.muted,textTransform:"uppercase",letterSpacing:"0.1em",marginBottom:6}}>{l}</div><div style={{fontSize:18,fontWeight:700,color:c}}>{v}</div></CT>)}
     </div>
 
     <div style={{marginBottom:14,display:"flex",gap:4,background:C.card2,borderRadius:8,padding:4,flexWrap:"wrap"}}>

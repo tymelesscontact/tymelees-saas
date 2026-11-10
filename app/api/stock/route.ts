@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -20,7 +20,7 @@ export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ articles: [], mouvements: [], fournisseurs: [], emplacements: [], valeurTotale: 0, articlesCritiques: [], scoreStock: 100 });
   let articlesQuery = sb.from('stock').select('*').eq('tenant_id', tenantId).order('art', { ascending: true });
-  if (companyId && UUID_RE.test(companyId)) articlesQuery = articlesQuery.eq('company_id', companyId);
+  if (companyId && UUID_RE.test(companyId)) articlesQuery = articlesQuery.or(`company_id.eq.${companyId},company_id.is.null`);
   const { data: articles, error } = await articlesQuery;
   if (error) return NextResponse.json({ error: error.message }, { status: 500 });
 
@@ -66,6 +66,10 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  // Ecritures reservees aux forfaits qui incluent Stock ou Produits & Services
+  // (la lecture reste ouverte : le Chat l'utilise pour tous les forfaits).
+  const acces = await verifierAccesModule(req, ['stock', 'services']);
+  if (!acces.ok) return acces.reponse;
   const tenantId = await getTenantIdFromRequest(req);
   const body = await req.json();
   const { action } = body;

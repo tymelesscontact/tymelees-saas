@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
-import { envoyerWhatsApp } from '../../lib/whatsapp';
+import { alerterEntreprise } from '../../lib/rappels';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -193,8 +193,6 @@ Sois direct et précis.`;
   }
 
   if (action === 'rapport_mensuel_whatsapp') {
-    const ownerTel = process.env.OWNER_WHATSAPP;
-    if (!ownerTel) return NextResponse.json({ error: 'OWNER_WHATSAPP manquant' }, { status: 400 });
     const { caTotal, caMoisActuel, evolutionMois, tauxMarge, topClients, prevision } = body;
     try {
       const prompt = `Génère un rapport CA mensuel WhatsApp (5-6 lignes max, français, emojis) :
@@ -203,8 +201,9 @@ Marge nette : ${tauxMarge}% | Top client : ${topClients?.[0]?.nom} (${topClients
 Prévision 90j réaliste : ${prevision?.realiste}€
 Commence par "Rapport CA Xyra —" et inclus 1 point fort et 1 priorité ce mois.`;
       const message = await askClaude(prompt);
-      await envoyerWhatsApp(ownerTel, message, tenantId);
-      return NextResponse.json({ success: true });
+      const canal = await alerterEntreprise(tenantId, 'Rapport CA mensuel', message);
+      if (!canal) return NextResponse.json({ error: 'Aucun numero ni email configure pour ce compte (Parametres)' }, { status: 400 });
+      return NextResponse.json({ success: true, canal });
     } catch (e: any) {
       return NextResponse.json({ error: e.message }, { status: 500 });
     }

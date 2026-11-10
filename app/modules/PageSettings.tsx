@@ -528,7 +528,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
   const ROLES=["Fondateur","Admin","Commercial","Collaborateur","Comptable","Lecture seule"];
   const loadTickets=async()=>{
     try{
-      const res=await fetch(`/api/tickets?email=${profil?.email||profUser.email}`);
+      const res=await fetch('/api/tickets');
       const data=await res.json();
       if(data.tickets)setMesTickets(data.tickets);
     }catch(e){console.error("Tickets:",e);}

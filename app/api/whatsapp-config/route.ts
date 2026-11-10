@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { jetonWhatsAppChiffre } from '../../lib/whatsapp';
 
 export const dynamic = 'force-dynamic';
 
@@ -41,7 +42,7 @@ export async function POST(req: NextRequest) {
   if (body.whatsapp_numero !== undefined) champs.whatsapp_numero = body.whatsapp_numero || null;
   if (body.whatsapp_phone_number_id !== undefined) champs.whatsapp_phone_number_id = body.whatsapp_phone_number_id || null;
   // Le jeton n'est ecrase que si un nouveau est fourni
-  if (body.whatsapp_token) champs.whatsapp_token = body.whatsapp_token;
+  if (body.whatsapp_token) champs.whatsapp_token = jetonWhatsAppChiffre(String(body.whatsapp_token));
 
   if (body.whatsapp_actif !== undefined) {
     if (body.whatsapp_actif) {

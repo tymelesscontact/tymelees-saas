@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { jetonWhatsAppLisible } from '../../lib/whatsapp';
 
 export const dynamic = 'force-dynamic';
 
@@ -36,9 +37,10 @@ export async function GET(req: NextRequest) {
     const { data: t } = await sb.from('tenants')
       .select('whatsapp_phone_number_id,whatsapp_token,whatsapp_actif')
       .eq('id', tenantId).maybeSingle();
-    if (t?.whatsapp_actif && t.whatsapp_phone_number_id && t.whatsapp_token) {
+    const jetonTenant = jetonWhatsAppLisible(t?.whatsapp_token);
+    if (t?.whatsapp_actif && t.whatsapp_phone_number_id && jetonTenant) {
       phoneId = t.whatsapp_phone_number_id;
-      token = t.whatsapp_token;
+      token = jetonTenant;
       source = 'compte propre du tenant';
     }
   }

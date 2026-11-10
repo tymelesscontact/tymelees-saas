@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
+import { verifierUrlExterne } from '../../lib/urlExterne';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -83,7 +84,10 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'create_webhook') {
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { nom, url, evenements } = body;
+    const urlOk = await verifierUrlExterne(url);
+    if (!urlOk.ok) return NextResponse.json({ error: urlOk.raison }, { status: 400 });
     const secret = 'whsec_' + crypto.randomBytes(16).toString('hex');
     const { data, error } = await sb.from('api_webhooks').insert({
       nom, url, evenements: evenements || ['paiement.recu'],
@@ -104,6 +108,9 @@ export async function POST(req: NextRequest) {
 
   if (action === 'tester_webhook') {
     const { url, secret } = body;
+    // Jamais d'appel vers le reseau interne / les metadonnees du serveur (SSRF).
+    const urlOk = await verifierUrlExterne(url);
+    if (!urlOk.ok) return NextResponse.json({ success: false, error: urlOk.raison }, { status: 400 });
     try {
       const payload = { event: 'test.webhook', data: { message: 'Test webhook Xyra', timestamp: new Date().toISOString() } };
       const sig = crypto.createHmac('sha256', secret || 'test').update(JSON.stringify(payload)).digest('hex');
@@ -111,6 +118,8 @@ export async function POST(req: NextRequest) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'X-Xyra-Signature': sig },
         body: JSON.stringify(payload),
+        redirect: 'manual',
+        signal: AbortSignal.timeout(5000),
       });
       return NextResponse.json({ success: res.ok, status: res.status });
     } catch (e: any) {
@@ -129,12 +138,16 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'log_appel') {
+    if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
     const { api_key_id, methode, endpoint, statut_code, duree_ms, ip } = body;
-    await sb.from('api_logs').insert({ api_key_id, methode, endpoint, statut_code, duree_ms, ip });
+    let key: { appels_total: number | null; appels_mois: number | null } | null = null;
     if (api_key_id) {
-      const { data: key } = await sb.from('api_keys').select('appels_total,appels_mois').eq('id', api_key_id).single();
-      if (key) await sb.from('api_keys').update({ appels_total: (key.appels_total || 0) + 1, appels_mois: (key.appels_mois || 0) + 1, derniere_utilisation: new Date().toISOString() }).eq('id', api_key_id);
+      const { data } = await sb.from('api_keys').select('appels_total,appels_mois').eq('id', api_key_id).eq('tenant_id', tenantId).maybeSingle();
+      if (!data) return NextResponse.json({ error: 'Cle introuvable' }, { status: 404 });
+      key = data;
     }
+    await sb.from('api_logs').insert({ api_key_id, methode, endpoint, statut_code, duree_ms, ip, tenant_id: tenantId });
+    if (key) await sb.from('api_keys').update({ appels_total: (key.appels_total || 0) + 1, appels_mois: (key.appels_mois || 0) + 1, derniere_utilisation: new Date().toISOString() }).eq('id', api_key_id).eq('tenant_id', tenantId);
     return NextResponse.json({ success: true });
   }
 

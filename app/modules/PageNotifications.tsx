@@ -73,6 +73,8 @@ const PageNotifications=({notifs,setNotifs,showToast,activeCompany})=>{
     client:{actif:true,push:true,whatsapp:false,email:false},
     systeme:{actif:true,push:true,whatsapp:false,email:false},
   });
+  // Les interrupteurs Push / WhatsApp / Email refletent les preferences enregistrees en base.
+  const configAffichee=Object.fromEntries(Object.entries(config).map(([k,v])=>{const p=_prefs.find(x=>x.type===k);return [k,p?{...v,push:p.push_actif??v.push,whatsapp:p.whatsapp_actif??v.whatsapp,email:p.email_actif??v.email}:v];}));
   const[filtreType,setFiltreType]=useState("tous");
   const[filtreStatut,setFiltreStatut]=useState("tous");
 
@@ -135,10 +137,10 @@ const PageNotifications=({notifs,setNotifs,showToast,activeCompany})=>{
       <Card>
         <table style={{width:"100%",borderCollapse:"collapse"}}>
           <thead><tr><TH>Type de notification</TH><TH style={{textAlign:"center"}}>Activer</TH><TH style={{textAlign:"center"}}>Push écran</TH><TH style={{textAlign:"center"}}>WhatsApp</TH><TH style={{textAlign:"center"}}>Email</TH></tr></thead>
-          <tbody>{Object.entries(config).map(([k,v])=>{const labels={paiement:"💰 Paiements",devis:"◧ Devis",stock:"📦 Stock critique",rh:"👥 RH & Équipe",client:"👤 Clients",systeme:"⚙ Système"};return <tr key={k}>
+          <tbody>{Object.entries(configAffichee).map(([k,v])=>{const labels={paiement:"💰 Paiements",devis:"◧ Devis",stock:"📦 Stock critique",rh:"👥 RH & Équipe",client:"👤 Clients",systeme:"⚙ Système"};return <tr key={k}>
             <Td style={{fontWeight:600}}>{labels[k]||k}</Td>
             {["actif","push","whatsapp","email"].map(prop=><td key={prop} style={{textAlign:"center",padding:"10px",borderBottom:`1px solid ${C.border}22`}}>
-              <div onClick={()=>setConfig(c=>({...c,[k]:{...c[k],[prop]:!c[k][prop]}}))} style={{width:36,height:20,borderRadius:10,background:v[prop]?C.gold:C.border,cursor:"pointer",transition:".2s",position:"relative",margin:"0 auto"}}>
+              <div onClick={()=>{const nv={...v,[prop]:!v[prop]};setConfig(c=>({...c,[k]:nv}));if(prop!=="actif"){const valeurs={push_actif:nv.push,whatsapp_actif:nv.whatsapp,email_actif:nv.email};setPrefs(ps=>ps.some(x=>x.type===k)?ps.map(x=>x.type===k?{...x,...valeurs}:x):[...ps,{type:k,...valeurs}]);_updatePref(k,valeurs);}}} style={{width:36,height:20,borderRadius:10,background:v[prop]?C.gold:C.border,cursor:"pointer",transition:".2s",position:"relative",margin:"0 auto"}}>
                 <div style={{position:"absolute",top:2,left:v[prop]?18:2,width:16,height:16,borderRadius:"50%",background:"#fff",transition:".2s"}}/>
               </div>
             </td>)}

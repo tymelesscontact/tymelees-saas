@@ -5,7 +5,7 @@ import { MODULE_PRICES, PLAN_LABELS, PLAN_PRIX } from "../lib/plans";
 
 // Ecran d'upsell affiche quand un module est verrouille pour le plan du
 // tenant. Partage entre les deux dashboards (mon-espace/xyra.jsx et
-// dashboard/tymeless.jsx). Trois options possibles selon le plan :
+// dashboard/xyra.jsx). Trois options possibles selon le plan :
 //   - Module seul (a la carte, Starter/Business uniquement)
 //   - Passer a Business Pro
 //   - Passer a Enterprise
