@@ -6,6 +6,7 @@ import { urlRetourInvitation } from '../../lib/invitation';
 import { getAnthropicKey } from '../../lib/anthropicKey';
 import { fuseauDuTenant } from '../../lib/fuseauHoraire';
 import { createClient } from '@supabase/supabase-js';
+import { alerterEntreprise } from '../../lib/rappels';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -88,6 +89,19 @@ export async function GET(req: NextRequest) {
   // Route dediee self-service : l'employe connecte voit UNIQUEMENT ses
   // propres formations + le catalogue (pas les donnees RH sensibles des
   // collegues, contrairement au reste de cette route reserve au RH).
+  // Self-service : le salarie connecte voit uniquement ses propres demandes d'acompte
+  if (action === 'mes_acomptes') {
+    const tokenMoi = req.cookies.get('sb-access-token')?.value;
+    if (!tokenMoi) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const { data: authMoi } = await sb.auth.getUser(tokenMoi);
+    if (!authMoi?.user) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const { data: moi } = await sb.from('equipe').select('id, tenant_id').eq('user_id', authMoi.user.id).maybeSingle();
+    if (!moi) return NextResponse.json({ acomptes: [] });
+    const { data: mesAcomptes } = await sb.from('acomptes').select('id,montant,motif,statut,created_at')
+      .eq('tenant_id', moi.tenant_id).eq('employe_id', moi.id).order('created_at', { ascending: false }).limit(24);
+    return NextResponse.json({ acomptes: mesAcomptes || [] });
+  }
+
   if (action === 'mes_formations') {
     const tokenMoi = req.cookies.get('sb-access-token')?.value;
     if (!tokenMoi) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
@@ -391,6 +405,34 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { action } = body;
+
+  // Self-service : le salarie demande un acompte sur son salaire (valide ensuite par le RH,
+  // puis verse via le Wallet). Une seule demande en attente a la fois.
+  if (action === 'demander_acompte') {
+    const tokenMoi = req.cookies.get('sb-access-token')?.value;
+    const { data: authMoi } = tokenMoi ? await sb.auth.getUser(tokenMoi) : { data: null as any };
+    if (!authMoi?.user) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const { data: moi } = await sb.from('equipe').select('id,nom,prenom,salaire,salaire_brut').eq('user_id', authMoi.user.id).eq('tenant_id', tenantId).maybeSingle();
+    if (!moi) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    const montant = Math.round(Number(String(body.montant ?? '').replace(',', '.')) * 100) / 100;
+    if (!isFinite(montant) || montant <= 0) return NextResponse.json({ error: 'Montant invalide' }, { status: 400 });
+    // Plafond : le net estime du mois si le salaire est connu (un acompte porte sur un travail deja fait)
+    const brut = Number(moi.salaire_brut || moi.salaire || 0);
+    const plafond = brut > 0 ? Math.floor(brut * 0.78) : 3000;
+    if (montant > plafond) return NextResponse.json({ error: `Montant trop élevé (maximum ${plafond} €)` }, { status: 400 });
+    const { data: enCours } = await sb.from('acomptes').select('id').eq('tenant_id', tenantId).eq('employe_id', moi.id).eq('statut', 'en_attente').limit(1).maybeSingle();
+    if (enCours) return NextResponse.json({ error: 'Une demande est déjà en attente' }, { status: 409 });
+    const nomEmploye = `${moi.prenom || ''} ${moi.nom || ''}`.trim();
+    const motif = String(body.motif || '').slice(0, 300) || null;
+    const { data: acompte, error: errAc } = await sb.from('acomptes').insert({
+      tenant_id: tenantId, employe_id: moi.id, user_id: authMoi.user.id, nom_employe: nomEmploye,
+      montant, motif, statut: 'en_attente',
+    }).select('id,montant,motif,statut,created_at').single();
+    if (errAc) return NextResponse.json({ error: errAc.message }, { status: 500 });
+    try { await alerterEntreprise(tenantId, 'Demande d\'acompte', `${nomEmploye} demande un acompte de ${montant} €${motif ? ' (' + motif + ')' : ''}. À valider dans Équipe → Acomptes.`); } catch (e: any) { console.error('Alerte acompte:', e.message); }
+    return NextResponse.json({ success: true, acompte });
+  }
+
   if (action === 'message_groupe') {
     if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { message, company_id } = body;
@@ -891,7 +933,7 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
   if (action === 'refuser_acompte') {
     if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { id } = body;
-    await sb.from('acomptes').update({ statut: 'refusé' }).eq('id', id).eq('tenant_id', tenantId);
+    await sb.from('acomptes').update({ statut: 'refusé' }).eq('id', id).eq('tenant_id', tenantId).eq('statut', 'en_attente');
     return NextResponse.json({ success: true });
   }
 

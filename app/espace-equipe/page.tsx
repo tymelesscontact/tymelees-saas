@@ -86,6 +86,9 @@ export default function EspaceEquipe() {
   const [showAbsenceForm, setShowAbsenceForm] = useState(false);
   const [absenceForm, setAbsenceForm] = useState({ type: "conge_paye", debut: "", fin: "", motif: "" });
 
+  const [mesAcomptes, setMesAcomptes] = useState<any[]>([]);
+  const [acompteForm, setAcompteForm] = useState({ montant: "", motif: "" });
+  const [envoiAcompte, setEnvoiAcompte] = useState(false);
   const [showSignalementForm, setShowSignalementForm] = useState(false);
   const [signalementMissionId, setSignalementMissionId] = useState<string | null>(null);
   const [signalementForm, setSignalementForm] = useState({ type: "autre", gravite: "moyen", contenu: "" });
@@ -113,6 +116,7 @@ export default function EspaceEquipe() {
       fetch("/api/equipe?action=mes_formations").then(r => r.json()).then(d => { setMesFormations(d.formations || []); setCatalogueFormations(d.catalogue || []); }).catch(() => {});
       fetch("/api/absences?vue=mes_validations").then(r => r.json()).then(d => setMesValidations(d.absences || [])).catch(() => {});
       fetch("/api/pulse-bienetre?action=moi").then(r => r.json()).then(d => setPulseEtat(d)).catch(() => {});
+      fetch("/api/equipe?action=mes_acomptes").then(r => r.json()).then(d => setMesAcomptes(d.acomptes || [])).catch(() => {});
       setMembre({ email: who.email, employe_id: who.employeId, ...(who.profil || {}) });
     } catch (e: any) {
       setErreur("connexion");
@@ -277,11 +281,31 @@ export default function EspaceEquipe() {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(adresse)}&travelmode=${mode}`, "_blank");
   };
 
+  const demanderAcompte = async () => {
+    if (!acompteForm.montant) { showToast("⚠️ Indiquez un montant"); return; }
+    setEnvoiAcompte(true);
+    try {
+      const r = await fetch("/api/equipe", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "demander_acompte", montant: acompteForm.montant, motif: acompteForm.motif }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { showToast("❌ " + (d.error || "Demande impossible")); }
+      else {
+        showToast("✅ Demande envoyée — votre responsable est prévenu");
+        setAcompteForm({ montant: "", motif: "" });
+        setMesAcomptes(a => [d.acompte, ...a]);
+      }
+    } catch { showToast("❌ Erreur de connexion"); }
+    setEnvoiAcompte(false);
+  };
+
   const NAV = [
     { id: "dashboard", icon: "🏠", label: "Tableau de bord" },
     { id: "pointage", icon: "⏰", label: "Pointage" },
     { id: "missions", icon: "✅", label: "Mes missions" },
     { id: "absences", icon: "🏖", label: "Congés & Absences" },
+    { id: "acompte", icon: "💰", label: "Acompte" },
     { id: "formations", icon: "🎓", label: "Mes formations" },
     { id: "messages", icon: "💬", label: "Messages" },
     { id: "profil", icon: "👤", label: "Mon profil" },
@@ -535,6 +559,28 @@ export default function EspaceEquipe() {
                 </div>
               ))
             }
+          </Card>
+        </div>}
+
+        {page === "acompte" && <div>
+          <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>💰 Demande d'acompte</div>
+          <Card style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>Un acompte est une avance sur le salaire du mois en cours, déduite de votre prochain bulletin. Votre responsable valide, puis le virement est effectué.</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <input type="number" min="1" step="1" placeholder="Montant (€)" value={acompteForm.montant} onChange={e => setAcompteForm(f => ({ ...f, montant: e.target.value }))}
+                style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 13, width: 140, fontFamily: "inherit" }} />
+              <input type="text" placeholder="Motif (facultatif)" value={acompteForm.motif} onChange={e => setAcompteForm(f => ({ ...f, motif: e.target.value }))}
+                style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 13, flex: 1, minWidth: 160, fontFamily: "inherit" }} />
+              <Btn onClick={demanderAcompte}>{envoiAcompte ? "Envoi…" : "Demander"}</Btn>
+            </div>
+          </Card>
+          <Card>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Mes demandes</div>
+            {mesAcomptes.length === 0 && <div style={{ fontSize: 12, color: C.muted }}>Aucune demande pour le moment.</div>}
+            {mesAcomptes.map((a: any) => <div key={a.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}`, fontSize: 12 }}>
+              <span>{new Date(a.created_at).toLocaleDateString("fr-FR")} — <strong>{a.montant} €</strong>{a.motif ? ` · ${a.motif}` : ""}</span>
+              <span style={{ color: a.statut === "validé" ? C.green : a.statut === "refusé" ? C.red : C.orange, fontWeight: 600 }}>{a.statut === "validé" ? "Validé" : a.statut === "refusé" ? "Refusé" : "En attente"}</span>
+            </div>)}
           </Card>
         </div>}
 
