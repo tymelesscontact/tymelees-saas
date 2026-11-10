@@ -556,7 +556,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
     {nom:"Google Calendar",icon:"📅",statut:false,color:C.blue,desc:"Synchronisation planning & agenda"},
     {nom:"Zapier",icon:"⚡",statut:false,color:C.orange,desc:"Automatisations vers 5000+ apps"},
     {nom:"Anthropic Claude",icon:"🤖",statut:!!sirApiKey,color:C.purple,desc:"IA analyses, rédaction, recommandations"},
-    {nom:"Chorus Pro",icon:"🇫🇷",statut:true,color:C.blue,desc:"Facturation électronique DGFiP"},
+    {nom:"Chorus Pro",icon:"🇫🇷",statut:false,color:C.blue,desc:"Facturation électronique — en préparation (pas encore connecté)"},
   ];
 
   return <div style={{padding:20}}>
@@ -854,7 +854,7 @@ const PageSettings=({plan,showToast,sirApiKey,setSirApiKey,profil,setProfil,PLAN
               <div style={{fontSize:24}}>{it.icon}</div>
               <div><div style={{fontSize:13,fontWeight:700}}>{it.nom}</div><div style={{fontSize:10,color:C.muted}}>{it.desc}</div></div>
             </div>
-            <Pill color={C.green}>● Actif pour tous</Pill>
+            {it.statut===false?<Pill color={C.orange}>◌ En préparation</Pill>:<Pill color={C.green}>● Actif pour tous</Pill>}
           </div>
         </Card>)}
       </div>
