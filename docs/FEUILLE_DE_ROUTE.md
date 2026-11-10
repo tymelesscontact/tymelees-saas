@@ -690,3 +690,11 @@ Audit lecture seule de `test` (diff vers `main`, typecheck, lint, build). Correc
 - `b23627f` : chrono de mission en direct + écran de fin (« Bravo ! », durée façon chrono, confettis), durée dans l'alerte patron.
 - `c560718` : **Feuille d'heures mensuelle** — calcul depuis les pointages réels, heures au-delà du contrat (sup / complémentaires), absences, acomptes, frais ; signature du salarié (figée + empreinte) ; vue RH, validation, export CSV « variables de paie », envoi à l'expert-comptable. SQL `2026-11-10-feuilles-heures.sql` exécuté sur TEST (Curtiss) et PROD (Claude).
 - À faire pour la mise en production de tout ce lot : PR `test` → `main`, puis vérification sur xyraio.fr.
+
+### 11/11/2026 — Facturation (suite de l'audit Factur-X) + Planning
+- `5afee9c` `99a51a3` `8886857` : onglet Missions utilisable (collaborateurs, bien, pointage réel, détail, Confirmer/Terminer/Annuler), « Confier à… » / retirer un collaborateur, Supprimer (refusé si terminée ou avec signalements).
+- `9880dc2` : promesses exactes sur la facture électronique (plus de « Factur-X conforme / Chorus Pro / DGFiP automatique »), Chorus Pro « en préparation », badge DGFiP « — » si inconnu, calendrier de la réforme corrigé.
+- `641a7dd` : mentions obligatoires sur le PDF (identité légale du vendeur, échéance, pénalités + 40 € en B2B, mention TVA 0 %).
+- `66dcf83` : avoirs (AV-AAAA-NNNN), adresse du client, numérotation sans doublon (index unique en base), « PDF » à l'écran = vrai PDF. SQL `2026-11-11-avoirs-adresse-client.sql` exécuté sur PROD (Claude) et TEST (Curtiss).
+- Contrôle PROD : TYMELESS (SAS) — capital social et ville du RCS non renseignés (obligatoires) → à saisir dans Paramètres → Entreprise.
+- Restent : raccordement à une plateforme agréée (avant 09/2027) ; RH : alertes légales du planning, notes de frais/km depuis l'app salarié ; mise en production de tout le lot (PR test → main).
