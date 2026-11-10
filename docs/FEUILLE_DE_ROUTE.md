@@ -687,3 +687,6 @@ Audit lecture seule de `test` (diff vers `main`, typecheck, lint, build). Correc
 - `43394b1` : demande d'acompte par le salarié (espace salarié → « Acompte ») + validation RH à l'écran (Équipe → « Acomptes à valider »).
 - `c037792` : pointage chez le client — heure réelle d'arrivée/fin, position comparée à l'adresse (Base Adresse Nationale, alerte > 300 m), prévu vs réel dans Dispatch.
 - `c2b5d96` : **Biens & QR codes** — fiche par logement (codes d'accès, boîte à clés, Wi-Fi, consignes), QR imprimable ; scan = arrivée puis départ, codes montrés seulement si mission du jour, patron prévenu à chaque scan. SQL `docs/xyra/sql/2026-11-10-biens-qr.sql` exécuté sur TEST (Curtiss) et PROD (Claude, 10/11).
+- `b23627f` : chrono de mission en direct + écran de fin (« Bravo ! », durée façon chrono, confettis), durée dans l'alerte patron.
+- `c560718` : **Feuille d'heures mensuelle** — calcul depuis les pointages réels, heures au-delà du contrat (sup / complémentaires), absences, acomptes, frais ; signature du salarié (figée + empreinte) ; vue RH, validation, export CSV « variables de paie », envoi à l'expert-comptable. SQL `2026-11-10-feuilles-heures.sql` exécuté sur TEST (Curtiss) et PROD (Claude).
+- À faire pour la mise en production de tout ce lot : PR `test` → `main`, puis vérification sur xyraio.fr.
