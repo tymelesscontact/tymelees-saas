@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, Fragment } from "react";
 import { C, Card, CT, Btn, BtnGhost, TH, Td, STitle, Pill, Inp } from "../lib/ui";
 import { hasAccess } from "../lib/plans";
 import { QRCodeSVG } from "qrcode.react";
@@ -27,6 +27,12 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
   const [biens, setBiens] = useState<any[]>([]);
   const [bienForm, setBienForm] = useState<any>(null);
   const [qrOuvert, setQrOuvert] = useState<string | null>(null);
+  // Feuilles d'heures du mois (vue RH) + email de l'expert-comptable
+  const [moisFH, setMoisFH] = useState(() => new Date().toISOString().slice(0, 7));
+  const [feuillesFH, setFeuillesFH] = useState<any[] | null>(null);
+  const [emailCompta, setEmailCompta] = useState("");
+  const [envoiCabinet, setEnvoiCabinet] = useState(false);
+  const [detailFH, setDetailFH] = useState<string | null>(null);
   const [showDeclarerAbsence, setShowDeclarerAbsence] = useState(false);
   const [absenceForm, setAbsenceForm] = useState({ employe_id: "", type: "conge_paye", debut: "", fin: "", motif: "" });
   const [positions, setPositions] = useState<any[]>([]);
@@ -259,12 +265,41 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
     w.print();
   };
 
+  const chargerFH = async (mois: string) => {
+    setFeuillesFH(null);
+    try {
+      const r = await fetch(`/api/feuilles-heures?mois=${mois}`);
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { showToast("❌ " + (d.error === "reserve_au_proprietaire_ou_admin" ? "Réservé au propriétaire ou à un Admin" : (d.error || "Erreur"))); setFeuillesFH([]); return; }
+      setFeuillesFH(d.feuilles || []); setEmailCompta(d.email_comptable || "");
+    } catch { showToast("❌ Erreur de connexion"); setFeuillesFH([]); }
+  };
+
+  const postFH = async (payload: any) => {
+    const r = await fetch("/api/feuilles-heures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+    const d = await r.json().catch(() => ({}));
+    if (!r.ok || d.error) { showToast("❌ " + (d.error || "Erreur")); return null; }
+    return d;
+  };
+
+  const envoyerAuCabinet = async () => {
+    if (!emailCompta) return showToast("⚠️ Renseignez l'email de votre expert-comptable");
+    if (!window.confirm(`Envoyer les variables de paie de ${moisFH} à ${emailCompta} ?`)) return;
+    setEnvoiCabinet(true);
+    const d = await postFH({ action: "envoyer_cabinet", mois: moisFH });
+    if (d) { showToast(`✅ Envoyé à ${d.envoye_a}${d.non_signees?.length ? ` — non signées : ${d.non_signees.join(", ")}` : ""}`); chargerFH(moisFH); }
+    setEnvoiCabinet(false);
+  };
+
+  const h = (min: number) => `${Math.floor((min || 0) / 60)}h${String((min || 0) % 60).padStart(2, "0")}`;
+
   const tabs = [
     ["dispatch", "📊 Dispatch"],
     ["missions", "📋 Missions"],
     ["absences", "🏥 Absences"],
     ["carte", "📍 Carte"],
     ["biens", "🏠 Biens & QR"],
+    ["heures", "🕒 Feuilles d'heures"],
   ];
 
   const aujourdhui = new Date().toISOString().slice(0, 10);
@@ -443,6 +478,50 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
           </tr>)}</tbody>
         </table>
       </Card>}
+    </div>}
+
+    {!chargement && onglet === "heures" && <div>
+      <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap", marginBottom: 12 }}>
+        <input type="month" value={moisFH} max={new Date().toISOString().slice(0, 7)} onChange={(e) => { if (e.target.value) { setMoisFH(e.target.value); chargerFH(e.target.value); } }}
+          style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "7px 10px", color: C.text, fontFamily: "inherit", fontSize: 12 }} />
+        <BtnGhost onClick={() => chargerFH(moisFH)} style={{ fontSize: 11 }}>{feuillesFH === null ? "Afficher" : "Actualiser"}</BtnGhost>
+        <a href={`/api/feuilles-heures?mois=${moisFH}&format=csv`} style={{ fontSize: 11, color: C.gold, textDecoration: "none", border: `1px solid ${C.gold}55`, borderRadius: 6, padding: "6px 10px" }}>📥 Export CSV (variables de paie)</a>
+      </div>
+      <Card style={{ marginBottom: 12 }}>
+        <div style={{ fontSize: 11, color: C.muted, marginBottom: 6 }}>Email de votre expert-comptable (reçoit les variables de paie du mois)</div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          <Inp value={emailCompta} onChange={(e: any) => setEmailCompta(e.target.value)} placeholder="cabinet@exemple.fr" style={{ flex: 1, minWidth: 200 }} />
+          <BtnGhost onClick={async () => { if (await postFH({ action: "email_comptable", email: emailCompta })) showToast("✅ Email du cabinet enregistré"); }} style={{ fontSize: 11 }}>Enregistrer</BtnGhost>
+          <Btn onClick={envoyerAuCabinet} style={{ fontSize: 11 }}>{envoiCabinet ? "Envoi…" : "📧 Envoyer au cabinet"}</Btn>
+        </div>
+      </Card>
+      {feuillesFH === null && <Card style={{ textAlign: "center", padding: 24 }}><div style={{ fontSize: 12, color: C.muted }}>Choisissez un mois puis cliquez sur « Afficher ».</div></Card>}
+      {feuillesFH && feuillesFH.length === 0 && <Card style={{ textAlign: "center", padding: 24 }}><div style={{ fontSize: 12, color: C.muted }}>Aucun collaborateur.</div></Card>}
+      {feuillesFH && feuillesFH.length > 0 && <Card style={{ padding: 0, overflow: "hidden" }}>
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead><tr><TH>Collaborateur</TH><TH>Heures</TH><TH>Au-delà contrat</TH><TH>Absences</TH><TH>Acomptes</TH><TH>Frais</TH><TH>Feuille</TH><TH></TH></tr></thead>
+          <tbody>{feuillesFH.map((f) => <Fragment key={f.employe.id}>
+            <tr>
+              <Td style={{ fontWeight: 600 }}>{f.employe.nom}<div style={{ fontSize: 9, color: C.muted }}>{f.employe.contrat || ""} · {f.employe.heures_semaine} h/sem.</div></Td>
+              <Td style={{ color: C.gold, fontWeight: 700 }}>{h(f.total_minutes)}</Td>
+              <Td style={{ color: f.minutes_au_dela > 0 ? C.orange : C.muted }}>{h(f.minutes_au_dela)}</Td>
+              <Td style={{ fontSize: 11 }}>{f.absences.reduce((s: number, a: any) => s + a.jours, 0)} j</Td>
+              <Td style={{ fontSize: 11 }}>{f.acomptes_total} €</Td>
+              <Td style={{ fontSize: 11 }}>{f.frais_total} €</Td>
+              <Td style={{ fontSize: 10 }}>{f.signee_le ? <span style={{ color: C.green }}>✔ signée{f.validee_le ? " · validée" : ""}</span> : <span style={{ color: C.muted }}>non signée</span>}{f.envoyee_cabinet_le ? <div style={{ color: C.muted }}>envoyée {new Date(f.envoyee_cabinet_le).toLocaleDateString("fr-FR")}</div> : null}</Td>
+              <Td><div style={{ display: "flex", gap: 4 }}>
+                <BtnGhost onClick={() => setDetailFH(detailFH === f.employe.id ? null : f.employe.id)} style={{ fontSize: 9, padding: "3px 8px" }}>Détail</BtnGhost>
+                {f.signee_le && !f.validee_le && <Btn onClick={async () => { if (await postFH({ action: "valider", mois: moisFH, employe_id: f.employe.id })) { showToast("✅ Feuille validée"); chargerFH(moisFH); } }} style={{ fontSize: 9, padding: "3px 8px" }}>Valider</Btn>}
+              </div></Td>
+            </tr>
+            {detailFH === f.employe.id && <tr><td colSpan={8} style={{ padding: "8px 14px", background: C.card2, fontSize: 11 }}>
+              {f.jours.length === 0 && <span style={{ color: C.muted }}>Aucune heure pointée ce mois-ci.</span>}
+              {f.jours.map((j: any) => <div key={j.date} style={{ padding: "3px 0" }}><strong>{new Date(j.date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "short", day: "numeric", month: "short" })}</strong> — {h(j.minutes)} · <span style={{ color: C.muted }}>{j.lignes.map((l: any) => `${l.libelle}${l.arrivee ? ` (${l.arrivee}→${l.fin || "…"})` : ""}`).join(" ; ")}</span></div>)}
+            </td></tr>}
+          </Fragment>)}</tbody>
+        </table>
+      </Card>}
+      <div style={{ fontSize: 10, color: C.muted, marginTop: 8 }}>Heures calculées à partir des pointages réels (QR code, boutons d'arrivée/fin, pointage du jour). Les majorations et la paie sont établies par le cabinet à partir de ces variables.</div>
     </div>}
 
     {!chargement && onglet === "biens" && <div>
