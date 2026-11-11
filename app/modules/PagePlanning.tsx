@@ -130,7 +130,7 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
         method: "POST", headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ action: "creer", ...missionForm, confirmer_alertes: confirmer, company_id: activeCompany?.id || null, cree_par: "equipe" }),
       });
-      const d = await r.json();
+      const d = await r.json().catch(() => ({ error: `Réponse serveur invalide (${r.status})` }));
       if (d.confirmation_requise) { if (confirmerAlertes(d.alertes_legales || [])) await creerMission(true); return; }
       if (d.success) {
         showToast("✅ Mission créée");
@@ -138,7 +138,7 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
         setMissionForm({ client_nom: "", client_email: "", client_tel: "", date_mission: "", heure_debut: "", duree: "", adresse: "", notes: "", collaborateur_ids: [], bien_id: "" });
         charger();
       } else showToast("❌ " + (d.error || "Erreur"));
-    } catch { showToast("❌ Erreur de connexion"); }
+    } catch { showToast("❌ Connexion impossible — réessayez"); }
   };
 
   const LIBELLE_STATUT: Record<string, string> = { propose: "Proposée", confirme: "Confirmée", en_route: "En route", en_cours: "En cours", termine: "Terminée", annule: "Annulée", reporte: "Reportée" };
