@@ -47,22 +47,32 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
   const carteObjet = useRef<any>(null);
   const marqueurs = useRef<any[]>([]);
 
+  const chargerJson = async (url: string) => {
+    const controleur = new AbortController();
+    const delai = window.setTimeout(() => controleur.abort(), 8000);
+    try {
+      const reponse = await fetch(url, { signal: controleur.signal });
+      return await reponse.json().catch(() => ({}));
+    } catch { return {}; }
+    finally { window.clearTimeout(delai); }
+  };
+
   const charger = async () => {
     setChargement(true);
     try {
       const [rEquipe, rMissions, rAbsences, rPositions, rSignalements] = await Promise.all([
-        fetch("/api/equipe").then((r) => r.json()).catch(() => ({})),
-        fetch("/api/planning-missions").then((r) => r.json()).catch(() => ({})),
-        fetch("/api/absences").then((r) => r.json()).catch(() => ({})),
-        fetch("/api/position").then((r) => r.json()).catch(() => ({})),
-        fetch("/api/signalements").then((r) => r.json()).catch(() => ({})),
+        chargerJson("/api/equipe"),
+        chargerJson("/api/planning-missions"),
+        chargerJson("/api/absences"),
+        chargerJson("/api/position"),
+        chargerJson("/api/signalements"),
       ]);
       setCollaborateurs(rEquipe.membres || []);
       setMissions(rMissions.missions || []);
       setAbsences(rAbsences.absences || []);
       setPositions(rPositions.positions || []);
       setSignalements((rSignalements.signalements || []).filter((s: any) => s.statut !== "resolu"));
-      fetch("/api/biens").then((r) => r.json()).then((d) => setBiens(d.biens || [])).catch(() => {});
+      chargerJson("/api/biens").then((d) => setBiens(d.biens || []));
     } catch (e) { console.error("Planning:", e); }
     setChargement(false);
   };
