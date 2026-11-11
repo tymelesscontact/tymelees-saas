@@ -109,8 +109,26 @@ export default function EspaceEquipe() {
   const [showSignalementForm, setShowSignalementForm] = useState(false);
   const [signalementMissionId, setSignalementMissionId] = useState<string | null>(null);
   const [signalementForm, setSignalementForm] = useState({ type: "autre", gravite: "moyen", contenu: "" });
+  const [missionQr, setMissionQr] = useState<{ id: string; statut: string } | null>(null);
+  const [qrEtat, setQrEtat] = useState("");
+  const [qrLien, setQrLien] = useState("");
+  const videoQrRef = useRef<HTMLVideoElement>(null);
+  const fluxQrRef = useRef<MediaStream | null>(null);
+  const animationQrRef = useRef<number | null>(null);
 
   const showToast = (msg: string) => { setToast(msg); setTimeout(() => setToast(null), 3500); };
+
+  const fermerScannerQr = () => {
+    if (animationQrRef.current) cancelAnimationFrame(animationQrRef.current);
+    animationQrRef.current = null;
+    fluxQrRef.current?.getTracks().forEach((piste) => piste.stop());
+    fluxQrRef.current = null;
+    setMissionQr(null); setQrEtat(""); setQrLien("");
+  };
+  useEffect(() => () => {
+    if (animationQrRef.current) cancelAnimationFrame(animationQrRef.current);
+    fluxQrRef.current?.getTracks().forEach((piste) => piste.stop());
+  }, []);
 
   const charger = async () => {
     setLoading(true);
@@ -248,14 +266,59 @@ export default function EspaceEquipe() {
         body: JSON.stringify({ action: "modifier_statut", id, statut, ...(pos || {}) }),
       });
       const d = await r.json().catch(() => ({}));
-      if (!r.ok || d.error) { showToast("❌ " + (d.error === "non_autorise" ? "Cette mission ne vous est pas confiée" : (d.error || "Erreur"))); return; }
+      if (!r.ok || d.error) { showToast("❌ " + (d.error === "non_autorise" ? "Cette mission ne vous est pas confiée" : (d.error || "Erreur"))); return false; }
       setMissions(ms => ms.map(m => m.id === id ? { ...m, statut, ...(statut === "en_cours" && !m.heure_arrivee_reelle && d.heure ? { heure_arrivee_reelle: d.heure } : {}) } : m));
       let msg = statut === "en_cours" ? `📍 Arrivée pointée à ${d.heure || ""}` : statut === "termine" ? `✅ Fin pointée à ${d.heure || ""}` : "✅ C'est noté";
       if (pointe && !pos) msg += " — position non partagée";
       else if (pointe && typeof d.distance_m === "number") msg += d.distance_m > (d.rayon_m || 300) ? ` — ⚠️ à ${d.distance_m >= 1000 ? (d.distance_m / 1000).toFixed(1) + " km" : d.distance_m + " m"} de l'adresse, votre responsable est prévenu` : " — sur place ✓";
       showToast(msg);
       if (statut === "en_cours") setTimeout(envoyerPosition, 500);
-    } catch { showToast("❌ Erreur"); }
+      return true;
+    } catch { showToast("❌ Erreur"); return false; }
+  };
+
+  const partirEnMission = async (mission: { id: string; adresse?: string | null }) => {
+    if (await updateMissionStatut(mission.id, "en_route") && mission.adresse) ouvrirGPS(mission.adresse, "driving");
+  };
+
+  const validerQr = async (valeur: string) => {
+    const correspondance = valeur.trim().match(/\/b\/([a-f0-9]{16,64})(?:[/?#]|$)/i);
+    if (!correspondance) { setQrEtat("Ce QR code n’est pas un QR de bien Xyra."); return; }
+    setQrEtat("Validation du QR code…");
+    try {
+      const r = await fetch("/api/biens", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "scan", token: correspondance[1] }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { setQrEtat(d.error || "Pointage QR impossible."); return; }
+      const terminee = d.action === "depart" || d.action === "deja_termine";
+      if (missionQr) setMissions(ms => ms.map(m => m.id === missionQr.id ? { ...m, statut: terminee ? "termine" : "en_cours", ...(d.heure_arrivee ? { heure_arrivee_reelle: d.heure_arrivee } : {}) } : m));
+      showToast(terminee ? "✅ Mission terminée par QR" : "📍 Arrivée validée par QR");
+      fermerScannerQr(); charger();
+    } catch { setQrEtat("Erreur de connexion pendant le scan."); }
+  };
+
+  const ouvrirScannerQr = (mission: { id: string; statut: string }) => {
+    setMissionQr(mission); setQrEtat(""); setQrLien("");
+    requestAnimationFrame(async () => {
+      const Detecteur = Reflect.get(window, "BarcodeDetector");
+      if (!Detecteur || !navigator.mediaDevices?.getUserMedia) { setQrEtat("Le scan caméra n’est pas disponible sur cet appareil. Utilisez l’appareil photo du téléphone ou collez le lien QR ci-dessous."); return; }
+      try {
+        const flux = await navigator.mediaDevices.getUserMedia({ video: { facingMode: { ideal: "environment" } }, audio: false });
+        fluxQrRef.current = flux;
+        if (!videoQrRef.current) return;
+        videoQrRef.current.srcObject = flux;
+        await videoQrRef.current.play();
+        const detecteur = new Detecteur({ formats: ["qr_code"] });
+        const chercher = async () => {
+          if (!videoQrRef.current) return;
+          try {
+            const codes = await detecteur.detect(videoQrRef.current);
+            if (codes[0]?.rawValue) { await validerQr(codes[0].rawValue); return; }
+          } catch { /* La caméra reste ouverte : l'agent peut cadrer à nouveau. */ }
+          animationQrRef.current = requestAnimationFrame(chercher);
+        };
+        chercher();
+      } catch { setQrEtat("Caméra refusée ou indisponible. Utilisez l’appareil photo du téléphone ou collez le lien QR ci-dessous."); }
+    });
   };
 
   const demanderAbsence = async () => {
@@ -417,7 +480,7 @@ export default function EspaceEquipe() {
           return (
             <div style={{ background: `${C.orange}22`, border: `1px solid ${C.orange}`, borderRadius: 8, padding: 12, marginBottom: 14, display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}>
               <div style={{ fontSize: 12, color: C.text }}>⏰ Mission a {missionProche.heure} chez {missionProche.client_nom || "un client"} — n'oublie pas de partir</div>
-              <Btn onClick={() => updateMissionStatut(missionProche.id, "en_route")} style={{ fontSize: 11, padding: "6px 12px", background: C.orange, whiteSpace: "nowrap" as any }}>🚗 Je pars</Btn>
+              <Btn onClick={() => partirEnMission(missionProche)} style={{ fontSize: 11, padding: "6px 12px", background: C.orange, whiteSpace: "nowrap" as any }}>🚗 Je pars</Btn>
             </div>
           );
         })()}
@@ -459,6 +522,7 @@ export default function EspaceEquipe() {
                   <Pill color={m.statut === "en_cours" ? C.gold : m.statut === "termine" ? C.green : C.muted}>{m.statut}</Pill>
                 </div>
                 <div style={{ fontSize: 11, color: C.muted, marginBottom: 8 }}>📍 {m.adresse}</div>
+                <div style={{ fontSize: 10, color: C.muted, marginBottom: 10 }}>Parcours : {m.statut === "propose" ? "1. Confirmer → 2. Partir (GPS) → 3. QR arrivée → 4. QR départ" : m.statut === "confirme" ? "1. Partir (GPS) → 2. QR arrivée → 3. QR départ" : m.statut === "en_route" ? "GPS actif → scanne le QR à l’arrivée" : m.statut === "en_cours" ? "Sur place → scanne le QR au départ" : "Mission clôturée"}</div>
                 <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                   {m.adresse && <>
                     <Btn onClick={() => ouvrirGPS(m.adresse, "driving")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>🚗 Voiture</Btn>
@@ -466,10 +530,10 @@ export default function EspaceEquipe() {
                     <Btn onClick={() => ouvrirGPS(m.adresse, "transit")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>🚌 Transport</Btn>
                   </>}
                   {m.statut === "propose" && <Btn onClick={() => updateMissionStatut(m.id, "confirme")} style={{ fontSize: 11, padding: "5px 10px", background: C.orange }}>Prise de connaissance</Btn>}
-                  {m.statut === "confirme" && <Btn onClick={() => updateMissionStatut(m.id, "en_route")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>🚗 Je pars en mission</Btn>}
-                  {m.statut === "en_route" && <Btn onClick={() => updateMissionStatut(m.id, "en_cours")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>📍 Je suis arrive</Btn>}
+                  {m.statut === "confirme" && <Btn onClick={() => partirEnMission(m)} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>🚗 Je pars en mission</Btn>}
+                  {m.statut === "en_route" && (m.bien_id ? <Btn onClick={() => ouvrirScannerQr(m)} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>📷 Scanner le QR du bien</Btn> : <Btn onClick={() => updateMissionStatut(m.id, "en_cours")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>📍 Je suis arrivé</Btn>)}
                   {m.statut === "en_cours" && m.heure_arrivee_reelle && <ChronoMission depuis={m.heure_arrivee_reelle} />}
-                  {m.statut === "en_cours" && <Btn onClick={() => updateMissionStatut(m.id, "termine")} style={{ fontSize: 11, padding: "5px 10px", background: C.green }}>✅ Terminer</Btn>}
+                  {m.statut === "en_cours" && (m.bien_id ? <Btn onClick={() => ouvrirScannerQr(m)} style={{ fontSize: 11, padding: "5px 10px", background: C.green }}>📷 Scanner le QR de départ</Btn> : <Btn onClick={() => updateMissionStatut(m.id, "termine")} style={{ fontSize: 11, padding: "5px 10px", background: C.green }}>✅ Terminer</Btn>)}
                   <Btn onClick={() => { setSignalementMissionId(m.id); setShowSignalementForm(true); }} style={{ fontSize: 11, padding: "5px 10px", background: C.red }}>⚠️ Signaler un problème</Btn>
                 </div>
               </div>
@@ -516,12 +580,13 @@ export default function EspaceEquipe() {
                 </div>
                 <Pill color={m.statut === "en_cours" ? C.gold : m.statut === "termine" ? C.green : C.muted}>{m.statut}</Pill>
               </div>
+              <div style={{ fontSize: 10, color: C.muted, marginBottom: 10 }}>Parcours : {m.statut === "propose" ? "1. Confirmer → 2. Partir (GPS) → 3. QR arrivée → 4. QR départ" : m.statut === "confirme" ? "1. Partir (GPS) → 2. QR arrivée → 3. QR départ" : m.statut === "en_route" ? "GPS actif → scanne le QR à l’arrivée" : m.statut === "en_cours" ? "Sur place → scanne le QR au départ" : "Mission clôturée"}</div>
               <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
                 {m.statut === "propose" && <Btn onClick={() => updateMissionStatut(m.id, "confirme")} style={{ fontSize: 11, padding: "6px 12px", background: C.orange }}>Prise de connaissance</Btn>}
-                {m.statut === "confirme" && <Btn onClick={() => updateMissionStatut(m.id, "en_route")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>🚗 Je pars en mission</Btn>}
-                {m.statut === "en_route" && <Btn onClick={() => updateMissionStatut(m.id, "en_cours")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>📍 Je suis arrive</Btn>}
+                {m.statut === "confirme" && <Btn onClick={() => partirEnMission(m)} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>🚗 Je pars en mission</Btn>}
+                {m.statut === "en_route" && (m.bien_id ? <Btn onClick={() => ouvrirScannerQr(m)} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>📷 Scanner le QR du bien</Btn> : <Btn onClick={() => updateMissionStatut(m.id, "en_cours")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>📍 Je suis arrivé</Btn>)}
                 {m.statut === "en_cours" && m.heure_arrivee_reelle && <ChronoMission depuis={m.heure_arrivee_reelle} />}
-                  {m.statut === "en_cours" && <Btn onClick={() => updateMissionStatut(m.id, "termine")} style={{ fontSize: 11, padding: "6px 12px", background: C.green }}>✅ Terminer</Btn>}
+                  {m.statut === "en_cours" && (m.bien_id ? <Btn onClick={() => ouvrirScannerQr(m)} style={{ fontSize: 11, padding: "6px 12px", background: C.green }}>📷 Scanner le QR de départ</Btn> : <Btn onClick={() => updateMissionStatut(m.id, "termine")} style={{ fontSize: 11, padding: "6px 12px", background: C.green }}>✅ Terminer</Btn>)}
                 {m.adresse && <Btn onClick={() => ouvrirGPS(m.adresse, "driving")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>🗺 GPS</Btn>}
                 <Btn onClick={() => { setSignalementMissionId(m.id); setShowSignalementForm(true); }} style={{ fontSize: 11, padding: "6px 12px", background: C.red }}>⚠️ Problème</Btn>
               </div>
@@ -783,6 +848,23 @@ export default function EspaceEquipe() {
                 <Btn onClick={envoyerSignalement} color={C.red}>✅ Envoyer</Btn>
                 <button onClick={() => setShowSignalementForm(false)} style={{ background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 14px", cursor: "pointer", fontFamily: "inherit" }}>Annuler</button>
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {missionQr && (
+        <div onClick={fermerScannerQr} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,.7)", display: "flex", alignItems: "center", justifyContent: "center", padding: 20, zIndex: 10000 }}>
+          <div role="dialog" aria-modal="true" aria-label="Scanner le QR code du bien" onClick={e => e.stopPropagation()} style={{ width: "100%", maxWidth: 420, background: C.card, border: `1px solid ${C.border}`, borderRadius: 12, padding: 20 }}>
+            <div style={{ fontSize: 15, fontWeight: 700, marginBottom: 6 }}>📷 Scanner le QR du bien</div>
+            <div style={{ fontSize: 11, color: C.muted, marginBottom: 12 }}>{missionQr.statut === "en_cours" ? "Scannez le QR en quittant le lieu pour terminer la mission." : "Scannez le QR en arrivant sur le lieu de la mission."}</div>
+            <video ref={videoQrRef} muted playsInline style={{ width: "100%", minHeight: 180, objectFit: "cover", borderRadius: 8, background: "#000" }} />
+            {qrEtat && <div role="status" style={{ fontSize: 11, color: C.orange, marginTop: 10 }}>{qrEtat}</div>}
+            <label htmlFor="lien-qr" style={{ display: "block", fontSize: 11, color: C.muted, margin: "14px 0 5px" }}>Lien du QR (si la caméra n’est pas disponible)</label>
+            <input id="lien-qr" value={qrLien} onChange={e => setQrLien(e.target.value)} placeholder="https://…/b/…" style={{ width: "100%", boxSizing: "border-box", background: C.card2, border: `1px solid ${C.border}`, borderRadius: 7, padding: 10, color: C.text, fontSize: 12, fontFamily: "inherit" }} />
+            <div style={{ display: "flex", gap: 8, marginTop: 12 }}>
+              <Btn onClick={() => validerQr(qrLien)} color={C.blue}>Valider le lien</Btn>
+              <button onClick={fermerScannerQr} style={{ background: "transparent", color: C.muted, border: `1px solid ${C.border}`, borderRadius: 7, padding: "8px 14px", cursor: "pointer", fontFamily: "inherit" }}>Annuler</button>
             </div>
           </div>
         </div>
