@@ -2,7 +2,9 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
-import { envoyerRappelMission } from '../../lib/rappels';
+import { envoyerRappelMission, envoyerPartout, alerterEntreprise } from '../../lib/rappels';
+import { estAutoriseGererEquipe } from '../../lib/permissions';
+import { fuseauDuTenant, heureLocale } from '../../lib/fuseauHoraire';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,6 +12,31 @@ const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
 );
+
+// Coordonnees d'une adresse francaise (Base Adresse Nationale, gratuite, sans cle). null si introuvable.
+async function geocoderAdresse(adresse: string): Promise<{ lat: number; lng: number } | null> {
+  try {
+    const ctrl = new AbortController();
+    const minuteur = setTimeout(() => ctrl.abort(), 3000);
+    const r = await fetch(`https://api-adresse.data.gouv.fr/search/?q=${encodeURIComponent(adresse)}&limit=1`, { signal: ctrl.signal });
+    clearTimeout(minuteur);
+    const d = await r.json();
+    const f = d?.features?.[0];
+    if (!f || (f.properties?.score ?? 0) < 0.4) return null;
+    return { lng: f.geometry.coordinates[0], lat: f.geometry.coordinates[1] };
+  } catch { return null; }
+}
+
+// Distance en metres entre deux points GPS
+function distanceMetres(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
+  const R = 6371000, rad = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * rad, dLng = (b.lng - a.lng) * rad;
+  const h = Math.sin(dLat / 2) ** 2 + Math.cos(a.lat * rad) * Math.cos(b.lat * rad) * Math.sin(dLng / 2) ** 2;
+  return Math.round(2 * R * Math.asin(Math.sqrt(h)));
+}
+
+// Au-dela de cette distance de l'adresse de la mission, le pointage est signale au patron
+const RAYON_POINTAGE_METRES = 300;
 
 export async function GET(req: NextRequest) {
   const acces = await verifierAccesModule(req, "planning");
@@ -54,8 +81,16 @@ export async function POST(req: NextRequest) {
     const {
       type_mission_id, client_id, client_nom, client_email, client_tel,
       date_mission, heure_debut, heure_fin, adresse, notes,
-      collaborateur_ids, acompte_montant, recurrence_frequence, company_id, cree_par,
+      collaborateur_ids, acompte_montant, recurrence_frequence, company_id, cree_par, bien_id,
     } = body;
+
+    // Bien (logement) choisi : il doit appartenir a l'entreprise ; il complete adresse et client
+    let bien: any = null;
+    if (bien_id) {
+      const { data: b } = await sb.from('biens').select('id,nom,adresse,client_id,client_nom').eq('id', bien_id).eq('tenant_id', tenantId).eq('actif', true).maybeSingle();
+      if (!b) return NextResponse.json({ error: 'Bien introuvable' }, { status: 404 });
+      bien = b;
+    }
 
     if (!date_mission || !heure_debut) {
       return NextResponse.json({ error: 'Date et heure necessaires' }, { status: 400 });
@@ -81,10 +116,11 @@ export async function POST(req: NextRequest) {
       tenant_id: tenantId, company_id: company_id || null,
       type_mission_id: type_mission_id || null,
       service: serviceNom,
-      client_id: client_id || null, client_nom: client_nom || null,
+      client_id: client_id || bien?.client_id || null, client_nom: client_nom || bien?.client_nom || null,
       client_email: client_email || null, client_tel: client_tel || null,
       date_mission, heure: heure_debut,
-      adresse: adresse || null, notes: notes || null,
+      adresse: adresse || bien?.adresse || null, notes: notes || null,
+      ...(bien ? { bien_id: bien.id } : {}),
       acompte_montant: acompte_montant || null,
       recurrence_frequence: recurrence_frequence || null,
       cree_par: cree_par || 'equipe',
@@ -99,15 +135,51 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'modifier_statut') {
-    const { id, statut } = body;
+    const { id, statut, lat, lng } = body;
     const valides = ['propose', 'confirme', 'en_route', 'en_cours', 'termine', 'annule', 'reporte'];
     if (!valides.includes(statut)) return NextResponse.json({ error: 'Statut invalide' }, { status: 400 });
     const champsMaj: any = { statut };
     if (statut === 'confirme') champsMaj.prise_connaissance_le = new Date().toISOString();
 
     // Statut avant modification : la chaine de fin de mission ne doit partir qu'une fois
-    const { data: avant } = await sb.from('missions').select('statut').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    const { data: avant } = await sb.from('missions').select('statut,adresse,client_nom,heure,heure_arrivee_reelle,collaborateur_id,employe_id,missions_collaborateurs(collaborateur_id)').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!avant) return NextResponse.json({ error: 'Mission introuvable' }, { status: 404 });
     const dejaTerminee = avant?.statut === 'termine';
+
+    // Un salarie ne change que le statut des missions qui lui sont confiees (le RH : toutes)
+    const estRH = await estAutoriseGererEquipe(req, tenantId);
+    let moiCollab: any = null;
+    {
+      const tokenMoi = req.cookies.get('sb-access-token')?.value;
+      const { data: authMoi } = tokenMoi ? await sb.auth.getUser(tokenMoi) : { data: null as any };
+      if (authMoi?.user) {
+        const { data: m } = await sb.from('equipe').select('id,nom,prenom').eq('user_id', authMoi.user.id).eq('tenant_id', tenantId).maybeSingle();
+        moiCollab = m;
+      }
+    }
+    const monId = moiCollab?.id;
+    const assigne = !!monId && (avant.collaborateur_id === monId || avant.employe_id === monId || (avant.missions_collaborateurs || []).some((c: any) => c.collaborateur_id === monId));
+    if (!estRH && !assigne) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+
+    // Pointage reel : heure d'arrivee (premiere arrivee) et heure de fin, dans le fuseau de l'entreprise
+    const heureMaintenant = heureLocale(new Date(), await fuseauDuTenant(tenantId));
+    if (statut === 'en_cours' && !avant.heure_arrivee_reelle) champsMaj.heure_arrivee_reelle = heureMaintenant;
+    if (statut === 'termine') champsMaj.heure_fin_reelle = heureMaintenant;
+
+    // Controle de lieu : position du telephone comparee a l'adresse de la mission
+    let distanceM: number | null = null;
+    if (assigne && (statut === 'en_cours' || statut === 'termine') && typeof lat === 'number' && typeof lng === 'number' && avant.adresse) {
+      const cible = await geocoderAdresse(avant.adresse);
+      if (cible) distanceM = distanceMetres({ lat, lng }, cible);
+    }
+    if (distanceM !== null && distanceM > RAYON_POINTAGE_METRES) {
+      const qui = `${moiCollab?.prenom || ''} ${moiCollab?.nom || ''}`.trim() || 'Un collaborateur';
+      const dist = distanceM >= 1000 ? `${(distanceM / 1000).toFixed(1).replace('.', ',')} km` : `${distanceM} m`;
+      try { await alerterEntreprise(tenantId, 'Pointage hors du lieu de mission', `${qui} a pointé ${statut === 'en_cours' ? "son arrivée" : 'la fin'} de la mission chez ${avant.client_nom || 'le client'} à ${dist} de l'adresse prévue (${avant.adresse}), à ${heureMaintenant}.`); } catch (e: any) { console.error('Alerte pointage:', e.message); }
+    }
+    if (assigne && (statut === 'en_cours' || statut === 'termine')) {
+      await sb.from('missions_collaborateurs').update({ statut_presence: statut === 'en_cours' ? 'arrive' : 'termine' }).eq('mission_id', id).eq('collaborateur_id', monId);
+    }
 
     const { error } = await sb.from('missions')
       .update(champsMaj).eq('id', id).eq('tenant_id', tenantId);
@@ -147,7 +219,7 @@ export async function POST(req: NextRequest) {
       }
     }
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, heure: heureMaintenant, distance_m: distanceM, rayon_m: RAYON_POINTAGE_METRES });
   }
 
   // Rappel de mission — WhatsApp d'abord, email si echec, SMS en dernier recours
@@ -172,8 +244,15 @@ export async function POST(req: NextRequest) {
   }
 
   if (action === 'suggerer_collaborateurs') {
-    const { date_mission, heure_debut, zone, competence } = body;
+    const { date_mission, heure_debut, zone, competence, exclure_id } = body;
     if (!date_mission || !heure_debut) return NextResponse.json({ error: 'Date et heure necessaires' }, { status: 400 });
+
+    // Absents ce jour-la (absence validee ou en attente qui couvre la date) : jamais proposes
+    const { data: absentsJour } = await sb.from('absences')
+      .select('employe_id').eq('tenant_id', tenantId).in('statut', ['validee', 'en_attente'])
+      .lte('debut', date_mission).gte('fin', date_mission);
+    const absents = new Set((absentsJour || []).map((a: any) => a.employe_id));
+    if (exclure_id) absents.add(exclure_id);
 
     const { data: tousCollabs } = await sb.from('equipe')
       .select('id,nom,prenom,zones_intervention,competences,statut')
@@ -197,7 +276,7 @@ export async function POST(req: NextRequest) {
     }
 
     const suggestions = (tousCollabs || [])
-      .filter((c: any) => !dejaAssigneCreneauProche[c.id])
+      .filter((c: any) => !dejaAssigneCreneauProche[c.id] && !absents.has(c.id))
       .map((c: any) => {
         let score = 100;
         score -= (chargeParCollab[c.id] || 0) * 15;
@@ -213,6 +292,97 @@ export async function POST(req: NextRequest) {
       .sort((a: any, b: any) => b.score - a.score);
 
     return NextResponse.json({ success: true, suggestions });
+  }
+
+  // Remplacement en un clic : la mission passe de l'absent au remplacant choisi,
+  // le remplacant est prevenu (WhatsApp, sinon email, sinon SMS), et le client si demande.
+  if (action === 'remplacer') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { mission_id, ancien_id, nouveau_id, prevenir_client } = body;
+    if (!mission_id || !ancien_id || !nouveau_id || ancien_id === nouveau_id) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
+    const { data: mission } = await sb.from('missions').select('*').eq('id', mission_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!mission) return NextResponse.json({ error: 'Mission introuvable' }, { status: 404 });
+    if (['annule', 'termine'].includes(mission.statut)) return NextResponse.json({ error: 'Mission terminée ou annulée' }, { status: 409 });
+    const { data: remplacant } = await sb.from('equipe').select('id,nom,prenom,tel,email,statut').eq('id', nouveau_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!remplacant) return NextResponse.json({ error: 'Remplaçant introuvable' }, { status: 404 });
+
+    // Affectation : on remplace la ligne de l'absent (ou on ajoute le remplacant s'il n'y en avait pas)
+    const { data: lignes } = await sb.from('missions_collaborateurs').update({ collaborateur_id: nouveau_id, statut_presence: 'prevu' })
+      .eq('mission_id', mission_id).eq('collaborateur_id', ancien_id).select('id');
+    if (!lignes || lignes.length === 0) {
+      const { data: dejaLa } = await sb.from('missions_collaborateurs').select('id').eq('mission_id', mission_id).eq('collaborateur_id', nouveau_id).maybeSingle();
+      if (!dejaLa) await sb.from('missions_collaborateurs').insert({ mission_id, collaborateur_id: nouveau_id });
+    }
+    const nomRemplacant = `${remplacant.prenom || ''} ${remplacant.nom || ''}`.trim();
+    if (mission.collaborateur_id === ancien_id || mission.employe_id === ancien_id) {
+      await sb.from('missions').update({ collaborateur_id: nouveau_id, collaborateur_nom: nomRemplacant, ...(mission.employe_id === ancien_id ? { employe_id: nouveau_id } : {}) })
+        .eq('id', mission_id).eq('tenant_id', tenantId);
+    }
+
+    const quand = `${mission.date_mission ? new Date(mission.date_mission + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : ''}${mission.heure ? ' à ' + String(mission.heure).slice(0, 5) : ''}`;
+    const texteRemplacant = `Bonjour ${remplacant.prenom || ''}, une mission vous est confiée en remplacement : ${mission.service || 'intervention'} chez ${mission.client_nom || 'un client'}, ${quand}${mission.adresse ? ', ' + mission.adresse : ''}. Merci de confirmer dans votre espace Xyra.`;
+    let canalRemplacant: string | null = null;
+    try { canalRemplacant = await envoyerPartout(remplacant.tel || null, remplacant.email || null, texteRemplacant, tenantId, { sujet: 'Mission en remplacement' }); } catch (e: any) { console.error('Remplacement (salarie):', e.message); }
+
+    let canalClient: string | null = null;
+    if (prevenir_client && (mission.client_tel || mission.client_email)) {
+      const texteClient = `Bonjour ${mission.client_nom || ''}, pour votre rendez-vous du ${quand}, votre intervenant sera ${remplacant.prenom || nomRemplacant}. Le rendez-vous est maintenu.`;
+      try { canalClient = await envoyerPartout(mission.client_tel || null, mission.client_email || null, texteClient, tenantId, { sujet: 'Votre rendez-vous est maintenu' }); } catch (e: any) { console.error('Remplacement (client):', e.message); }
+    }
+    return NextResponse.json({ success: true, remplacant: nomRemplacant, canal_remplacant: canalRemplacant, canal_client: canalClient });
+  }
+
+  // Confier une mission existante a un collaborateur (RH / proprietaire) ; il est prevenu.
+  if (action === 'affecter') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { mission_id, collaborateur_id } = body;
+    if (!mission_id || !collaborateur_id) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
+    const { data: mission } = await sb.from('missions').select('*').eq('id', mission_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!mission) return NextResponse.json({ error: 'Mission introuvable' }, { status: 404 });
+    if (['annule', 'termine'].includes(mission.statut)) return NextResponse.json({ error: 'Mission terminée ou annulée' }, { status: 409 });
+    const { data: collab } = await sb.from('equipe').select('id,nom,prenom,tel,email').eq('id', collaborateur_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!collab) return NextResponse.json({ error: 'Collaborateur introuvable' }, { status: 404 });
+    const { data: deja } = await sb.from('missions_collaborateurs').select('id').eq('mission_id', mission_id).eq('collaborateur_id', collaborateur_id).maybeSingle();
+    if (deja) return NextResponse.json({ error: 'Ce collaborateur a déjà cette mission' }, { status: 409 });
+    const { error: errLien } = await sb.from('missions_collaborateurs').insert({ mission_id, collaborateur_id });
+    if (errLien) return NextResponse.json({ error: errLien.message }, { status: 500 });
+    const nomCollab = `${collab.prenom || ''} ${collab.nom || ''}`.trim();
+    if (!mission.collaborateur_id) await sb.from('missions').update({ collaborateur_id: collab.id, collaborateur_nom: nomCollab }).eq('id', mission_id).eq('tenant_id', tenantId);
+    const quand = `${mission.date_mission ? new Date(mission.date_mission + 'T12:00:00').toLocaleDateString('fr-FR', { weekday: 'long', day: 'numeric', month: 'long' }) : ''}${mission.heure ? ' à ' + String(mission.heure).slice(0, 5) : ''}`;
+    let canal: string | null = null;
+    try { canal = await envoyerPartout(collab.tel || null, collab.email || null, `Bonjour ${collab.prenom || ''}, une mission vous est confiée : ${mission.service || 'intervention'} chez ${mission.client_nom || 'un client'}, ${quand}${mission.adresse ? ', ' + mission.adresse : ''}. Retrouvez-la dans votre espace Xyra.`, tenantId, { sujet: 'Nouvelle mission' }); } catch (e: any) { console.error('Affectation:', e.message); }
+    return NextResponse.json({ success: true, collaborateur: nomCollab, canal });
+  }
+
+  // Retirer un collaborateur d'une mission (RH / proprietaire)
+  if (action === 'retirer_collaborateur') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { mission_id, collaborateur_id } = body;
+    const { data: mission } = await sb.from('missions').select('id,collaborateur_id').eq('id', mission_id).eq('tenant_id', tenantId).maybeSingle();
+    if (!mission) return NextResponse.json({ error: 'Mission introuvable' }, { status: 404 });
+    await sb.from('missions_collaborateurs').delete().eq('mission_id', mission_id).eq('collaborateur_id', collaborateur_id);
+    if (mission.collaborateur_id === collaborateur_id) await sb.from('missions').update({ collaborateur_id: null, collaborateur_nom: null }).eq('id', mission_id).eq('tenant_id', tenantId);
+    return NextResponse.json({ success: true });
+  }
+
+  // Suppression definitive d'une mission (RH / proprietaire). Refusee si la mission est terminee
+  // (heures dans les feuilles d'heures, facture) ou si elle a des signalements : on l'annule alors.
+  if (action === 'supprimer') {
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    const { id } = body;
+    if (!id) return NextResponse.json({ error: 'id requis' }, { status: 400 });
+    const { data: mission } = await sb.from('missions').select('id,statut').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!mission) return NextResponse.json({ error: 'Mission introuvable' }, { status: 404 });
+    if (mission.statut === 'termine') return NextResponse.json({ error: 'Mission terminée : ses heures et sa facture sont conservées. Elle ne peut pas être supprimée.' }, { status: 409 });
+    const { count: nbSignalements } = await sb.from('signalements_mission').select('id', { count: 'exact', head: true }).eq('mission_id', id);
+    if ((nbSignalements || 0) > 0) return NextResponse.json({ error: 'Cette mission a des signalements : utilisez « Annuler » pour garder leur historique.' }, { status: 409 });
+    // Liens qui empecheraient la suppression
+    await sb.from('positions_collaborateurs').delete().eq('mission_id', id);
+    await sb.from('signalements_mission').update({ mission_suivi_id: null }).eq('mission_suivi_id', id);
+    await sb.from('missions').update({ recurrence_parent_id: null }).eq('recurrence_parent_id', id).eq('tenant_id', tenantId);
+    const { error } = await sb.from('missions').delete().eq('id', id).eq('tenant_id', tenantId);
+    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    return NextResponse.json({ success: true });
   }
 
   if (action === 'presence_collaborateur') {

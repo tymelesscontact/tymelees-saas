@@ -61,6 +61,18 @@ const TYPE_SIGNALEMENT_LABELS: Record<string, string> = {
   probleme_client: "Problème client", autre: "Autre",
 };
 
+// Chronometre en direct depuis l'heure d'arrivee pointee (HH:MM du jour)
+function ChronoMission({ depuis }: { depuis: string }) {
+  const [maintenant, setMaintenant] = useState(() => Date.now());
+  useEffect(() => { const i = setInterval(() => setMaintenant(Date.now()), 1000); return () => clearInterval(i); }, []);
+  const [h, m] = String(depuis).slice(0, 5).split(":").map(Number);
+  const debut = new Date(); debut.setHours(h, m || 0, 0, 0);
+  let s = Math.max(0, Math.floor((maintenant - debut.getTime()) / 1000));
+  if (s > 20 * 3600) s = 0;
+  const p = (n: number) => String(n).padStart(2, "0");
+  return <span style={{ fontWeight: 800, color: "#C9A84C", fontVariantNumeric: "tabular-nums" }}>⏱ {p(Math.floor(s / 3600))}:{p(Math.floor((s % 3600) / 60))}:{p(s % 60)}</span>;
+}
+
 export default function EspaceEquipe() {
   const [page, setPage] = useState("dashboard");
   const [membre, setMembre] = useState<any>(null);
@@ -86,6 +98,14 @@ export default function EspaceEquipe() {
   const [showAbsenceForm, setShowAbsenceForm] = useState(false);
   const [absenceForm, setAbsenceForm] = useState({ type: "conge_paye", debut: "", fin: "", motif: "" });
 
+  // Feuille d'heures du mois (signee par le salarie, envoyee au cabinet par le RH)
+  const [moisFeuille, setMoisFeuille] = useState(() => new Date().toISOString().slice(0, 7));
+  const [feuille, setFeuille] = useState<any>(null);
+  const [statutFeuille, setStatutFeuille] = useState<any>(null);
+  const [signatureEnCours, setSignatureEnCours] = useState(false);
+  const [mesAcomptes, setMesAcomptes] = useState<any[]>([]);
+  const [acompteForm, setAcompteForm] = useState({ montant: "", motif: "" });
+  const [envoiAcompte, setEnvoiAcompte] = useState(false);
   const [showSignalementForm, setShowSignalementForm] = useState(false);
   const [signalementMissionId, setSignalementMissionId] = useState<string | null>(null);
   const [signalementForm, setSignalementForm] = useState({ type: "autre", gravite: "moyen", contenu: "" });
@@ -113,6 +133,7 @@ export default function EspaceEquipe() {
       fetch("/api/equipe?action=mes_formations").then(r => r.json()).then(d => { setMesFormations(d.formations || []); setCatalogueFormations(d.catalogue || []); }).catch(() => {});
       fetch("/api/absences?vue=mes_validations").then(r => r.json()).then(d => setMesValidations(d.absences || [])).catch(() => {});
       fetch("/api/pulse-bienetre?action=moi").then(r => r.json()).then(d => setPulseEtat(d)).catch(() => {});
+      fetch("/api/equipe?action=mes_acomptes").then(r => r.json()).then(d => setMesAcomptes(d.acomptes || [])).catch(() => {});
       setMembre({ email: who.email, employe_id: who.employeId, ...(who.profil || {}) });
     } catch (e: any) {
       setErreur("connexion");
@@ -208,14 +229,31 @@ export default function EspaceEquipe() {
     return () => clearInterval(intervalle);
   }, [missions]);
 
+  // Position du telephone (8 s max) pour pointer sur le lieu de la mission ; null si refusee
+  const positionTelephone = (): Promise<{ lat: number; lng: number } | null> => new Promise((ok) => {
+    if (typeof navigator === "undefined" || !navigator.geolocation) return ok(null);
+    navigator.geolocation.getCurrentPosition(
+      (p) => ok({ lat: p.coords.latitude, lng: p.coords.longitude }),
+      () => ok(null),
+      { enableHighAccuracy: true, timeout: 8000, maximumAge: 60000 },
+    );
+  });
+
   const updateMissionStatut = async (id: string, statut: string) => {
     try {
-      await fetch("/api/planning-missions", {
+      const pointe = statut === "en_cours" || statut === "termine";
+      const pos = pointe ? await positionTelephone() : null;
+      const r = await fetch("/api/planning-missions", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "modifier_statut", id, statut }),
+        body: JSON.stringify({ action: "modifier_statut", id, statut, ...(pos || {}) }),
       });
-      setMissions(ms => ms.map(m => m.id === id ? { ...m, statut } : m));
-      showToast(statut === "en_cours" ? "🚀 Mission démarrée" : "✅ Mission terminée");
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { showToast("❌ " + (d.error === "non_autorise" ? "Cette mission ne vous est pas confiée" : (d.error || "Erreur"))); return; }
+      setMissions(ms => ms.map(m => m.id === id ? { ...m, statut, ...(statut === "en_cours" && !m.heure_arrivee_reelle && d.heure ? { heure_arrivee_reelle: d.heure } : {}) } : m));
+      let msg = statut === "en_cours" ? `📍 Arrivée pointée à ${d.heure || ""}` : statut === "termine" ? `✅ Fin pointée à ${d.heure || ""}` : "✅ C'est noté";
+      if (pointe && !pos) msg += " — position non partagée";
+      else if (pointe && typeof d.distance_m === "number") msg += d.distance_m > (d.rayon_m || 300) ? ` — ⚠️ à ${d.distance_m >= 1000 ? (d.distance_m / 1000).toFixed(1) + " km" : d.distance_m + " m"} de l'adresse, votre responsable est prévenu` : " — sur place ✓";
+      showToast(msg);
       if (statut === "en_cours") setTimeout(envoyerPosition, 500);
     } catch { showToast("❌ Erreur"); }
   };
@@ -277,11 +315,53 @@ export default function EspaceEquipe() {
     window.open(`https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(adresse)}&travelmode=${mode}`, "_blank");
   };
 
+  const demanderAcompte = async () => {
+    if (!acompteForm.montant) { showToast("⚠️ Indiquez un montant"); return; }
+    setEnvoiAcompte(true);
+    try {
+      const r = await fetch("/api/equipe", {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "demander_acompte", montant: acompteForm.montant, motif: acompteForm.motif }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) { showToast("❌ " + (d.error || "Demande impossible")); }
+      else {
+        showToast("✅ Demande envoyée — votre responsable est prévenu");
+        setAcompteForm({ montant: "", motif: "" });
+        setMesAcomptes(a => [d.acompte, ...a]);
+      }
+    } catch { showToast("❌ Erreur de connexion"); }
+    setEnvoiAcompte(false);
+  };
+
+  const chargerFeuille = async (mois: string) => {
+    setFeuille(null);
+    try {
+      const d = await fetch(`/api/feuilles-heures?vue=moi&mois=${mois}`).then(r => r.json());
+      setFeuille(d.feuille || null); setStatutFeuille(d.statut || null);
+    } catch { showToast("❌ Erreur de connexion"); }
+  };
+  useEffect(() => { if (page === "heures") chargerFeuille(moisFeuille); }, [page, moisFeuille]);
+
+  const signerFeuille = async () => {
+    if (!window.confirm("Je certifie que ce relevé d'heures est exact. Une fois signé, il ne peut plus être modifié.")) return;
+    setSignatureEnCours(true);
+    try {
+      const r = await fetch("/api/feuilles-heures", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "signer", mois: moisFeuille }) });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok || d.error) showToast("❌ " + (d.error || "Signature impossible"));
+      else { showToast("✅ Feuille d'heures signée"); chargerFeuille(moisFeuille); }
+    } catch { showToast("❌ Erreur de connexion"); }
+    setSignatureEnCours(false);
+  };
+
   const NAV = [
     { id: "dashboard", icon: "🏠", label: "Tableau de bord" },
     { id: "pointage", icon: "⏰", label: "Pointage" },
     { id: "missions", icon: "✅", label: "Mes missions" },
     { id: "absences", icon: "🏖", label: "Congés & Absences" },
+    { id: "heures", icon: "🕒", label: "Mes heures" },
+    { id: "acompte", icon: "💰", label: "Acompte" },
     { id: "formations", icon: "🎓", label: "Mes formations" },
     { id: "messages", icon: "💬", label: "Messages" },
     { id: "profil", icon: "👤", label: "Mon profil" },
@@ -388,6 +468,7 @@ export default function EspaceEquipe() {
                   {m.statut === "propose" && <Btn onClick={() => updateMissionStatut(m.id, "confirme")} style={{ fontSize: 11, padding: "5px 10px", background: C.orange }}>Prise de connaissance</Btn>}
                   {m.statut === "confirme" && <Btn onClick={() => updateMissionStatut(m.id, "en_route")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>🚗 Je pars en mission</Btn>}
                   {m.statut === "en_route" && <Btn onClick={() => updateMissionStatut(m.id, "en_cours")} style={{ fontSize: 11, padding: "5px 10px", background: C.blue }}>📍 Je suis arrive</Btn>}
+                  {m.statut === "en_cours" && m.heure_arrivee_reelle && <ChronoMission depuis={m.heure_arrivee_reelle} />}
                   {m.statut === "en_cours" && <Btn onClick={() => updateMissionStatut(m.id, "termine")} style={{ fontSize: 11, padding: "5px 10px", background: C.green }}>✅ Terminer</Btn>}
                   <Btn onClick={() => { setSignalementMissionId(m.id); setShowSignalementForm(true); }} style={{ fontSize: 11, padding: "5px 10px", background: C.red }}>⚠️ Signaler un problème</Btn>
                 </div>
@@ -439,7 +520,8 @@ export default function EspaceEquipe() {
                 {m.statut === "propose" && <Btn onClick={() => updateMissionStatut(m.id, "confirme")} style={{ fontSize: 11, padding: "6px 12px", background: C.orange }}>Prise de connaissance</Btn>}
                 {m.statut === "confirme" && <Btn onClick={() => updateMissionStatut(m.id, "en_route")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>🚗 Je pars en mission</Btn>}
                 {m.statut === "en_route" && <Btn onClick={() => updateMissionStatut(m.id, "en_cours")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>📍 Je suis arrive</Btn>}
-                {m.statut === "en_cours" && <Btn onClick={() => updateMissionStatut(m.id, "termine")} style={{ fontSize: 11, padding: "6px 12px", background: C.green }}>✅ Terminer</Btn>}
+                {m.statut === "en_cours" && m.heure_arrivee_reelle && <ChronoMission depuis={m.heure_arrivee_reelle} />}
+                  {m.statut === "en_cours" && <Btn onClick={() => updateMissionStatut(m.id, "termine")} style={{ fontSize: 11, padding: "6px 12px", background: C.green }}>✅ Terminer</Btn>}
                 {m.adresse && <Btn onClick={() => ouvrirGPS(m.adresse, "driving")} style={{ fontSize: 11, padding: "6px 12px", background: C.blue }}>🗺 GPS</Btn>}
                 <Btn onClick={() => { setSignalementMissionId(m.id); setShowSignalementForm(true); }} style={{ fontSize: 11, padding: "6px 12px", background: C.red }}>⚠️ Problème</Btn>
               </div>
@@ -535,6 +617,64 @@ export default function EspaceEquipe() {
                 </div>
               ))
             }
+          </Card>
+        </div>}
+
+        {page === "heures" && <div>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, gap: 10, flexWrap: "wrap" }}>
+            <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif" }}>🕒 Mes heures</div>
+            <input type="month" value={moisFeuille} max={new Date().toISOString().slice(0, 7)} onChange={e => e.target.value && setMoisFeuille(e.target.value)}
+              style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "8px 10px", color: C.text, fontFamily: "inherit" }} />
+          </div>
+          {!feuille && <div style={{ color: C.muted, fontSize: 13 }}>Chargement…</div>}
+          {feuille && <>
+            <Card style={{ marginBottom: 14 }}>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(130px,1fr))", gap: 12 }}>
+                {[["Heures réalisées", `${Math.floor(feuille.total_minutes / 60)}h${String(feuille.total_minutes % 60).padStart(2, "0")}`, C.gold],
+                  [feuille.libelle_au_dela || "Heures au-delà", `${Math.floor(feuille.minutes_au_dela / 60)}h${String(feuille.minutes_au_dela % 60).padStart(2, "0")}`, feuille.minutes_au_dela > 0 ? C.orange : C.muted],
+                  ["Contrat (mois)", `${feuille.heures_contrat_mois} h`, C.muted],
+                  ["Acomptes", `${feuille.acomptes_total} €`, C.muted],
+                  ["Frais", `${feuille.frais_total} €`, C.muted]].map(([l, v, c]: any) => <div key={l}><div style={{ fontSize: 11, color: C.muted }}>{l}</div><div style={{ fontSize: 20, fontWeight: 800, color: c }}>{v}</div></div>)}
+              </div>
+            </Card>
+            <Card style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Détail par jour</div>
+              {feuille.jours.length === 0 && <div style={{ fontSize: 12, color: C.muted }}>Aucune heure pointée ce mois-ci.</div>}
+              {feuille.jours.map((j: any) => <div key={j.date} style={{ padding: "8px 0", borderBottom: `1px solid ${C.border}` }}>
+                <div style={{ display: "flex", justifyContent: "space-between", fontSize: 12, fontWeight: 700 }}>
+                  <span>{new Date(j.date + "T12:00:00").toLocaleDateString("fr-FR", { weekday: "long", day: "numeric", month: "long" })}</span>
+                  <span style={{ color: C.gold }}>{Math.floor(j.minutes / 60)}h{String(j.minutes % 60).padStart(2, "0")}</span>
+                </div>
+                {j.lignes.map((l: any, i: number) => <div key={i} style={{ fontSize: 11, color: C.muted, marginTop: 2 }}>{l.libelle}{l.arrivee ? ` · ${l.arrivee} → ${l.fin || "…"}` : ""}</div>)}
+              </div>)}
+              {feuille.absences.length > 0 && <div style={{ marginTop: 10, fontSize: 12 }}><strong>Absences :</strong> {feuille.absences.map((a: any) => `${TYPE_ABSENCE_LABELS[a.type] || a.type} du ${a.debut} au ${a.fin} (${a.jours} j)`).join(" · ")}</div>}
+            </Card>
+            {statutFeuille?.signee_le
+              ? <Card style={{ borderColor: `${C.green}55` }}><div style={{ color: C.green, fontWeight: 700, fontSize: 13 }}>✔ Signée le {new Date(statutFeuille.signee_le).toLocaleDateString("fr-FR")} à {new Date(statutFeuille.signee_le).toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" })}{statutFeuille.validee_le ? " · validée par votre employeur" : ""}</div></Card>
+              : <Card><div style={{ fontSize: 12, color: C.muted, marginBottom: 10 }}>Vérifiez vos heures. En signant, vous certifiez qu'elles sont exactes ; elles sont ensuite transmises à votre employeur et à son expert-comptable.</div>
+                  <Btn onClick={signerFeuille}>{signatureEnCours ? "Signature…" : "✍️ Je certifie et je signe"}</Btn></Card>}
+          </>}
+        </div>}
+
+        {page === "acompte" && <div>
+          <div style={{ fontSize: 18, fontWeight: 700, fontFamily: "Georgia, serif", marginBottom: 16 }}>💰 Demande d'acompte</div>
+          <Card style={{ marginBottom: 16 }}>
+            <div style={{ fontSize: 12, color: C.muted, marginBottom: 12 }}>Un acompte est une avance sur le salaire du mois en cours, déduite de votre prochain bulletin. Votre responsable valide, puis le virement est effectué.</div>
+            <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "center" }}>
+              <input type="number" min="1" step="1" placeholder="Montant (€)" value={acompteForm.montant} onChange={e => setAcompteForm(f => ({ ...f, montant: e.target.value }))}
+                style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 13, width: 140, fontFamily: "inherit" }} />
+              <input type="text" placeholder="Motif (facultatif)" value={acompteForm.motif} onChange={e => setAcompteForm(f => ({ ...f, motif: e.target.value }))}
+                style={{ background: C.card2, border: `1px solid ${C.border}`, borderRadius: 8, padding: "10px 12px", color: C.text, fontSize: 13, flex: 1, minWidth: 160, fontFamily: "inherit" }} />
+              <Btn onClick={demanderAcompte}>{envoiAcompte ? "Envoi…" : "Demander"}</Btn>
+            </div>
+          </Card>
+          <Card>
+            <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 10 }}>Mes demandes</div>
+            {mesAcomptes.length === 0 && <div style={{ fontSize: 12, color: C.muted }}>Aucune demande pour le moment.</div>}
+            {mesAcomptes.map((a: any) => <div key={a.id} style={{ display: "flex", justifyContent: "space-between", padding: "8px 0", borderBottom: `1px solid ${C.border}`, fontSize: 12 }}>
+              <span>{new Date(a.created_at).toLocaleDateString("fr-FR")} — <strong>{a.montant} €</strong>{a.motif ? ` · ${a.motif}` : ""}</span>
+              <span style={{ color: a.statut === "validé" ? C.green : a.statut === "refusé" ? C.red : C.orange, fontWeight: 600 }}>{a.statut === "validé" ? "Validé" : a.statut === "refusé" ? "Refusé" : "En attente"}</span>
+            </div>)}
           </Card>
         </div>}
 

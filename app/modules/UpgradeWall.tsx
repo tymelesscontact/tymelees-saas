@@ -35,7 +35,7 @@ const MODULE_PREVIEWS: Record<string, { icon: string; desc: string; features: st
   notifications:{icon:"🔔",desc:"Notifications avancées",features:["Push temps réel","WhatsApp auto","Email auto","Configuration complète"]},
   signature:{icon:"✦",desc:"Contrats & Signatures",features:["E-signature légale","10+ modèles","Archivage sécurisé","Avenants auto"]},
   formation:{icon:"⊿",desc:"Formation équipe",features:["Modules vidéo","Certifications","Protocoles métier","Quiz & scores"]},
-  facturation:{icon:"🧾",desc:"Facturation électronique",features:["Factur-X conforme","Chorus Pro","E-reporting TVA","DGFiP automatique"]},
+  facturation:{icon:"🧾",desc:"Facturation électronique",features:["Factures PDF + lien de paiement Stripe","Relances automatiques","TVA et mentions de facture","Facture électronique (Factur-X) : en préparation — obligatoire au 1er sept. 2027"]},
   club_affaires:{icon:"◈",desc:"Club d'affaires privé",features:["Réseau VIP","Deals -10%","Événements exclusifs","IA Match"]},
   fournisseurs:{icon:"⊞",desc:"Fournisseurs",features:["Carnet fournisseurs","IBAN & délais","Chat fournisseur","Commandes"]},
   cartes:{icon:"◈",desc:"Cartes Virtuelles",features:["Cartes par collaborateur","Budgets projet","Approbations","Analyse IA dépenses"]},

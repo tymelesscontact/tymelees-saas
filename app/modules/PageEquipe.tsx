@@ -72,6 +72,16 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
     setLoadingEquipe(false);
   };
   useEffect(()=>{loadRealData();},[activeCompany?.id]);
+  // Acomptes demandes par les salaries : validation (-> ligne "a virer" dans le Wallet) ou refus
+  const traiterAcompte=async(a,valider)=>{
+    try{
+      const res=await fetch('/api/equipe',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:valider?'valider_acompte':'refuser_acompte',id:a.id,nom_employe:a.nom_employe,company_id:activeCompany?.id||null})});
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok||data.error){showToast("❌ "+(data.error==="reserve_au_proprietaire_ou_admin"?"Réservé au propriétaire ou à un Admin":(data.error||"Action refusée")));return;}
+      showToast(valider?`✅ Acompte de ${a.montant} € validé — à virer depuis le Wallet`:"Acompte refusé");
+      loadRealData();
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
   const[equipe,setEquipe]=useState([]);
 
   const[assignerPourId,setAssignerPourId]=useState(null);
@@ -794,6 +804,17 @@ const PageEquipe=({plan, modulesActifs,showToast,UpgradeWall,activeCompany,setPa
             {equipe.map((e,i)=><div key={i} style={{marginBottom:8}}><div style={{display:"flex",justifyContent:"space-between",fontSize:11,marginBottom:3}}><span>{e.prenom}</span><span style={{color:e.couleur,fontWeight:700}}>{e.salaire.toLocaleString("fr")}€</span></div><div style={{height:4,borderRadius:2,background:"#1E1E36"}}><div style={{height:"100%",width:(totalSalaire>0?e.salaire/totalSalaire*100:0)+"%",background:e.couleur,borderRadius:2}}/></div></div>)}
             <div style={{marginTop:8,fontSize:11,color:"#C9A84C",fontWeight:700,textAlign:"right"}}>Total : {totalSalaire.toLocaleString("fr")} € net · {Math.round(totalSalaire*1.43).toLocaleString("fr")} € brut</div>
           </div>}
+          {estRH&&(()=>{const aTraiter=equipe.flatMap(e=>(e.acomptes||[]).filter(a=>a.statut==="en_attente").map(a=>({...a,nom_employe:a.nom_employe||`${e.prenom||""} ${e.nom||""}`.trim()})));
+            return aTraiter.length>0&&<div style={{background:"#FF8C3A11",border:"1px solid #FF8C3A44",borderRadius:10,padding:14}}>
+              <div style={{fontSize:10,color:"#FF8C3A",fontWeight:600,marginBottom:8}}>💰 Acomptes à valider ({aTraiter.length})</div>
+              {aTraiter.map(a=><div key={a.id} style={{display:"flex",justifyContent:"space-between",alignItems:"center",gap:8,padding:"5px 0",borderBottom:"1px solid #FF8C3A22",fontSize:11}}>
+                <div><div style={{color:"#EAE6DE",fontWeight:600}}>{a.nom_employe} — {a.montant} €</div>{a.motif&&<div style={{color:"#5A5A7A",fontSize:10}}>{a.motif}</div>}</div>
+                <div style={{display:"flex",gap:6}}>
+                  <button onClick={()=>traiterAcompte(a,true)} style={{background:"#2EC9B0",color:"#000",border:"none",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit",fontWeight:700}}>Valider</button>
+                  <button onClick={()=>traiterAcompte(a,false)} style={{background:"transparent",color:"#FF5252",border:"1px solid #FF525244",borderRadius:5,padding:"4px 10px",cursor:"pointer",fontSize:10,fontFamily:"inherit"}}>Refuser</button>
+                </div>
+              </div>)}
+            </div>;})()}
           <div style={{background:"#FF525211",border:"1px solid #FF525233",borderRadius:10,padding:14}}>
             <div style={{fontSize:10,color:"#FF5252",fontWeight:600,marginBottom:8}}>🔔 Alertes RH du jour</div>
             {alertes.length===0&&<div style={{fontSize:11,color:"#5A5A7A"}}>Aucune alerte pour le moment.</div>}

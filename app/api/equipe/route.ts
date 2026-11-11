@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
-import { estProprietaireDuTenant } from '../../lib/permissions';
+import { estProprietaireDuTenant, estAutoriseGererEquipe } from '../../lib/permissions';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 import { urlRetourInvitation } from '../../lib/invitation';
 import { getAnthropicKey } from '../../lib/anthropicKey';
 import { fuseauDuTenant } from '../../lib/fuseauHoraire';
 import { createClient } from '@supabase/supabase-js';
+import { alerterEntreprise } from '../../lib/rappels';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -60,16 +61,8 @@ function calculerPaie(salaireBrut: number) {
   return { salaireBrut, chargesSalariales, chargesPatronales, salaireNet, coutTotal };
 }
 
-async function estAutoriseGererEquipe(req: NextRequest, tenantId: string): Promise<boolean> {
-  const tokenVerif = req.cookies.get('sb-access-token')?.value;
-  if (!tokenVerif) return false;
-  const { data: authVerif } = await sbAdmin.auth.getUser(tokenVerif);
-  if (!authVerif?.user) return false;
-  const { data: membreVerif } = await sbAdmin.from('tenant_membres').select('role').eq('user_id', authVerif.user.id).eq('tenant_id', tenantId).maybeSingle();
-  if (membreVerif?.role === 'owner') return true;
-  const { data: monEquipe } = await sbAdmin.from('equipe').select('role').eq('user_id', authVerif.user.id).eq('tenant_id', tenantId).maybeSingle();
-  return monEquipe?.role === 'Admin';
-}
+// Droits RH : version partagee (app/lib/permissions.ts), avec le repli tenants.user_id
+// pour les anciens proprietaires sans ligne "owner" dans tenant_membres.
 
 // Nom de la personne reellement connectee, pour signer un message/une evaluation/une fiche de paie --
 // remplace le prenom "Curtiss" qui etait ecrit en dur (n'avait de sens que pour un seul client Xyra).
@@ -96,6 +89,19 @@ export async function GET(req: NextRequest) {
   // Route dediee self-service : l'employe connecte voit UNIQUEMENT ses
   // propres formations + le catalogue (pas les donnees RH sensibles des
   // collegues, contrairement au reste de cette route reserve au RH).
+  // Self-service : le salarie connecte voit uniquement ses propres demandes d'acompte
+  if (action === 'mes_acomptes') {
+    const tokenMoi = req.cookies.get('sb-access-token')?.value;
+    if (!tokenMoi) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const { data: authMoi } = await sb.auth.getUser(tokenMoi);
+    if (!authMoi?.user) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const { data: moi } = await sb.from('equipe').select('id, tenant_id').eq('user_id', authMoi.user.id).maybeSingle();
+    if (!moi) return NextResponse.json({ acomptes: [] });
+    const { data: mesAcomptes } = await sb.from('acomptes').select('id,montant,motif,statut,created_at')
+      .eq('tenant_id', moi.tenant_id).eq('employe_id', moi.id).order('created_at', { ascending: false }).limit(24);
+    return NextResponse.json({ acomptes: mesAcomptes || [] });
+  }
+
   if (action === 'mes_formations') {
     const tokenMoi = req.cookies.get('sb-access-token')?.value;
     if (!tokenMoi) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
@@ -323,7 +329,9 @@ export async function GET(req: NextRequest) {
       if (authMoiRH?.user) mesPropresIds = new Set([authMoiRH.user.id]);
     }
   }
-  const CHAMPS_SENSIBLES = ['salaire', 'salaire_brut', 'nss', 'rib', 'adresse', 'date_naissance', 'paie', 'acomptes', 'fichePaieEnvoyee', 'fichePaieEnvoyeeLe'];
+  const CHAMPS_SENSIBLES = ['salaire', 'salaire_brut', 'nss', 'rib', 'adresse', 'date_naissance', 'paie', 'acomptes', 'fichePaieEnvoyee', 'fichePaieEnvoyeeLe',
+    // donnees de sante (motifs d'absence), historique des salaires, evaluations, documents, GPS
+    'absences', 'carriere', 'evaluations', 'documents', 'position'];
   const membresFiltres = estRH ? enriched : enriched.map((m: any) => {
     if (mesPropresIds.has(m.user_id)) return m;
     const allege = { ...m };
@@ -372,6 +380,8 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, document: docInsere });
     }
 
+    // Ajouter une video au catalogue de formation : RH / proprietaire uniquement
+    if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const titre = String(formData.get('titre') || '').trim();
     const description = String(formData.get('description') || '');
     const fichier = formData.get('video') as File | null;
@@ -395,6 +405,34 @@ export async function POST(req: NextRequest) {
 
   const body = await req.json();
   const { action } = body;
+
+  // Self-service : le salarie demande un acompte sur son salaire (valide ensuite par le RH,
+  // puis verse via le Wallet). Une seule demande en attente a la fois.
+  if (action === 'demander_acompte') {
+    const tokenMoi = req.cookies.get('sb-access-token')?.value;
+    const { data: authMoi } = tokenMoi ? await sb.auth.getUser(tokenMoi) : { data: null as any };
+    if (!authMoi?.user) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+    const { data: moi } = await sb.from('equipe').select('id,nom,prenom,salaire,salaire_brut').eq('user_id', authMoi.user.id).eq('tenant_id', tenantId).maybeSingle();
+    if (!moi) return NextResponse.json({ error: 'non_autorise' }, { status: 403 });
+    const montant = Math.round(Number(String(body.montant ?? '').replace(',', '.')) * 100) / 100;
+    if (!isFinite(montant) || montant <= 0) return NextResponse.json({ error: 'Montant invalide' }, { status: 400 });
+    // Plafond : le net estime du mois si le salaire est connu (un acompte porte sur un travail deja fait)
+    const brut = Number(moi.salaire_brut || moi.salaire || 0);
+    const plafond = brut > 0 ? Math.floor(brut * 0.78) : 3000;
+    if (montant > plafond) return NextResponse.json({ error: `Montant trop élevé (maximum ${plafond} €)` }, { status: 400 });
+    const { data: enCours } = await sb.from('acomptes').select('id').eq('tenant_id', tenantId).eq('employe_id', moi.id).eq('statut', 'en_attente').limit(1).maybeSingle();
+    if (enCours) return NextResponse.json({ error: 'Une demande est déjà en attente' }, { status: 409 });
+    const nomEmploye = `${moi.prenom || ''} ${moi.nom || ''}`.trim();
+    const motif = String(body.motif || '').slice(0, 300) || null;
+    const { data: acompte, error: errAc } = await sb.from('acomptes').insert({
+      tenant_id: tenantId, employe_id: moi.id, user_id: authMoi.user.id, nom_employe: nomEmploye,
+      montant, motif, statut: 'en_attente',
+    }).select('id,montant,motif,statut,created_at').single();
+    if (errAc) return NextResponse.json({ error: errAc.message }, { status: 500 });
+    try { await alerterEntreprise(tenantId, 'Demande d\'acompte', `${nomEmploye} demande un acompte de ${montant} €${motif ? ' (' + motif + ')' : ''}. À valider dans Équipe → Acomptes.`); } catch (e: any) { console.error('Alerte acompte:', e.message); }
+    return NextResponse.json({ success: true, acompte });
+  }
+
   if (action === 'message_groupe') {
     if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { message, company_id } = body;
@@ -790,8 +828,21 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
   if (action === 'modifier') {
     if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { id, ...fields } = body;
-    if ('peut_signer_devis' in fields && !(await estProprietaireDuTenant(req, tenantId))) {
+    // Champs techniques jamais modifiables depuis l'ecran (rattachement compte/entreprise)
+    for (const champ of ['action', 'id', 'tenant_id', 'user_id', 'created_at']) delete (fields as any)[champ];
+    const estProprio = await estProprietaireDuTenant(req, tenantId);
+    if ('peut_signer_devis' in fields && !estProprio) {
       return NextResponse.json({ error: 'reserve_au_proprietaire' }, { status: 403 });
+    }
+    // Un Admin ne modifie pas son propre salaire, role ou solde de conges (seul le proprietaire le peut)
+    if (!estProprio) {
+      const tokenModif = req.cookies.get('sb-access-token')?.value;
+      const { data: authModif } = tokenModif ? await sbAdmin.auth.getUser(tokenModif) : { data: null as any };
+      const { data: cibleModif } = await sb.from('equipe').select('user_id').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+      const champsPerso = ['salaire', 'salaire_brut', 'role', 'conges_solde', 'paie', 'acomptes'];
+      if (authModif?.user && cibleModif?.user_id === authModif.user.id && champsPerso.some(c => c in fields)) {
+        return NextResponse.json({ error: 'Vous ne pouvez pas modifier votre propre salaire, rôle ou solde' }, { status: 403 });
+      }
     }
     const { error } = await sb.from('equipe').update(fields).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
@@ -850,6 +901,14 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
     const { data: acompte } = await sb.from('acomptes').select('*').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
     if (!acompte) return NextResponse.json({ error: 'Acompte introuvable' }, { status: 404 });
     if (acompte.statut !== 'en_attente') return NextResponse.json({ error: 'Acompte deja traite' }, { status: 409 });
+    if (!(await estProprietaireDuTenant(req, tenantId))) {
+      const tokenAc = req.cookies.get('sb-access-token')?.value;
+      const { data: authAc } = tokenAc ? await sbAdmin.auth.getUser(tokenAc) : { data: null as any };
+      const { data: moiAc } = authAc?.user ? await sb.from('equipe').select('id').eq('user_id', authAc.user.id).eq('tenant_id', tenantId).maybeSingle() : { data: null as any };
+      if (moiAc && acompte.employe_id && moiAc.id === acompte.employe_id) {
+        return NextResponse.json({ error: 'Vous ne pouvez pas valider votre propre acompte' }, { status: 403 });
+      }
+    }
     const nomAcompte = acompte.nom_employe || nom_employe || '';
     // Passage atomique en_attente -> validé : en cas de double clic, une seule requete gagne
     const { data: acompteValide } = await sb.from('acomptes').update({ statut: 'validé' })
@@ -874,7 +933,7 @@ Ne rédige que les clauses, sans en-tête ni signature.`;
   if (action === 'refuser_acompte') {
     if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
     const { id } = body;
-    await sb.from('acomptes').update({ statut: 'refusé' }).eq('id', id).eq('tenant_id', tenantId);
+    await sb.from('acomptes').update({ statut: 'refusé' }).eq('id', id).eq('tenant_id', tenantId).eq('statut', 'en_attente');
     return NextResponse.json({ success: true });
   }
 
@@ -1021,11 +1080,12 @@ Rédige une analyse RH courte (4-5 phrases) avec une recommandation concrète su
     const { data: tenantPaie } = await sb.from('tenants').select('societe,nom_contact').eq('id', tenantId).maybeSingle();
     const signaturePaie = [tenantPaie?.societe ? echapperHtml(tenantPaie.societe) : '', tenantPaie?.nom_contact ? `Signé ${echapperHtml(tenantPaie.nom_contact)}` : ''].filter(Boolean).join(' · ');
     const html = `<div style="font-family:sans-serif;padding:24px;max-width:600px;">
-      <h2 style="color:#C9A84C">Fiche de paie — ${mois}</h2>
+      <h2 style="color:#C9A84C">Estimation de salaire — ${mois}</h2>
+      <p style="background:#fff4e0;padding:10px;border-radius:6px;font-size:13px;">Document indicatif : ce n'est pas un bulletin de paie. Taux forfaitaires, hors absences, heures supplémentaires et acomptes. Seul le bulletin établi par votre employeur ou son cabinet fait foi.</p>
       <p><strong>${m.prenom || ''} ${m.nom}</strong> · ${m.role}</p>
       <table style="width:100%;border-collapse:collapse;margin-top:16px;">
         <tr style="background:#f5f5f5"><td style="padding:8px">Salaire brut</td><td style="padding:8px;text-align:right"><strong>${paie.salaireBrut}€</strong></td></tr>
-        <tr><td style="padding:8px">Charges salariales (22%)</td><td style="padding:8px;text-align:right">-${paie.chargesSalariales}€</td></tr>
+        <tr><td style="padding:8px">Charges salariales (estimation forfaitaire 22%)</td><td style="padding:8px;text-align:right">-${paie.chargesSalariales}€</td></tr>
         <tr style="background:#f5f5f5"><td style="padding:8px"><strong>Salaire net à payer</strong></td><td style="padding:8px;text-align:right"><strong style="color:#2EC9B0">${paie.salaireNet}€</strong></td></tr>
         <tr><td style="padding:8px;color:#888">Charges patronales (42%)</td><td style="padding:8px;text-align:right;color:#888">${paie.chargesPatronales}€</td></tr>
         <tr style="background:#f5f5f5"><td style="padding:8px;color:#888">Coût total employeur</td><td style="padding:8px;text-align:right;color:#888">${paie.coutTotal}€</td></tr>
@@ -1037,7 +1097,7 @@ Rédige une analyse RH courte (4-5 phrases) avec une recommandation concrète su
     if (envoyer !== false) {
       if (!m.email) return NextResponse.json({ error: 'Aucun email pour cet employé' }, { status: 400 });
       try {
-        await sendEmail(m.email, `Votre fiche de paie — ${mois}`, html);
+        await sendEmail(m.email, `Estimation de salaire (indicatif) — ${mois}`, html);
         envoyee = true;
       } catch (e: any) {
         return NextResponse.json({ error: 'Envoi email échoué : ' + e.message }, { status: 500 });

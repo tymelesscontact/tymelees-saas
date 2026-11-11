@@ -667,3 +667,34 @@ Audit lecture seule de `test` (diff vers `main`, typecheck, lint, build). Correc
 | `8e5882c` | Multi-sociétés : une facture créée avec une société sélectionnée était invisible (jamais rattachée à la société, liste filtrée). Facture rattachée à la société active ; Factures, Devis, Clients, Charges, CRM, Cartes, Partenaires, Stock affichent aussi les éléments sans société. **Bug aussi présent en prod.** |
 | (suite) | Relance facture : « en retard » seulement après l'échéance ; message clair si non envoyée (pas d'email, email refusé + motif, WhatsApp indisponible) |
 | (suite) | PDF : `pdfkit` hors bundle (`serverExternalPackages` dans `next.config.ts`, validé) — en ligne, aucun PDF (factures, devis, contrats, partenaires) ne se générait : police Helvetica.afm introuvable. **Bug aussi présent en prod.** |
+
+### Mise en production — 10/11/2026
+- PR #34 `test` → `main` fusionnée (`9205a49`, 21:07) ; conflit GitHub `app/dashboard/tymeless.jsx` résolu (`f50d75c` : fichier renommé en `xyra.jsx` sur test, correctif tenant déjà présent).
+- Déploiement Vercel prod « Ready » à 21:07:31 ; xyraio.fr répond.
+- Stripe live : webhook `xyra-webhook` écoute `checkout.session.completed`, `customer.subscription.updated`, `customer.subscription.deleted`.
+- Vercel prod : `PLATFORM_ADMIN_EMAILS` ajoutée ; `ENCRYPTION_KEY` présente.
+- Supabase PROD : bucket `formations-videos` passé en privé ; 1 propriétaire sans ligne `owner` (couvert par le repli `tenants.user_id`).
+- Reste : vérification connectée sur xyraio.fr (facture visible, PDF, vidéos de formation) ; script T10 (Annuaire) à exécuter sur TEST.
+- Contrôles PROD (lecture) : `api_logs.tenant_id` présente ; `modules_actifs` accepte « suspendu » ; 1 seul ticket sans entreprise (test interne Xyra, résolu) ; tables Annuaire absentes (T10 à faire).
+- T10 Annuaire : script exécuté sur TEST (par Curtiss) et sur PROD (par Claude, 10/11) — tables `reseau_contacts` et `reseau_deals` créées, RLS activée.
+
+### 10/11/2026 — RH : audit, correctifs, veille concurrents
+- `bfb997f` : données de santé/salaires/évaluations/documents/GPS cachés aux collègues ; route Équipe sur les droits partagés (repli propriétaire).
+- `d65c206` : étape 1 — congés (validation unique, annulation rend les jours, jours ouvrables hors fériés, pas d'auto-validation), acompte et note de frais non auto-validables, `modifier` protégé, vidéo réservée RH, « fiche de paie » → « estimation de salaire (indicatif) », notes de frais visibles par leur auteur seulement, GPS réservé RH, signalements protégés, plus de faux succès Planning.
+- `f8fab65` : **Remplacement en un clic** (Planning → « Missions à couvrir » → Remplacer → remplaçant prévenu WhatsApp/email/SMS, client en option).
+- Veille RH (Skello, Combo, Connecteam, Lucca, PayFit, Factorial…) — prochaines fonctions : pointage géolocalisé chez le client, feuille d'heures signée → export cabinet, alertes légales du planning, notes de frais/km depuis l'app salarié, demande d'acompte salarié.
+- Restent : fausses alertes RH codées en dur dans `adminpanel.jsx` (~l.7061-7095) à remplacer par de vraies alertes (accord requis) ; facturation électronique (promesses fausses à corriger, mentions PDF, raccordement PA avant 09/2027).
+- `43394b1` : demande d'acompte par le salarié (espace salarié → « Acompte ») + validation RH à l'écran (Équipe → « Acomptes à valider »).
+- `c037792` : pointage chez le client — heure réelle d'arrivée/fin, position comparée à l'adresse (Base Adresse Nationale, alerte > 300 m), prévu vs réel dans Dispatch.
+- `c2b5d96` : **Biens & QR codes** — fiche par logement (codes d'accès, boîte à clés, Wi-Fi, consignes), QR imprimable ; scan = arrivée puis départ, codes montrés seulement si mission du jour, patron prévenu à chaque scan. SQL `docs/xyra/sql/2026-11-10-biens-qr.sql` exécuté sur TEST (Curtiss) et PROD (Claude, 10/11).
+- `b23627f` : chrono de mission en direct + écran de fin (« Bravo ! », durée façon chrono, confettis), durée dans l'alerte patron.
+- `c560718` : **Feuille d'heures mensuelle** — calcul depuis les pointages réels, heures au-delà du contrat (sup / complémentaires), absences, acomptes, frais ; signature du salarié (figée + empreinte) ; vue RH, validation, export CSV « variables de paie », envoi à l'expert-comptable. SQL `2026-11-10-feuilles-heures.sql` exécuté sur TEST (Curtiss) et PROD (Claude).
+- À faire pour la mise en production de tout ce lot : PR `test` → `main`, puis vérification sur xyraio.fr.
+
+### 11/11/2026 — Facturation (suite de l'audit Factur-X) + Planning
+- `5afee9c` `99a51a3` `8886857` : onglet Missions utilisable (collaborateurs, bien, pointage réel, détail, Confirmer/Terminer/Annuler), « Confier à… » / retirer un collaborateur, Supprimer (refusé si terminée ou avec signalements).
+- `9880dc2` : promesses exactes sur la facture électronique (plus de « Factur-X conforme / Chorus Pro / DGFiP automatique »), Chorus Pro « en préparation », badge DGFiP « — » si inconnu, calendrier de la réforme corrigé.
+- `641a7dd` : mentions obligatoires sur le PDF (identité légale du vendeur, échéance, pénalités + 40 € en B2B, mention TVA 0 %).
+- `66dcf83` : avoirs (AV-AAAA-NNNN), adresse du client, numérotation sans doublon (index unique en base), « PDF » à l'écran = vrai PDF. SQL `2026-11-11-avoirs-adresse-client.sql` exécuté sur PROD (Claude) et TEST (Curtiss).
+- Contrôle PROD : TYMELESS (SAS) — capital social et ville du RCS non renseignés (obligatoires) → à saisir dans Paramètres → Entreprise.
+- Restent : raccordement à une plateforme agréée (avant 09/2027) ; RH : alertes légales du planning, notes de frais/km depuis l'app salarié ; mise en production de tout le lot (PR test → main).

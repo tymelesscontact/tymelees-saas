@@ -20,7 +20,7 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
   };
   useEffect(()=>{loadFactures();},[activeCompany?.id]);
 
-  const[newFact,setNewFact]=useState({client_nom:"",client_email:"",client_tel:"",siren:"",type_client:"entreprise",description:"",montant_ht:"",taux_tva:"20",format:"Factur-X"});
+  const[newFact,setNewFact]=useState({client_nom:"",client_email:"",client_tel:"",client_adresse:"",siren:"",type_client:"entreprise",description:"",montant_ht:"",taux_tva:"20",format:"Factur-X"});
   const tvaMontant=newFact.montant_ht?Math.round(Number(newFact.montant_ht)*Number(newFact.taux_tva))/100:0;
   const ttc=newFact.montant_ht?Number(newFact.montant_ht)+tvaMontant:0;
 
@@ -65,34 +65,22 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
   const aEncaisserHT=factures.filter(f=>["émise","en_retard"].includes(f.statut)).reduce((a,f)=>a+Number(f.montant_ht||0),0);
   const payées=factures.filter(f=>f.statut==="payée").length;
 
+  // Apercu = le vrai PDF envoye au client (mentions legales comprises)
   const apercuPDF=(f)=>{
-    const win=window.open("","_blank");
-    if(!win)return showToast("⚠️ Autorisez les pop-ups pour voir l'aperçu");
-    const nomEntreprise=f.tenant_snapshot?.societe||"Xyra";
-    const logoHtml=f.tenant_snapshot?.logo_url?`<img src="${f.tenant_snapshot.logo_url}" alt="${nomEntreprise}" style="max-height:36px;" />`:`<h1>${nomEntreprise}</h1>`;
-    win.document.write(`<!DOCTYPE html><html><head><title>Facture ${f.numero}</title><style>
-      body{font-family:'Segoe UI',sans-serif;background:#fff;color:#111;padding:40px;max-width:700px;margin:0 auto;}
-      h1{font-size:22px;color:#C9A84C;font-family:Georgia,serif;letter-spacing:.1em;}
-      .meta{color:#888;font-size:11px;margin-top:8px;}
-      table{width:100%;border-collapse:collapse;font-size:13px;margin-top:24px;}
-      th{text-align:left;padding-bottom:8px;color:#888;border-bottom:2px solid #ddd;}
-      td{padding:10px 0;border-bottom:1px solid #eee;}
-      .total{text-align:right;margin-top:24px;font-size:20px;font-weight:700;color:#C9A84C;}
-      .btn{background:#C9A84C;color:#000;border:none;padding:10px 24px;border-radius:6px;font-weight:700;cursor:pointer;margin-top:30px;}
-      @media print{.btn{display:none;}}
-    </style></head><body>
-      ${logoHtml}
-      <div class="meta">Facture ${f.numero} · ${f.date_emission||""}</div>
-      <div class="meta">Facturé à : ${f.client_nom}${f.siren?" · SIREN "+f.siren:""}</div>
-      <table>
-        <tr><th>Description</th><th style="text-align:right;">Montant HT</th></tr>
-        <tr><td>${f.description||"Prestation de services"}</td><td style="text-align:right;">${Number(f.montant_ht).toFixed(2)}€</td></tr>
-        <tr><td>TVA (${f.taux_tva}%)</td><td style="text-align:right;">${Number(f.montant_tva).toFixed(2)}€</td></tr>
-      </table>
-      <div class="total">Total TTC : ${Number(f.montant_ttc).toFixed(2)}€</div>
-      <button class="btn" onclick="window.print()">🖨 Imprimer / Enregistrer en PDF</button>
-    </body></html>`);
-    win.document.close();
+    const win=window.open(`/api/factures?action=pdf&id=${f.id}`,"_blank");
+    if(!win)showToast("⚠️ Autorisez les pop-ups pour voir le PDF");
+  };
+
+  const creerAvoir=async(f)=>{
+    const motif=window.prompt(`Créer un avoir qui annule la facture ${f.numero} (${Number(f.montant_ttc).toFixed(2)} € TTC) ?\nMotif (facultatif) :`,"");
+    if(motif===null)return;
+    try{
+      const res=await fetch('/api/factures',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'avoir',id:f.id,motif})});
+      const data=await res.json().catch(()=>({}));
+      if(!res.ok||data.error){showToast("❌ "+(data.error==="reserve_au_proprietaire_ou_admin"?"Réservé au propriétaire ou à un Admin":(data.error||"Erreur")));return;}
+      showToast(`✅ Avoir ${data.avoir?.numero||""} créé — facture ${f.numero} annulée`);
+      loadFactures();
+    }catch(e){showToast("❌ Erreur de connexion");}
   };
 
   const creerFacture=async()=>{
@@ -103,7 +91,7 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
       const data=await res.json();
       if(data.success){
         showToast(`✅ Facture ${data.facture.numero} créée !`);
-        setNewFact({client_nom:"",client_email:"",client_tel:"",siren:"",type_client:"entreprise",description:"",montant_ht:"",taux_tva:"20",format:"Factur-X"});
+        setNewFact({client_nom:"",client_email:"",client_tel:"",client_adresse:"",siren:"",type_client:"entreprise",description:"",montant_ht:"",taux_tva:"20",format:"Factur-X"});
         setOnglet("historique");
         loadFactures();
       }else{showToast("❌ "+(data.error||"Erreur"));}
@@ -180,6 +168,7 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
         <div style={{display:"flex",flexDirection:"column",gap:10}}>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
             <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Client *</label><Inp value={newFact.client_nom} onChange={e=>setNewFact(f=>({...f,client_nom:e.target.value}))} placeholder="Nom / raison sociale"/></div>
+            <div style={{gridColumn:"1 / -1"}}><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>Adresse du client (mention obligatoire)</label><Inp value={newFact.client_adresse} onChange={e=>setNewFact(f=>({...f,client_adresse:e.target.value}))} placeholder="12 rue de la Paix, 75002 Paris"/></div>
             <div><label style={{fontSize:11,color:C.muted,display:"block",marginBottom:4}}>SIREN (si entreprise)</label><Inp value={newFact.siren} onChange={e=>setNewFact(f=>({...f,siren:e.target.value}))} placeholder="123 456 789"/></div>
           </div>
           <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
@@ -269,12 +258,14 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
           <Td style={{color:C.orange}}>{fmt(f.montant_tva)}</Td>
           <Td style={{color:C.gold,fontWeight:700}}>{fmt(f.montant_ttc)}</Td>
           <Td><Pill color={statutColor[f.statut]||C.muted}>{f.statut}</Pill></Td>
-          <Td><Pill color={f.statut_dgfip==="transmise"?C.green:f.statut_dgfip==="a_transmettre"?C.orange:C.muted}>{f.statut_dgfip==="non_applicable"?"N/A":f.statut_dgfip==="a_transmettre"?"À transmettre":"Transmise"}</Pill></Td>
+          <Td><Pill color={f.statut_dgfip==="transmise"?C.green:f.statut_dgfip==="a_transmettre"?C.orange:C.muted}>{f.statut_dgfip==="non_applicable"?"N/A":f.statut_dgfip==="a_transmettre"?"À transmettre":f.statut_dgfip==="transmise"?"Transmise":"—"}</Pill></Td>
           <Td><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>
             <BtnGhost onClick={()=>apercuPDF(f)} style={{fontSize:9,padding:"3px 6px"}}>👁 PDF</BtnGhost>
-            {f.statut!=="payée"&&<Btn onClick={()=>envoyerPaiement(f.id)} style={{fontSize:9,padding:"3px 6px",background:C.green}}>💳 Lien paiement</Btn>}
-            {f.statut!=="payée"&&<BtnGhost onClick={()=>marquerPayee(f.id)} style={{fontSize:9,padding:"3px 6px"}}>✅ Marquer payée</BtnGhost>}
-            {f.statut!=="payée"&&<BtnGhost onClick={()=>relancer(f.id)} style={{fontSize:9,padding:"3px 6px",color:C.orange}}>🔔 Relancer</BtnGhost>}
+            {f.type_document==="avoir"&&<Pill color={C.purple||C.blue}>Avoir</Pill>}
+            {f.type_document!=="avoir"&&f.statut!=="payée"&&f.statut!=="annulée"&&<Btn onClick={()=>envoyerPaiement(f.id)} style={{fontSize:9,padding:"3px 6px",background:C.green}}>💳 Lien paiement</Btn>}
+            {f.type_document!=="avoir"&&f.statut!=="payée"&&f.statut!=="annulée"&&<BtnGhost onClick={()=>marquerPayee(f.id)} style={{fontSize:9,padding:"3px 6px"}}>✅ Marquer payée</BtnGhost>}
+            {f.type_document!=="avoir"&&f.statut!=="payée"&&f.statut!=="annulée"&&<BtnGhost onClick={()=>relancer(f.id)} style={{fontSize:9,padding:"3px 6px",color:C.orange}}>🔔 Relancer</BtnGhost>}
+            {f.type_document!=="avoir"&&f.statut!=="annulée"&&<BtnGhost onClick={()=>creerAvoir(f)} style={{fontSize:9,padding:"3px 6px",color:C.red}}>↩️ Avoir</BtnGhost>}
           </div></Td>
         </tr>)}</tbody>
       </table>
@@ -284,7 +275,7 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
     {onglet==="ereporting"&&<div>
       <div style={{background:`${C.orange}11`,border:`1px solid ${C.orange}33`,borderRadius:12,padding:16,marginBottom:14}}>
         <div style={{fontSize:10,color:C.orange,fontWeight:600,marginBottom:6}}>📤 STATUT RÉEL — TRANSMISSION DGFiP / CHORUS PRO</div>
-        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>La transmission automatique à la DGFiP nécessite de passer par une plateforme accréditée (PDP) — ce n'est pas encore connecté. Les factures à des <b style={{color:C.gold}}>administrations publiques</b> sont marquées "à transmettre" ci-dessous en attendant un partenariat. Les factures B2B privées ne sont pas concernées par cette obligation avant 2026-2027.</div>
+        <div style={{fontSize:12,color:C.text,lineHeight:1.8}}>La transmission automatique à la DGFiP nécessite de passer par une plateforme accréditée (PDP) — ce n'est pas encore connecté. Les factures à des <b style={{color:C.gold}}>administrations publiques</b> sont marquées "à transmettre" ci-dessous en attendant un partenariat. Depuis le 1er septembre 2026, toutes les entreprises doivent pouvoir recevoir des factures électroniques via une plateforme agréée ; l'émission devient obligatoire pour les PME et micro-entreprises le 1er septembre 2027. Xyra prépare ce raccordement.</div>
       </div>
       <Card>
         <STitle>📋 Factures à transmettre</STitle>
@@ -301,7 +292,7 @@ const PageFacturation=({plan, modulesActifs,showToast,UpgradeWall,activeCompany}
       <Card style={{marginBottom:12,background:`${C.blue}08`,borderColor:`${C.blue}33`}}>
         <div style={{fontSize:10,color:C.blue,fontWeight:600,marginBottom:10,letterSpacing:"0.1em"}}>📖 GUIDE — RÉFORME FACTURATION ÉLECTRONIQUE FRANCE 2026-2027</div>
         <div style={{display:"flex",flexDirection:"column",gap:8}}>
-          {[{titre:"Qu'est-ce que la facturation électronique ?",contenu:"Obligation légale d'émettre et recevoir les factures B2B en format structuré (pas un simple PDF). La facture doit contenir des données lisibles par machine (XML) pour transmission automatique à la DGFiP.",color:C.blue},{titre:"Quels formats sont acceptés ?",contenu:"• Factur-X : PDF enrichi + XML — recommandé car lisible humain ET machine\\n• UBL (Universal Business Language) : format XML pur\\n• CII (Cross Industry Invoice) : autre format XML",color:C.gold},{titre:"Qu'est-ce que Chorus Pro ?",contenu:"Portail public du gouvernement français pour l'échange de factures électroniques. Concerne uniquement les factures émises à des entités publiques (État, collectivités) — pas le B2B privé.",color:C.green},{titre:"Calendrier d'application",contenu:"• Sept. 2026 : Grandes entreprises (CA > 250M€ ou +5000 salariés)\\n• Sept. 2027 : PME, ETI, Micro-entreprises\\nRecommandation : anticiper dès maintenant.",color:C.purple}].map((s,i)=><div key={i} style={{background:`${s.color}08`,border:`1px solid ${s.color}22`,borderRadius:8,padding:12}}>
+          {[{titre:"Qu'est-ce que la facturation électronique ?",contenu:"Obligation légale d'émettre et recevoir les factures B2B en format structuré (pas un simple PDF). La facture doit contenir des données lisibles par machine (XML) pour transmission automatique à la DGFiP.",color:C.blue},{titre:"Quels formats sont acceptés ?",contenu:"• Factur-X : PDF enrichi + XML — recommandé car lisible humain ET machine\n• UBL (Universal Business Language) : format XML pur\n• CII (Cross Industry Invoice) : autre format XML",color:C.gold},{titre:"Qu'est-ce que Chorus Pro ?",contenu:"Portail public du gouvernement français pour l'échange de factures électroniques. Concerne uniquement les factures émises à des entités publiques (État, collectivités) — pas le B2B privé.",color:C.green},{titre:"Calendrier d'application",contenu:"• 1er sept. 2026 : toutes les entreprises doivent pouvoir RECEVOIR des factures électroniques ; les grandes entreprises et les ETI doivent aussi les ÉMETTRE\n• 1er sept. 2027 : les PME et micro-entreprises doivent les ÉMETTRE\nLa transmission passe par une plateforme agréée (PA) — Xyra prépare ce raccordement.",color:C.purple}].map((s,i)=><div key={i} style={{background:`${s.color}08`,border:`1px solid ${s.color}22`,borderRadius:8,padding:12}}>
             <div style={{fontSize:11,fontWeight:700,color:s.color,marginBottom:4}}>❓ {s.titre}</div>
             <div style={{fontSize:11,color:C.text,lineHeight:1.7,whiteSpace:"pre-line"}}>{s.contenu}</div>
           </div>)}
