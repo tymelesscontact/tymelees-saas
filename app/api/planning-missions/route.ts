@@ -38,6 +38,77 @@ function distanceMetres(a: { lat: number; lng: number }, b: { lat: number; lng: 
 // Au-dela de cette distance de l'adresse de la mission, le pointage est signale au patron
 const RAYON_POINTAGE_METRES = 300;
 
+type AlerteLegale = { type: string; message: string };
+type MissionPlanifiee = { id?: string; date_mission: string; heure: string; duree: unknown; statut?: string };
+
+function dureeEnMinutes(duree: unknown): number | null {
+  const valeur = String(duree || '').trim().toLowerCase().replace(',', '.');
+  let m = valeur.match(/^(\d+)\s*h\s*(\d{1,2})?$/);
+  if (m) return Number(m[1]) * 60 + Number(m[2] || 0);
+  m = valeur.match(/^(\d+)\s*:\s*(\d{1,2})$/);
+  if (m) return Number(m[1]) * 60 + Number(m[2]);
+  m = valeur.match(/^(\d+)\s*min(?:ute)?s?$/);
+  return m ? Number(m[1]) : null;
+}
+
+function minutesDate(date: string, heure: string) {
+  const [annee, mois, jour] = date.split('-').map(Number);
+  const [h, min] = String(heure).slice(0, 5).split(':').map(Number);
+  return Date.UTC(annee, mois - 1, jour, h || 0, min || 0) / 60000;
+}
+
+function dateDecalee(date: string, jours: number) {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + jours);
+  return d.toISOString().slice(0, 10);
+}
+
+function lundiDe(date: string) {
+  const d = new Date(`${date}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() - ((d.getUTCDay() + 6) % 7));
+  return d.toISOString().slice(0, 10);
+}
+
+async function alertesLegalesPlanning(tenantId: string, collaborateurId: string, mission: { id?: string; date_mission: string; heure: string; duree: unknown }): Promise<AlerteLegale[]> {
+  const duree = dureeEnMinutes(mission.duree);
+  if (!duree || duree <= 0) return [{ type: 'duree_inconnue', message: 'Durée prévue inconnue : le contrôle légal ne peut pas être calculé pour cette mission.' }];
+
+  const { data: collaborateur } = await sb.from('equipe').select('heures_semaine').eq('id', collaborateurId).eq('tenant_id', tenantId).maybeSingle();
+  if (!collaborateur) return [];
+
+  const lundi = lundiDe(mission.date_mission);
+  const dimanche = dateDecalee(lundi, 6);
+  const { data: liaisons } = await sb.from('missions_collaborateurs')
+    .select('mission_id, missions!inner(id,tenant_id,date_mission,heure,duree,statut)')
+    .eq('collaborateur_id', collaborateurId).eq('missions.tenant_id', tenantId)
+    .gte('missions.date_mission', dateDecalee(lundi, -1)).lte('missions.date_mission', dateDecalee(dimanche, 1));
+
+  const creneaux = (liaisons || []).map((liaison: { missions: MissionPlanifiee | null }) => liaison.missions).filter((m): m is MissionPlanifiee =>
+    Boolean(m && m.id !== mission.id && m.statut !== 'annule' && dureeEnMinutes(m.duree) && m.heure && m.date_mission)
+  ).map((m) => {
+    const minutes = dureeEnMinutes(m.duree)!;
+    const debut = minutesDate(m.date_mission, m.heure);
+    return { ...m, minutes, debut, fin: debut + minutes };
+  });
+  const debut = minutesDate(mission.date_mission, mission.heure);
+  const candidat = { ...mission, minutes: duree, debut, fin: debut + duree };
+  const alertes: AlerteLegale[] = [];
+  const minutesJour = creneaux.filter((m) => m.date_mission === mission.date_mission).reduce((total, m) => total + m.minutes, duree);
+  if (minutesJour > 10 * 60) alertes.push({ type: 'jour', message: `Ce planning porte la journée à ${(minutesJour / 60).toFixed(1).replace('.', ',')} h (limite de référence : 10 h).` });
+
+  const minutesSemaine = creneaux.filter((m) => m.date_mission >= lundi && m.date_mission <= dimanche).reduce((total, m) => total + m.minutes, duree);
+  if (minutesSemaine > 48 * 60) alertes.push({ type: 'semaine', message: `Ce planning porte la semaine à ${(minutesSemaine / 60).toFixed(1).replace('.', ',')} h (limite de référence : 48 h).` });
+
+  const precedent = creneaux.filter((m) => m.fin <= candidat.debut).sort((a, b) => b.fin - a.fin)[0];
+  const suivant = creneaux.filter((m) => m.debut >= candidat.fin).sort((a, b) => a.debut - b.debut)[0];
+  if (precedent && candidat.debut - precedent.fin < 11 * 60) alertes.push({ type: 'repos', message: `Le repos avant cette mission serait inférieur à 11 h.` });
+  if (suivant && suivant.debut - candidat.fin < 11 * 60) alertes.push({ type: 'repos', message: `Le repos après cette mission serait inférieur à 11 h.` });
+
+  const heuresContrat = Number(collaborateur.heures_semaine || 35);
+  if (heuresContrat < 35 && minutesSemaine > heuresContrat * 60 * 1.1) alertes.push({ type: 'temps_partiel', message: `Ce planning dépasse le contrat de ${heuresContrat} h/semaine de plus de 10 %.` });
+  return alertes;
+}
+
 export async function GET(req: NextRequest) {
   const acces = await verifierAccesModule(req, "planning");
   if (!acces.ok) return acces.reponse;
@@ -80,7 +151,7 @@ export async function POST(req: NextRequest) {
   if (action === 'creer') {
     const {
       type_mission_id, client_id, client_nom, client_email, client_tel,
-      date_mission, heure_debut, heure_fin, adresse, notes,
+      date_mission, heure_debut, duree, adresse, notes, confirmer_alertes,
       collaborateur_ids, acompte_montant, recurrence_frequence, company_id, cree_par, bien_id,
     } = body;
 
@@ -98,12 +169,17 @@ export async function POST(req: NextRequest) {
     if (!collaborateur_ids || !Array.isArray(collaborateur_ids) || collaborateur_ids.length === 0) {
       return NextResponse.json({ error: 'Au moins un collaborateur necessaire' }, { status: 400 });
     }
+    if (!dureeEnMinutes(duree)) return NextResponse.json({ error: 'Durée prévue nécessaire (ex. 2h ou 2h30)' }, { status: 400 });
 
     // Verifie que tous les collaborateurs appartiennent bien au tenant
     const { data: valides } = await sb.from('equipe').select('id')
       .in('id', collaborateur_ids).eq('tenant_id', tenantId);
     if (!valides || valides.length !== collaborateur_ids.length) {
       return NextResponse.json({ error: 'Un collaborateur est invalide' }, { status: 403 });
+    }
+    if (!confirmer_alertes) {
+      const alertes = (await Promise.all(collaborateur_ids.map((id: string) => alertesLegalesPlanning(tenantId, id, { date_mission, heure: heure_debut, duree })))).flat();
+      if (alertes.length) return NextResponse.json({ confirmation_requise: true, alertes_legales: alertes }, { status: 409 });
     }
 
     let serviceNom = notes ? notes.slice(0, 60) : 'Mission';
@@ -118,7 +194,7 @@ export async function POST(req: NextRequest) {
       service: serviceNom,
       client_id: client_id || bien?.client_id || null, client_nom: client_nom || bien?.client_nom || null,
       client_email: client_email || null, client_tel: client_tel || null,
-      date_mission, heure: heure_debut,
+      date_mission, heure: heure_debut, duree: String(duree).trim(),
       adresse: adresse || bien?.adresse || null, notes: notes || null,
       ...(bien ? { bien_id: bien.id } : {}),
       acompte_montant: acompte_montant || null,
@@ -298,13 +374,17 @@ export async function POST(req: NextRequest) {
   // le remplacant est prevenu (WhatsApp, sinon email, sinon SMS), et le client si demande.
   if (action === 'remplacer') {
     if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
-    const { mission_id, ancien_id, nouveau_id, prevenir_client } = body;
+    const { mission_id, ancien_id, nouveau_id, prevenir_client, confirmer_alertes } = body;
     if (!mission_id || !ancien_id || !nouveau_id || ancien_id === nouveau_id) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
     const { data: mission } = await sb.from('missions').select('*').eq('id', mission_id).eq('tenant_id', tenantId).maybeSingle();
     if (!mission) return NextResponse.json({ error: 'Mission introuvable' }, { status: 404 });
     if (['annule', 'termine'].includes(mission.statut)) return NextResponse.json({ error: 'Mission terminée ou annulée' }, { status: 409 });
     const { data: remplacant } = await sb.from('equipe').select('id,nom,prenom,tel,email,statut').eq('id', nouveau_id).eq('tenant_id', tenantId).maybeSingle();
     if (!remplacant) return NextResponse.json({ error: 'Remplaçant introuvable' }, { status: 404 });
+    if (!confirmer_alertes) {
+      const alertes = await alertesLegalesPlanning(tenantId, nouveau_id, mission);
+      if (alertes.length) return NextResponse.json({ confirmation_requise: true, alertes_legales: alertes }, { status: 409 });
+    }
 
     // Affectation : on remplace la ligne de l'absent (ou on ajoute le remplacant s'il n'y en avait pas)
     const { data: lignes } = await sb.from('missions_collaborateurs').update({ collaborateur_id: nouveau_id, statut_presence: 'prevu' })
@@ -335,13 +415,17 @@ export async function POST(req: NextRequest) {
   // Confier une mission existante a un collaborateur (RH / proprietaire) ; il est prevenu.
   if (action === 'affecter') {
     if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
-    const { mission_id, collaborateur_id } = body;
+    const { mission_id, collaborateur_id, confirmer_alertes } = body;
     if (!mission_id || !collaborateur_id) return NextResponse.json({ error: 'Champs manquants' }, { status: 400 });
     const { data: mission } = await sb.from('missions').select('*').eq('id', mission_id).eq('tenant_id', tenantId).maybeSingle();
     if (!mission) return NextResponse.json({ error: 'Mission introuvable' }, { status: 404 });
     if (['annule', 'termine'].includes(mission.statut)) return NextResponse.json({ error: 'Mission terminée ou annulée' }, { status: 409 });
     const { data: collab } = await sb.from('equipe').select('id,nom,prenom,tel,email').eq('id', collaborateur_id).eq('tenant_id', tenantId).maybeSingle();
     if (!collab) return NextResponse.json({ error: 'Collaborateur introuvable' }, { status: 404 });
+    if (!confirmer_alertes) {
+      const alertes = await alertesLegalesPlanning(tenantId, collaborateur_id, mission);
+      if (alertes.length) return NextResponse.json({ confirmation_requise: true, alertes_legales: alertes }, { status: 409 });
+    }
     const { data: deja } = await sb.from('missions_collaborateurs').select('id').eq('mission_id', mission_id).eq('collaborateur_id', collaborateur_id).maybeSingle();
     if (deja) return NextResponse.json({ error: 'Ce collaborateur a déjà cette mission' }, { status: 409 });
     const { error: errLien } = await sb.from('missions_collaborateurs').insert({ mission_id, collaborateur_id });

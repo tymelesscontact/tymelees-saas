@@ -20,7 +20,7 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
   const [showNouvelleMission, setShowNouvelleMission] = useState(false);
   const [missionForm, setMissionForm] = useState({
     client_nom: "", client_email: "", client_tel: "", date_mission: "",
-    heure_debut: "", heure_fin: "", adresse: "", notes: "", collaborateur_ids: [] as string[], bien_id: "",
+    heure_debut: "", duree: "", adresse: "", notes: "", collaborateur_ids: [] as string[], bien_id: "",
   });
   // Biens (logements) avec QR code de pointage
   const BIEN_VIDE = { id: "", nom: "", client_nom: "", type_bien: "", adresse: "", etage_porte: "", code_acces: "", code_boite_cles: "", emplacement_boite_cles: "", wifi: "", consignes: "", infos: "" };
@@ -120,19 +120,22 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
     document.body.appendChild(scriptJs);
   }, [onglet, positions]);
 
-  const creerMission = async () => {
+  const confirmerAlertes = (alertes: { message: string }[]) => window.confirm(`⚠️ Alerte légale de planning\n\n${alertes.map((a) => `• ${a.message}`).join("\n")}\n\nCes contrôles sont préventifs. Confirmer quand même ?`);
+
+  const creerMission = async (confirmer = false) => {
     if (!missionForm.date_mission || !missionForm.heure_debut) return showToast("⚠️ Date et heure necessaires");
     if (missionForm.collaborateur_ids.length === 0) return showToast("⚠️ Choisissez au moins un collaborateur");
     try {
       const r = await fetch("/api/planning-missions", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "creer", ...missionForm, company_id: activeCompany?.id || null, cree_par: "equipe" }),
+        body: JSON.stringify({ action: "creer", ...missionForm, confirmer_alertes: confirmer, company_id: activeCompany?.id || null, cree_par: "equipe" }),
       });
       const d = await r.json();
+      if (d.confirmation_requise) { if (confirmerAlertes(d.alertes_legales || [])) await creerMission(true); return; }
       if (d.success) {
         showToast("✅ Mission créée");
         setShowNouvelleMission(false);
-        setMissionForm({ client_nom: "", client_email: "", client_tel: "", date_mission: "", heure_debut: "", heure_fin: "", adresse: "", notes: "", collaborateur_ids: [], bien_id: "" });
+        setMissionForm({ client_nom: "", client_email: "", client_tel: "", date_mission: "", heure_debut: "", duree: "", adresse: "", notes: "", collaborateur_ids: [], bien_id: "" });
         charger();
       } else showToast("❌ " + (d.error || "Erreur"));
     } catch { showToast("❌ Erreur de connexion"); }
@@ -153,11 +156,12 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
     } catch { showToast("❌ Erreur"); }
   };
 
-  const affecterMission = async (m: any, collaborateurId: string) => {
+  const affecterMission = async (m: any, collaborateurId: string, confirmer = false) => {
     if (!collaborateurId) return;
     try {
-      const r = await fetch("/api/planning-missions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "affecter", mission_id: m.id, collaborateur_id: collaborateurId }) });
+      const r = await fetch("/api/planning-missions", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ action: "affecter", mission_id: m.id, collaborateur_id: collaborateurId, confirmer_alertes: confirmer }) });
       const d = await r.json().catch(() => ({}));
+      if (d.confirmation_requise) { if (confirmerAlertes(d.alertes_legales || [])) await affecterMission(m, collaborateurId, true); return; }
       if (!r.ok || d.error) { showToast("❌ " + (d.error === "reserve_au_proprietaire_ou_admin" ? "Réservé au propriétaire ou à un Admin" : (d.error || "Erreur"))); return; }
       const c = d.canal === "whatsapp" ? "WhatsApp" : d.canal === "email" ? "email" : d.canal === "sms" ? "SMS" : null;
       showToast(`✅ Mission confiée à ${d.collaborateur}${c ? ` — prévenu par ${c}` : " — non prévenu (ni téléphone ni email)"}`);
@@ -246,15 +250,16 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
     } catch { showToast("❌ Erreur de connexion"); setSuggestionsRempl([]); }
   };
 
-  const confirmerRemplacement = async (nouveau: any) => {
+  const confirmerRemplacement = async (nouveau: any, confirmer = false) => {
     if (!remplacement) return;
     setRemplEnCours(true);
     try {
       const r = await fetch("/api/planning-missions", {
         method: "POST", headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "remplacer", mission_id: remplacement.mission.id, ancien_id: remplacement.absence.employe_id, nouveau_id: nouveau.id, prevenir_client: prevenirClient }),
+        body: JSON.stringify({ action: "remplacer", mission_id: remplacement.mission.id, ancien_id: remplacement.absence.employe_id, nouveau_id: nouveau.id, prevenir_client: prevenirClient, confirmer_alertes: confirmer }),
       });
       const d = await r.json().catch(() => ({}));
+      if (d.confirmation_requise) { if (confirmerAlertes(d.alertes_legales || [])) await confirmerRemplacement(nouveau, true); return; }
       if (!r.ok || d.error) { showToast("❌ " + (d.error === "reserve_au_proprietaire_ou_admin" ? "Réservé au propriétaire ou à un Admin" : (d.error || "Remplacement impossible"))); setRemplEnCours(false); return; }
       const canal = (c: string | null) => c === "whatsapp" ? "WhatsApp" : c === "email" ? "email" : c === "sms" ? "SMS" : null;
       const info = [canal(d.canal_remplacant) ? `${d.remplacant} prévenu par ${canal(d.canal_remplacant)}` : `${d.remplacant} non prévenu (ni téléphone ni email joignable)`,
@@ -493,6 +498,7 @@ const PagePlanning = ({ plan, modulesActifs, showToast, profil, UpgradeWall, act
           <Inp value={missionForm.client_tel} onChange={(e: any) => setMissionForm((f) => ({ ...f, client_tel: e.target.value }))} placeholder="Téléphone" />
           <Inp type="date" value={missionForm.date_mission} onChange={(e: any) => setMissionForm((f) => ({ ...f, date_mission: e.target.value }))} />
           <Inp type="time" value={missionForm.heure_debut} onChange={(e: any) => setMissionForm((f) => ({ ...f, heure_debut: e.target.value }))} />
+          <Inp value={missionForm.duree} onChange={(e: any) => setMissionForm((f) => ({ ...f, duree: e.target.value }))} placeholder="Durée prévue (ex. 2h30)" />
           <Inp value={missionForm.adresse} onChange={(e: any) => setMissionForm((f) => ({ ...f, adresse: e.target.value }))} placeholder="Adresse" style={{ gridColumn: "1 / -1" }} />
         </div>
         <div style={{ marginBottom: 10 }}>

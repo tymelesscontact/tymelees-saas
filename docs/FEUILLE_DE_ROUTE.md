@@ -696,5 +696,6 @@ Audit lecture seule de `test` (diff vers `main`, typecheck, lint, build). Correc
 - `9880dc2` : promesses exactes sur la facture électronique (plus de « Factur-X conforme / Chorus Pro / DGFiP automatique »), Chorus Pro « en préparation », badge DGFiP « — » si inconnu, calendrier de la réforme corrigé.
 - `641a7dd` : mentions obligatoires sur le PDF (identité légale du vendeur, échéance, pénalités + 40 € en B2B, mention TVA 0 %).
 - `66dcf83` : avoirs (AV-AAAA-NNNN), adresse du client, numérotation sans doublon (index unique en base), « PDF » à l'écran = vrai PDF. SQL `2026-11-11-avoirs-adresse-client.sql` exécuté sur PROD (Claude) et TEST (Curtiss).
-- Contrôle PROD : TYMELESS (SAS) — capital social et ville du RCS non renseignés (obligatoires) → à saisir dans Paramètres → Entreprise.
-- Restent : raccordement à une plateforme agréée (avant 09/2027) ; RH : alertes légales du planning, notes de frais/km depuis l'app salarié ; mise en production de tout le lot (PR test → main).
+- Contrôle PROD : TYMELESS (SAS) — capital social (500 €) et ville du RCS (Orléans) renseignés dans Paramètres → Entreprise.
+- Mise en production : PR #35 `test` → `main` fusionnée (`8d5dce6`, 01:20:31) ; déploiement Vercel production « Ready » à 01:20:35 ; `xyraio.fr` répond HTTP 200.
+- Restent : raccordement à une plateforme agréée (avant 09/2027) ; RH : alertes légales du planning, notes de frais/km depuis l'app salarié.
