@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { createHash } from 'crypto';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { estAutoriseGererEquipe } from '../../lib/permissions';
 import { calculerFeuilleHeures, hhmm, type FeuilleHeures } from '../../lib/feuilleHeures';
 
@@ -83,6 +83,9 @@ export async function GET(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ error: 'non_connecte' }, { status: 401 });
   if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+  // Vue RH : forfait verifie cote serveur (module Equipe ou Planning). Le salarie garde sa propre feuille.
+  const acces = await verifierAccesModule(req, ['equipe', 'planning']);
+  if (!acces.ok) return acces.reponse;
   const feuilles = await feuillesDuTenant(tenantId, mois);
 
   if (searchParams.get('format') === 'csv') {
@@ -129,6 +132,9 @@ export async function POST(req: NextRequest) {
   const tenantId = await getTenantIdFromRequest(req);
   if (!tenantId) return NextResponse.json({ error: 'non_connecte' }, { status: 401 });
   if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+  // Vue RH : forfait verifie cote serveur (module Equipe ou Planning). Le salarie garde sa propre feuille.
+  const acces = await verifierAccesModule(req, ['equipe', 'planning']);
+  if (!acces.ok) return acces.reponse;
 
   if (action === 'email_comptable') {
     const email = String(body.email || '').trim().toLowerCase();

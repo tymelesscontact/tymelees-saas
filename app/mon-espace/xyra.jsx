@@ -537,6 +537,13 @@ export default function Xyra() {
           </button>
         </div>
       </div>}
+      {tenantStatut==="suspendu"&&plan!=="owner"&&<div style={{position:"fixed",inset:0,background:"#000000EE",display:"flex",alignItems:"center",justifyContent:"center",zIndex:99999}}>
+        <div style={{background:C.card,border:`1px solid ${C.red}44`,borderRadius:16,padding:36,maxWidth:440,textAlign:"center"}}>
+          <div style={{fontSize:40,marginBottom:12}}>⛔</div>
+          <div style={{fontSize:20,fontWeight:700,color:C.text,marginBottom:8,fontFamily:"Georgia,serif"}}>Compte suspendu</div>
+          <div style={{fontSize:13,color:C.muted,lineHeight:1.6}}>L’accès à ce compte a été suspendu. Contactez l’équipe Xyra pour en connaître la raison et le réactiver.</div>
+        </div>
+      </div>}
       <style>{`
         *{box-sizing:border-box;}
         ::-webkit-scrollbar{width:4px;height:4px;}

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { getTenantIdFromRequest, verifierAccesModule } from '../../lib/supabaseServer';
 import { estAutoriseGererEquipe, estProprietaireDuTenant } from '../../lib/permissions';
 
 export const dynamic = 'force-dynamic';
@@ -37,6 +37,9 @@ export async function GET(req: NextRequest) {
 
   if (action === 'aggregate') {
     if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
+    // Tableau de bord RH : forfait (module Equipe) verifie cote serveur. Le salarie qui repond garde son acces.
+    const acces = await verifierAccesModule(req, 'equipe');
+    if (!acces.ok) return acces.reponse;
     const estProprietaire = await estProprietaireDuTenant(req, tenantId);
 
     const { data: sixDerniersMois } = await sb.from('pulse_bienetre').select('mois,score').eq('tenant_id', tenantId);
@@ -104,6 +107,8 @@ export async function POST(req: NextRequest) {
 
   if (action === 'repondre_rh') {
     if (!(await estProprietaireDuTenant(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire' }, { status: 403 });
+    const acces = await verifierAccesModule(req, 'equipe');
+    if (!acces.ok) return acces.reponse;
     const { id, reponse } = body;
     if (!id || !reponse) return NextResponse.json({ error: 'id et reponse requis' }, { status: 400 });
     const { error } = await sb.from('pulse_bienetre').update({ reponse_rh: reponse, reponse_rh_le: new Date().toISOString() }).eq('id', id).eq('tenant_id', tenantId);

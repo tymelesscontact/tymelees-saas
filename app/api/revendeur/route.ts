@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { verifierAccesModule } from '../../lib/supabaseServer';
 import { urlRetourInvitation } from '../../lib/invitation';
 import { WHITE_LABEL_PAR_CLIENT, WHITE_LABEL_MAX_CLIENTS, PLAN_PRIX } from '../../lib/plans';
 
@@ -12,11 +12,12 @@ const sb = createClient(
 );
 
 // Retrouve le revendeur a partir du tenant connecte
+// (forfait revendeur verifie cote serveur : un compte retrograde ou suspendu n'y a plus acces)
 async function revendeurConnecte(req: NextRequest) {
-  const tenantId = await getTenantIdFromRequest(req);
-  if (!tenantId) return null;
+  const acces = await verifierAccesModule(req, 'revendeur');
+  if (!acces.ok) return null;
   const { data } = await sb.from('revendeurs')
-    .select('*').eq('tenant_id', tenantId).eq('statut', 'actif').maybeSingle();
+    .select('*').eq('tenant_id', acces.tenantId).eq('statut', 'actif').maybeSingle();
   return data || null;
 }
 

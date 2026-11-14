@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
-import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { verifierAccesModule } from '../../lib/supabaseServer';
 import { estAutoriseGererEquipe } from '../../lib/permissions';
 
 export const dynamic = 'force-dynamic';
@@ -44,8 +44,13 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ entreprise: { societe: tenant.societe, logo_url: tenant.logo_url, couleur_primaire: tenant.couleur_primaire, ville: tenant.ville }, offres: offres || [] });
   }
 
-  const tenantId = await getTenantIdFromRequest(req);
-  if (!tenantId) return NextResponse.json({ offres: [], candidatures: [] });
+  // Forfait verifie cote serveur (module Equipe) : la page carrieres publique ci-dessus reste ouverte.
+  const accesGet = await verifierAccesModule(req, 'equipe');
+  if (!accesGet.ok) {
+    if (accesGet.reponse.status === 401) return NextResponse.json({ offres: [], candidatures: [] });
+    return accesGet.reponse;
+  }
+  const tenantId = accesGet.tenantId;
 
   if (action === 'cv_url') {
     if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
@@ -103,8 +108,9 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ success: true, candidature: data });
   }
 
-  const tenantId = await getTenantIdFromRequest(req);
-  if (!tenantId) return NextResponse.json({ error: 'non_autorise' }, { status: 401 });
+  const accesPost = await verifierAccesModule(req, 'equipe');
+  if (!accesPost.ok) return accesPost.reponse;
+  const tenantId = accesPost.tenantId;
   if (!(await estAutoriseGererEquipe(req, tenantId))) return NextResponse.json({ error: 'reserve_au_proprietaire_ou_admin' }, { status: 403 });
   const body = await req.json();
   const { action } = body;

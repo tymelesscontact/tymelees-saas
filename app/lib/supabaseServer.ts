@@ -61,6 +61,26 @@ export async function verifierAccesModule(req: NextRequest, page: string | strin
     return { ok: false as const, reponse: NextResponse.json({ error: "Non authentifie" }, { status: 401 }) }
   }
   const plan = normaliserPlan(tenant.plan)
+  // Forfait servant a ouvrir les modules (l'essai ouvre tout). Les quotas (ex. minutes Lea)
+  // restent calcules sur le vrai forfait renvoye dans `plan`.
+  let planAcces = plan
+
+  // Statut du compte : meme regle que l'interface (mon-espace/xyra.jsx). Le compte owner
+  // de la plateforme n'est jamais bloque.
+  if (plan !== "owner") {
+    if (tenant.statut === "suspendu") {
+      return { ok: false as const, reponse: NextResponse.json({ error: "Compte suspendu", code: "compte_suspendu" }, { status: 403 }) }
+    }
+    if (tenant.statut === "essai") {
+      const essaiFini = !!tenant.trial_ends_at && new Date(tenant.trial_ends_at).getTime() < Date.now()
+      if (essaiFini) {
+        return { ok: false as const, reponse: NextResponse.json({ error: "Votre essai est terminé", code: "essai_expire" }, { status: 402 }) }
+      }
+      // Pendant l'essai, l'interface ouvre tout (Enterprise) : le serveur doit faire pareil,
+      // sinon les modules affiches repondent "non inclus dans votre forfait".
+      planAcces = "enterprise"
+    }
+  }
 
   let modulesActifs: string[] = []
   try {
@@ -73,7 +93,7 @@ export async function verifierAccesModule(req: NextRequest, page: string | strin
   } catch { /* non bloquant */ }
 
   const pages = Array.isArray(page) ? page : [page]
-  const autorise = pages.some(p => hasAccess(plan, p, modulesActifs))
+  const autorise = pages.some(p => hasAccess(planAcces, p, modulesActifs))
   if (!autorise) {
     return { ok: false as const, reponse: NextResponse.json({ error: "Ce module n'est pas inclus dans votre forfait" }, { status: 403 }) }
   }
