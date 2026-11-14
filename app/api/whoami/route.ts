@@ -41,6 +41,7 @@ export async function GET(req: NextRequest) {
   let deuxFaActif = false
   let isProprietaireTenant = false
   let peutSignerDevisManuel = false
+  let isClientPortail = false
   if (!isCollaborateur) {
     const activeTenantId = req.cookies.get('active_tenant_id')?.value
     const { data: membres } = await sb.from('tenant_membres').select('tenant_id,role').eq('user_id', userData.user.id)
@@ -52,6 +53,13 @@ export async function GET(req: NextRequest) {
       deuxFaActif = !!t?.deux_fa_actif
     }
     if (membre?.role === 'owner') { isProprietaireTenant = true; peutSignerDevisManuel = true }
+    // Client d'une entreprise (invite depuis sa fiche client) : ni owner, ni salarie, ni membre
+    // d'une entreprise, email confirme et present dans la table clients -> espace client.
+    const email = userData.user.email?.trim().toLowerCase()
+    if (!isOwner && (!membres || membres.length === 0) && email && userData.user.email_confirmed_at) {
+      const { data: fiche } = await sb.from('clients').select('id').ilike('email', email.replace(/[\\%_]/g, (c) => '\\' + c)).limit(1).maybeSingle()
+      isClientPortail = !!fiche
+    }
   } else if (employeId) {
     const { data: monEquipeSignature } = await sb.from('equipe').select('peut_signer_devis,tenant_id').eq('id', employeId).maybeSingle()
     peutSignerDevisManuel = !!monEquipeSignature?.peut_signer_devis
@@ -63,5 +71,5 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  return NextResponse.json({ isOwner, isCollaborateur, employeId, email: userData.user.email, profil: profilCollaborateur, deuxFaActif, isProprietaireTenant, peutSignerDevisManuel })
+  return NextResponse.json({ isOwner, isCollaborateur, employeId, email: userData.user.email, profil: profilCollaborateur, deuxFaActif, isProprietaireTenant, peutSignerDevisManuel, isClientPortail })
 }

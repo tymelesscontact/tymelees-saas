@@ -4,6 +4,7 @@ import { estAutoriseGererEquipe } from '../../lib/permissions';
 import { createClient } from '@supabase/supabase-js';
 import { envoyerWhatsApp } from '../../lib/whatsapp';
 import { echapHtml } from '../../lib/walletValidation';
+import { urlRetourInvitation } from '../../lib/invitation';
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 const sb = createClient(
@@ -111,6 +112,50 @@ export async function POST(req: NextRequest) {
       });
     } catch (e) { /* non bloquant */ }
     return NextResponse.json({ success: true, client: data });
+  }
+
+  // Acces a l'espace client (/espace-client) : invitation par email, sur le modele des partenaires.
+  // Pas de colonne dediee : le bouton peut servir a renvoyer l'acces.
+  if (action === 'inviter_portail') {
+    if (!tenantId) return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
+    const { id } = body;
+    if (!UUID_RE.test(String(id || ''))) return NextResponse.json({ error: 'Client introuvable' }, { status: 404 });
+    const { data: c } = await sb.from('clients').select('id,nom,email').eq('id', id).eq('tenant_id', tenantId).maybeSingle();
+    if (!c) return NextResponse.json({ error: 'Client introuvable' }, { status: 404 });
+    const email = String(c.email || '').trim().toLowerCase();
+    if (!/^[^\s@<>"']+@[^\s@<>"']+\.[^\s@<>"']+$/.test(email)) return NextResponse.json({ error: 'Email manquant ou invalide pour ce client' }, { status: 400 });
+    const { data: t } = await sb.from('tenants').select('societe').eq('id', tenantId).maybeSingle();
+    const societe = echapHtml(t?.societe || 'votre prestataire');
+    const nom = echapHtml(c.nom || '');
+    const origine = req.nextUrl.origin;
+
+    let lien: string | null = null;
+    let compteExistant = false;
+    const { data: invite, error: errInvite } = await sb.auth.admin.generateLink({ type: 'invite', email, options: { redirectTo: urlRetourInvitation(origine) } });
+    if (errInvite) {
+      // Deja un compte Xyra avec cet email : on l'invite simplement a se connecter.
+      if (/already|registered|exists/i.test(errInvite.message || '')) compteExistant = true;
+      else return NextResponse.json({ error: "Échec de la création de l'accès" }, { status: 500 });
+    } else {
+      lien = (invite as any)?.properties?.action_link || null;
+    }
+
+    const corps = compteExistant
+      ? `<p>Bonjour ${nom},</p><p>${societe} vous donne accès à votre espace client Xyra : devis, factures, missions et contrats.</p><p>Vous avez déjà un compte avec cette adresse : <a href="${origine}/login">connectez-vous ici</a>.</p>`
+      : `<p>Bonjour ${nom},</p><p>${societe} vous donne accès à votre espace client Xyra : devis, factures, missions et contrats.</p>${lien ? `<p><a href="${lien}">Cliquez ici pour créer votre mot de passe</a>, puis connectez-vous.</p>` : ''}`;
+    try {
+      const { Resend } = await import('resend');
+      const resend = new Resend(process.env.RESEND_API_KEY);
+      const { error: errEnvoi } = await resend.emails.send({
+        from: 'Xyra <notifications@xyraio.fr>', to: email,
+        subject: `Votre espace client ${(t?.societe || 'Xyra').replace(/[\r\n]+/g, ' ')}`,
+        html: `<div style="font-family:sans-serif;padding:24px;">${corps}</div>`,
+      });
+      if (errEnvoi) return NextResponse.json({ error: 'Envoi refusé : ' + errEnvoi.message }, { status: 502 });
+    } catch (e: any) {
+      return NextResponse.json({ error: 'Envoi impossible' }, { status: 502 });
+    }
+    return NextResponse.json({ success: true, compteExistant });
   }
 
   if (action === 'toggle_vip') {

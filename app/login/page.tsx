@@ -71,7 +71,7 @@ export default function LoginPage() {
 
         const res = await fetch("/api/whoami");
         const who = await res.json();
-        const cible = who.isOwner ? "/dashboard" : who.isCollaborateur ? "/espace-equipe" : "/mon-espace";
+        const cible = who.isOwner ? "/dashboard" : who.isCollaborateur ? "/espace-equipe" : who.isClientPortail ? "/espace-client" : "/mon-espace";
         const userId = data.user?.id;
         if (who.deuxFaActif) {
           setDestination2FA(cible);

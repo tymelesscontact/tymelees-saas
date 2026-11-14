@@ -90,6 +90,17 @@ const PageClients=({plan, modulesActifs,showToast,profil,setPage,UpgradeWall,act
     }catch(e){showToast("❌ Erreur de connexion");}
   };
 
+  const inviterPortail=async(c)=>{
+    if(!c.email)return showToast("⚠️ Aucun email renseigné pour ce client");
+    showToast(`⏳ Envoi de l'accès au portail à ${c.nom}...`);
+    try{
+      const res=await fetch('/api/clients',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({action:'inviter_portail',id:c.id})});
+      const data=await res.json();
+      if(data.success)showToast(data.compteExistant?`✅ ${c.nom} a déjà un compte : invitation à se connecter envoyée`:`✅ Accès au portail envoyé à ${c.nom} par email`);
+      else showToast("❌ "+(data.error||"Erreur"));
+    }catch(e){showToast("❌ Erreur de connexion");}
+  };
+
   const creerDevisPour=(c)=>{
     showToast(`📋 Sélectionne ${c.nom} dans le nouveau devis`);
     setPage&&setPage("devis");
@@ -170,6 +181,7 @@ const PageClients=({plan, modulesActifs,showToast,profil,setPage,UpgradeWall,act
             <Btn onClick={()=>creerDevisPour(sel)} style={{fontSize:11,background:C.blue}}>◧ Créer devis</Btn>
             <BtnGhost onClick={()=>envoyerEmail(sel,"Je reviens vers vous concernant votre dossier.","Suivi de votre dossier")} style={{fontSize:11}}>📧 Email</BtnGhost>
             <BtnGhost onClick={()=>toggleVip(sel)} style={{fontSize:11,color:C.gold,borderColor:`${C.gold}44`}}>{sel.vip?"Retirer VIP":"⭐ Mettre VIP"}</BtnGhost>
+            <BtnGhost onClick={()=>inviterPortail(sel)} style={{fontSize:11,color:C.purple,borderColor:`${C.purple}44`,gridColumn:"1 / -1"}}>🔑 Envoyer l&apos;accès au portail client</BtnGhost>
           </div>
         </Card>
       </div>:<Card style={{textAlign:"center",padding:40}}><div style={{fontSize:32,marginBottom:8}}>👆</div><div style={{color:C.muted,fontSize:12}}>Clique sur un client pour voir sa fiche</div></Card>}
