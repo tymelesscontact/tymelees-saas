@@ -108,10 +108,17 @@ export async function POST(req: NextRequest) {
     if (!enCours) return NextResponse.json({ success: false, error: 'Aucun code en attente' }, { status: 400 });
     if (new Date(enCours.expire_le) < new Date()) return NextResponse.json({ success: false, error: 'Code expire, redemandez-en un' }, { status: 400 });
     if (enCours.tentatives >= ESSAIS_MAX) return NextResponse.json({ success: false, error: 'Trop d\'essais, redemandez un code' }, { status: 429 });
+    // Chaque essai est compte AVANT la comparaison, et de facon atomique : sans cela, des centaines de
+    // requetes envoyees en meme temps lisent toutes "0 essai" et contournent la limite des 5 essais.
+    const { data: essaiCompte } = await sb.from('deux_fa_codes')
+      .update({ tentatives: enCours.tentatives + 1 })
+      .eq('user_id', userId).eq('tentatives', enCours.tentatives).select('user_id');
+    if (!essaiCompte || essaiCompte.length === 0) {
+      return NextResponse.json({ success: false, error: 'Trop de tentatives simultanees, reessayez' }, { status: 429 });
+    }
     const attendu = Buffer.from(enCours.code_hash);
     const recu = Buffer.from(hacherCode(userId, code));
     if (attendu.length !== recu.length || !timingSafeEqual(attendu, recu)) {
-      await sb.from('deux_fa_codes').update({ tentatives: enCours.tentatives + 1 }).eq('user_id', userId);
       return NextResponse.json({ success: false, error: 'Code incorrect' }, { status: 400 });
     }
     await sb.from('deux_fa_codes').delete().eq('user_id', userId);

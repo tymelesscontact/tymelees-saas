@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { Vibrant } from 'node-vibrant/node';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
+import { verifierUrlExterne, telechargerLogoSecurise } from '../../lib/urlExterne';
 const sb = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!
@@ -21,9 +22,14 @@ export async function POST(req: NextRequest) {
   if (!tenantId) return NextResponse.json({ success: false, error: 'Session invalide' }, { status: 401 });
   if (action === 'upload_logo') {
     if (!logo_url) return NextResponse.json({ success: false, error: 'logo_url requis' }, { status: 400 });
+    // L'adresse est rappelee par le serveur a chaque PDF : jamais d'adresse interne ou invalide.
+    const verifLogo = await verifierUrlExterne(logo_url);
+    if (!verifLogo.ok) return NextResponse.json({ success: false, error: verifLogo.raison }, { status: 400 });
     let couleurs = { couleur_primaire: '#C9A84C', couleur_secondaire: '#0A0A16', couleur_accent: '#2EC9B0' };
     try {
-      const palette = await Vibrant.from(logo_url).getPalette();
+      const logoBuf = await telechargerLogoSecurise(logo_url);
+      if (!logoBuf) throw new Error('logo non telechargeable en toute securite');
+      const palette = await Vibrant.from(logoBuf).getPalette();
       const primaire = palette.Vibrant?.hex || palette.DarkVibrant?.hex;
       const secondaire = palette.DarkMuted?.hex || palette.Muted?.hex;
       const accent = palette.LightVibrant?.hex || palette.Vibrant?.hex;
@@ -34,7 +40,7 @@ export async function POST(req: NextRequest) {
       console.error('Extraction couleurs:', e);
     }
     const { error } = await sb.from('tenants').update({ logo_url, ...couleurs }).eq('id', tenantId);
-    if (error) return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    if (error) { console.error('Branding logo:', error); return NextResponse.json({ success: false, error: 'Erreur serveur' }, { status: 500 }); }
     return NextResponse.json({ success: true, ...couleurs });
   }
   if (action === 'maj_couleurs') {

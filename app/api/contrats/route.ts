@@ -1,3 +1,4 @@
+import { telechargerLogoSecurise } from '../../lib/urlExterne';
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import crypto from 'crypto';
@@ -47,8 +48,7 @@ async function genererPdfContrat(contrat: any, tenantInfo: { societe?: string | 
   let logoBuffer: Buffer | null = null;
   if (tenantInfo?.logo_url) {
     try {
-      const res = await fetch(tenantInfo.logo_url);
-      if (res.ok) logoBuffer = Buffer.from(await res.arrayBuffer());
+      logoBuffer = await telechargerLogoSecurise(tenantInfo.logo_url);
     } catch (e) {
       console.error('Logo contrat, telechargement echoue:', e);
     }

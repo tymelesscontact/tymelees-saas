@@ -34,13 +34,18 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ success: true, dejaSigne: true })
     }
 
+    if (devisRow.statut === "refusé") {
+      return NextResponse.json({ success: false, error: "Devis refusé" }, { status: 409 })
+    }
+
     const { error: updateErr } = await supabase
       .from("devis")
       .update({ statut: "signé" })
       .eq("id", devisRow.id)
 
     if (updateErr) {
-      return NextResponse.json({ success: false, error: updateErr.message }, { status: 500 })
+      console.error("Signature devis:", updateErr)
+      return NextResponse.json({ success: false, error: "Erreur serveur" }, { status: 500 })
     }
 
     if (devisRow.tenant_id) {
@@ -65,12 +70,13 @@ export async function POST(req: NextRequest) {
     let compteCree = false
     if (devisRow.client_email) {
       try {
-        await supabase.auth.admin.createUser({
+        const { error: errCompte } = await supabase.auth.admin.createUser({
           email: devisRow.client_email,
           email_confirm: true,
           user_metadata: { societe: nom || devisRow.client_email },
         })
-        compteCree = true
+        compteCree = !errCompte
+        if (errCompte) console.log("Compte client non cree (existe probablement deja):", errCompte.message)
       } catch (e) {
         console.log("Utilisateur existe probablement deja:", e)
       }

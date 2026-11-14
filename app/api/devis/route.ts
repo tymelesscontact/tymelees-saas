@@ -221,6 +221,20 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ success: false, error: "montant_invalide" }, { status: 400 })
     }
 
+    // Un devis signe ou paye est un engagement : contenu et statut ne se modifient plus
+    // (seule exception : passer un devis signe a "paye", sans autre changement).
+    const { data: devisActuel } = await supabase
+      .from("devis")
+      .select("statut")
+      .eq("id", id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle()
+    if (devisActuel && (devisActuel.statut === "signé" || devisActuel.statut === "payé")) {
+      const seulementPasserPaye = devisActuel.statut === "signé" && Object.keys(champs).length === 1 && champs.statut === "payé"
+      if (!seulementPasserPaye) {
+        return NextResponse.json({ success: false, error: "devis_verrouille" }, { status: 409 })
+      }
+    }
     if (champs.statut === "signé" && !(await estAutoriseSignerDevisManuel(req, tenantId))) {
       return NextResponse.json({ success: false, error: "reserve_au_proprietaire_ou_autorise" }, { status: 403 })
     }
@@ -232,7 +246,7 @@ export async function PATCH(req: NextRequest) {
       .select("id")
     if (error) {
       console.error("Erreur modification devis:", error)
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+      return NextResponse.json({ success: false, error: "Erreur serveur" }, { status: 500 })
     }
     if (!data || data.length === 0) {
       return NextResponse.json({ success: false, error: "Devis introuvable" }, { status: 404 })
@@ -248,6 +262,7 @@ export async function PATCH(req: NextRequest) {
         .from("devis")
         .select("reference,client_nom,client_email,client_tel,client_adresse,service,description,montant,taux_tva,remise,lignes,created_at,expire_le,tenant_snapshot")
         .eq("id", id)
+        .eq("tenant_id", tenantId)
         .maybeSingle()
       if (devisComplet) {
         const ts: any = devisComplet.tenant_snapshot || {}
@@ -295,6 +310,16 @@ export async function DELETE(req: NextRequest) {
     if (!id) {
       return NextResponse.json({ success: false, error: "id manquant" }, { status: 400 })
     }
+    // Un devis signe ou paye ne se supprime pas (preuve de l'engagement du client).
+    const { data: devisASupprimer } = await supabase
+      .from("devis")
+      .select("statut")
+      .eq("id", id)
+      .eq("tenant_id", tenantId)
+      .maybeSingle()
+    if (devisASupprimer && (devisASupprimer.statut === "signé" || devisASupprimer.statut === "payé")) {
+      return NextResponse.json({ success: false, error: "devis_verrouille" }, { status: 409 })
+    }
     const { data, error } = await supabase
       .from("devis")
       .delete()
@@ -303,7 +328,7 @@ export async function DELETE(req: NextRequest) {
       .select("id")
     if (error) {
       console.error("Erreur suppression devis:", error)
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 })
+      return NextResponse.json({ success: false, error: "Erreur serveur" }, { status: 500 })
     }
     if (!data || data.length === 0) {
       return NextResponse.json({ success: false, error: "Devis introuvable" }, { status: 404 })

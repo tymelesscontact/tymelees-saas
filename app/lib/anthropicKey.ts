@@ -7,7 +7,10 @@ const sb = createClient(
 );
 
 function cleChiffrement(): Buffer {
-  const secret = process.env.ENCRYPTION_KEY || '';
+  const secret = process.env.ENCRYPTION_KEY;
+  // Sans cle (ou avec une cle trop courte), le chiffrement serait previsible : on refuse plutot que
+  // de proteger les cles API des clients avec une cle vide connue de tous.
+  if (!secret || secret.length < 16) throw new Error('ENCRYPTION_KEY absente ou trop courte');
   return crypto.createHash('sha256').update(secret).digest();
 }
 

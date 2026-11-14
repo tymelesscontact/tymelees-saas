@@ -88,6 +88,8 @@ export async function POST(req: NextRequest) {
 
   if (action === 'modifier') {
     const { id, ...fields } = body;
+    // Champs techniques jamais modifiables depuis l'ecran (rattachement entreprise/compte)
+    for (const champ of ['action', 'id', 'tenant_id', 'user_id', 'created_at']) delete (fields as any)[champ];
     fields.updated_at = new Date().toISOString();
     const { error } = await sb.from('stock').update(fields).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });

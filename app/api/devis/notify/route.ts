@@ -1,3 +1,4 @@
+import { telechargerLogoSecurise } from '../../../lib/urlExterne'
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { getTenantIdFromRequest } from '../../../lib/supabaseServer';
@@ -28,8 +29,7 @@ async function genererPdfDevis(devis: any): Promise<Buffer> {
   let logoBuffer: Buffer | null = null
   if (ts.logo_url) {
     try {
-      const res = await fetch(ts.logo_url)
-      if (res.ok) logoBuffer = Buffer.from(await res.arrayBuffer())
+      logoBuffer = await telechargerLogoSecurise(ts.logo_url)
     } catch (e) {
       console.error('Logo devis, telechargement echoue:', e)
     }
@@ -205,8 +205,10 @@ export async function POST(req: NextRequest) {
 
     const results: { email: boolean; whatsapp: boolean } = { email: false, whatsapp: false };
 
+    // Le contenu du devis est saisi par l'entreprise et lu par un tiers : jamais de HTML brut dans l'email.
+    const echap = (v: unknown) => String(v ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     const lignesHtml = (lignes || [])
-      .map((l: any) => `<tr><td style="padding:8px 0;border-bottom:1px solid #1E1E3633;">${l.desc}</td><td style="padding:8px 0;text-align:center;border-bottom:1px solid #1E1E3633;">${l.qte}</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #1E1E3633;">${l.pu}€</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #1E1E3633;">${(l.qte * l.pu).toFixed(2)}€</td></tr>`)
+      .map((l: any) => `<tr><td style="padding:8px 0;border-bottom:1px solid #1E1E3633;">${echap(l.desc)}</td><td style="padding:8px 0;text-align:center;border-bottom:1px solid #1E1E3633;">${echap(l.qte)}</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #1E1E3633;">${echap(l.pu)}€</td><td style="padding:8px 0;text-align:right;border-bottom:1px solid #1E1E3633;">${(Number(l.qte) * Number(l.pu) || 0).toFixed(2)}€</td></tr>`)
       .join('');
 
     // ── ENVOI EMAIL via Resend ──────────────────────────────
@@ -217,21 +219,21 @@ export async function POST(req: NextRequest) {
         await resend.emails.send({
           from: 'Xyra <notifications@xyraio.fr>',
           to: email,
-          subject: `Votre devis ${reference} — ${service}`,
+          subject: `Votre devis ${reference} — ${String(service ?? '').replace(/[\r\n]+/g, ' ')}`,
           html: `
             <div style="font-family:'Segoe UI',sans-serif;background:#06060E;color:#EAE6DE;padding:40px;max-width:600px;margin:0 auto;">
               <h1 style="font-size:24px;font-weight:300;letter-spacing:0.15em;color:#C9A84C;font-family:Georgia,serif;text-align:center;">XYRA</h1>
               <div style="background:#0C0C1A;border:1px solid #1E1E36;padding:28px;margin:24px 0;">
-                <h2 style="font-size:18px;font-weight:600;margin-bottom:4px;">Devis ${reference}</h2>
-                <p style="color:#5A5A7A;font-size:12px;margin-bottom:20px;">Pour ${client} · ${service}</p>
+                <h2 style="font-size:18px;font-weight:600;margin-bottom:4px;">Devis ${echap(reference)}</h2>
+                <p style="color:#5A5A7A;font-size:12px;margin-bottom:20px;">Pour ${echap(client)} · ${echap(service)}</p>
                 <table style="width:100%;border-collapse:collapse;font-size:13px;">
                   <tr><th style="text-align:left;padding-bottom:8px;color:#5A5A7A;">Description</th><th style="padding-bottom:8px;color:#5A5A7A;">Qté</th><th style="text-align:right;padding-bottom:8px;color:#5A5A7A;">PU</th><th style="text-align:right;padding-bottom:8px;color:#5A5A7A;">Total</th></tr>
                   ${lignesHtml}
                 </table>
-                <div style="text-align:right;margin-top:16px;font-size:18px;font-weight:700;color:#C9A84C;">Total : ${montant}€</div>
-                ${note ? `<p style="margin-top:16px;font-size:12px;color:#5A5A7A;">${note}</p>` : ''}
+                <div style="text-align:right;margin-top:16px;font-size:18px;font-weight:700;color:#C9A84C;">Total : ${echap(montant)}€</div>
+                ${note ? `<p style="margin-top:16px;font-size:12px;color:#5A5A7A;">${echap(note)}</p>` : ''}
               </div>
-              ${lienSignature ? `<p style="text-align:center;margin-top:20px;"><a href="${lienSignature}" style="background:#C9A84C;color:#000;padding:12px 28px;text-decoration:none;font-weight:700;border-radius:6px;display:inline-block;">Consulter et signer le devis</a></p>` : ''}
+              ${lienSignature ? `<p style="text-align:center;margin-top:20px;"><a href="${echap(lienSignature)}" style="background:#C9A84C;color:#000;padding:12px 28px;text-decoration:none;font-weight:700;border-radius:6px;display:inline-block;">Consulter et signer le devis</a></p>` : ''}
             </div>
           `,
           attachments: pdfBuffer ? [{ filename: `Devis-${reference}.pdf`, content: pdfBuffer.toString('base64') }] : undefined,

@@ -124,6 +124,8 @@ export async function POST(req: NextRequest) {
   if (action === 'modifier') {
     if (!tenantId) return NextResponse.json({ error: 'Session invalide' }, { status: 401 });
     const { id, ...fields } = body;
+    // Champs techniques jamais modifiables depuis l'ecran (rattachement entreprise/compte)
+    for (const champ of ['action', 'id', 'tenant_id', 'user_id', 'created_at']) delete (fields as any)[champ];
     const { error } = await sb.from('clients').update(fields).eq('id', id).eq('tenant_id', tenantId);
     if (error) return NextResponse.json({ error: error.message }, { status: 500 });
     return NextResponse.json({ success: true });

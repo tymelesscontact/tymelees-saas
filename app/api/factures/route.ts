@@ -1,3 +1,4 @@
+import { telechargerLogoSecurise } from '../../lib/urlExterne';
 import { NextRequest, NextResponse } from 'next/server';
 import { getTenantIdFromRequest } from '../../lib/supabaseServer';
 import { createClient } from '@supabase/supabase-js';
@@ -33,8 +34,7 @@ async function genererPdfFacture(facture: any): Promise<Buffer> {
   let logoBuffer: Buffer | null = null;
   if (logoUrl) {
     try {
-      const res = await fetch(logoUrl);
-      if (res.ok) logoBuffer = Buffer.from(await res.arrayBuffer());
+      logoBuffer = await telechargerLogoSecurise(logoUrl);
     } catch (e) {
       console.error('Logo facture, telechargement echoue:', e);
     }

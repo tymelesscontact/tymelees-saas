@@ -42,3 +42,46 @@ export async function verifierUrlExterne(url: unknown): Promise<{ ok: true } | {
   if (adresses.length === 0 || adresses.some(adresseInterdite)) return { ok: false, raison: 'Adresse interne refusée' };
   return { ok: true };
 }
+
+// Telecharge un logo distant sans jamais appeler le reseau interne : chaque adresse
+// (y compris apres redirection) est verifiee, 3 redirections maximum, delai de 5 s,
+// 2 Mo maximum, uniquement PNG ou JPEG (les seuls formats que les PDF savent afficher).
+// Renvoie null si le logo ne peut pas etre recupere en toute securite : le document
+// est alors genere sans logo.
+const TAILLE_MAX_LOGO = 2_000_000;
+
+export async function telechargerLogoSecurise(url: unknown): Promise<Buffer | null> {
+  try {
+    let adresse = typeof url === 'string' ? url : '';
+    for (let saut = 0; saut <= 3; saut++) {
+      const verif = await verifierUrlExterne(adresse);
+      if (!verif.ok) return null;
+      const res = await fetch(adresse, { redirect: 'manual', signal: AbortSignal.timeout(5000) });
+      if (res.status >= 300 && res.status < 400) {
+        const suite = res.headers.get('location');
+        if (!suite) return null;
+        adresse = new URL(suite, adresse).toString();
+        continue;
+      }
+      if (!res.ok) return null;
+      const type = (res.headers.get('content-type') || '').toLowerCase();
+      if (!/^image\/(png|jpe?g)/.test(type)) return null;
+      if (Number(res.headers.get('content-length') || 0) > TAILLE_MAX_LOGO) return null;
+      const lecteur = res.body?.getReader();
+      if (!lecteur) return null;
+      const morceaux: Uint8Array[] = [];
+      let total = 0;
+      for (;;) {
+        const { done, value } = await lecteur.read();
+        if (done) break;
+        total += value.length;
+        if (total > TAILLE_MAX_LOGO) { await lecteur.cancel(); return null; }
+        morceaux.push(value);
+      }
+      return Buffer.concat(morceaux);
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}

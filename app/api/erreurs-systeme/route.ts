@@ -8,7 +8,17 @@ function getAdminClient() {
   return createClient(url, key);
 }
 
+// Journal technique de toute la plateforme : reserve au proprietaire (meme regle que /api/abonnes).
+async function estProprietairePlateforme(req: NextRequest): Promise<boolean> {
+  const token = req.cookies.get('sb-access-token')?.value;
+  const ownerEmail = process.env.OWNER_EMAIL?.toLowerCase();
+  if (!token || !ownerEmail) return false;
+  const { data } = await getAdminClient().auth.getUser(token);
+  return !!data?.user?.email && data.user.email.toLowerCase() === ownerEmail;
+}
+
 export async function GET(req: NextRequest) {
+  if (!(await estProprietairePlateforme(req))) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
   const sb = getAdminClient();
   const { data, error } = await sb
     .from('erreurs_systeme')
@@ -21,6 +31,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  if (!(await estProprietairePlateforme(req))) return NextResponse.json({ error: 'Interdit' }, { status: 403 });
   const sb = getAdminClient();
   const body = await req.json();
   const { action } = body;
